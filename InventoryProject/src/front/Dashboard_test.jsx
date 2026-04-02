@@ -12,9 +12,11 @@ const IntegratedDashboard = () => {
       </header>
 
       <div className="dashboard-content">
+        
         {/* Sidebar/Nav on the left */}
         <nav className="dashboard-nav">
           <ul>
+            
             <li className={activeTab === 'Overview' ? 'active' : ''} onClick={() => setActiveTab('Overview')}>Overview</li>
             <li className={activeTab === 'Inventory' ? 'active' : ''} onClick={() => setActiveTab('Inventory')}>Inventory</li>
             <li className={activeTab === 'Orders' ? 'active' : ''} onClick={() => setActiveTab('Orders')}>Orders</li>

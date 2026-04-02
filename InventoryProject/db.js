@@ -1,13 +1,7 @@
 import 'dotenv/config'
-import postgres from 'postgres'
-import pg from 'pg'
-import process from 'process'
+import { createClient } from '@supabase/supabase-js';
 
-// Use pg for connection pooling
-const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL
-})
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_DEFAULT_KEY;
 
-const sql = postgres(pool)
-
-export default sql
+export const supabase = createClient(supabaseUrl, supabaseKey);
