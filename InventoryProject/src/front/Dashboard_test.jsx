@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import '../CSS/Dashboard_test.css';
+import POS from './POS';
 
 const IntegratedDashboard = () => {
   const [activeTab, setActiveTab] = useState('Dashboard');
@@ -23,7 +24,7 @@ const IntegratedDashboard = () => {
           {/* Temporary content on the right */}
           <main className="dashboard-main">
             {activeTab === 'Dashboard' && <div>Dashboard Content</div>}
-            {activeTab === 'POS' && <div>Point of Sale Content</div>}
+            {activeTab === 'POS' && <POS />}
             {activeTab === 'Inventory' && <div>Inventory Content</div>}
             {activeTab === 'Suppliers' && <div>Suppliers Content</div>}
             {activeTab === 'Reports' && <div>Reports Content</div>}
