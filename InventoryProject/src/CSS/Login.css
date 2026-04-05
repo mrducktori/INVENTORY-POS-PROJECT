@@ -1,21 +1,33 @@
 button {
-    background-color: var(--primary);
-    color: var(--text-h);
-    border: none;
+    background-color: darkgray;
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    border: 1px solid #ccc;
     border-radius: 4px;
+    box-shadow: 0 2px 3px rgba(0,0,0,0.1);
     padding: 10px;
     font-size: 16px;
     cursor: pointer;
     transition: background-color 0.3s ease;
 }
+div.login-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
 
 div.login-container {
+    border: 2px solid black;
+    border-radius: 10px;
+    padding: 20px;
     display: flex;
+    height: min-content;
+    width: min-content;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    height: 100vh;
-    background-color: var(--background);
+    background-color: #f9f9f9;
 }
 
 input {
@@ -23,8 +35,9 @@ input {
     padding: 10px;
     margin: 2px 0;
     box-sizing: border-box;
-    border: 1px solid var(--border);
+    border: 1px solid #ccc;
     border-radius: 4px;
+    background-color: #f3f3f3;
 }
 
 form {
@@ -38,12 +51,8 @@ label {
     text-align: left;
 }
 
-button{
-    background-color: blue;
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-}
 
 button:hover {
-    background-color: var(--primary-hover);
+    background-color: #3498db;
+    color: white;
 }   
