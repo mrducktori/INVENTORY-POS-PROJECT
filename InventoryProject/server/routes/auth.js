@@ -1,45 +1,45 @@
-import { useState } from 'react';
-import '../CSS/Login.css';
-import App from './Dashboard_test';
+import express from "express";
+import { supabase } from "../../db.js";
 
-function Login() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+const router = express.Router();
 
-  const clearLogin = () => {
-    const usernameInput = document.getElementById('username');
-    const passwordInput = document.getElementById('password');
-    if (usernameInput) usernameInput.value = '';
-    if (passwordInput) passwordInput.value = '';
-    
-  };
+router.post("/login", async (req, res) => {
+  try {
+    const { username, password } = req.body;
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    setIsLoggedIn(true);
-    clearLogin();
-  };
+    // Validate input
+    if (!username || !password) {
+      return res.status(400).json({ error: "Username and password required" });
+    }
 
-  if (isLoggedIn) {
-    return <App /> ;
+    // Query users table for user
+    const { data, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("username", username)
+      .single();
+
+    if (error || !data) {
+      return res.status(401).json({ error: "Invalid username or password" });
+    }
+
+    // Check if user is active
+    if (data.status !== "ACTIVE") {
+      return res.status(401).json({ error: "User account is not active" });
+    }
+
+    // Compare password with hash (direct comparison - use bcrypt for production)
+    if (data.password_hash !== password) {
+      return res.status(401).json({ error: "Invalid username or password" });
+    }
+
+    // Return user without password_hash
+    const { password_hash, ...userWithoutPassword } = data;
+    res.json(userWithoutPassword);
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
+});
 
-
-  return (
-      <div className="login-container" >
-        <h2>Login</h2>
-        <form onSubmit={handleSubmit}>
-          <label htmlFor="username">Username:</label>
-          <input type="text" id="username" name="username" required />
-          <br />
-
-          <label htmlFor="password">Password:</label>
-          <input type="password" id="password" name="password" required />
-          <br />
-
-          <button type="submit">Login</button>
-        </form>
-      </div>
-  );
-}
-
-export default Login;
+export default router;
