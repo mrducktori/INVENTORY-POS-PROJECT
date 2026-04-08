@@ -27,11 +27,14 @@ body.dashboard-body {
   width: 240px; /* Fixed width for your sidebar */
   background-color: #1a1a1a;
   color: white;
+  display: flex;
+  flex-direction: column;
 }
 
 .dashboard-nav ul {
   list-style: none;
   padding: 0;
+  flex: 1;
 }
 
 .dashboard-nav li {
@@ -48,4 +51,21 @@ body.dashboard-body {
   padding: 20px;
   background-color: #f4f4f4;
   overflow-y: auto; /* Scrollable content area */
+}
+
+.logout-btn {
+  padding: 12px 20px;
+  margin: 10px;
+  background-color: #e74c3c;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+  transition: background-color 0.3s;
+}
+
+.logout-btn:hover {
+  background-color: #c0392b;
 }

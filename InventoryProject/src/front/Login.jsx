@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import '../CSS/Login.css';
-import App from './Dashboard_test';
+import App from './Dashboard';
+import { loginUser, saveUser, getCurrentUser } from '../api/authApi.js';
 
 
 function Login() {
@@ -9,9 +10,7 @@ function Login() {
     password: ''
   });
 
-  const [user, setUser] = useState(
-    JSON.parse(localStorage.getItem("user"))
-  );
+  const [user, setUser] = useState(getCurrentUser());
 
   const [error, setError] = useState('');
 
@@ -27,24 +26,10 @@ function Login() {
     setError('');
 
     try {
-      const res = await fetch("http://localhost:5000/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(form)
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Login failed");
-      }
-
+      const data = await loginUser(form.username, form.password);
       // save user
-      localStorage.setItem("user", JSON.stringify(data));
+      saveUser(data);
       setUser(data);
-
     } catch (err) {
       setError(err.message);
     }
