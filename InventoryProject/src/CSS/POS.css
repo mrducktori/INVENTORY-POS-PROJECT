@@ -99,3 +99,8 @@
   padding: 8px;
   border: none;
 }
+
+.pos-categories button.active {
+  background: black;
+  color: white;
+}
