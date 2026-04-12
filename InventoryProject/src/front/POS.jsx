@@ -1,16 +1,20 @@
 import React, { useEffect, useState } from "react";
-import "../CSS/POS.css";
+import { getProducts, createSale } from "../api/posApi";
+import "../styles/POS.css";
 
 const POS = () => {
   const [products, setProducts] = useState([]);
   const [cart, setCart] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [category, setCategory] = useState("ALL");
+  const [loading, setLoading] = useState(false);
+  const [saleComplete, setSaleComplete] = useState(false);
 
   const user = getCurrentUser();
 
   // ACCESS CONTROL
   if (!isAuthorized(user)) {
-    return <div>Access Denied</div>;
+    return <div className="error-box">Access Denied</div>;
   }
 
   // FETCH PRODUCTS
@@ -20,11 +24,13 @@ const POS = () => {
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch("/api/pos/products");
-      const data = await res.json();
-      setProducts(data);
+      setLoading(true);
+      const data = await getProducts();
+      setProducts(data || []);
     } catch (err) {
       console.error("Failed to load products:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -45,6 +51,20 @@ const POS = () => {
     });
   };
 
+  const updateQty = (productId, qty) => {
+    if (qty <= 0) {
+      removeFromCart(productId);
+      return;
+    }
+    setCart(cart.map(item =>
+      item.id === productId ? { ...item, qty } : item
+    ));
+  };
+
+  const removeFromCart = (productId) => {
+    setCart(cart.filter(item => item.id !== productId));
+  };
+
   const clearCart = () => setCart([]);
 
   const calculateTotal = () =>
@@ -55,61 +75,87 @@ const POS = () => {
     if (cart.length === 0) return;
 
     try {
-      const res = await fetch("/api/pos/sale", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          cart,
-          total: calculateTotal(),
-          staff_id: user.id
-        })
+      await createSale({
+        cart,
+        total: calculateTotal(),
+        staff_id: user.id
       });
 
-      if (!res.ok) throw new Error("Sale failed");
-
-      alert("Sale completed!");
+      setSaleComplete(true);
       clearCart();
-      fetchProducts(); // refresh stock if needed
+      setTimeout(() => setSaleComplete(false), 3000);
     } catch (err) {
       console.error(err);
-      alert("Error completing sale");
+      alert("Error completing sale: " + err.message);
     }
   };
 
   // FILTER
-  const filteredProducts = filterProducts(products, category);
+  const filteredProducts = filterProducts(products, category, searchTerm);
 
   return (
     <div className="pos-container">
+      {saleComplete && (
+        <div className="success-banner">
+          ✓ Sale completed successfully!
+        </div>
+      )}
 
-      {/* LEFT */}
+      {/* LEFT - Products */}
       <div className="pos-left">
-        <Header />
+        <div className="pos-header">
+          <h2>Point of Sale</h2>
+          <input
+            type="text"
+            placeholder="Search products..."
+            className="search-input"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+
         <CategoryFilter category={category} setCategory={setCategory} />
 
         <div className="pos-products">
-          {filteredProducts.map(product => (
-            <ProductCard
-              key={product.id}
-              product={product}
-              onClick={addToCart}
-            />
-          ))}
+          {loading ? (
+            <div className="loading">Loading products...</div>
+          ) : filteredProducts.length > 0 ? (
+            filteredProducts.map(product => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                onClick={addToCart}
+              />
+            ))
+          ) : (
+            <div className="no-products">No products found</div>
+          )}
         </div>
       </div>
 
-      {/* RIGHT */}
+      {/* RIGHT - Cart */}
       <div className="pos-right">
-        <Cart cart={cart} total={calculateTotal()} />
+        <Cart
+          cart={cart}
+          total={calculateTotal()}
+          onUpdateQty={updateQty}
+          onRemove={removeFromCart}
+        />
 
         <div className="pos-buttons">
-          <button className="complete" onClick={handleCompleteSale}>
-            Complete
+          <button
+            className="complete-btn"
+            onClick={handleCompleteSale}
+            disabled={cart.length === 0}
+          >
+            Complete Sale
           </button>
-          <button className="clear" onClick={clearCart}>
-            Clear
+          <button
+            className="clear-btn"
+            onClick={clearCart}
+            disabled={cart.length === 0}
+          >
+            Clear Cart
           </button>
         </div>
       </div>
@@ -135,34 +181,28 @@ const getCurrentUser = () => {
 };
 
 const isAuthorized = (user) => {
-  return user && (user.role === "ADMIN" || user.role === "STAFF");
+  return user && ["ADMIN", "STAFF", "Owner"].includes(user.role);
 };
 
-const filterProducts = (products, category) => {
-  if (category === "ALL") return products;
-  return products.filter(p => p.category === category);
+const filterProducts = (products, category, searchTerm = "") => {
+  return products.filter(p => {
+    const matchCategory = category === "ALL" || p.category === category;
+    const matchSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchCategory && matchSearch;
+  });
 };
-
-
 
 // COMPONENTS
 
-const Header = () => (
-  <div className="pos-header">
-    <h2>Point of Sale</h2>
-    <input placeholder="Search item..." />
-  </div>
-);
-
 const CategoryFilter = ({ category, setCategory }) => {
-  const categories = ["ALL","COFFEE","FRAPPE","MILK TEA","PASTRIES","PROMO ITEMS","OTHERS"];
+  const categories = ["ALL", "COFFEE", "FRAPPE", "MILK TEA", "PASTRIES", "PROMO", "OTHERS"];
 
   return (
     <div className="pos-categories">
       {categories.map(cat => (
         <button
           key={cat}
-          className={category === cat ? "active" : ""}
+          className={`cat-btn ${category === cat ? "active" : ""}`}
           onClick={() => setCategory(cat)}
         >
           {cat}
@@ -173,36 +213,82 @@ const CategoryFilter = ({ category, setCategory }) => {
 };
 
 const ProductCard = ({ product, onClick }) => (
-  <div className="pos-card" onClick={() => onClick(product)}>
-    <h4>{product.name}</h4>
-    <p>{product.price} PHP</p>
-    <span className={product.stock === 0 ? "out" : ""}>
-      {product.stock ?? 0} Remaining
-    </span>
+  <div
+    className="pos-card"
+    onClick={() => onClick(product)}
+  >
+    <div className="card-content">
+      <h4>{product.name}</h4>
+      <p className="category">{product.category}</p>
+      <p className="price">${product.price?.toFixed(2)}</p>
+    </div>
+    <button className="add-btn">Add</button>
   </div>
 );
 
-const Cart = ({ cart, total }) => (
+const Cart = ({ cart, total, onUpdateQty, onRemove }) => (
   <>
-    <h3>Transaction</h3>
+    <div className="cart-header">
+      <h3>Transaction</h3>
+      <span className="badge">{cart.length}</span>
+    </div>
 
     <div className="cart-box">
       {cart.length === 0 ? (
-        <p>No items</p>
+        <p className="empty">No items in cart</p>
       ) : (
         cart.map(item => (
           <div key={item.id} className="cart-item">
-            <span>{item.name}</span>
-            <span>{item.qty} x {item.price}</span>
+            <div className="item-info">
+              <h4>{item.name}</h4>
+              <p>${item.price?.toFixed(2)} each</p>
+            </div>
+            <div className="item-controls">
+              <button
+                className="qty-btn"
+                onClick={() => onUpdateQty(item.id, item.qty - 1)}
+              >
+                −
+              </button>
+              <input
+                type="number"
+                min="1"
+                value={item.qty}
+                onChange={(e) => onUpdateQty(item.id, parseInt(e.target.value) || 1)}
+                className="qty-input"
+              />
+              <button
+                className="qty-btn"
+                onClick={() => onUpdateQty(item.id, item.qty + 1)}
+              >
+                +
+              </button>
+            </div>
+            <div className="item-total">${(item.price * item.qty).toFixed(2)}</div>
+            <button
+              className="remove-btn"
+              onClick={() => onRemove(item.id)}
+            >
+              ✕
+            </button>
           </div>
         ))
       )}
     </div>
 
     <div className="pos-total">
-      <p>Subtotal: {total} PHP</p>
-      <p>Tax: 0 PHP</p>
-      <h3>Total: {total} PHP</h3>
+      <div className="summary-row">
+        <span>Subtotal:</span>
+        <span>${total?.toFixed(2)}</span>
+      </div>
+      <div className="summary-row">
+        <span>Tax:</span>
+        <span>$0.00</span>
+      </div>
+      <div className="summary-row total">
+        <span>Total:</span>
+        <span>${total?.toFixed(2)}</span>
+      </div>
     </div>
   </>
 );

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import '../CSS/Login.css';
+import '../styles/Login.css';
 import App from './Dashboard';
 import { loginUser, saveUser, getCurrentUser } from '../api/authApi.js';
 
