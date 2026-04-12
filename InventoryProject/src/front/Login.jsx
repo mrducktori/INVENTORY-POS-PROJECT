@@ -1,44 +1,70 @@
 import { useState } from 'react';
-import '../CSS/Login.css';
-import App from './Dashboard_test';
+import '../styles/Login.css';
+import App from './Dashboard';
+import { loginUser, saveUser, getCurrentUser } from '../api/authApi.js';
+
 
 function Login() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [form, setForm] = useState({
+    username: '',
+    password: ''
+  });
 
-  const clearLogin = () => {
-    const usernameInput = document.getElementById('username');
-    const passwordInput = document.getElementById('password');
-    if (usernameInput) usernameInput.value = '';
-    if (passwordInput) passwordInput.value = '';
-    
+  const [user, setUser] = useState(getCurrentUser());
+
+  const [error, setError] = useState('');
+
+  const handleChange = (e) => {
+    setForm({
+      ...form,
+      [e.target.name]: e.target.value
+    });
   };
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    setIsLoggedIn(true);
-    clearLogin();
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    try {
+      const data = await loginUser(form.username, form.password);
+      // save user
+      saveUser(data);
+      setUser(data);
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
-  if (isLoggedIn) {
-    return <App /> ;
+  if (user) {
+    return <App />;
   }
 
-
   return (
-      <div className="login-container" >
-        <h2>Login</h2>
-        <form onSubmit={handleSubmit}>
-          <label htmlFor="username">Username:</label>
-          <input type="text" id="username" name="username" required />
-          <br />
+    <div className="login-container">
+      <form onSubmit={handleSubmit}>
+        <h1>Login</h1>
+        {error && <p className="error">{error}</p>}
+        <label>Username:</label>
+        <input
+          type="text"
+          name="username"
+          value={form.username}
+          onChange={handleChange}
+          required
+        />
 
-          <label htmlFor="password">Password:</label>
-          <input type="password" id="password" name="password" required />
-          <br />
+        <label>Password:</label>
+        <input
+          type="password"
+          name="password"
+          value={form.password}
+          onChange={handleChange}
+          required
+        />
 
-          <button type="submit">Login</button>
-        </form>
-      </div>
+        <button type="submit">Login</button>
+      </form>
+    </div>
   );
 }
 
