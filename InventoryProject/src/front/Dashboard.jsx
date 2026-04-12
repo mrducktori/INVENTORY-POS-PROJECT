@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import '../styles/Dashboard_test.css';
+import '../styles/Dashboard.css';
 import POS from './POS';
 import Navbar from './Navbar';
 import StockReceived from './StockReceived';

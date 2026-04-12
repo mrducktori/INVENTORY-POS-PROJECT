@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import '../styles/navbar.css';
+
 import { logoutUser, getCurrentUser } from '../api/authApi';
 
 const INVENTORY_ITEMS = {
