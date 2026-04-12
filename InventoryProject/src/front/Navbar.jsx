@@ -7,13 +7,13 @@ const INVENTORY_ITEMS = {
     { label: 'Stock Received', value: 'StockReceived' },
     { label: 'Raw Material Tracker', value: 'RawMaterialTracker' },
     { label: 'Low Stock Alerts', value: 'LowStockAlerts' },
-    { label: 'Report Wastage', value: 'ReportWastage' }
+    { label: 'Report Broken Items', value: 'ReportWastage' }
   ],
   Admin: [
     { label: 'Stock Received', value: 'StockReceived' },
     { label: 'Raw Material Tracker', value: 'RawMaterialTracker' },
     { label: 'Low Stock Alerts', value: 'LowStockAlerts' },
-    { label: 'Report Wastage', value: 'ReportWastage' },
+    { label: 'Report Broken Items', value: 'ReportWastage' },
     { label: 'Products', value: 'Products' },
     { label: 'Recipes', value: 'Recipes' }
   ],
@@ -21,7 +21,7 @@ const INVENTORY_ITEMS = {
     { label: 'Stock Received', value: 'StockReceived' },
     { label: 'Raw Material Tracker', value: 'RawMaterialTracker' },
     { label: 'Low Stock Alerts', value: 'LowStockAlerts' },
-    { label: 'Report Wastage', value: 'ReportWastage' },
+    { label: 'Report Broken Items', value: 'ReportWastage' },
     { label: 'Products', value: 'Products' },
     { label: 'Recipes', value: 'Recipes' }
   ]

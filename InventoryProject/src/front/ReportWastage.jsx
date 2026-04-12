@@ -37,7 +37,7 @@ const ReportWastage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.ingredient_id || !formData.quantity || !formData.reason) {
-      setMessage('❌ All fields are required');
+      setMessage(' All fields are required');
       return;
     }
 
@@ -54,7 +54,7 @@ const ReportWastage = () => {
       setTimeout(() => setMessage(''), 3000);
       fetchData();
     } catch (err) {
-      setMessage('❌ Error: ' + err.message);
+      setMessage(' Error: ' + err.message);
     }
   };
 
@@ -68,7 +68,7 @@ const ReportWastage = () => {
   return (
     <div className="inventory-container">
       <div className="page-header">
-        <h1>🗑️ Report Wastage</h1>
+        <h1> Report Broken Items</h1>
         <p>Track and report ingredient wastage</p>
       </div>
 

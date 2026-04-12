@@ -41,11 +41,9 @@ function Login() {
 
   return (
     <div className="login-container">
-      <h2>Login</h2>
-
-      {error && <p className="error">{error}</p>}
-
       <form onSubmit={handleSubmit}>
+        <h1>Login</h1>
+        {error && <p className="error">{error}</p>}
         <label>Username:</label>
         <input
           type="text"

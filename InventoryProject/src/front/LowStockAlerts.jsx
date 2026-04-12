@@ -38,7 +38,7 @@ const LowStockAlerts = () => {
   return (
     <div className="inventory-container">
       <div className="page-header">
-        <h1>⚠️ Low Stock Alerts</h1>
+        <h1> Low Stock Alerts</h1>
         <p>Items running low on inventory</p>
       </div>
 

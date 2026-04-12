@@ -97,7 +97,7 @@ const POS = () => {
     <div className="pos-container">
       {saleComplete && (
         <div className="success-banner">
-          ✓ Sale completed successfully!
+          ✓ Transaction completed successfully!
         </div>
       )}
 
@@ -220,17 +220,16 @@ const ProductCard = ({ product, onClick }) => (
     <div className="card-content">
       <h4>{product.name}</h4>
       <p className="category">{product.category}</p>
-      <p className="price">${product.price?.toFixed(2)}</p>
+      <p className="price">₱{product.price?.toFixed(2)}</p>
     </div>
-    <button className="add-btn">Add</button>
   </div>
 );
 
 const Cart = ({ cart, total, onUpdateQty, onRemove }) => (
   <>
     <div className="cart-header">
-      <h3>Transaction</h3>
-      <span className="badge">{cart.length}</span>
+      <h2>Transaction</h2>
+      <span className="badge">ITEMS: {cart.length}</span>
     </div>
 
     <div className="cart-box">
@@ -241,7 +240,7 @@ const Cart = ({ cart, total, onUpdateQty, onRemove }) => (
           <div key={item.id} className="cart-item">
             <div className="item-info">
               <h4>{item.name}</h4>
-              <p>${item.price?.toFixed(2)} each</p>
+              <p>₱ {item.price?.toFixed(2)} each</p>
             </div>
             <div className="item-controls">
               <button
@@ -264,7 +263,7 @@ const Cart = ({ cart, total, onUpdateQty, onRemove }) => (
                 +
               </button>
             </div>
-            <div className="item-total">${(item.price * item.qty).toFixed(2)}</div>
+            <div className="item-total">₱ {(item.price * item.qty).toFixed(2)}</div>
             <button
               className="remove-btn"
               onClick={() => onRemove(item.id)}
@@ -279,15 +278,15 @@ const Cart = ({ cart, total, onUpdateQty, onRemove }) => (
     <div className="pos-total">
       <div className="summary-row">
         <span>Subtotal:</span>
-        <span>${total?.toFixed(2)}</span>
+        <span>₱ {total?.toFixed(2)}</span>
       </div>
       <div className="summary-row">
         <span>Tax:</span>
-        <span>$0.00</span>
+        <span>₱ 0.00</span>
       </div>
       <div className="summary-row total">
         <span>Total:</span>
-        <span>${total?.toFixed(2)}</span>
+        <span>₱ {total?.toFixed(2)}</span>
       </div>
     </div>
   </>

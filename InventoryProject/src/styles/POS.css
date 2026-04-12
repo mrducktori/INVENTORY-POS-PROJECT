@@ -4,7 +4,6 @@
   background: #f4f4f4;
 }
 
-/* LEFT */
 .pos-left {
   flex: 3;
   padding: 15px;
@@ -26,9 +25,9 @@
   border: 1px solid #333;
   background: white;
   cursor: pointer;
+  border-radius: 3px;
 }
 
-/* PRODUCTS GRID */
 .pos-products {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -36,14 +35,38 @@
 }
 
 .pos-card {
-  border: 1px solid #999;
-  padding: 10px;
   background: white;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
   cursor: pointer;
+}
+
+.success-banner {
+  background: #4caf50;
+  color: white;
+  font-size: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  border-radius: 5px;
+  margin-bottom: 10px;
+  width: 500px;
+  height: 150px;
+  box-shadow: #333 0px 4px 8px;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 
 .pos-card:hover {
   background: #eee;
+}
+
+.pos-card :active {
+  background: #ddd;
 }
 
 .pos-card span {
@@ -55,7 +78,6 @@
   color: red;
 }
 
-/* RIGHT SIDE */
 .pos-right {
   flex: 1;
   border-left: 2px solid #ccc;
@@ -63,22 +85,69 @@
   background: #fafafa;
 }
 
+h2 {
+  margin-bottom: 15px;
+}
+
+.badge {
+  background: #646464;
+  color: white;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
 .cart-box {
   border: 1px dashed #aaa;
-  height: 200px;
+  height: 50%;
   padding: 10px;
   overflow-y: auto;
+  border-radius: 5px;
 }
 
 .cart-item {
   display: flex;
   justify-content: space-between;
   margin-bottom: 5px;
+  border: #333 1px dashed;
+  padding: 10px 5px;
+  border-radius: 5px;
+  background: white;
 }
 
-.pos-total {
-  margin-top: 10px;
+.qty-input {
+  width: 40px;
+  text-align: center;
+  height: 25px;
+  border: 1px solid #333;
+  border-radius: 5px;
 }
+
+.qty-btn {
+  padding: 3px 6px;
+  border: 1px solid #333;
+  background: #eee;
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+.remove-btn {
+  padding: 3px 6px;
+  border: 1px solid #333;
+  background: #d03429;
+  color: white;
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+.remove-btn:hover {
+  background: #ea3434;
+}
+
+.remove-btn:active {
+  background: #ff0000;
+}
+
 
 .pos-buttons {
   margin-top: 10px;
@@ -86,21 +155,60 @@
   justify-content: space-between;
 }
 
-.complete {
-  background: green;
-  color: white;
-  padding: 8px;
-  border: none;
-}
-
-.clear {
-  background: red;
-  color: white;
-  padding: 8px;
-  border: none;
-}
-
 .pos-categories button.active {
   background: black;
   color: white;
+}
+
+.clear-btn {
+  border: 1px solid #333;
+  background: #7b0707;
+  padding: 3px 8px;
+  border-radius: 5px;
+  color: rgb(255, 255, 255);
+  cursor: pointer;
+}
+
+.clear-btn:hover {
+  background: #ca0707;
+  color: white;
+}
+
+.clear-btn:active {
+  background: #ff0000;
+  color: white;
+}
+
+.complete-btn {
+  border: 1px solid #333;
+  background: #0b7b07;
+  padding: 3px 8px;
+  border-radius: 5px;
+  color: rgb(255, 255, 255);
+  cursor: pointer;
+}
+
+.complete-btn:hover {
+  background: #0ca70c;
+  color: white;
+}
+
+.complete-btn:active {
+  background: #0f7b0f;
+  color: white;
+}
+
+.pos-total  {
+  border-top: black 1px solid;
+  border-bottom: black 1px solid;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  margin-top: 10px;
+}
+
+.pos-total .summary-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 16px;
+  font-weight: 600;
 }

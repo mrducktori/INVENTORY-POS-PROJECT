@@ -43,7 +43,7 @@ const RawMaterialTracker = () => {
   return (
     <div className="inventory-container">
       <div className="page-header">
-        <h1>📊 Raw Material Tracker</h1>
+        <h1> Raw Material Tracker</h1>
         <p>Monitor your inventory levels in real-time</p>
       </div>
 
