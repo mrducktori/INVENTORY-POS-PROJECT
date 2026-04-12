@@ -31,28 +31,6 @@ sales          -- sale transactions
 sale_items     -- line items in each sale
 ```
 
-## Project Structure
-
-```
-src/front/
-├── Login.jsx          -- Login form
-├── Login.css          -- Login styling (individual file)
-├── Dashboard.jsx      -- Main layout
-├── Dashboard.css      -- Dashboard layout (individual file)
-├── Navbar.jsx         -- Navigation sidebar
-├── Navbar.css         -- Navbar styling (individual file)
-├── POS.jsx            -- Point of sale system
-└── POS.css            -- POS styling (individual file)
-
-server/
-├── server.js          -- Express setup (simplified)
-├── routes/
-│   ├── auth.js        -- Login endpoint
-│   └── pos.js         -- Products & sales endpoints
-└── services/
-    ├── posService.js  -- POS business logic
-    (others deleted)
-```
 
 ## To Run
 
@@ -66,15 +44,4 @@ server/
    ```bash
    npm run dev
    ```
-
-3. **Test login with:**
-   - Username: `staff` (or any user in database)
-   - Password: `########`
-
-## Design Features
-- Professional black/white/gray palette
-- Clean minimalist interface - no gradients, no unnecessary colors
-- Individual CSS files per component (not consolidated)
-- Responsive layout
-- Dark sidebar, light main content area
 
