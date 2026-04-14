@@ -1,0 +1,98 @@
+import React, { useState, useEffect } from 'react';
+import { getEmployeeShifts } from '../api/usersApi';
+import '../styles/Inventory.css';
+
+const EmployeeTracker = () => {
+  const [shifts, setShifts] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [dateStr, setDateStr] = useState(new Date().toISOString().split('T')[0]);
+
+  useEffect(() => {
+    fetchShifts();
+  }, [dateStr]);
+
+  const fetchShifts = async () => {
+    try {
+      setLoading(true);
+      const data = await getEmployeeShifts(dateStr);
+      setShifts(data || []);
+    } catch (err) {
+      console.error('Failed to load shifts:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const calculateHours = (clockIn, clockOut) => {
+    if (!clockIn || !clockOut) return 'Ongoing';
+    const ms = new Date(clockOut) - new Date(clockIn);
+    const hrs = ms / (1000 * 60 * 60);
+    return `${hrs.toFixed(2)}h`;
+  };
+
+  return (
+    <div className="inventory-container">
+      <div className="page-header">
+        <h1>Employee Tracker</h1>
+        <p>Monitor employee attendance and daily shifts.</p>
+      </div>
+
+      <div className="card">
+        <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h2>Shift Records</h2>
+          <input 
+            type="date" 
+            value={dateStr} 
+            onChange={(e) => setDateStr(e.target.value)}
+            style={{ padding: '4px 8px', borderRadius: '3px', border: 'none' }}
+          />
+        </div>
+        <div className="card-body">
+          {loading ? (
+            <p>Loading records...</p>
+          ) : shifts.length > 0 ? (
+            <div className="table-container">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Employee Name</th>
+                    <th>Role</th>
+                    <th>Shift Date</th>
+                    <th>Clock In</th>
+                    <th>Clock Out</th>
+                    <th>Total Hours</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {shifts.map(shift => (
+                    <tr key={shift.id}>
+                      <td><strong>{shift.users?.name || 'Unknown'}</strong></td>
+                      <td>{shift.users?.role || 'Staff'}</td>
+                      <td>{shift.shift_date}</td>
+                      <td>
+                        {shift.clock_in ? new Date(shift.clock_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '—'}
+                      </td>
+                      <td>
+                        {shift.clock_out ? new Date(shift.clock_out).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '—'}
+                      </td>
+                      <td><strong>{calculateHours(shift.clock_in, shift.clock_out)}</strong></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="empty-state">
+              <p>No shift records found for the selected date.</p>
+              <p style={{ fontSize: '11px', marginTop: '10px' }}>
+                Note: Make sure the `employee_shifts` table exists in Supabase.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default EmployeeTracker;

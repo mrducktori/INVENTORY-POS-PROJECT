@@ -28,26 +28,26 @@ const StockReceived = () => {
   const handleReceiveStock = async (e) => {
     e.preventDefault();
     if (!selectedId || !quantity) {
-      setMessage('❌ Please select an ingredient and enter quantity');
+      setMessage('Please select an ingredient and enter quantity');
       return;
     }
 
     try {
       await receiveStock(selectedId, parseFloat(quantity));
-      setMessage('✓ Stock received successfully!');
+      setMessage('Stock received successfully!');
       setSelectedId('');
       setQuantity('');
       setTimeout(() => setMessage(''), 3000);
       fetchIngredients();
     } catch (err) {
-      setMessage('❌ Error: ' + err.message);
+      setMessage('Error: ' + err.message);
     }
   };
 
   return (
     <div className="inventory-container">
       <div className="page-header">
-        <h1>📦 Stock Received</h1>
+        <h1>Stock Received</h1>
         <p>Add new stock to your inventory</p>
       </div>
 
@@ -57,7 +57,7 @@ const StockReceived = () => {
         </div>
         <div className="card-body">
           {message && (
-            <div className={`alert ${message.includes('✓') ? 'alert-success' : 'alert-error'}`}>
+            <div className={`alert ${message.includes('success') ? 'alert-success' : 'alert-error'}`}>
               {message}
             </div>
           )}
@@ -123,8 +123,8 @@ const StockReceived = () => {
                       <td>{ing.stock_quantity}</td>
                       <td>{ing.low_stock_alert}</td>
                       <td>
-                        <span className={`status ${ing.stock_quantity < ing.low_stock_alert ? 'low' : 'normal'}`}>
-                          {ing.stock_quantity < ing.low_stock_alert ? '⚠ Low' : '✓ Normal'}
+                        <span className={`status ${ing.stock_quantity < ing.low_stock_alert ? 'critical' : 'normal'}`}>
+                          {ing.stock_quantity < ing.low_stock_alert ? 'LOW' : 'NORMAL'}
                         </span>
                       </td>
                     </tr>

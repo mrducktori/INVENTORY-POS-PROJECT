@@ -45,9 +45,25 @@ body {
 }
 
 .nav-header {
-  padding: 20px;
+  padding: 16px 20px;
   border-bottom: 1px solid #333;
   background: #000;
+}
+
+.nav-logo {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.nav-role {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #aaa;
+  font-weight: 600;
 }
 
 .nav-header h3 {

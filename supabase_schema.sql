@@ -110,6 +110,31 @@ CREATE TABLE public.wastage (
   CONSTRAINT wastage_reported_by_fkey FOREIGN KEY (reported_by) REFERENCES public.users(id)
 );
 
+-- 10. Employee Shifts Table
+CREATE TABLE public.employee_shifts (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  shift_date date NOT NULL DEFAULT CURRENT_DATE,
+  clock_in timestamp with time zone,
+  clock_out timestamp with time zone,
+  shift_type character varying DEFAULT 'Morning',
+  notes text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT employee_shifts_pkey PRIMARY KEY (id),
+  CONSTRAINT employee_shifts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE
+);
+ALTER TABLE public.employee_shifts ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Admins and owners can view shifts" ON public.employee_shifts
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role IN ('Admin', 'Owner'))
+  );
+CREATE POLICY "Authenticated users can insert their shifts" ON public.employee_shifts
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Admins can manage shifts" ON public.employee_shifts
+  FOR ALL USING (
+    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role IN ('Admin', 'Owner'))
+  );
+
 -- ==========================================
 -- ROW LEVEL SECURITY (RLS)
 -- ==========================================

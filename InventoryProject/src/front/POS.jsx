@@ -9,6 +9,7 @@ const POS = () => {
   const [category, setCategory] = useState("ALL");
   const [loading, setLoading] = useState(false);
   const [saleComplete, setSaleComplete] = useState(false);
+  const [recipeProduct, setRecipeProduct] = useState(null);
 
   const user = getCurrentUser();
 
@@ -125,6 +126,7 @@ const POS = () => {
                 key={product.id}
                 product={product}
                 onClick={addToCart}
+                onViewRecipe={(p) => setRecipeProduct(p)}
               />
             ))
           ) : (
@@ -160,12 +162,48 @@ const POS = () => {
         </div>
       </div>
 
+      {/* Ingredients Info Modal */}
+      {recipeProduct && (
+        <div className="recipe-modal-overlay" onClick={() => setRecipeProduct(null)}>
+          <div className="recipe-modal" onClick={e => e.stopPropagation()}>
+            <div className="recipe-modal-header">
+              <h3>🧪 Ingredients: {recipeProduct.name}</h3>
+              <button className="recipe-modal-close" onClick={() => setRecipeProduct(null)}>✕</button>
+            </div>
+            <div className="recipe-modal-body">
+              <p className="recipe-modal-note">Connect to backend to load recipe data.</p>
+              <table className="recipe-table">
+                <thead>
+                  <tr><th>Ingredient</th><th>Qty</th><th>Unit</th></tr>
+                </thead>
+                <tbody>
+                  {(recipeProduct.recipe || []).map((r, i) => (
+                    <tr key={i}>
+                      <td>{r.ingredient}</td>
+                      <td>{r.qty}</td>
+                      <td>{r.unit}</td>
+                    </tr>
+                  ))}
+                  {(!recipeProduct.recipe || recipeProduct.recipe.length === 0) && (
+                    <tr><td colSpan={3} style={{ textAlign: 'center', color: '#999', padding: '16px' }}>No recipe data loaded yet.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div className="recipe-modal-footer">
+              <button className="recipe-close-btn" onClick={() => setRecipeProduct(null)}>Close</button>
+              <button className="complete-btn" style={{ padding: '6px 16px' }} onClick={() => { addToCart(recipeProduct); setRecipeProduct(null); }}>
+                + Add to Cart
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 export default POS;
-
 
 
 
@@ -181,7 +219,7 @@ const getCurrentUser = () => {
 };
 
 const isAuthorized = (user) => {
-  return user && ["ADMIN", "STAFF", "Owner"].includes(user.role);
+  return user && ["ADMIN", "STAFF", "Owner", "Admin", "Staff"].includes(user.role);
 };
 
 const filterProducts = (products, category, searchTerm = "") => {
@@ -212,15 +250,22 @@ const CategoryFilter = ({ category, setCategory }) => {
   );
 };
 
-const ProductCard = ({ product, onClick }) => (
-  <div
-    className="pos-card"
-    onClick={() => onClick(product)}
-  >
-    <div className="card-content">
+const ProductCard = ({ product, onClick, onViewRecipe }) => (
+  <div className="pos-card">
+    <div className="card-content" onClick={() => onClick(product)}>
       <h4>{product.name}</h4>
       <p className="category">{product.category}</p>
       <p className="price">₱{product.price?.toFixed(2)}</p>
+    </div>
+    <div className="pos-card-footer">
+      <button
+        className="info-btn"
+        onClick={(e) => { e.stopPropagation(); onViewRecipe(product); }}
+        title="View Ingredients"
+      >
+        🧪 Info
+      </button>
+      <button className="add-btn" onClick={() => onClick(product)}>+ Add</button>
     </div>
   </div>
 );

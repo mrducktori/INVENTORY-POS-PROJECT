@@ -38,7 +38,7 @@ const LowStockAlerts = () => {
   return (
     <div className="inventory-container">
       <div className="page-header">
-        <h1> Low Stock Alerts</h1>
+        <h1>Low Stock Alerts</h1>
         <p>Items running low on inventory</p>
       </div>
 
@@ -63,7 +63,7 @@ const LowStockAlerts = () => {
 
       {alerts.length > 0 && (
         <div className="alert alert-warning">
-          🔔 {alerts.length} item(s) are below low stock threshold
+          {alerts.length} item(s) are below low stock threshold
         </div>
       )}
 
@@ -103,7 +103,7 @@ const LowStockAlerts = () => {
                         </td>
                         <td>
                           <span className={`status ${severity}`}>
-                            {severity === 'critical' ? '🔴 CRITICAL' : severity === 'warning' ? '🟠 WARNING' : '🟡 LOW'}
+                            {severity === 'critical' ? 'CRITICAL' : severity === 'warning' ? 'WARNING' : 'LOW'}
                           </span>
                         </td>
                       </tr>
@@ -114,7 +114,7 @@ const LowStockAlerts = () => {
             </div>
           ) : (
             <div className="empty-state">
-              <p>✓ All ingredients are at healthy stock levels!</p>
+              <p>All ingredients are at healthy stock levels!</p>
             </div>
           )}
         </div>
@@ -129,17 +129,17 @@ const LowStockAlerts = () => {
             <ul style={{ marginLeft: '20px', lineHeight: '1.8' }}>
               {getCriticalCount() > 0 && (
                 <li style={{ color: '#e74c3c', fontWeight: '600' }}>
-                  🔴 ORDER IMMEDIATELY: {getCriticalCount()} item(s) at critical level
+                  ORDER IMMEDIATELY: {getCriticalCount()} item(s) at critical level
                 </li>
               )}
               {getWarningCount() > 0 && (
                 <li style={{ color: '#f39c12', fontWeight: '600' }}>
-                  🟠 PLAN ORDER: {getWarningCount()} item(s) approaching critical level
+                  PLAN ORDER: {getWarningCount()} item(s) approaching critical level
                 </li>
               )}
               {alerts.length > 2 && (
                 <li style={{ color: '#667eea' }}>
-                  📋 Consider increasing order frequency
+                  Consider increasing order frequency
                 </li>
               )}
             </ul>
