@@ -10,6 +10,8 @@ const POS = () => {
   const [loading, setLoading] = useState(false);
   const [saleComplete, setSaleComplete] = useState(false);
   const [recipeProduct, setRecipeProduct] = useState(null);
+  const [ongoingOrders, setOngoingOrders] = useState([]);
+  const [activeTab, setActiveTab] = useState("cart"); // 'cart' or 'ongoing'
 
   const user = getCurrentUser();
 
@@ -76,19 +78,48 @@ const POS = () => {
     if (cart.length === 0) return;
 
     try {
-      await createSale({
-        cart,
+      const newOrder = {
+        id: Date.now(),
+        items: [...cart],
         total: calculateTotal(),
+        staff_id: user.id,
+        timestamp: new Date().toLocaleTimeString(),
+        status: 'pending'
+      };
+
+      setOngoingOrders([...ongoingOrders, newOrder]);
+      clearCart();
+      setActiveTab('ongoing');
+    } catch (err) {
+      console.error(err);
+      alert("Error creating order: " + err.message);
+    }
+  };
+
+  // COMPLETE ORDER
+  const handleCompleteOrder = async (orderId) => {
+    try {
+      const order = ongoingOrders.find(o => o.id === orderId);
+      if (!order) return;
+
+      await createSale({
+        cart: order.items,
+        total: order.total,
         staff_id: user.id
       });
 
+      setOngoingOrders(ongoingOrders.filter(o => o.id !== orderId));
       setSaleComplete(true);
-      clearCart();
       setTimeout(() => setSaleComplete(false), 3000);
     } catch (err) {
       console.error(err);
-      alert("Error completing sale: " + err.message);
+      alert("Error completing order: " + err.message);
     }
+  };
+
+  // CANCEL ORDER
+  const handleCancelOrder = (orderId) => {
+    setOngoingOrders(ongoingOrders.filter(o => o.id !== orderId));
   };
 
   // FILTER
@@ -135,31 +166,61 @@ const POS = () => {
         </div>
       </div>
 
-      {/* RIGHT - Cart */}
+      {/* RIGHT - Cart/Ongoing Orders */}
       <div className="pos-right">
-        <Cart
-          cart={cart}
-          total={calculateTotal()}
-          onUpdateQty={updateQty}
-          onRemove={removeFromCart}
-        />
-
-        <div className="pos-buttons">
+        {/* Tabs */}
+        <div className="pos-tabs">
           <button
-            className="complete-btn"
-            onClick={handleCompleteSale}
-            disabled={cart.length === 0}
+            className={`tab-btn ${activeTab === 'cart' ? 'active' : ''}`}
+            onClick={() => setActiveTab('cart')}
           >
-            Complete Sale
+            Transaction ({cart.length})
           </button>
           <button
-            className="clear-btn"
-            onClick={clearCart}
-            disabled={cart.length === 0}
+            className={`tab-btn ${activeTab === 'ongoing' ? 'active' : ''}`}
+            onClick={() => setActiveTab('ongoing')}
           >
-            Clear Cart
+            Ongoing Orders ({ongoingOrders.length})
           </button>
         </div>
+
+        {/* Cart Tab */}
+        {activeTab === 'cart' && (
+          <>
+            <Cart
+              cart={cart}
+              total={calculateTotal()}
+              onUpdateQty={updateQty}
+              onRemove={removeFromCart}
+            />
+
+            <div className="pos-buttons">
+              <button
+                className="complete-btn"
+                onClick={handleCompleteSale}
+                disabled={cart.length === 0}
+              >
+                Create Order
+              </button>
+              <button
+                className="clear-btn"
+                onClick={clearCart}
+                disabled={cart.length === 0}
+              >
+                Clear Cart
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Ongoing Orders Tab */}
+        {activeTab === 'ongoing' && (
+          <OngoingOrders
+            orders={ongoingOrders}
+            onComplete={handleCompleteOrder}
+            onCancel={handleCancelOrder}
+          />
+        )}
       </div>
 
       {/* Ingredients Info Modal */}
@@ -333,6 +394,58 @@ const Cart = ({ cart, total, onUpdateQty, onRemove }) => (
         <span>Total:</span>
         <span>₱ {total?.toFixed(2)}</span>
       </div>
+    </div>
+  </>
+);
+
+const OngoingOrders = ({ orders, onComplete, onCancel }) => (
+  <>
+    <div className="cart-header">
+      <h2>Ongoing Orders</h2>
+      <span className="badge">ORDERS: {orders.length}</span>
+    </div>
+
+    <div className="cart-box ongoing-orders-box">
+      {orders.length === 0 ? (
+        <p className="empty">No ongoing orders</p>
+      ) : (
+        orders.map(order => (
+          <div key={order.id} className="ongoing-order-card">
+            <div className="order-header">
+              <h4>Order #{order.id}</h4>
+              <span className="order-time">{order.timestamp}</span>
+            </div>
+
+            <div className="order-items">
+              {order.items.map(item => (
+                <div key={item.id} className="order-item">
+                  <span className="order-item-name">{item.name} x{item.qty}</span>
+                  <span className="order-item-price">₱{(item.price * item.qty).toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="order-total">
+              <strong>Total: ₱{order.total.toFixed(2)}</strong>
+            </div>
+
+            <div className="order-actions">
+              <button
+                className="complete-btn small-btn"
+                onClick={() => onComplete(order.id)}
+              >
+                ✓ Complete
+              </button>
+              <button
+                className="cancel-btn small-btn"
+                onClick={() => onCancel(order.id)}
+              >
+                ✕ Cancel
+              </button>
+            </div>
+          </div>
+        ))
+      )}
     </div>
   </>
 );

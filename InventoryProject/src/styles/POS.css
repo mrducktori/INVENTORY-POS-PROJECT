@@ -346,3 +346,136 @@ h2 {
 .recipe-close-btn:hover {
   background: #e0e0e0;
 }
+
+/* ===== TABS ===== */
+.pos-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid #ddd;
+  margin-bottom: 15px;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 10px 15px;
+  background: #f0f0f0;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  transition: all 0.2s;
+  color: #666;
+}
+
+.tab-btn:hover {
+  background: #e8e8e8;
+}
+
+.tab-btn.active {
+  background: white;
+  border-bottom-color: #0b7b07;
+  color: #333;
+}
+
+/* ===== ONGOING ORDERS ===== */
+.ongoing-orders-box {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ongoing-order-card {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  padding: 12px;
+  margin-bottom: 0;
+}
+
+.order-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #eee;
+}
+
+.order-header h4 {
+  margin: 0;
+  font-size: 13px;
+  color: #333;
+}
+
+.order-time {
+  font-size: 11px;
+  color: #999;
+}
+
+.order-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.order-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #555;
+}
+
+.order-item-name {
+  font-weight: 500;
+}
+
+.order-item-price {
+  color: #0b7b07;
+  font-weight: 600;
+}
+
+.order-total {
+  padding: 8px 0;
+  border-top: 1px solid #eee;
+  border-bottom: 1px solid #eee;
+  font-size: 13px;
+  text-align: right;
+  color: #333;
+}
+
+.order-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.small-btn {
+  flex: 1;
+  padding: 6px 8px !important;
+  font-size: 11px !important;
+  border-radius: 4px;
+}
+
+.cancel-btn {
+  border: 1px solid #333;
+  background: #d03429;
+  color: white;
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.cancel-btn:hover {
+  background: #ea3434;
+}
+
+.empty {
+  text-align: center;
+  color: #999;
+  padding: 20px;
+  font-size: 13px;
+}

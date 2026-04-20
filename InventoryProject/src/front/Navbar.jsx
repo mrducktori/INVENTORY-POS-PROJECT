@@ -15,9 +15,8 @@ const MENU_CONFIG = {
       label: 'Inventory System',
       submenu: [
         { label: 'Products Display', value: 'Products' },
-        { label: 'Request Product Modification', value: 'RequestProduct' },
       ]
-    },
+    },  
     {
       label: 'Inventory Stock',
       submenu: [
@@ -29,12 +28,6 @@ const MENU_CONFIG = {
   ],
   Admin: [
     { label: 'Dashboard', value: 'Dashboard' },
-    {
-      label: 'Point of Sale',
-      submenu: [
-        { label: 'POS System', value: 'POS' },
-      ]
-    },
     {
       label: 'Inventory System',
       submenu: [
@@ -68,12 +61,6 @@ const MENU_CONFIG = {
   ],
   Owner: [
     { label: 'Dashboard', value: 'Dashboard' },
-    {
-      label: 'Point of Sale',
-      submenu: [
-        { label: 'POS System', value: 'POS' },
-      ]
-    },
     {
       label: 'Inventory System',
       submenu: [
