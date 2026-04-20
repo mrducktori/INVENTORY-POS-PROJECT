@@ -1,4 +1,4 @@
-import { supabase } from "../../db.js";
+import { supabase } from "../config/supabaseClient.js";
 
 export const getRecipes = async () => {
   const { data, error } = await supabase

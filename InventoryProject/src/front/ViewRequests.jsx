@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getRequests, updateRequestStatus } from '../api/requestsApi';
 import '../styles/Inventory.css';
+import '../styles/ViewRequests.css';
 
 const ViewRequests = () => {
   const [requests, setRequests] = useState([]);
@@ -40,12 +41,12 @@ const ViewRequests = () => {
       </div>
 
       <div className="card">
-        <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="card-header requests-header">
           <h2>Staff Requests</h2>
           <select 
             value={filter} 
             onChange={e => setFilter(e.target.value)}
-            style={{ padding: '4px 8px', borderRadius: '3px', background: 'white', color: 'black', border: 'none' }}
+            className="requests-filter"
           >
             <option value="ALL">All Requests</option>
             <option value="PENDING">Pending</option>
@@ -70,37 +71,80 @@ const ViewRequests = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {requests.map(req => (
-                    <tr key={req.id}>
-                      <td>{new Date(req.created_at).toLocaleDateString()}</td>
-                      <td>{req.users?.name || 'Unknown'}</td>
-                      <td><strong>{req.type.replace('_', ' ')}</strong></td>
-                      <td>{req.details?.description || JSON.stringify(req.details)}</td>
-                      <td>
-                        <span className={`status ${req.status === 'PENDING' ? 'low' : req.status === 'APPROVED' ? 'normal' : 'critical'}`}>
-                          {req.status}
-                        </span>
-                      </td>
-                      <td>
-                        {req.status === 'PENDING' && (
-                          <div style={{ display: 'flex', gap: '5px' }}>
-                            <button 
-                              className="btn btn-small btn-success" 
-                              onClick={() => handleUpdateStatus(req.id, 'APPROVED')}
-                            >
-                              Approve
-                            </button>
-                            <button 
-                              className="btn btn-small btn-danger" 
-                              onClick={() => handleUpdateStatus(req.id, 'REJECTED')}
-                            >
-                              Reject
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                    {requests.map(req => {
+                      const priority = req.details?.priority || 'NORMAL';
+                      const subject = req.details?.product_name || req.details?.ingredient_name || 'General';
+                      
+                      return (
+                        <tr key={req.id}>
+                          <td>{new Date(req.created_at).toLocaleDateString()}</td>
+                          <td>
+                            <div><strong>{req.users?.name || 'Unknown'}</strong></div>
+                            <div style={{fontSize: '11px', color: '#666'}}>{req.users?.role}</div>
+                          </td>
+                          <td>
+                            <strong>{req.type.replace('_', ' ')}</strong>
+                            <div className={`badge ${priority === 'CRITICAL' || priority === 'HIGH' ? 'critical' : 'info'}`} style={{fontSize: '10px', marginTop: '4px'}}>
+                              {priority}
+                            </div>
+                          </td>
+                          <td>
+                            <div style={{fontWeight: '600'}}>{subject}</div>
+                            <div style={{fontSize: '12px', color: '#444', marginBottom: '8px'}}>{req.details?.description}</div>
+                            
+                            {/* Structured Proposals */}
+                            {req.type === 'NEW_PRODUCT' && req.details.new_product && (
+                              <div className="proposal-box">
+                                <span className="proposal-label">Proposed:</span> 
+                                ₱{req.details.new_product.price} | {req.details.new_product.category}
+                              </div>
+                            )}
+                            {req.type === 'PRICE_CHANGE' && req.details.proposed_price && (
+                              <div className="proposal-box">
+                                <span className="proposal-label">Price Change:</span> 
+                                <span className="old-value">₱{req.details.old_price}</span> → 
+                                <span className="new-value">₱{req.details.proposed_price}</span>
+                              </div>
+                            )}
+                            {req.type === 'RECIPE_CHANGE' && req.details.proposed_recipe && (
+                              <div className="proposal-box">
+                                <span className="proposal-label">Proposed Recipe:</span>
+                                <ul style={{margin: '4px 0', paddingLeft: '16px', fontSize: '11px'}}>
+                                  {req.details.proposed_recipe.map((ing, idx) => (
+                                    <li key={idx}>{ing.name}: {ing.qty} {ing.unit}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </td>
+
+                          <td>
+                            <span className={`status ${req.status === 'PENDING' ? 'low' : req.status === 'APPROVED' ? 'normal' : 'critical'}`}>
+                              {req.status}
+                            </span>
+                          </td>
+                          <td>
+                            {req.status === 'PENDING' && (
+                              <div className="requests-action-group">
+                                <button 
+                                  className="btn btn-small btn-success" 
+                                  onClick={() => handleUpdateStatus(req.id, 'APPROVED')}
+                                >
+                                  Approve
+                                </button>
+                                <button 
+                                  className="btn btn-small btn-danger" 
+                                  onClick={() => handleUpdateStatus(req.id, 'REJECTED')}
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+
                 </tbody>
               </table>
             </div>

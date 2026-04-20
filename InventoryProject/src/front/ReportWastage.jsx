@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getIngredients } from '../api/inventoryApi';
 import { reportWastage, getWastageHistory } from '../api/wastageApi';
 import '../styles/Inventory.css';
+import '../styles/ReportWastage.css';
 
 const ReportWastage = () => {
   const [ingredients, setIngredients] = useState([]);
@@ -93,7 +94,7 @@ const ReportWastage = () => {
         </div>
       </div>
 
-      <div className="card" style={{ maxWidth: '600px', marginBottom: '30px' }}>
+      <div className="card wastage-form-card">
         <div className="card-header">
           <h2>Report Wastage</h2>
         </div>
@@ -126,6 +127,7 @@ const ReportWastage = () => {
               <input
                 type="number"
                 step="0.01"
+                min="0"
                 name="quantity"
                 placeholder="Enter quantity"
                 value={formData.quantity}
@@ -185,12 +187,7 @@ const ReportWastage = () => {
                       <td>{record.quantity}</td>
                       <td>{record.ingredients?.unit || 'N/A'}</td>
                       <td>
-                        <span style={{
-                          background: '#fff3e0',
-                          padding: '4px 12px',
-                          borderRadius: '4px',
-                          fontSize: '12px'
-                        }}>
+                        <span className="wastage-reason-badge">
                           {record.reason}
                         </span>
                       </td>

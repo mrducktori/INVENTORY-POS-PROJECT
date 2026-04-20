@@ -319,11 +319,6 @@ header .open-btn {
   .images-container {
     gap: 10px;
   }
-
-  .login-right {
-    flex: 0 0 auto;
-    padding-left: 0;
-  }
 }
 
 @media (max-width: 768px) {
@@ -331,27 +326,7 @@ header .open-btn {
     font-size: 24px;
   }
 
-  .login-card {
-    padding: 25px 20px;
-  }
-
-  .image-placeholder-small {
-    height: 100px;
-  }
-
-  .login-container {
-    max-width: 90vw;
-  }
-
   .images-container {
     gap: 8px;
-  }
-
-  .placeholder-content {
-    gap: 8px;
-  }
-
-  .placeholder-content p {
-    font-size: 12px;
   }
 }

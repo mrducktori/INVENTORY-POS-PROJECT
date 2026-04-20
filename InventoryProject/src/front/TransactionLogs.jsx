@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { getSales } from '../api/salesApi';
+import SalesReceiptModal from './SalesReceiptModal';
 import '../styles/Inventory.css';
+import '../styles/TransactionLogs.css';
 
 const TransactionLogs = () => {
   const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(false);
   const [dateFilter, setDateFilter] = useState('');
+  const [selectedSaleId, setSelectedSaleId] = useState(null);
 
   useEffect(() => {
     fetchSales();
@@ -46,19 +49,19 @@ const TransactionLogs = () => {
       </div>
 
       <div className="card">
-        <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="card-header tx-logs-header">
           <h2>Transaction History</h2>
           <div>
             <input 
               type="date" 
               value={dateFilter} 
               onChange={e => setDateFilter(e.target.value)}
-              style={{ padding: '4px 8px', borderRadius: '3px', border: 'none', cursor: 'pointer' }}
+              className="tx-date-input"
             />
             {dateFilter && (
               <button 
                 onClick={() => setDateFilter('')}
-                style={{ marginLeft: '10px', background: 'transparent', border: '1px solid white', color: 'white', cursor: 'pointer', padding: '4px 8px', borderRadius: '3px' }}
+                className="tx-date-clear"
               >
                 Clear
               </button>
@@ -70,37 +73,34 @@ const TransactionLogs = () => {
             <p>Loading transactions...</p>
           ) : sales.length > 0 ? (
             <div className="table-container">
-              <table className="table">
+              <table className="table tx-table">
                 <thead>
                   <tr>
-                    <th>Transaction ID</th>
+                    <th>Receipt #</th>
                     <th>Date & Time</th>
                     <th>Cashier</th>
                     <th>Items</th>
                     <th>Total Amount</th>
-                    <th>Payment Method</th>
+                    <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {sales.map(sale => (
                     <tr key={sale.id}>
-                      <td style={{ fontFamily: 'monospace', fontSize: '11px', color: '#666' }}>
-                        {sale.id.substring(0, 8).toUpperCase()}
+                      <td className="tx-id-cell">
+                        {sale.receipt_number || sale.id.substring(0, 8).toUpperCase()}
                       </td>
                       <td>{new Date(sale.created_at).toLocaleString()}</td>
                       <td>{sale.users?.name || 'Unknown'}</td>
-                      <td>
-                        <div style={{ fontSize: '12px', color: '#555' }}>
-                          {(sale.sale_items || []).map((item, idx) => (
-                            <div key={idx}>
-                              {item.quantity}x {item.products?.name} 
-                            </div>
-                          ))}
-                        </div>
-                      </td>
+                      <td>{sale.sale_items?.length || 0} items</td>
                       <td><strong>₱{parseFloat(sale.total_amount).toFixed(2)}</strong></td>
                       <td>
-                        <span className="status normal">{sale.payment_method}</span>
+                        <button 
+                          className="btn btn-secondary tx-view-btn" 
+                          onClick={() => setSelectedSaleId(sale.id)}
+                        >
+                          View Receipt
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -114,6 +114,13 @@ const TransactionLogs = () => {
           )}
         </div>
       </div>
+
+      {selectedSaleId && (
+        <SalesReceiptModal 
+          saleId={selectedSaleId} 
+          onClose={() => setSelectedSaleId(null)} 
+        />
+      )}
     </div>
   );
 };

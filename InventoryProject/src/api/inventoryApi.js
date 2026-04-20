@@ -55,3 +55,20 @@ export const getLowStockAlerts = async () => {
   if (!res.ok) throw new Error("Failed to fetch low stock alerts");
   return res.json();
 };
+
+export const archiveIngredient = async (id) => {
+  const res = await fetch(`${API_BASE}/inventory/ingredients/${id}/archive`, {
+    method: "PUT"
+  });
+  if (!res.ok) throw new Error("Failed to archive ingredient");
+  return res.json();
+};
+
+export const restoreIngredient = async (id) => {
+  const res = await fetch(`${API_BASE}/inventory/ingredients/${id}/restore`, {
+    method: "PUT"
+  });
+  if (!res.ok) throw new Error("Failed to restore ingredient");
+  return res.json();
+};
+

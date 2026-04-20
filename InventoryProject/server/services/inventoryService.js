@@ -1,9 +1,10 @@
-import { supabase } from "../../db.js";
+import { supabase } from "../config/supabaseClient.js";
 
 export const getIngredients = async () => {
   const { data, error } = await supabase
     .from("ingredients")
     .select("*")
+    .eq("is_archived", false)
     .order("name");
 
   if (error) throw error;
@@ -28,7 +29,8 @@ export const createIngredient = async ({ name, unit, stock_quantity, low_stock_a
       name,
       unit,
       stock_quantity: stock_quantity || 0,
-      low_stock_alert: low_stock_alert || 10
+      low_stock_alert: low_stock_alert || 10,
+      is_archived: false
     }])
     .select()
     .single();
@@ -70,7 +72,8 @@ export const getLowStockAlerts = async () => {
   const { data, error } = await supabase
     .from("ingredients")
     .select("*")
-    .filter("stock_quantity", "lt", "low_stock_alert")
+    .eq("is_archived", false)
+    .filter("stock_quantity", "lte", "low_stock_alert")
     .order("stock_quantity");
 
   if (error) throw error;
@@ -90,3 +93,28 @@ export const deleteIngredient = async (id) => {
   if (error) throw error;
   return { success: true };
 };
+
+export const archiveIngredient = async (id) => {
+  const { data, error } = await supabase
+    .from("ingredients")
+    .update({ is_archived: true })
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+export const restoreIngredient = async (id) => {
+  const { data, error } = await supabase
+    .from("ingredients")
+    .update({ is_archived: false })
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+

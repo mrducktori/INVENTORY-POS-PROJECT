@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { getUsers, createUser, updateUserStatus } from '../api/usersApi';
+import { getUsers, createUser, updateUser, updateUserStatus } from '../api/usersApi';
 import '../styles/Inventory.css';
+import '../styles/AccountManager.css';
 
 const AccountManager = () => {
   const [users, setUsers] = useState([]);
@@ -13,6 +14,7 @@ const AccountManager = () => {
     password: '',
     role: 'Staff'
   });
+  const [editingUserId, setEditingUserId] = useState(null);
 
   useEffect(() => {
     fetchUsers();
@@ -35,17 +37,37 @@ const AccountManager = () => {
     setFormData({ ...formData, [name]: value });
   };
 
-  const handleCreateUser = async (e) => {
+  const handleSaveUser = async (e) => {
     e.preventDefault();
     try {
-      await createUser(formData);
-      setMessage('User account created successfully!');
-      setFormData({ name: '', username: '', password: '', role: 'Staff' });
+      if (editingUserId) {
+        await updateUser(editingUserId, formData);
+        setMessage('User account updated successfully!');
+      } else {
+        await createUser(formData);
+        setMessage('User account created successfully!');
+      }
+      handleCancelEdit();
       fetchUsers();
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
-      setMessage('Error creating user: ' + err.message);
+      setMessage(`Error ${editingUserId ? 'updating' : 'creating'} user: ` + err.message);
     }
+  };
+
+  const handleEditClick = (user) => {
+    setEditingUserId(user.id);
+    setFormData({
+      name: user.name,
+      username: user.username,
+      password: '', // Blank empty for update
+      role: user.role
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingUserId(null);
+    setFormData({ name: '', username: '', password: '', role: 'Staff' });
   };
 
   const handleToggleStatus = async (id, currentStatus) => {
@@ -68,7 +90,7 @@ const AccountManager = () => {
       <div className="form-row">
         <div className="card">
           <div className="card-header">
-            <h2>Create New Account</h2>
+            <h2>{editingUserId ? 'Edit Account' : 'Create New Account'}</h2>
           </div>
           <div className="card-body">
             {message && (
@@ -76,7 +98,7 @@ const AccountManager = () => {
                 {message}
               </div>
             )}
-            <form onSubmit={handleCreateUser}>
+            <form onSubmit={handleSaveUser}>
               <div className="form-group">
                 <label>Full Name</label>
                 <input type="text" name="name" value={formData.name} onChange={handleInputChange} required />
@@ -86,8 +108,8 @@ const AccountManager = () => {
                 <input type="text" name="username" value={formData.username} onChange={handleInputChange} required />
               </div>
               <div className="form-group">
-                <label>Password</label>
-                <input type="password" name="password" value={formData.password} onChange={handleInputChange} required />
+                <label>Password {editingUserId && '(Leave blank to keep current)'}</label>
+                <input type="password" name="password" value={formData.password} onChange={handleInputChange} required={!editingUserId} />
               </div>
               <div className="form-group">
                 <label>Role</label>
@@ -97,9 +119,14 @@ const AccountManager = () => {
                   <option value="Owner">Owner</option>
                 </select>
               </div>
-              <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
-                Create Account
-              </button>
+                <button type="submit" className="btn btn-primary" style={{ width: editingUserId ? '48%' : '100%' }}>
+                  {editingUserId ? 'Save Changes' : 'Create Account'}
+                </button>
+                {editingUserId && (
+                  <button type="button" className="btn btn-secondary" style={{ width: '48%', float: 'right' }} onClick={handleCancelEdit}>
+                    Cancel
+                  </button>
+                )}
             </form>
           </div>
         </div>
@@ -135,12 +162,20 @@ const AccountManager = () => {
                           </span>
                         </td>
                         <td>
-                          <button 
-                            className={`btn btn-small ${u.status === 'ACTIVE' ? 'btn-danger' : 'btn-success'}`}
-                            onClick={() => handleToggleStatus(u.id, u.status)}
-                          >
-                            {u.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
-                          </button>
+                          <div style={{ display: 'flex', gap: '5px' }}>
+                            <button 
+                              className="btn btn-small btn-secondary"
+                              onClick={() => handleEditClick(u)}
+                            >
+                              Edit
+                            </button>
+                            <button 
+                              className={`btn btn-small ${u.status === 'ACTIVE' ? 'btn-danger' : 'btn-success'}`}
+                              onClick={() => handleToggleStatus(u.id, u.status)}
+                            >
+                              {u.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}

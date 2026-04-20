@@ -1,0 +1,45 @@
+.proposal-box {
+  background: #f9f9f9;
+  border-left: 3px solid #333;
+  padding: 8px;
+  margin-top: 5px;
+  border-radius: 0 4px 4px 0;
+  font-size: 11px;
+}
+
+.proposal-label {
+  display: block;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 10px;
+  color: #666;
+  margin-bottom: 2px;
+}
+
+.old-value {
+  text-decoration: line-through;
+  color: #999;
+  margin-right: 5px;
+}
+
+.new-value {
+  font-weight: bold;
+  color: #2e7d32;
+}
+
+.requests-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.requests-filter {
+  padding: 6px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.requests-action-group {
+  display: flex;
+  gap: 5px;
+}

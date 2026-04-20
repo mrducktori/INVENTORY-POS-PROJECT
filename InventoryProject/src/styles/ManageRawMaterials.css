@@ -1,0 +1,79 @@
+/* ManageRawMaterials.css */
+.manage-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.table-filters-container {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.filter-input {
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  font-size: 13px;
+}
+
+.filter-select {
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  font-size: 13px;
+  background-color: white;
+}
+
+.ingredient-search-box {
+  margin-bottom: 12px;
+  padding: 10px;
+  border: 1px solid #000;
+  width: 100%;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.modify-card {
+  margin-top: 20px;
+}
+
+
+.action-buttons-group {
+  display: flex;
+  gap: 8px;
+}
+
+.recipe-section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+}
+
+.recipe-title {
+  font-size: 13px;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.recipe-form {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.recipe-form .form-group {
+  margin: 0;
+}
+
+.recipe-form .flex-2 { flex: 2; }
+.recipe-form .flex-1 { flex: 1; }

@@ -1,6 +1,6 @@
 import express from 'express';
 import bcrypt from 'bcrypt';
-import { supabase } from '../../db.js';
+import { supabase } from '../config/supabaseClient.js';
 
 const router = express.Router();
 
@@ -60,6 +60,34 @@ router.put('/:id/status', async (req, res) => {
       .eq('id', req.params.id)
       .select('id, name, username, role, status')
       .single();
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update a user (name, username, password, role)
+router.put('/:id', async (req, res) => {
+  try {
+    const { name, username, password, role } = req.body;
+    if (!name || !username || !role) {
+      return res.status(400).json({ error: 'Name, username, and role are required' });
+    }
+
+    const updates = { name, username, role };
+
+    if (password && password.trim() !== '') {
+      const saltRounds = 10;
+      updates.password_hash = await bcrypt.hash(password, saltRounds);
+    }
+
+    const { data, error } = await supabase
+      .from('users')
+      .update(updates)
+      .eq('id', req.params.id)
+      .select('id, name, username, role, status, created_at')
+      .single();
+
     if (error) throw error;
     res.json(data);
   } catch (err) {

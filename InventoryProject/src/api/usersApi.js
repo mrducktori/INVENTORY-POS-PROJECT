@@ -15,6 +15,13 @@ export const createUser = async (user) => {
   });
 };
 
+export const updateUser = async (id, userData) => {
+  return apiCall(`/users/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(userData)
+  });
+};
+
 export const updateUserStatus = async (id, status) => {
   return apiCall(`/users/${id}/status`, {
     method: 'PUT',

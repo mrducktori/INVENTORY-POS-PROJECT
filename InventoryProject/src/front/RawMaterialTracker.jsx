@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { getIngredients } from '../api/inventoryApi';
 import '../styles/Inventory.css';
+import '../styles/RawMaterialTracker.css';
 
 const RawMaterialTracker = () => {
   const [ingredients, setIngredients] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [stockFilter, setStockFilter] = useState('ALL'); // 'ALL' | 'CRITICAL' | 'LOW' | 'NORMAL'
+
 
   useEffect(() => {
     fetchIngredients();
@@ -15,7 +18,8 @@ const RawMaterialTracker = () => {
     try {
       setLoading(true);
       const data = await getIngredients();
-      setIngredients(data || []);
+      // Filter out archived items
+      setIngredients((data || []).filter(i => !i.is_archived));
     } catch (err) {
       console.error('Error loading ingredients:', err);
     } finally {
@@ -23,22 +27,28 @@ const RawMaterialTracker = () => {
     }
   };
 
-  const filteredIngredients = ingredients.filter(ing =>
-    ing.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   const getStockStatus = (current, alert_level) => {
-    if (current < alert_level * 0.5) return 'critical';
-    if (current < alert_level) return 'low';
+    if (current === 0) return 'critical';
+    if (current <= alert_level * 0.5) return 'critical';
+    if (current <= alert_level) return 'low';
     return 'normal';
   };
 
+  const filteredIngredients = ingredients.filter(ing => {
+    const status = getStockStatus(ing.stock_quantity, ing.low_stock_alert);
+    const matchSearch = (ing.name || "").toLowerCase().includes(searchTerm.toLowerCase());
+    const matchStatus = stockFilter === 'ALL' || status.toUpperCase() === stockFilter;
+    return matchSearch && matchStatus;
+  });
+
+
   const stats = {
     total: ingredients.length,
-    low: ingredients.filter(i => i.stock_quantity < i.low_stock_alert).length,
-    normal: ingredients.filter(i => i.stock_quantity >= i.low_stock_alert).length,
+    low: ingredients.filter(i => i.stock_quantity <= i.low_stock_alert).length,
+    normal: ingredients.filter(i => i.stock_quantity > i.low_stock_alert).length,
     totalValue: ingredients.reduce((sum, i) => sum + i.stock_quantity, 0)
   };
+
 
   return (
     <div className="inventory-container">
@@ -54,13 +64,13 @@ const RawMaterialTracker = () => {
         </div>
         <div className="stat-card">
           <div className="label">Low Stock Items</div>
-          <div className="value" style={{ color: stats.low > 0 ? '#e74c3c' : '#27ae60' }}>
+          <div className={`value ${stats.low > 0 ? 'text-red' : 'text-green'}`}>
             {stats.low}
           </div>
         </div>
         <div className="stat-card">
           <div className="label">Normal Stock</div>
-          <div className="value" style={{ color: '#27ae60' }}>
+          <div className="value text-green">
             {stats.normal}
           </div>
         </div>
@@ -75,14 +85,26 @@ const RawMaterialTracker = () => {
           <h2>Ingredient Inventory Levels</h2>
         </div>
         <div className="card-body">
-          <input
-            type="text"
-            placeholder="Search ingredients..."
-            className="form-group"
-            style={{ marginBottom: '20px' }}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+          <div className="table-filters" style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+            <input
+              type="text"
+              placeholder="Search ingredients..."
+              style={{ flex: 2, padding: '8px 12px', borderRadius: '4px', border: '1px solid #ddd' }}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <select
+              value={stockFilter}
+              onChange={e => setStockFilter(e.target.value)}
+              style={{ flex: 1, padding: '8px 12px', borderRadius: '4px', border: '1px solid #ddd' }}
+            >
+              <option value="ALL">All Stock Status</option>
+              <option value="CRITICAL">Critical Only</option>
+              <option value="LOW">Low Stock Only</option>
+              <option value="NORMAL">Normal Only</option>
+            </select>
+          </div>
+
 
           {loading ? (
             <p>Loading...</p>
@@ -111,20 +133,13 @@ const RawMaterialTracker = () => {
                         <td>{ing.stock_quantity}</td>
                         <td>{ing.low_stock_alert}</td>
                         <td>
-                          <div style={{
-                            background: '#f0f0f0',
-                            borderRadius: '4px',
-                            height: '20px',
-                            overflow: 'hidden'
-                          }}>
-                            <div style={{
-                              background: status === 'critical' ? '#e74c3c' : status === 'low' ? '#f39c12' : '#27ae60',
-                              height: '100%',
-                              width: `${Math.min(percentage, 100)}%`,
-                              transition: 'width 0.3s'
-                            }} />
+                          <div className="progress-track">
+                            <div 
+                              className={`progress-fill bg-${status}`}
+                              style={{ width: `${Math.min(percentage, 100)}%` }} 
+                            />
                           </div>
-                          <span style={{ fontSize: '12px', color: '#999' }}>
+                          <span className="progress-percentage">
                             {Math.min(percentage, 100)}%
                           </span>
                         </td>

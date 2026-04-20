@@ -1,0 +1,28 @@
+.admin-logs-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.admin-logs-search {
+  padding: 4px 8px;
+  border-radius: 3px;
+  border: none;
+  font-size: 12px;
+  width: 200px;
+}
+
+.whitespace-nowrap {
+  white-space: nowrap;
+}
+
+.admin-log-role {
+  font-size: 11px;
+  color: #666;
+}
+
+.admin-log-details {
+  color: #555;
+  max-width: 300px;
+  word-wrap: break-word;
+}

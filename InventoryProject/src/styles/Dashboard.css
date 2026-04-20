@@ -200,3 +200,9 @@ body {
 .dashboard-main::-webkit-scrollbar-thumb:hover {
   background: #999;
 }
+
+.dashboard-not-found {
+  padding: 40px;
+  text-align: center;
+  color: #999;
+}

@@ -1,24 +1,9 @@
 import express from "express";
-import { getProducts, createSale } from "../services/posService.js";
+import * as posController from "../controllers/posController.js";
 
 const router = express.Router();
 
-router.get("/products", async (req, res) => {
-  try {
-    const data = await getProducts();
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-router.post("/sale", async (req, res) => {
-  try {
-    const sale = await createSale(req.body);
-    res.json({ message: "Sale completed", sale });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+router.get("/products", posController.getProducts);
+router.post("/sale", posController.createSale);
 
 export default router;

@@ -1,5 +1,5 @@
 import express from 'express';
-import { supabase } from '../../db.js';
+import { supabase } from '../config/supabaseClient.js';
 
 const router = express.Router();
 
@@ -24,11 +24,14 @@ router.get('/stats', async (req, res) => {
     // Low stock ingredients
     const { data: ingredients } = await supabase
       .from('ingredients')
-      .select('stock_quantity, low_stock_alert');
+      .select('stock_quantity, low_stock_alert')
+      .eq('is_archived', false);
+
 
     const lowStockCount = (ingredients || []).filter(
-      i => i.stock_quantity < i.low_stock_alert
+      i => i.stock_quantity <= i.low_stock_alert
     ).length;
+
 
     // Items sold today
     const { data: saleItems } = await supabase

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getEmployeeShifts } from '../api/usersApi';
 import '../styles/Inventory.css';
+import '../styles/EmployeeTracker.css';
 
 const EmployeeTracker = () => {
   const [shifts, setShifts] = useState([]);
@@ -38,13 +39,13 @@ const EmployeeTracker = () => {
       </div>
 
       <div className="card">
-        <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="card-header tracker-header">
           <h2>Shift Records</h2>
           <input 
             type="date" 
             value={dateStr} 
             onChange={(e) => setDateStr(e.target.value)}
-            style={{ padding: '4px 8px', borderRadius: '3px', border: 'none' }}
+            className="tracker-date-input"
           />
         </div>
         <div className="card-body">
@@ -84,7 +85,7 @@ const EmployeeTracker = () => {
           ) : (
             <div className="empty-state">
               <p>No shift records found for the selected date.</p>
-              <p style={{ fontSize: '11px', marginTop: '10px' }}>
+              <p className="tracker-note">
                 Note: Make sure the `employee_shifts` table exists in Supabase.
               </p>
             </div>

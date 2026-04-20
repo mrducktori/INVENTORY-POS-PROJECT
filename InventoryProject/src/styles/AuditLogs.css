@@ -1,0 +1,21 @@
+.audit-controls {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.audit-form-group {
+  margin: 0;
+}
+
+.audit-table-loading {
+  text-align: center;
+}
+
+.audit-badge-dark {
+  background-color: #000;
+  color: #fff;
+  padding: 3px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+}

@@ -1,0 +1,30 @@
+.alerts-actions-card {
+  margin-top: 25px;
+}
+
+.alerts-recommendations-list {
+  margin-left: 20px;
+  line-height: 1.8;
+}
+
+.text-critical-bold {
+  color: #e74c3c;
+  font-weight: 600;
+}
+
+.text-warning-bold {
+  color: #f39c12;
+  font-weight: 600;
+}
+
+.text-info {
+  color: #667eea;
+}
+
+.text-critical {
+  color: #e74c3c;
+}
+
+.text-warning {
+  color: #f39c12;
+}

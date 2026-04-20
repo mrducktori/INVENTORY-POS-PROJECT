@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getAllProducts } from '../api/productsApi';
 import { getRecipesByProduct } from '../api/recipesApi';
 import '../styles/Inventory.css';
+import '../styles/Products.css';
 
 const Products = () => {
   const [products, setProducts] = useState([]);
@@ -39,7 +40,9 @@ const Products = () => {
 
   const categories = ['ALL', ...new Set(products.map(p => p.category))];
   const filteredProducts = products.filter(p => {
-    const matchCat = filter === 'ALL' || p.category === filter;
+    const pCat = (p.category || "").toUpperCase();
+    const fCat = filter.toUpperCase();
+    const matchCat = filter === 'ALL' || pCat === fCat || (fCat === 'PASTRIES' && pCat === 'PASTRY') || (fCat === 'PASTRY' && pCat === 'PASTRIES');
     const matchSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
     return matchCat && matchSearch && !p.is_archived;
   });
@@ -56,7 +59,7 @@ const Products = () => {
           <h2>Product Inventory</h2>
         </div>
         <div className="card-body">
-          <div className="form-row" style={{ marginBottom: '20px' }}>
+          <div className="form-row products-search-row">
             <div className="form-group">
               <input
                 type="text"
@@ -136,7 +139,7 @@ const Products = () => {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="3" style={{ textAlign: 'center' }}>No recipe details found.</td>
+                      <td colSpan="3" className="recipe-empty-row">No recipe details found.</td>
                     </tr>
                   )}
                 </tbody>

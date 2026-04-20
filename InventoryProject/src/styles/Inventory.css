@@ -311,20 +311,6 @@
   border: 1px solid #ccc;
 }
 
-.alert-info {
-  background: #f9f9f9;
-  color: #555;
-  border: 1px solid #ddd;
-}
-
-/* ---- Action Buttons Row ---- */
-.action-buttons {
-  display: flex;
-  gap: 8px;
-  margin-top: 16px;
-  flex-wrap: wrap;
-}
-
 /* ---- Modal ---- */
 .modal-overlay {
   position: fixed;

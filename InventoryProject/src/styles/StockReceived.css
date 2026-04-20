@@ -1,0 +1,14 @@
+/* StockReceived.css */
+.stock-search-input {
+  margin-bottom: 12px;
+  padding: 10px;
+  border: 1px solid #000;
+  width: 100%;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.stock-card-form {
+  max-width: 500px;
+  margin-bottom: 30px;
+}

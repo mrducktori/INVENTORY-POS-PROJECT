@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getIngredients, receiveStock } from '../api/inventoryApi';
 import '../styles/Inventory.css';
+import '../styles/StockReceived.css';
 
 const StockReceived = () => {
   const [ingredients, setIngredients] = useState([]);
@@ -8,6 +9,8 @@ const StockReceived = () => {
   const [selectedId, setSelectedId] = useState('');
   const [quantity, setQuantity] = useState('');
   const [message, setMessage] = useState('');
+
+
 
   useEffect(() => {
     fetchIngredients();
@@ -51,7 +54,7 @@ const StockReceived = () => {
         <p>Add new stock to your inventory</p>
       </div>
 
-      <div className="card" style={{ maxWidth: '600px', marginBottom: '30px' }}>
+      <div className="card stock-card-form">
         <div className="card-header">
           <h2>Receive Stock</h2>
         </div>
@@ -68,11 +71,12 @@ const StockReceived = () => {
               <select
                 value={selectedId}
                 onChange={(e) => setSelectedId(e.target.value)}
+                required
               >
                 <option value="">-- Choose an ingredient --</option>
                 {ingredients.map(ing => (
                   <option key={ing.id} value={ing.id}>
-                    {ing.name} ({ing.unit}) - Current: {ing.stock_quantity}
+                    {ing.name} ({ing.unit}) - Stock: {ing.stock_quantity}
                   </option>
                 ))}
               </select>
@@ -83,6 +87,7 @@ const StockReceived = () => {
               <input
                 type="number"
                 step="0.01"
+                min="0"
                 placeholder="Enter quantity"
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
@@ -123,8 +128,8 @@ const StockReceived = () => {
                       <td>{ing.stock_quantity}</td>
                       <td>{ing.low_stock_alert}</td>
                       <td>
-                        <span className={`status ${ing.stock_quantity < ing.low_stock_alert ? 'critical' : 'normal'}`}>
-                          {ing.stock_quantity < ing.low_stock_alert ? 'LOW' : 'NORMAL'}
+                        <span className={`status ${ing.stock_quantity <= ing.low_stock_alert ? 'critical' : 'normal'}`}>
+                          {ing.stock_quantity <= ing.low_stock_alert ? 'LOW' : 'NORMAL'}
                         </span>
                       </td>
                     </tr>

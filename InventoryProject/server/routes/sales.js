@@ -1,5 +1,5 @@
 import express from 'express';
-import { supabase } from '../../db.js';
+import { supabase } from "../config/supabaseClient.js";
 
 const router = express.Router();
 
@@ -29,7 +29,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Get single sale detail
+// Get single sale detail (Receipt)
 router.get('/:id', async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -37,7 +37,7 @@ router.get('/:id', async (req, res) => {
       .select(`
         *,
         users(id, name, username),
-        sale_items(id, quantity, unit_price, products(id, name, category))
+        sale_items(id, quantity, unit_price, discount_percent, notes, products(id, name, category))
       `)
       .eq('id', req.params.id)
       .single();
@@ -55,9 +55,9 @@ router.get('/summary/report', async (req, res) => {
     const now = new Date();
     let start;
 
-    if (period === 'day') {
+    if (period === 'day' || period === 'daily') {
       start = new Date(now.toISOString().split('T')[0] + 'T00:00:00');
-    } else if (period === 'week') {
+    } else if (period === 'week' || period === 'weekly') {
       start = new Date(now);
       start.setDate(now.getDate() - 7);
     } else {
@@ -69,32 +69,37 @@ router.get('/summary/report', async (req, res) => {
     const { data: sales, error } = await supabase
       .from('sales')
       .select(`
-        total_amount, created_at,
+        total_amount, created_at, users(id, name),
         sale_items(quantity, unit_price, products(id, name))
       `)
       .gte('created_at', start.toISOString());
 
     if (error) throw error;
 
-    const totalRevenue = (sales || []).reduce((s, r) => s + parseFloat(r.total_amount), 0);
-    const totalTransactions = (sales || []).length;
+    const total_sales = (sales || []).reduce((s, r) => s + parseFloat(r.total_amount), 0);
+    const total_transactions = (sales || []).length;
+    let total_items_sold = 0;
+    
+    const staffMap = {};
 
-    // Aggregate products sold
-    const productMap = {};
     (sales || []).forEach(sale => {
+      const staffId = sale.users?.id;
+      const staffName = sale.users?.name || 'Unknown';
+      
+      if (!staffMap[staffId]) {
+         staffMap[staffId] = { id: staffId, name: staffName, total_sales: 0, transactions: 0 };
+      }
+      staffMap[staffId].total_sales += parseFloat(sale.total_amount);
+      staffMap[staffId].transactions += 1;
+
       (sale.sale_items || []).forEach(item => {
-        const name = item.products?.name || 'Unknown';
-        if (!productMap[name]) productMap[name] = { name, qty: 0, revenue: 0 };
-        productMap[name].qty += item.quantity;
-        productMap[name].revenue += item.quantity * parseFloat(item.unit_price);
+        total_items_sold += item.quantity;
       });
     });
 
-    const topProducts = Object.values(productMap)
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 10);
+    const staff_data = Object.values(staffMap).sort((a, b) => b.total_sales - a.total_sales);
 
-    res.json({ totalRevenue, totalTransactions, topProducts });
+    res.json({ total_sales, total_transactions, total_items_sold, staff_data });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

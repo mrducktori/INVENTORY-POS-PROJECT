@@ -1,4 +1,4 @@
-import { supabase } from "../../db.js";
+import { supabase } from "../config/supabaseClient.js";
 import { updateStock } from "./inventoryService.js";
 
 export const reportWastage = async ({ ingredient_id, quantity, reason, reported_by }) => {

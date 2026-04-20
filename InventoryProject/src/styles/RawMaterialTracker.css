@@ -1,0 +1,41 @@
+.text-red {
+  color: #e74c3c;
+}
+
+.text-green {
+  color: #27ae60;
+}
+
+.search-input-spaced {
+  margin-bottom: 20px;
+  width: 100%;
+}
+
+.progress-track {
+  background: #f0f0f0;
+  border-radius: 4px;
+  height: 20px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  transition: width 0.3s;
+}
+
+.progress-fill.bg-critical {
+  background: #e74c3c;
+}
+
+.progress-fill.bg-low {
+  background: #f39c12;
+}
+
+.progress-fill.bg-normal {
+  background: #27ae60;
+}
+
+.progress-percentage {
+  font-size: 12px;
+  color: #999;
+}

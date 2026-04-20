@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getAuditLogs } from '../api/auditApi';
 import '../styles/Inventory.css';
+import '../styles/AdminLogs.css';
 
 const AdminLogs = () => {
   const [logs, setLogs] = useState([]);
@@ -31,14 +32,14 @@ const AdminLogs = () => {
       </div>
 
       <div className="card">
-        <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="card-header admin-logs-header">
           <h2>System Audit Trail</h2>
           <input
             type="text"
             placeholder="Search action..."
             value={filterAction}
             onChange={(e) => setFilterAction(e.target.value)}
-            style={{ padding: '4px 8px', borderRadius: '3px', border: 'none', fontSize: '12px', width: '200px' }}
+            className="admin-logs-search"
           />
         </div>
         <div className="card-body">
@@ -58,17 +59,17 @@ const AdminLogs = () => {
                 <tbody>
                   {logs.map(log => (
                     <tr key={log.id}>
-                      <td style={{ whiteSpace: 'nowrap' }}>
+                      <td className="whitespace-nowrap">
                         {new Date(log.created_at).toLocaleString()}
                       </td>
                       <td>
                         <strong>{log.users?.name || 'Unknown'}</strong><br/>
-                        <span style={{ fontSize: '11px', color: '#666' }}>({log.users?.role || 'System'})</span>
+                        <span className="admin-log-role">({log.users?.role || 'System'})</span>
                       </td>
                       <td>
                         <span className="status normal">{log.action}</span>
                       </td>
-                      <td style={{ color: '#555', maxWidth: '300px', wordWrap: 'break-word' }}>
+                      <td className="admin-log-details">
                         {log.details}
                       </td>
                     </tr>

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { getProducts, createSale } from "../api/posApi";
+import { getRecipesByProduct } from "../api/recipesApi";
 import "../styles/POS.css";
 
 const POS = () => {
@@ -12,6 +13,8 @@ const POS = () => {
   const [recipeProduct, setRecipeProduct] = useState(null);
   const [ongoingOrders, setOngoingOrders] = useState([]);
   const [activeTab, setActiveTab] = useState("cart"); // 'cart' or 'ongoing'
+  const [recipeLoading, setRecipeLoading] = useState(false);
+  const [currentRecipe, setCurrentRecipe] = useState([]);
 
   const user = getCurrentUser();
 
@@ -34,6 +37,27 @@ const POS = () => {
       console.error("Failed to load products:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // FETCH RECIPE FOR MODAL
+  useEffect(() => {
+    if (recipeProduct) {
+      loadRecipe(recipeProduct.id);
+    } else {
+      setCurrentRecipe([]);
+    }
+  }, [recipeProduct]);
+
+  const loadRecipe = async (productId) => {
+    try {
+      setRecipeLoading(true);
+      const data = await getRecipesByProduct(productId);
+      setCurrentRecipe(data || []);
+    } catch (err) {
+      console.error("Failed to load recipe:", err);
+    } finally {
+      setRecipeLoading(false);
     }
   };
 
@@ -232,28 +256,36 @@ const POS = () => {
               <button className="recipe-modal-close" onClick={() => setRecipeProduct(null)}>✕</button>
             </div>
             <div className="recipe-modal-body">
-              <p className="recipe-modal-note">Connect to backend to load recipe data.</p>
-              <table className="recipe-table">
-                <thead>
-                  <tr><th>Ingredient</th><th>Qty</th><th>Unit</th></tr>
-                </thead>
-                <tbody>
-                  {(recipeProduct.recipe || []).map((r, i) => (
-                    <tr key={i}>
-                      <td>{r.ingredient}</td>
-                      <td>{r.qty}</td>
-                      <td>{r.unit}</td>
-                    </tr>
-                  ))}
-                  {(!recipeProduct.recipe || recipeProduct.recipe.length === 0) && (
-                    <tr><td colSpan={3} style={{ textAlign: 'center', color: '#999', padding: '16px' }}>No recipe data loaded yet.</td></tr>
-                  )}
-                </tbody>
-              </table>
+              {recipeLoading ? (
+                <div className="loading">Loading recipe details...</div>
+              ) : (
+                <table className="recipe-table">
+                  <thead>
+                    <tr><th>Ingredient</th><th>Qty</th><th>Unit</th><th>Stock</th></tr>
+                  </thead>
+                  <tbody>
+                    {currentRecipe.map((r, i) => (
+                      <tr key={i}>
+                        <td>{r.ingredients?.name}</td>
+                        <td>{r.quantity_used}</td>
+                        <td>{r.ingredients?.unit}</td>
+                        <td>
+                          <span className={`stock-indicator ${(r.ingredients?.stock_quantity || 0) < 10 ? 'critical' : 'normal'}`}>
+                            {r.ingredients?.stock_quantity}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                    {currentRecipe.length === 0 && (
+                      <tr><td colSpan={4} className="empty">No recipe data found for this product.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              )}
             </div>
             <div className="recipe-modal-footer">
               <button className="recipe-close-btn" onClick={() => setRecipeProduct(null)}>Close</button>
-              <button className="complete-btn" style={{ padding: '6px 16px' }} onClick={() => { addToCart(recipeProduct); setRecipeProduct(null); }}>
+              <button className="complete-btn btn-small" onClick={() => { addToCart(recipeProduct); setRecipeProduct(null); }}>
                 + Add to Cart
               </button>
             </div>
@@ -284,9 +316,27 @@ const isAuthorized = (user) => {
 };
 
 const filterProducts = (products, category, searchTerm = "") => {
+  const mainCategories = ["COFFEE", "FRAPPE", "MILK TEA", "PASTRIES", "PASTRY", "PROMO"];
+  
   return products.filter(p => {
-    const matchCategory = category === "ALL" || p.category === category;
-    const matchSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const pCat = (p.category || "").toUpperCase();
+    const targetCat = category.toUpperCase();
+    
+    let matchCategory = false;
+    if (targetCat === "ALL") {
+      matchCategory = true;
+    } else if (targetCat === "OTHERS") {
+      // Items that are not in the main categories list go to 'OTHERS'
+      matchCategory = !mainCategories.includes(pCat);
+    } else if (targetCat === "PASTRIES") {
+      // Match both 'PASTRIES' and 'PASTRY'
+      matchCategory = (pCat === "PASTRIES" || pCat === "PASTRY");
+    } else {
+      matchCategory = pCat === targetCat;
+    }
+
+
+    const matchSearch = (p.name || "").toLowerCase().includes(searchTerm.toLowerCase());
     return matchCategory && matchSearch;
   });
 };

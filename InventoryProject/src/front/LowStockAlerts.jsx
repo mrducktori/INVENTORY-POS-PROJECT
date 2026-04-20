@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { getLowStockAlerts } from '../api/inventoryApi';
 import '../styles/Inventory.css';
+import '../styles/LowStockAlerts.css';
 
 const LowStockAlerts = () => {
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+
 
   useEffect(() => {
     fetchLowStockAlerts();
@@ -27,10 +30,16 @@ const LowStockAlerts = () => {
 
   const getSeverity = (current, alert_level) => {
     if (current === 0) return 'critical';
-    if (current < alert_level * 0.25) return 'critical';
-    if (current < alert_level * 0.5) return 'warning';
+    if (current <= alert_level * 0.5) return 'critical';
+    if (current <= alert_level) return 'warning';
     return 'low';
   };
+
+  const filteredAlerts = alerts.filter(a => 
+    a.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+
 
   const getCriticalCount = () => alerts.filter(a => getSeverity(a.stock_quantity, a.low_stock_alert) === 'critical').length;
   const getWarningCount = () => alerts.filter(a => getSeverity(a.stock_quantity, a.low_stock_alert) === 'warning').length;
@@ -49,13 +58,13 @@ const LowStockAlerts = () => {
         </div>
         <div className="stat-card">
           <div className="label">Critical Alert</div>
-          <div className="value" style={{ color: '#e74c3c' }}>
+          <div className="value text-critical">
             {getCriticalCount()}
           </div>
         </div>
         <div className="stat-card">
           <div className="label">Warning Level</div>
-          <div className="value" style={{ color: '#f39c12' }}>
+          <div className="value text-warning">
             {getWarningCount()}
           </div>
         </div>
@@ -72,9 +81,19 @@ const LowStockAlerts = () => {
           <h2>Low Stock Items</h2>
         </div>
         <div className="card-body">
+          <div className="table-filters" style={{ marginBottom: '20px' }}>
+            <input 
+              type="text" 
+              placeholder="Search items..." 
+              value={searchTerm} 
+              onChange={e => setSearchTerm(e.target.value)}
+              style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ddd' }}
+            />
+          </div>
+
           {loading ? (
             <p>Loading...</p>
-          ) : alerts.length > 0 ? (
+          ) : filteredAlerts.length > 0 ? (
             <div className="table-container">
               <table className="table">
                 <thead>
@@ -88,7 +107,8 @@ const LowStockAlerts = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {alerts.map(alert => {
+                  {filteredAlerts.map(alert => {
+
                     const shortage = alert.low_stock_alert - alert.stock_quantity;
                     const severity = getSeverity(alert.stock_quantity, alert.low_stock_alert);
 
@@ -98,7 +118,7 @@ const LowStockAlerts = () => {
                         <td>{alert.unit}</td>
                         <td>{alert.stock_quantity}</td>
                         <td>{alert.low_stock_alert}</td>
-                        <td style={{ color: '#e74c3c', fontWeight: '600' }}>
+                        <td className="text-critical-bold">
                           -{shortage.toFixed(2)}
                         </td>
                         <td>
@@ -121,24 +141,24 @@ const LowStockAlerts = () => {
       </div>
 
       {alerts.length > 0 && (
-        <div className="card" style={{ marginTop: '25px' }}>
+        <div className="card alerts-actions-card">
           <div className="card-header">
             <h2>Recommended Actions</h2>
           </div>
           <div className="card-body">
-            <ul style={{ marginLeft: '20px', lineHeight: '1.8' }}>
+            <ul className="alerts-recommendations-list">
               {getCriticalCount() > 0 && (
-                <li style={{ color: '#e74c3c', fontWeight: '600' }}>
+                <li className="text-critical-bold">
                   ORDER IMMEDIATELY: {getCriticalCount()} item(s) at critical level
                 </li>
               )}
               {getWarningCount() > 0 && (
-                <li style={{ color: '#f39c12', fontWeight: '600' }}>
+                <li className="text-warning-bold">
                   PLAN ORDER: {getWarningCount()} item(s) approaching critical level
                 </li>
               )}
               {alerts.length > 2 && (
-                <li style={{ color: '#667eea' }}>
+                <li className="text-info">
                   Consider increasing order frequency
                 </li>
               )}

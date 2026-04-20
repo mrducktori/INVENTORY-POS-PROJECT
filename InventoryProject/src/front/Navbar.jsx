@@ -8,7 +8,6 @@ const MENU_CONFIG = {
       label: 'Point of Sale',
       submenu: [
         { label: 'POS System', value: 'POS' },
-        { label: 'Report Broken Items', value: 'ReportWastage' },
       ]
     },
     {
@@ -22,7 +21,6 @@ const MENU_CONFIG = {
       submenu: [
         { label: 'Raw Material Tracker', value: 'RawMaterialTracker' },
         { label: 'Stock Received', value: 'StockReceived' },
-        { label: 'Low Stock Alerts', value: 'LowStockAlerts' },
       ]
     },
   ],
@@ -32,23 +30,22 @@ const MENU_CONFIG = {
       label: 'Inventory System',
       submenu: [
         { label: 'Products Display', value: 'Products' },
-        { label: 'Add / Archive Product', value: 'ManageProducts' },
-        { label: 'Modify Recipe & Price', value: 'ModifyProduct' },
-        { label: 'Request Tracker', value: 'ViewRequests' },
+        { label: 'Manage Products', value: 'ManageProducts' },
       ]
     },
     {
       label: 'Inventory Stock',
       submenu: [
         { label: 'Raw Material Tracker', value: 'RawMaterialTracker' },
+        { label: 'Manage Raw Materials', value: 'ManageRawMaterials' },
         { label: 'Update Stock', value: 'StockReceived' },
-        { label: 'Low Stock Alerts', value: 'LowStockAlerts' },
       ]
     },
     {
       label: 'Logs & Reports',
       submenu: [
-        { label: 'Admin Logs', value: 'AdminLogs' },
+        { label: 'Audit Logs', value: 'AuditLogs' },
+        { label: 'Receipt Journal', value: 'SalesReceiptJournal' },
         { label: 'Sales Summary Report', value: 'SalesSummaryReport' },
       ]
     },
@@ -65,24 +62,23 @@ const MENU_CONFIG = {
       label: 'Inventory System',
       submenu: [
         { label: 'Products Display', value: 'Products' },
-        { label: 'Add / Archive Product', value: 'ManageProducts' },
-        { label: 'Modify Recipe & Price', value: 'ModifyProduct' },
-        { label: 'Request Tracker', value: 'ViewRequests' },
+        { label: 'Manage Products', value: 'ManageProducts' },
       ]
     },
     {
       label: 'Inventory Stock',
       submenu: [
         { label: 'Raw Material Tracker', value: 'RawMaterialTracker' },
+        { label: 'Manage Raw Materials', value: 'ManageRawMaterials' },
         { label: 'Update Stock', value: 'StockReceived' },
-        { label: 'Low Stock Alerts', value: 'LowStockAlerts' },
       ]
     },
     {
       label: 'Logs & Reports',
       submenu: [
-        { label: 'Admin Logs', value: 'AdminLogs' },
+        { label: 'Audit Logs', value: 'AuditLogs' },
         { label: 'Transaction Logs', value: 'TransactionLogs' },
+        { label: 'Receipt Journal', value: 'SalesReceiptJournal' },
         { label: 'Sales Summary Report', value: 'SalesSummaryReport' },
       ]
     },
