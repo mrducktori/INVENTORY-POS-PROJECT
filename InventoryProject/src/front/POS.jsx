@@ -167,7 +167,7 @@ const POS = () => {
         <div className="recipe-modal-overlay" onClick={() => setRecipeProduct(null)}>
           <div className="recipe-modal" onClick={e => e.stopPropagation()}>
             <div className="recipe-modal-header">
-              <h3>🧪 Ingredients: {recipeProduct.name}</h3>
+              <h3>Ingredients: {recipeProduct.name}</h3>
               <button className="recipe-modal-close" onClick={() => setRecipeProduct(null)}>✕</button>
             </div>
             <div className="recipe-modal-body">
@@ -263,7 +263,7 @@ const ProductCard = ({ product, onClick, onViewRecipe }) => (
         onClick={(e) => { e.stopPropagation(); onViewRecipe(product); }}
         title="View Ingredients"
       >
-        🧪 Info
+        Info
       </button>
       <button className="add-btn" onClick={() => onClick(product)}>+ Add</button>
     </div>

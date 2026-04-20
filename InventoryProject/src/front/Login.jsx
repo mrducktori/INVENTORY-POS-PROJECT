@@ -2,32 +2,26 @@ import { useState } from 'react';
 import '../styles/Login.css';
 import App from './Dashboard';
 import { loginUser, saveUser, getCurrentUser } from '../api/authApi.js';
-
+import locPic from '../assets/loc_pic.png';
+import coffeeMenu from '../assets/coffee_menu.png';
 
 function Login() {
-  const [form, setForm] = useState({
-    username: '',
-    password: ''
-  });
-
+  const [form, setForm] = useState({ username: '', password: '' });
   const [user, setUser] = useState(getCurrentUser());
-
   const [error, setError] = useState('');
+  const [formOpen, setFormOpen] = useState(false); 
+
+  const toggleModal = () => setFormOpen(!formOpen);
 
   const handleChange = (e) => {
-    setForm({
-      ...form,
-      [e.target.name]: e.target.value
-    });
+    setForm({ ...form, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-
     try {
       const data = await loginUser(form.username, form.password);
-      // save user
       saveUser(data);
       setUser(data);
     } catch (err) {
@@ -35,35 +29,73 @@ function Login() {
     }
   };
 
-  if (user) {
-    return <App />;
-  }
+  if (user) return <App />;
 
   return (
-    <div className="login-container">
-      <form onSubmit={handleSubmit}>
-        <h1>Login</h1>
-        {error && <p className="error">{error}</p>}
-        <label>Username:</label>
-        <input
-          type="text"
-          name="username"
-          value={form.username}
-          onChange={handleChange}
-          required
-        />
+    <div className='default_page'>
+      {/* Header */}
+      <header className="login-header">
+        <div className="header-content">
+          <h1>COF/TEA CAFE | ELWOOD</h1>
 
-        <label>Password:</label>
-        <input
-          type="password"
-          name="password"
-          value={form.password}
-          onChange={handleChange}
-          required
-        />
+          <button className="open-btn" onClick={toggleModal}>Login</button>
+        </div>
+      </header>
 
-        <button type="submit">Login</button>
-      </form>
+      {/* Main Content - 70/30 Split */}
+      <div className="login-main">
+        {/* Left Side - 70% */}
+        <div className="login-left">
+          <div className="images-container">
+            {/* Photo 1 - Location */}
+            <div className="image-placeholder">
+              <img src={locPic} alt="Location" className="placeholder-image" />
+            </div>
+          </div>
+        </div>
+
+        {/* Photo 2 - Menu */}
+        <div className="image-placeholder menu-image">
+              <img src={coffeeMenu} alt="Coffee Menu" className="placeholder-image" />
+            </div>
+      </div>
+
+      <footer className="login-footer">
+        <div className="footer-content">
+          <p>&copy; 2026 Inventory + POS System. All rights matters.</p>
+          <div className="footer-links">
+            <a href="#privacy">Privacy Policy</a>
+            <span>•</span>
+            <a href="#terms">Terms of Service</a>
+            <span>•</span>
+            <a href="#support">Support</a>
+          </div>
+        </div>
+      </footer>
+
+      {formOpen && (
+        <div className="modal-overlay">
+          <div className="login-container">
+            <form onSubmit={handleSubmit}>
+              <h3 className="back-btn" onClick={toggleModal}> ← Back </h3>
+              <h1>Login</h1>
+              {error && <p className="error">{error}</p>}
+              
+              <label>Username:</label>
+                <input type="text" name="username" 
+                  value={form.username} 
+                  onChange={handleChange} required />
+
+              <label>Password:</label>
+                <input type="password" name="password" 
+                  value={form.password} 
+                  onChange={handleChange} required />
+
+              <button type="submit" className="login-submit">Login</button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
