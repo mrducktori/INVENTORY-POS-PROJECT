@@ -27,6 +27,7 @@ const ManageRawMaterials = () => {
   const [editName, setEditName] = useState('');
   const [editUnit, setEditUnit] = useState('');
   const [editAlert, setEditAlert] = useState('');
+  const [editQuantity, setEditQuantity] = useState('');
 
   useEffect(() => {
     fetchIngredients();
@@ -46,6 +47,7 @@ const ManageRawMaterials = () => {
           setEditName(ing.name);
           setEditUnit(ing.unit);
           setEditAlert(ing.low_stock_alert);
+          setEditQuantity(ing.stock_quantity);
         }
       }
     } catch (err) {
@@ -106,6 +108,7 @@ const ManageRawMaterials = () => {
     setEditName(ing.name);
     setEditUnit(ing.unit);
     setEditAlert(ing.low_stock_alert);
+    setEditQuantity(ing.stock_quantity);
   };
 
   const handleUpdateIngredient = async (e) => {
@@ -116,7 +119,8 @@ const ManageRawMaterials = () => {
       await updateIngredient(selectedIngredient.id, {
         name: editName.trim().toUpperCase(),
         unit: editUnit.trim().toUpperCase(),
-        low_stock_alert: parseFloat(editAlert) || 0
+        low_stock_alert: parseFloat(editAlert) || 0,
+        stock_quantity: parseFloat(editQuantity) || 0
       });
       setMessage('Ingredient details updated successfully!');
       fetchIngredients();
@@ -131,6 +135,7 @@ const ManageRawMaterials = () => {
     setEditName(ingredient.name);
     setEditUnit(ingredient.unit);
     setEditAlert(ingredient.low_stock_alert);
+    setEditQuantity(ingredient.stock_quantity);
   };
 
 
@@ -338,6 +343,10 @@ const ManageRawMaterials = () => {
                   <div className="form-group">
                     <label>Low Stock Alert Level</label>
                     <input type="number" step="0.01" min="0" value={editAlert} onChange={e => setEditAlert(e.target.value)} required />
+                  </div>
+                  <div className="form-group">
+                    <label>Current Stock Quantity</label>
+                    <input type="number" step="0.01" min="0" value={editQuantity} onChange={e => setEditQuantity(e.target.value)} required />
                   </div>
                   <button type="submit" className="btn btn-primary">Save Changes</button>
                 </form>

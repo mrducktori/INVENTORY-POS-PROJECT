@@ -1,9 +1,20 @@
 /* Dashboard Overrides for standard stats grid */
+.stat-card {
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stat-card.clickable:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  border-color: #000;
+}
+
 .stat-card.border-green { border-top: 4px solid #000; }
 .stat-card.border-red { border-top: 4px solid #c62828; }
 .stat-card.border-blue { border-top: 4px solid #1565c0; }
 .stat-card.border-purple { border-top: 4px solid #6a1b9a; }
 .stat-card.border-orange { border-top: 4px solid #ef6c00; }
+
 
 .stat-card .value {
   font-size: 24px;
@@ -103,5 +114,11 @@
 .overview-link-desc {
   font-size: 12px;
   color: #666;
+  transition: color 0.2s;
 }
+
+.overview-link-btn:active {
+  transform: scale(0.98);
+}
+
 

@@ -59,14 +59,15 @@ const DashboardOverview = ({ onNavigate }) => {
 
       <div className="stats-grid">
         {statCards.map(s => (
-          <div className={`stat-card border-${s.color}`} key={s.label}>
+          <div 
+            className={`stat-card border-${s.color}`} 
+            key={s.label}
+          >
             <div className="value">{loading ? '...' : s.value}</div>
             <div className="label">{s.label}</div>
           </div>
         ))}
       </div>
-
-
 
       <div className="card">
         <div className="card-header"><h2>Quick Navigation</h2></div>

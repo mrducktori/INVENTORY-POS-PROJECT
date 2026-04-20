@@ -4,7 +4,7 @@ export const getIngredients = async () => {
   const { data, error } = await supabase
     .from("ingredients")
     .select("*")
-    .eq("is_archived", false)
+    .neq("is_archived", true)
     .order("name");
 
   if (error) throw error;
@@ -39,10 +39,10 @@ export const createIngredient = async ({ name, unit, stock_quantity, low_stock_a
   return data;
 };
 
-export const updateIngredient = async (id, { name, unit, low_stock_alert }) => {
+export const updateIngredient = async (id, { name, unit, low_stock_alert, stock_quantity }) => {
   const { data, error } = await supabase
     .from("ingredients")
-    .update({ name, unit, low_stock_alert })
+    .update({ name, unit, low_stock_alert, stock_quantity })
     .eq("id", id)
     .select()
     .single();
@@ -72,12 +72,12 @@ export const getLowStockAlerts = async () => {
   const { data, error } = await supabase
     .from("ingredients")
     .select("*")
-    .eq("is_archived", false)
-    .filter("stock_quantity", "lte", "low_stock_alert")
-    .order("stock_quantity");
+    .eq("is_archived", false);
 
   if (error) throw error;
-  return data;
+  
+  // Filter in JS to ensure column-to-column comparison works correctly
+  return (data || []).filter(i => i.stock_quantity <= i.low_stock_alert);
 };
 
 export const receiveStock = async (id, quantity) => {

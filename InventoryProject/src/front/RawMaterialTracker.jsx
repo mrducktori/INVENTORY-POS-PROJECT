@@ -46,8 +46,8 @@ const RawMaterialTracker = () => {
     total: ingredients.length,
     low: ingredients.filter(i => i.stock_quantity <= i.low_stock_alert).length,
     normal: ingredients.filter(i => i.stock_quantity > i.low_stock_alert).length,
-    totalValue: ingredients.reduce((sum, i) => sum + i.stock_quantity, 0)
   };
+
 
 
   return (
@@ -74,10 +74,7 @@ const RawMaterialTracker = () => {
             {stats.normal}
           </div>
         </div>
-        <div className="stat-card">
-          <div className="label">Total Stock Value</div>
-          <div className="value">{stats.totalValue.toFixed(2)}</div>
-        </div>
+
       </div>
 
       <div className="card">
@@ -85,7 +82,8 @@ const RawMaterialTracker = () => {
           <h2>Ingredient Inventory Levels</h2>
         </div>
         <div className="card-body">
-          <div className="table-filters" style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+          <div className="table-filters-container" style={{ marginBottom: '20px' }}>
+
             <input
               type="text"
               placeholder="Search ingredients..."

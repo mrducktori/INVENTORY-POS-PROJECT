@@ -1,5 +1,6 @@
 import express from 'express';
 import { supabase } from '../config/supabaseClient.js';
+import * as inventoryService from '../services/inventoryService.js';
 
 const router = express.Router();
 
@@ -21,13 +22,8 @@ router.get('/stats', async (req, res) => {
       .select('*', { count: 'exact', head: true })
       .eq('is_archived', false);
 
-    // Low stock ingredients
-    const { data: ingredients } = await supabase
-      .from('ingredients')
-      .select('stock_quantity, low_stock_alert')
-      .eq('is_archived', false);
-
-
+    // Low stock ingredients - using unified service to ensure consistent archiving logic
+    const ingredients = await inventoryService.getIngredients();
     const lowStockCount = (ingredients || []).filter(
       i => i.stock_quantity <= i.low_stock_alert
     ).length;
