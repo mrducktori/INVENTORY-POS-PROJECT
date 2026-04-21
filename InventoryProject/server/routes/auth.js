@@ -1,6 +1,7 @@
 import express from "express";
 import bcrypt from "bcrypt";
 import { supabase } from "../config/supabaseClient.js";
+import { authLimiter } from "../middleware/rateLimiter.js";
 
 const router = express.Router();
 
@@ -8,15 +9,14 @@ const router = express.Router();
 router.get("/test", async (req, res) => {
   try {
     const { data, error } = await supabase.from("users").select("*");
-    console.log("Test query error:", error);
-    console.log("Test query result count:", data ? data.length : 0);
+
     res.json({ connected: !error, data, error });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-router.post("/login", async (req, res) => {
+router.post("/login", authLimiter, async (req, res) => {
   try {
     const { username, password } = req.body;
 
@@ -32,23 +32,16 @@ router.post("/login", async (req, res) => {
       .eq("username", username)
       .single();
 
-    console.log("Login attempt for username:", username);
-    console.log("Query error:", error);
-    console.log("User data:", data);
-
     if (error || !data) {
-      console.log("User not found or query error");
       return res.status(401).json({ error: "Invalid username or password" });
     }
 
     // Check if user is active
     if (data.status !== "ACTIVE") {
-      console.log("User status:", data.status);
       return res.status(401).json({ error: "User account is not active" });
     }
 
     // Compare password with bcrypt hash
-    console.log("Password field in DB:", typeof data.password_hash, data.password_hash ? "exists" : "missing");
 
     let isPasswordValid = false;
 
@@ -61,7 +54,6 @@ router.post("/login", async (req, res) => {
       isPasswordValid = password === data.password_hash;
     }
 
-    console.log("Password comparison result:", isPasswordValid);
     if (!isPasswordValid) {
       return res.status(401).json({ error: "Invalid username or password" });
     }

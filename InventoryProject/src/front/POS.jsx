@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { getProducts, createSale } from "../api/posApi";
 import { getRecipesByProduct } from "../api/recipesApi";
+import { getCurrentUser, isAuthorized } from "../utils/authUtils";
+import { filterProducts } from "../utils/productUtils";
+import CategoryFilter from "../components/CategoryFilter";
+import ProductCard from "../components/ProductCard";
 import "../styles/POS.css";
 
 const POS = () => {
@@ -297,89 +301,6 @@ const POS = () => {
 };
 
 export default POS;
-
-
-
-
-// HELPERS
-
-const getCurrentUser = () => {
-  try {
-    return JSON.parse(localStorage.getItem("user"));
-  } catch {
-    return null;
-  }
-};
-
-const isAuthorized = (user) => {
-  return user && ["ADMIN", "STAFF", "Owner", "Admin", "Staff"].includes(user.role);
-};
-
-const filterProducts = (products, category, searchTerm = "") => {
-  const mainCategories = ["COFFEE", "FRAPPE", "MILK TEA", "PASTRIES", "PASTRY", "PROMO"];
-  
-  return products.filter(p => {
-    const pCat = (p.category || "").toUpperCase();
-    const targetCat = category.toUpperCase();
-    
-    let matchCategory = false;
-    if (targetCat === "ALL") {
-      matchCategory = true;
-    } else if (targetCat === "OTHERS") {
-      // Items that are not in the main categories list go to 'OTHERS'
-      matchCategory = !mainCategories.includes(pCat);
-    } else if (targetCat === "PASTRIES") {
-      // Match both 'PASTRIES' and 'PASTRY'
-      matchCategory = (pCat === "PASTRIES" || pCat === "PASTRY");
-    } else {
-      matchCategory = pCat === targetCat;
-    }
-
-
-    const matchSearch = (p.name || "").toLowerCase().includes(searchTerm.toLowerCase());
-    return matchCategory && matchSearch;
-  });
-};
-
-// COMPONENTS
-
-const CategoryFilter = ({ category, setCategory }) => {
-  const categories = ["ALL", "COFFEE", "FRAPPE", "MILK TEA", "PASTRIES", "PROMO", "OTHERS"];
-
-  return (
-    <div className="pos-categories">
-      {categories.map(cat => (
-        <button
-          key={cat}
-          className={`cat-btn ${category === cat ? "active" : ""}`}
-          onClick={() => setCategory(cat)}
-        >
-          {cat}
-        </button>
-      ))}
-    </div>
-  );
-};
-
-const ProductCard = ({ product, onClick, onViewRecipe }) => (
-  <div className="pos-card">
-    <div className="card-content" onClick={() => onClick(product)}>
-      <h4>{product.name}</h4>
-      <p className="category">{product.category}</p>
-      <p className="price">₱{product.price?.toFixed(2)}</p>
-    </div>
-    <div className="pos-card-footer">
-      <button
-        className="info-btn"
-        onClick={(e) => { e.stopPropagation(); onViewRecipe(product); }}
-        title="View Ingredients"
-      >
-        Info
-      </button>
-      <button className="add-btn" onClick={() => onClick(product)}>+ Add</button>
-    </div>
-  </div>
-);
 
 const Cart = ({ cart, total, onUpdateQty, onRemove }) => (
   <>

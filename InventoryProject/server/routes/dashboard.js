@@ -1,11 +1,12 @@
 import express from 'express';
 import { supabase } from '../config/supabaseClient.js';
 import * as inventoryService from '../services/inventoryService.js';
+import { generalLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
 // Aggregate dashboard stats from existing tables
-router.get('/stats', async (req, res) => {
+router.get('/stats', generalLimiter, async (req, res) => {
   try {
     const today = new Date().toISOString().split('T')[0];
 

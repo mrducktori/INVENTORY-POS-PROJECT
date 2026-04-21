@@ -1,10 +1,11 @@
 import express from 'express';
 import { supabase } from "../config/supabaseClient.js";
+import { createLimiter, generalLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
 // Get all products (active and archived)
-router.get('/', async (req, res) => {
+router.get('/', generalLimiter, async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('products')
@@ -18,7 +19,7 @@ router.get('/', async (req, res) => {
 });
 
 // Create new product
-router.post('/', async (req, res) => {
+router.post('/', createLimiter, async (req, res) => {
   try {
     const { name, category, price, description } = req.body;
     if (!name || !category || !price) {
@@ -37,7 +38,7 @@ router.post('/', async (req, res) => {
 });
 
 // Update product (price, name, category)
-router.put('/:id', async (req, res) => {
+router.put('/:id', createLimiter, async (req, res) => {
   try {
     const { name, category, price } = req.body;
     const { data, error } = await supabase
@@ -54,7 +55,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // Archive product
-router.put('/:id/archive', async (req, res) => {
+router.put('/:id/archive', createLimiter, async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('products')
@@ -70,7 +71,7 @@ router.put('/:id/archive', async (req, res) => {
 });
 
 // Restore archived product
-router.put('/:id/restore', async (req, res) => {
+router.put('/:id/restore', createLimiter, async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('products')

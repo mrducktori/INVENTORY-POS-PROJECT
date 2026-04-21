@@ -1,41 +1,27 @@
-const API_BASE = "http://localhost:5000/api";
+import { apiCall } from './client.js';
 
 export const getRecipes = async () => {
-  const res = await fetch(`${API_BASE}/recipes`);
-  if (!res.ok) throw new Error("Failed to fetch recipes");
-  return res.json();
+  return apiCall('/recipes', { method: 'GET' });
 };
 
 export const getRecipesByProduct = async (product_id) => {
-  const res = await fetch(`${API_BASE}/recipes/product/${product_id}`);
-  if (!res.ok) throw new Error("Failed to fetch recipes");
-  return res.json();
+  return apiCall(`/recipes/product/${product_id}`, { method: 'GET' });
 };
 
 export const createRecipe = async (recipe) => {
-  const res = await fetch(`${API_BASE}/recipes`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+  return apiCall('/recipes', {
+    method: 'POST',
     body: JSON.stringify(recipe)
   });
-  if (!res.ok) throw new Error("Failed to create recipe");
-  return res.json();
 };
 
 export const updateRecipe = async (id, recipe) => {
-  const res = await fetch(`${API_BASE}/recipes/${id}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
+  return apiCall(`/recipes/${id}`, {
+    method: 'PUT',
     body: JSON.stringify(recipe)
   });
-  if (!res.ok) throw new Error("Failed to update recipe");
-  return res.json();
 };
 
 export const deleteRecipe = async (id) => {
-  const res = await fetch(`${API_BASE}/recipes/${id}`, {
-    method: "DELETE"
-  });
-  if (!res.ok) throw new Error("Failed to delete recipe");
-  return res.json();
+  return apiCall(`/recipes/${id}`, { method: 'DELETE' });
 };

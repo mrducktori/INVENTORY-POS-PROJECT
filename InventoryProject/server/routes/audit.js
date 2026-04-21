@@ -1,10 +1,11 @@
 import express from 'express';
 import { supabase } from '../config/supabaseClient.js';
+import { createLimiter, generalLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
 // Get audit logs with optional filters
-router.get('/', async (req, res) => {
+router.get('/', generalLimiter, async (req, res) => {
   try {
     let query = supabase
       .from('audit_logs')
@@ -28,7 +29,7 @@ router.get('/', async (req, res) => {
 });
 
 // Create audit log entry
-router.post('/', async (req, res) => {
+router.post('/', createLimiter, async (req, res) => {
   try {
     const { action, user_id, details } = req.body;
     const { data, error } = await supabase

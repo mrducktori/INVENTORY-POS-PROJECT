@@ -7,6 +7,7 @@ const EmployeeTracker = () => {
   const [shifts, setShifts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [dateStr, setDateStr] = useState(new Date().toISOString().split('T')[0]);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchShifts();
@@ -15,10 +16,12 @@ const EmployeeTracker = () => {
   const fetchShifts = async () => {
     try {
       setLoading(true);
+      setError(null);
       const data = await getEmployeeShifts(dateStr);
       setShifts(data || []);
     } catch (err) {
-      console.error('Failed to load shifts:', err);
+      setError(err.message || 'Failed to load shifts. Ensure the employee_shifts table exists in Supabase.');
+      setShifts([]);
     } finally {
       setLoading(false);
     }
@@ -49,6 +52,11 @@ const EmployeeTracker = () => {
           />
         </div>
         <div className="card-body">
+          {error && (
+            <div className="error-box">
+              <strong>Error:</strong> {error}
+            </div>
+          )}
           {loading ? (
             <p>Loading records...</p>
           ) : shifts.length > 0 ? (
@@ -85,9 +93,6 @@ const EmployeeTracker = () => {
           ) : (
             <div className="empty-state">
               <p>No shift records found for the selected date.</p>
-              <p className="tracker-note">
-                Note: Make sure the `employee_shifts` table exists in Supabase.
-              </p>
             </div>
           )}
         </div>

@@ -1,10 +1,11 @@
 import express from "express";
 import * as requestsService from "../services/requestsService.js";
+import { createLimiter, generalLimiter } from "../middleware/rateLimiter.js";
 
 const router = express.Router();
 
 // Create request
-router.post("/", async (req, res) => {
+router.post("/", createLimiter, async (req, res) => {
   try {
     const request = await requestsService.createRequest(req.body);
     res.status(201).json(request);
@@ -14,7 +15,7 @@ router.post("/", async (req, res) => {
 });
 
 // Get requests with filters
-router.get("/", async (req, res) => {
+router.get("/", generalLimiter, async (req, res) => {
   try {
     const filters = {
       status: req.query.status,
@@ -30,7 +31,7 @@ router.get("/", async (req, res) => {
 });
 
 // Get pending requests
-router.get("/pending", async (req, res) => {
+router.get("/pending", generalLimiter, async (req, res) => {
   try {
     const pending = await requestsService.getPendingRequests();
     res.json(pending);
@@ -40,7 +41,7 @@ router.get("/pending", async (req, res) => {
 });
 
 // Get request statistics
-router.get("/stats", async (req, res) => {
+router.get("/stats", generalLimiter, async (req, res) => {
   try {
     const stats = await requestsService.getRequestStats();
     res.json(stats);
@@ -50,7 +51,7 @@ router.get("/stats", async (req, res) => {
 });
 
 // Update request status
-router.put("/:id/status", async (req, res) => {
+router.put("/:id/status", createLimiter, async (req, res) => {
   try {
     const { status } = req.body;
     const request = await requestsService.updateRequestStatus(req.params.id, status);

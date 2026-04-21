@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getAuditLogs } from '../api/logsApi';
+import { getAuditLogs } from '../api/auditApi';
 import '../styles/Inventory.css';
 import '../styles/AuditLogs.css';
 

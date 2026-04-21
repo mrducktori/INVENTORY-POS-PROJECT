@@ -63,7 +63,6 @@ export const createSale = async ({ cart, total, staff_id, discount_amount = 0, t
       .eq("product_id", item.id);
 
     if (recipeError) {
-      console.error(`Error fetching recipe for product ${item.id}:`, recipeError);
       continue;
     }
 
@@ -81,7 +80,6 @@ export const createSale = async ({ cart, total, staff_id, discount_amount = 0, t
           .single();
 
         if (fetchError) {
-          console.error(`Error fetching ingredient ${recipe.ingredient_id}:`, fetchError);
           continue;
         }
 
@@ -93,7 +91,7 @@ export const createSale = async ({ cart, total, staff_id, discount_amount = 0, t
           .eq("id", recipe.ingredient_id);
 
         if (updateError) {
-          console.error(`Error updating stock for ingredient ${recipe.ingredient_id}:`, updateError);
+          // Handle error silently to avoid blocking the sale
         }
       }
     }
