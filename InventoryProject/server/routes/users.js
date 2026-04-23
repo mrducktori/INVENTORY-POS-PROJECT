@@ -1,7 +1,6 @@
 import express from 'express';
 import bcrypt from 'bcrypt';
 import { supabase } from '../config/supabaseClient.js';
-import { userManagementLimiter, generalLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
@@ -25,7 +24,7 @@ router.get('/', async (req, res) => {
 });
 
 // Create a new user
-router.post('/', userManagementLimiter, async (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { name, username, password, role } = req.body;
     if (!name || !username || !password || !role) {
@@ -49,7 +48,7 @@ router.post('/', userManagementLimiter, async (req, res) => {
 });
 
 // Update user status (activate/deactivate)
-router.put('/:id/status', userManagementLimiter, async (req, res) => {
+router.put('/:id/status', async (req, res) => {
   try {
     const { status } = req.body;
     if (!['ACTIVE', 'INACTIVE'].includes(status)) {
@@ -68,7 +67,7 @@ router.put('/:id/status', userManagementLimiter, async (req, res) => {
 });
 
 // Update a user (name, username, password, role)
-router.put('/:id', userManagementLimiter, async (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
     const { name, username, password, role } = req.body;
     if (!name || !username || !role) {

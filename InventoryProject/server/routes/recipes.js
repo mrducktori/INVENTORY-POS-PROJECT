@@ -1,11 +1,10 @@
 import express from "express";
 import * as recipesService from "../services/recipesService.js";
-import { createLimiter, generalLimiter } from "../middleware/rateLimiter.js";
 
 const router = express.Router();
 
 // Get all recipes
-router.get("/", generalLimiter, async (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const recipes = await recipesService.getRecipes();
     res.json(recipes);
@@ -15,7 +14,7 @@ router.get("/", generalLimiter, async (req, res) => {
 });
 
 // Get recipes for a product
-router.get("/product/:product_id", generalLimiter, async (req, res) => {
+router.get("/product/:product_id", async (req, res) => {
   try {
     const recipes = await recipesService.getRecipesByProduct(req.params.product_id);
     res.json(recipes);
@@ -25,7 +24,7 @@ router.get("/product/:product_id", generalLimiter, async (req, res) => {
 });
 
 // Create recipe
-router.post("/", createLimiter, async (req, res) => {
+router.post("/", async (req, res) => {
   try {
     const recipe = await recipesService.createRecipe(req.body);
     res.status(201).json(recipe);
@@ -35,7 +34,7 @@ router.post("/", createLimiter, async (req, res) => {
 });
 
 // Update recipe
-router.put("/:id", createLimiter, async (req, res) => {
+router.put("/:id", async (req, res) => {
   try {
     const recipe = await recipesService.updateRecipe(req.params.id, req.body);
     res.json(recipe);
@@ -45,7 +44,7 @@ router.put("/:id", createLimiter, async (req, res) => {
 });
 
 // Delete recipe
-router.delete("/:id", createLimiter, async (req, res) => {
+router.delete("/:id", async (req, res) => {
   try {
     await recipesService.deleteRecipe(req.params.id);
     res.json({ success: true });

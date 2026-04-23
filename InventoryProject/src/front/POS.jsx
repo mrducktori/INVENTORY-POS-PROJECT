@@ -320,12 +320,12 @@ const Cart = ({ cart, total, onUpdateQty, onRemove }) => (
               <p>₱ {item.price?.toFixed(2)} each</p>
             </div>
             <div className="item-controls">
-              <button
+              {/*<button
                 className="qty-btn"
                 onClick={() => onUpdateQty(item.id, item.qty - 1)}
               >
                 −
-              </button>
+              </button>*/}
               <input
                 type="number"
                 min="1"
@@ -333,12 +333,12 @@ const Cart = ({ cart, total, onUpdateQty, onRemove }) => (
                 onChange={(e) => onUpdateQty(item.id, parseInt(e.target.value) || 1)}
                 className="qty-input"
               />
-              <button
+              {/*<button
                 className="qty-btn"
                 onClick={() => onUpdateQty(item.id, item.qty + 1)}
               >
                 +
-              </button>
+              </button>*/}
             </div>
             <div className="item-total">₱ {(item.price * item.qty).toFixed(2)}</div>
             <button

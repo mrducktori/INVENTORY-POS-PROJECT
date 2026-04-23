@@ -1,11 +1,10 @@
 import express from 'express';
 import { supabase } from "../config/supabaseClient.js";
-import { generalLimiter } from "../middleware/rateLimiter.js";
 
 const router = express.Router();
 
 // Get all sales with filters
-router.get('/', generalLimiter, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     let query = supabase
       .from('sales')
@@ -31,7 +30,7 @@ router.get('/', generalLimiter, async (req, res) => {
 });
 
 // Get single sale detail (Receipt)
-router.get('/:id', generalLimiter, async (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('sales')
@@ -50,7 +49,7 @@ router.get('/:id', generalLimiter, async (req, res) => {
 });
 
 // Sales summary by period (day/week/month)
-router.get('/summary/report', generalLimiter, async (req, res) => {
+router.get('/summary/report', async (req, res) => {
   try {
     const period = req.query.period || 'day';
     const now = new Date();

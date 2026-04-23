@@ -1,11 +1,10 @@
 import express from "express";
 import * as wastageService from "../services/wastageService.js";
-import { createLimiter, generalLimiter } from "../middleware/rateLimiter.js";
 
 const router = express.Router();
 
 // Report wastage
-router.post("/", createLimiter, async (req, res) => {
+router.post("/", async (req, res) => {
   try {
     const wastage = await wastageService.reportWastage(req.body);
     res.status(201).json(wastage);
@@ -15,7 +14,7 @@ router.post("/", createLimiter, async (req, res) => {
 });
 
 // Get wastage history with filters
-router.get("/", generalLimiter, async (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const filters = {
       ingredient_id: req.query.ingredient_id,
@@ -32,7 +31,7 @@ router.get("/", generalLimiter, async (req, res) => {
 });
 
 // Get wastage statistics
-router.get("/stats", generalLimiter, async (req, res) => {
+router.get("/stats", async (req, res) => {
   try {
     const stats = await wastageService.getWastageStats();
     res.json(stats);

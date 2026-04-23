@@ -1,7 +1,6 @@
 import express from "express";
 import bcrypt from "bcrypt";
 import { supabase } from "../config/supabaseClient.js";
-import { authLimiter } from "../middleware/rateLimiter.js";
 
 const router = express.Router();
 
@@ -16,7 +15,7 @@ router.get("/test", async (req, res) => {
   }
 });
 
-router.post("/login", authLimiter, async (req, res) => {
+router.post("/login", async (req, res) => {
   try {
     const { username, password } = req.body;
 
