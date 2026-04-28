@@ -92,6 +92,8 @@ CREATE TABLE public.sale_items (
   product_id uuid NOT NULL,
   quantity integer NOT NULL,
   unit_price numeric NOT NULL,
+  cup_size character varying,
+  add_ons jsonb DEFAULT '[]'::jsonb,
   CONSTRAINT sale_items_pkey PRIMARY KEY (id),
   CONSTRAINT sale_items_sale_id_fkey FOREIGN KEY (sale_id) REFERENCES public.sales(id) ON DELETE CASCADE,
   CONSTRAINT sale_items_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id)

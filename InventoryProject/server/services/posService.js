@@ -1,4 +1,5 @@
 import { supabase } from "../config/supabaseClient.js";
+import { convertToBaseUnit } from "../utils/unitUtils.js";
 
 export const getProducts = async () => {
   const { data, error } = await supabase
@@ -16,7 +17,20 @@ const generateReceiptNumber = () => {
   return `RCP-${date.getFullYear()}${(date.getMonth()+1).toString().padStart(2,'0')}${date.getDate().toString().padStart(2,'0')}-${timestamp.toString().slice(-6)}`;
 };
 
-export const createSale = async ({ cart, total, staff_id, discount_amount = 0, tax_amount = 0, status = "COMPLETED", payment_status = "PAID", payment_method = "CASH", notes = "" }) => {
+export const createSale = async ({ 
+  cart, 
+  total, 
+  staff_id, 
+  discount_amount = 0, 
+  tax_amount = 0, 
+  status = "COMPLETED", 
+  payment_status = "PAID", 
+  payment_method = "CASH", 
+  amount_received = 0,
+  change_amount = 0,
+  transaction_reference = "",
+  notes = "" 
+}) => {
   const receipt_number = generateReceiptNumber();
 
   // 1. Create the Sale record
@@ -31,6 +45,9 @@ export const createSale = async ({ cart, total, staff_id, discount_amount = 0, t
       tax_amount,
       status,
       payment_status,
+      amount_received,
+      change_amount,
+      transaction_reference,
       notes
     }])
     .select()
@@ -44,6 +61,8 @@ export const createSale = async ({ cart, total, staff_id, discount_amount = 0, t
     product_id: item.id,
     quantity: item.qty,
     unit_price: item.price,
+    cup_size: item.cup_size || null,
+    add_ons: item.add_ons || [],
     discount_percent: item.discount_percent || 0,
     notes: item.notes || ""
   }));
@@ -54,44 +73,82 @@ export const createSale = async ({ cart, total, staff_id, discount_amount = 0, t
 
   if (itemError) throw itemError;
 
-  // 3. Deduct Ingredients based on Recipes
+  // 3. Deduct Stock (Direct Product Stock OR Recipe-based Ingredients)
   for (const item of cart) {
-    // Get recipe for this product
-    const { data: recipes, error: recipeError } = await supabase
-      .from("recipes")
-      .select("ingredient_id, quantity_used")
-      .eq("product_id", item.id);
+    const { data: product, error: prodFetchError } = await supabase
+      .from("products")
+      .select("track_stock, stock_quantity, name")
+      .eq("id", item.id)
+      .single();
 
-    if (recipeError) {
-      continue;
-    }
+    if (prodFetchError) continue;
 
-    if (recipes && recipes.length > 0) {
-      for (const recipe of recipes) {
-        const totalDeduction = recipe.quantity_used * item.qty;
-        
-        // Update ingredient stock
-        // Note: In a production environment, this should ideally be an atomic decrement in Postgres
-        // via an RPC or a database trigger to avoid race conditions.
-        const { data: ingredient, error: fetchError } = await supabase
-          .from("ingredients")
-          .select("stock_quantity")
-          .eq("id", recipe.ingredient_id)
-          .single();
+    if (product.track_stock) {
+      // MODE A: Direct Product Stock Deduction (e.g., Pastries)
+      const newProductStock = parseFloat(product.stock_quantity) - item.qty;
+      
+      const { error: prodUpdateError } = await supabase
+        .from("products")
+        .update({ stock_quantity: newProductStock })
+        .eq("id", item.id);
 
-        if (fetchError) {
-          continue;
-        }
+      if (!prodUpdateError) {
+        // Log product stock movement
+        await supabase.from("inventory_logs").insert([{
+          product_id: item.id, // We should ensure inventory_logs supports product_id too
+          type: "SOLD",
+          quantity: -item.qty,
+          reference_id: sale.id,
+          user_id: staff_id,
+          notes: `Sold ${item.qty} units of ${product.name} (Direct Stock)`
+        }]);
+      }
+    } else {
+      // MODE B: Recipe-based Ingredient Deduction (e.g., Coffee)
+      const { data: recipes, error: recipeError } = await supabase
+        .from("recipes")
+        .select("ingredient_id, quantity_used, recipe_unit")
+        .eq("product_id", item.id);
 
-        const newStock = ingredient.stock_quantity - totalDeduction;
+      if (recipeError) continue;
 
-        const { error: updateError } = await supabase
-          .from("ingredients")
-          .update({ stock_quantity: newStock })
-          .eq("id", recipe.ingredient_id);
+      if (recipes && recipes.length > 0) {
+        for (const recipe of recipes) {
+          // Fetch ingredient stock AND unit so we can convert
+          const { data: ingredient, error: fetchError } = await supabase
+            .from("ingredients")
+            .select("stock_quantity, unit")
+            .eq("id", recipe.ingredient_id)
+            .single();
 
-        if (updateError) {
-          // Handle error silently to avoid blocking the sale
+          if (fetchError) continue;
+
+          // Convert recipe quantity into the ingredient's storage unit
+          const deductionPerUnit = convertToBaseUnit(
+            recipe.quantity_used,
+            recipe.recipe_unit || ingredient.unit, // fall back to stock unit if no recipe_unit set
+            ingredient.unit
+          );
+          const totalDeduction = deductionPerUnit * item.qty;
+
+          const newStock = parseFloat(ingredient.stock_quantity) - totalDeduction;
+
+          const { error: updateError } = await supabase
+            .from("ingredients")
+            .update({ stock_quantity: newStock })
+            .eq("id", recipe.ingredient_id);
+
+          if (!updateError) {
+            // Log ingredient movement
+            await supabase.from("inventory_logs").insert([{
+              ingredient_id: recipe.ingredient_id,
+              type: "SOLD",
+              quantity: -totalDeduction,
+              reference_id: sale.id,
+              user_id: staff_id,
+              notes: `Deducted for sale of ${item.qty} units of ${product.name}`
+            }]);
+          }
         }
       }
     }
@@ -109,4 +166,4 @@ export const createSale = async ({ cart, total, staff_id, discount_amount = 0, t
   }]);
 
   return sale;
-};
+};

@@ -1,0 +1,124 @@
+/* RawMaterialTracker.css */
+
+/* ---- Page Header ---- */
+.tracker-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+/* ---- Stats Row ---- */
+.tracker-stats-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 900px) {
+  .tracker-stats-row {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .tracker-stats-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.tracker-stat-card {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 16px 20px;
+  border-left: 4px solid #ccc;
+}
+
+.tracker-stat-card.stat-out {
+  border-left-color: #000;
+}
+
+.tracker-stat-card.stat-critical {
+  border-left-color: #c0392b;
+}
+
+.tracker-stat-card.stat-warning {
+  border-left-color: #e67e22;
+}
+
+.tracker-stat-card.stat-healthy {
+  border-left-color: #27ae60;
+}
+
+.tracker-stat-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #777;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.tracker-stat-value {
+  font-size: 26px;
+  font-weight: 700;
+  color: #000;
+  line-height: 1;
+}
+
+/* ---- Progress Bar ---- */
+.progress-track {
+  background: #f0f0f0;
+  border-radius: 4px;
+  height: 8px;
+  overflow: hidden;
+  margin-bottom: 4px;
+  min-width: 80px;
+}
+
+.progress-fill {
+  height: 100%;
+  transition: width 0.3s;
+  border-radius: 4px;
+}
+
+.progress-fill.bg-out,
+.progress-fill.bg-critical {
+  background: #c0392b;
+}
+
+.progress-fill.bg-warning {
+  background: #e67e22;
+}
+
+.progress-fill.bg-normal {
+  background: #27ae60;
+}
+
+.progress-percentage {
+  font-size: 11px;
+  color: #999;
+}
+
+/* ---- Filters ---- */
+.table-filters-container {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.filter-input,
+.filter-select {
+  padding: 7px 12px;
+  border-radius: 4px;
+  border: 1px solid #555;
+  font-size: 13px;
+  background-color: #ffffff;
+  color: #000000;
+}
+
+.filter-input::placeholder {
+  color: #000000;
+}

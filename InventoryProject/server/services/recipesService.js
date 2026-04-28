@@ -27,7 +27,7 @@ export const getRecipesByProduct = async (product_id) => {
   return data;
 };
 
-export const createRecipe = async ({ product_id, ingredient_id, quantity_used }) => {
+export const createRecipe = async ({ product_id, ingredient_id, quantity_used, recipe_unit }) => {
   // Check if recipe already exists
   const { data: existing } = await supabase
     .from("recipes")
@@ -45,7 +45,8 @@ export const createRecipe = async ({ product_id, ingredient_id, quantity_used })
     .insert([{
       product_id,
       ingredient_id,
-      quantity_used
+      quantity_used,
+      recipe_unit: (recipe_unit || '').toUpperCase() || null
     }])
     .select()
     .single();
@@ -54,10 +55,13 @@ export const createRecipe = async ({ product_id, ingredient_id, quantity_used })
   return data;
 };
 
-export const updateRecipe = async (id, { quantity_used }) => {
+export const updateRecipe = async (id, { quantity_used, recipe_unit }) => {
   const { data, error } = await supabase
     .from("recipes")
-    .update({ quantity_used })
+    .update({ 
+      quantity_used,
+      recipe_unit: recipe_unit ? recipe_unit.toUpperCase() : null
+    })
     .eq("id", id)
     .select()
     .single();

@@ -18,7 +18,23 @@ router.get('/', async (req, res) => {
     if (req.query.date) {
       const d = req.query.date;
       query = query.gte('created_at', `${d}T00:00:00`).lte('created_at', `${d}T23:59:59`);
+    } else if (req.query.period) {
+      const period = req.query.period;
+      const now = new Date();
+      let start;
+      if (period === 'day' || period === 'daily') {
+        start = new Date(now.toISOString().split('T')[0] + 'T00:00:00');
+      } else if (period === 'week' || period === 'weekly') {
+        start = new Date(now);
+        start.setDate(now.getDate() - 7);
+      } else {
+        start = new Date(now);
+        start.setDate(1);
+        start.setHours(0, 0, 0, 0);
+      }
+      query = query.gte('created_at', start.toISOString());
     }
+
     if (req.query.staff_id) query = query.eq('staff_id', req.query.staff_id);
 
     const { data, error } = await query;

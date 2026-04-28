@@ -30,3 +30,10 @@ export const restoreProduct = async (id) => {
     method: 'PUT'
   });
 };
+
+export const receiveProductStock = async (id, quantity) => {
+  return apiCall(`/products/${id}/receive`, {
+    method: 'POST',
+    body: JSON.stringify({ quantity })
+  });
+};

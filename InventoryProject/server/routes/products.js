@@ -85,4 +85,36 @@ router.put('/:id/restore', async (req, res) => {
   }
 });
 
+// Receive stock for product (Direct Stock Tracking)
+router.post('/:id/receive', async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    const productId = req.params.id;
+
+    // 1. Get current stock
+    const { data: product, error: fetchError } = await supabase
+      .from('products')
+      .select('stock_quantity')
+      .eq('id', productId)
+      .single();
+    
+    if (fetchError) throw fetchError;
+
+    // 2. Update stock
+    const newStock = (parseFloat(product.stock_quantity) || 0) + parseFloat(quantity);
+    
+    const { data, error: updateError } = await supabase
+      .from('products')
+      .update({ stock_quantity: newStock })
+      .eq('id', productId)
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;

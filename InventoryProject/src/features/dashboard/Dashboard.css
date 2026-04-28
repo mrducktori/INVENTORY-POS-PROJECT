@@ -1,0 +1,219 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #000;
+  color: #000;
+}
+
+.dashboard-body {
+  width: 100%;
+  height: 100vh;
+  background: #fff;
+}
+
+.dashboard-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.dashboard-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.dashboard-main {
+  flex: 1;
+  overflow-y: auto;
+  background: #fff;
+}
+
+/* Navbar */
+.dashboard-nav {
+  width: 220px;
+  background: #1a1a1a;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #333;
+}
+
+.nav-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #333;
+  background: #000;
+}
+
+.nav-logo {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.nav-role {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #aaa;
+  font-weight: 600;
+}
+
+.nav-header h3 {
+  margin: 0;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #888;
+  font-weight: 600;
+}
+
+.dashboard-nav ul {
+  list-style: none;
+  padding: 0;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.dashboard-nav li {
+  padding: 0;
+  border-bottom: 1px solid #2a2a2a;
+}
+
+.menu-item {
+  padding: 14px 20px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  user-select: none;
+  transition: background 0.15s;
+  color: #ccc;
+  font-size: 13px;
+}
+
+.menu-item:hover {
+  background: #2a2a2a;
+}
+
+.menu-item.active {
+  background: #333;
+  color: #fff;
+  border-left: 3px solid #fff;
+  padding-left: 17px;
+}
+
+.menu-arrow {
+  font-size: 11px;
+  margin-left: 8px;
+  transition: transform 0.2s;
+}
+
+.menu-item.expanded .menu-arrow {
+  transform: rotate(180deg);
+}
+
+.submenu {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  background: #0f0f0f;
+  border-bottom: 1px solid #2a2a2a;
+}
+
+.submenu li {
+  padding: 10px 20px 10px 40px;
+  cursor: pointer;
+  font-size: 12px;
+  color: #999;
+  transition: all 0.15s;
+  border-left: 2px solid transparent;
+}
+
+.submenu li:hover {
+  background: #1a1a1a;
+  color: #ccc;
+}
+
+.submenu li.active {
+  background: #1a1a1a;
+  color: #fff;
+  border-left-color: #fff;
+}
+
+.nav-footer-actions {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.theme-toggle {
+  border-top: 1px solid #333;
+  color: #888 !important;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.theme-toggle:hover {
+  color: #fff !important;
+}
+
+.logout-btn {
+  padding: 12px 20px;
+  margin: 15px;
+  background: #333;
+  color: #fff;
+  border: 1px solid #555;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.2s;
+}
+
+/* Scrollbar */
+.dashboard-nav::-webkit-scrollbar {
+  width: 4px;
+}
+
+.dashboard-nav::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+.dashboard-nav::-webkit-scrollbar-thumb {
+  background: #555;
+}
+
+.dashboard-nav::-webkit-scrollbar-thumb:hover {
+  background: #777;
+}
+
+.dashboard-main::-webkit-scrollbar {
+  width: 6px;
+}
+
+.dashboard-main::-webkit-scrollbar-track {
+  background: #f4f4f4;
+}
+
+.dashboard-main::-webkit-scrollbar-thumb {
+  background: #ccc;
+}
+
+.dashboard-main::-webkit-scrollbar-thumb:hover {
+  background: #888;
+}
+
+.dashboard-not-found {
+  padding: 40px;
+  text-align: center;
+  color: #999;
+}
