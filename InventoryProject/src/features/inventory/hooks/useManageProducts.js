@@ -78,14 +78,24 @@ export const useManageProducts = () => {
 
   const handleReceiveProductStock = async (productId, qty) => {
     if (!qty || parseFloat(qty) <= 0) return;
-    try {
-      await receiveProductStock(productId, parseFloat(qty));
-      setMessage('Stock received successfully!');
-      fetchProducts();
-      setTimeout(() => setMessage(''), 3000);
-    } catch (err) {
-      setMessage('Error receiving stock: ' + err.message);
-    }
+    
+    setConfirmConfig({
+      isOpen: true,
+      title: 'Confirm Stock Receipt',
+      message: `Are you sure you want to add ${qty} units to the stock?`,
+      onConfirm: async () => {
+        try {
+          await receiveProductStock(productId, parseFloat(qty));
+          setMessage('Stock received successfully!');
+          fetchProducts();
+          setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+          setTimeout(() => setMessage(''), 3000);
+        } catch (err) {
+          setMessage('Error receiving stock: ' + err.message);
+          setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+        }
+      }
+    });
   };
 
   const handleAddProduct = async (e) => {
@@ -148,59 +158,87 @@ export const useManageProducts = () => {
 
   const handleUpdateProduct = async (e) => {
     if (e) e.preventDefault();
-    try {
-      await updateProduct(selectedProduct.id, {
-        name: editName.trim().toUpperCase(),
-        category: editCategory,
-        price: parseFloat(editPrice),
-        track_stock: editTrackStock,
-        stock_quantity: parseFloat(editStockQty),
-        low_stock_threshold: parseFloat(editThreshold)
-      });
-      setMessage('Product details updated successfully!');
-      fetchProducts();
-      setTimeout(() => setMessage(''), 3000);
-    } catch (err) {
-      setMessage('Error updating product: ' + err.message);
-    }
+    
+    setConfirmConfig({
+      isOpen: true,
+      title: 'Confirm Update',
+      message: `Are you sure you want to save changes to "${selectedProduct.name}"?`,
+      onConfirm: async () => {
+        try {
+          await updateProduct(selectedProduct.id, {
+            name: editName.trim().toUpperCase(),
+            category: editCategory,
+            price: parseFloat(editPrice),
+            track_stock: editTrackStock,
+            stock_quantity: parseFloat(editStockQty),
+            low_stock_threshold: parseFloat(editThreshold)
+          });
+          setMessage('Product details updated successfully!');
+          fetchProducts();
+          setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+          setTimeout(() => setMessage(''), 3000);
+        } catch (err) {
+          setMessage('Error updating product: ' + err.message);
+          setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+        }
+      }
+    });
   };
 
   const handleDeleteRecipeItem = async (recipeId) => {
-    try {
-      await deleteRecipe(recipeId);
-      setRecipe(recipe.filter(r => r.id !== recipeId));
-      setMessage('Ingredient removed from recipe');
-      setTimeout(() => setMessage(''), 2000);
-    } catch (err) {
-      setMessage('Error removing ingredient: ' + err.message);
-    }
+    setConfirmConfig({
+      isOpen: true,
+      title: 'Remove Ingredient',
+      message: 'Are you sure you want to remove this ingredient from the recipe?',
+      onConfirm: async () => {
+        try {
+          await deleteRecipe(recipeId);
+          setRecipe(recipe.filter(r => r.id !== recipeId));
+          setMessage('Ingredient removed from recipe');
+          setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+          setTimeout(() => setMessage(''), 2000);
+        } catch (err) {
+          setMessage('Error removing ingredient: ' + err.message);
+          setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+        }
+      }
+    });
   };
 
   const handleAddRecipeItem = async (e) => {
     if (e) e.preventDefault();
-    try {
-      let qty = parseFloat(newRecipeItem.quantity);
-      const ingredient = allIngredients.find(i => i.id === newRecipeItem.ingredient_id);
-      
-      if (ingredient?.unit === 'L' && newRecipeItem.input_unit === 'ML') {
-        qty = qty / 1000;
-      } else if (ingredient?.unit === 'KG' && newRecipeItem.input_unit === 'G') {
-        qty = qty / 1000;
-      }
+    
+    const qty = parseFloat(newRecipeItem.quantity);
+    const ingredient = allIngredients.find(i => i.id === newRecipeItem.ingredient_id);
+    const unit = (newRecipeItem.input_unit || ingredient?.unit || '').toUpperCase();
 
-      await createRecipe({
-        product_id: selectedProduct.id,
-        ingredient_id: newRecipeItem.ingredient_id,
-        quantity_used: qty
-      });
-      setMessage('Ingredient added to recipe!');
-      setNewRecipeItem({ ingredient_id: '', quantity: '', input_unit: '' });
-      const data = await getRecipesByProduct(selectedProduct.id);
-      setRecipe(data || []);
-      setTimeout(() => setMessage(''), 2000);
-    } catch (err) {
-      setMessage('Error adding ingredient: ' + err.message);
-    }
+    setConfirmConfig({
+      isOpen: true,
+      title: 'Add to Recipe',
+      message: `Add ${qty} ${unit} of ${ingredient?.name} to this product's recipe?`,
+      onConfirm: async () => {
+        try {
+          // We now store the raw quantity and the specific unit chosen (ML, G, etc.)
+          // The backend (posService) will handle the conversion during sale deduction.
+          await createRecipe({
+            product_id: selectedProduct.id,
+            ingredient_id: newRecipeItem.ingredient_id,
+            quantity_used: qty,
+            recipe_unit: unit
+          });
+
+          setMessage('Ingredient added to recipe!');
+          setNewRecipeItem({ ingredient_id: '', quantity: '', input_unit: '' });
+          const data = await getRecipesByProduct(selectedProduct.id);
+          setRecipe(data || []);
+          setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+          setTimeout(() => setMessage(''), 2000);
+        } catch (err) {
+          setMessage('Error adding ingredient: ' + err.message);
+          setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+        }
+      }
+    });
   };
 
   return {

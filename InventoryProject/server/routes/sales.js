@@ -11,7 +11,7 @@ router.get('/', async (req, res) => {
       .select(`
         *,
         users(id, name, username),
-        sale_items(id, quantity, unit_price, products(id, name, category))
+        sale_items(id, quantity, unit_price, cup_size, add_ons, products(id, name, category))
       `)
       .order('created_at', { ascending: false });
 
@@ -53,7 +53,7 @@ router.get('/:id', async (req, res) => {
       .select(`
         *,
         users(id, name, username),
-        sale_items(id, quantity, unit_price, discount_percent, notes, products(id, name, category))
+        sale_items(id, quantity, unit_price, discount_percent, notes, cup_size, add_ons, products(id, name, category))
       `)
       .eq('id', req.params.id)
       .single();

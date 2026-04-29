@@ -1,3 +1,3 @@
-export const CATEGORIES = ["COFFEE", "FRAPPE", "MILK TEA", "PASTRIES", "PROMO", "OTHERS"];
+export const CATEGORIES = ["COFFEE", "FRAPPE", "MILK TEA", "SODA", "PASTRIES", "PROMO", "OTHERS"];
 
 export const CATEGORIES_WITH_ALL = ["ALL", ...CATEGORIES];

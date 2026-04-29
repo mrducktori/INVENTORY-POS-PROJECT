@@ -134,7 +134,7 @@ const Products = () => {
                       <tr key={r.id}>
                         <td>{r.ingredients?.name}</td>
                         <td>{r.quantity_used}</td>
-                        <td>{r.ingredients?.unit}</td>
+                        <td>{(r.recipe_unit || r.ingredients?.unit || '').toUpperCase()}</td>
                       </tr>
                     ))
                   ) : (

@@ -162,37 +162,40 @@ const POS = () => {
                 </div>
               </div>
 
-              {/* Cup Size */}
-              <div className="option-group">
-                <label>Cup Size</label>
-                <div className="size-picker">
-                  {["Small", "Medium", "Large"].map(size => (
-                    <button 
-                      key={size}
-                      className={productOptions.cupSize === size ? "active" : ""}
-                      onClick={() => setProductOptions(p => ({...p, cupSize: size}))}
-                    >
-                      {size}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              {/* Cup Size & Add-ons - Only for Drinks */}
+              {["COFFEE", "FRAPPE", "MILK TEA", "SODA"].includes(selectedProduct.category?.toUpperCase()) && (
+                <>
+                  <div className="option-group">
+                    <label>Cup Size</label>
+                    <div className="size-picker">
+                      {["Small", "Medium", "Large"].map(size => (
+                        <button 
+                          key={size}
+                          className={productOptions.cupSize === size ? "active" : ""}
+                          onClick={() => setProductOptions(p => ({...p, cupSize: size}))}
+                        >
+                          {size}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-              {/* Add-ons */}
-              <div className="option-group">
-                <label>Add-ons</label>
-                <div className="addons-grid">
-                  {["Pearl", "Nata", "Jelly", "Pudding", "Extra Sugar", "Extra Ice"].map(addon => (
-                    <button 
-                      key={addon}
-                      className={productOptions.addOns.includes(addon) ? "active" : ""}
-                      onClick={() => toggleAddOn(addon)}
-                    >
-                      {addon}
-                    </button>
-                  ))}
-                </div>
-              </div>
+                  <div className="option-group">
+                    <label>Add-ons</label>
+                    <div className="addons-grid">
+                      {["Pearl", "Nata", "Jelly", "Pudding", "Extra Sugar", "Extra Ice"].map(addon => (
+                        <button 
+                          key={addon}
+                          className={productOptions.addOns.includes(addon) ? "active" : ""}
+                          onClick={() => toggleAddOn(addon)}
+                        >
+                          {addon}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
             <div className="recipe-modal-footer">
               <button className="recipe-close-btn" onClick={() => setShowOptions(false)}>Cancel</button>
@@ -222,7 +225,8 @@ const POS = () => {
                   </p>
                   <ul style={{ listStyleType: 'disc', paddingLeft: '20px' }}>
                     {currentRecipe.map((r, i) => {
-                      const formattedQty = formatQuantity(r.quantity_used, r.ingredients?.unit);
+                      const displayUnit = (r.recipe_unit || r.ingredients?.unit || '').toUpperCase();
+                      const formattedQty = `${r.quantity_used} ${displayUnit}`;
                       const formattedStock = formatQuantity(r.ingredients?.stock_quantity, r.ingredients?.unit);
                         
                       return (

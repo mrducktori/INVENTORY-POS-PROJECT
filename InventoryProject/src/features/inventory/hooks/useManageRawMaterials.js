@@ -75,20 +75,30 @@ export const useManageRawMaterials = () => {
 
   const handleUpdateIngredient = async (e) => {
     if (e) e.preventDefault();
-    try {
-      await updateIngredient(selectedIngredient.id, {
-        name: editName.trim().toUpperCase(),
-        unit: editUnit.trim().toUpperCase(),
-        low_stock_alert: parseFloat(editAlert),
-        stock_quantity: parseFloat(editQuantity)
-      });
-      setMessage('Ingredient updated successfully!');
-      setSelectedIngredient(null);
-      fetchIngredients();
-      setTimeout(() => setMessage(''), 3000);
-    } catch (err) {
-      setMessage('Error updating ingredient: ' + err.message);
-    }
+    
+    setConfirmConfig({
+      isOpen: true,
+      title: 'Confirm Update',
+      message: `Are you sure you want to save changes to "${selectedIngredient.name}"?`,
+      onConfirm: async () => {
+        try {
+          await updateIngredient(selectedIngredient.id, {
+            name: editName.trim().toUpperCase(),
+            unit: editUnit.trim().toUpperCase(),
+            low_stock_alert: parseFloat(editAlert),
+            stock_quantity: parseFloat(editQuantity)
+          });
+          setMessage('Ingredient updated successfully!');
+          setSelectedIngredient(null);
+          fetchIngredients();
+          setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+          setTimeout(() => setMessage(''), 3000);
+        } catch (err) {
+          setMessage('Error updating ingredient: ' + err.message);
+          setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+        }
+      }
+    });
   };
 
   const handleSetModify = (ingredient) => {

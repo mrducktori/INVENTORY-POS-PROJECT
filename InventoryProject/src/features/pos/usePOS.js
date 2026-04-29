@@ -71,12 +71,16 @@ export const usePOS = () => {
   };
 
   const handleAddWithOptions = () => {
+    const isDrink = ["COFFEE", "FRAPPE", "MILK TEA", "SODA"].includes(selectedProduct.category?.toUpperCase());
+    
     const itemToAdd = {
       ...selectedProduct,
       qty: productOptions.qty,
-      cup_size: productOptions.cupSize,
-      add_ons: productOptions.addOns,
-      cartItemId: `${selectedProduct.id}-${productOptions.cupSize}-${productOptions.addOns.sort().join(',')}`
+      cup_size: isDrink ? productOptions.cupSize : null,
+      add_ons: isDrink ? productOptions.addOns : [],
+      cartItemId: isDrink 
+        ? `${selectedProduct.id}-${productOptions.cupSize}-${productOptions.addOns.sort().join(',')}`
+        : `${selectedProduct.id}-standard`
     };
 
     setCart(prevCart => {

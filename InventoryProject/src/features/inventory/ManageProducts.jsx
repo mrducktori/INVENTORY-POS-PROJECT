@@ -365,10 +365,11 @@ const ManageProducts = () => {
                       </thead>
                       <tbody>
                         {recipe.map(r => {
-                          const formattedQty = formatQuantity(r.quantity_used, r.ingredients?.unit);
+                          const unitToUse = r.recipe_unit || r.ingredients?.unit;
+                          const formattedQty = `${r.quantity_used} ${unitToUse}`;
                           return (
                             <tr key={r.id}>
-                              <td>{r.ingredient_name}</td>
+                              <td>{r.ingredients?.name || r.ingredient_name}</td>
                               <td>{formattedQty}</td>
                               <td>
                                 <button
@@ -397,7 +398,15 @@ const ManageProducts = () => {
                       <label>Select Ingredient</label>
                       <select 
                         value={newRecipeItem.ingredient_id} 
-                        onChange={e => setNewRecipeItem({ ...newRecipeItem, ingredient_id: e.target.value })}
+                        onChange={e => {
+                          const id = e.target.value;
+                          const ing = allIngredients.find(i => i.id === id);
+                          setNewRecipeItem({ 
+                            ...newRecipeItem, 
+                            ingredient_id: id,
+                            input_unit: (ing?.unit || '').toUpperCase()
+                          });
+                        }}
                         required
                       >
                         <option value="">-- Choose Ingredient --</option>
@@ -424,7 +433,7 @@ const ManageProducts = () => {
                         />
                         {(() => {
                           const selectedIng = allIngredients.find(i => i.id === newRecipeItem.ingredient_id);
-                          const baseUnit = selectedIng?.unit || '';
+                          const baseUnit = (selectedIng?.unit || '').toUpperCase();
                           
                           if (baseUnit === 'L') {
                             return (

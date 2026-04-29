@@ -16,7 +16,7 @@ const Cart = ({ cart, total, onUpdateQty, onRemove }) => (
             <div className="item-info">
               <h4>{item.name}</h4>
               <div className="item-meta">
-                <span className="size-badge">{item.cup_size}</span>
+                {item.cup_size && <span className="size-badge">{item.cup_size}</span>}
                 {item.add_ons?.length > 0 && (
                   <span className="addons-list"> + {item.add_ons.join(', ')}</span>
                 )}
