@@ -27,7 +27,9 @@
   max-width: 1400px;
   margin: 0 auto;
   padding: 0 20px;
-  text-align: left;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .header-content h1 {
@@ -313,11 +315,7 @@
   color: #ffffff;
 }
 
-header .open-btn {
-  position: absolute;
-  top: 30px;
-  right: 30px;
-}
+/* Login button positioning is now handled by flexbox on .header-content */
 
 
 .open-btn {
