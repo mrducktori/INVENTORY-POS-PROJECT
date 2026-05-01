@@ -7,16 +7,25 @@ const router = express.Router();
 // Aggregate dashboard stats from existing tables
 router.get('/stats', async (req, res) => {
   try {
-    const today = new Date().toISOString().split('T')[0];
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const startDate = sevenDaysAgo.toISOString().split('T')[0];
+    const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }));
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const todayStr = `${y}-${m}-${d}`;
+
+    const weekAgo = new Date(now);
+    weekAgo.setDate(weekAgo.getDate() - 6); // 7 days including today
+    const wy = weekAgo.getFullYear();
+    const wm = String(weekAgo.getMonth() + 1).padStart(2, '0');
+    const wd = String(weekAgo.getDate()).padStart(2, '0');
+    const startDateStr = `${wy}-${wm}-${wd}`;
 
     // 1. Basic Stats Today
     const { data: salesToday } = await supabase
       .from('sales')
       .select('total_amount')
-      .gte('created_at', `${today}T00:00:00`);
+      .gte('created_at', `${todayStr}T00:00:00+08:00`)
+      .lte('created_at', `${todayStr}T23:59:59+08:00`);
 
     const { count: productCount } = await supabase
       .from('products')
@@ -45,35 +54,51 @@ router.get('/stats', async (req, res) => {
     // 2. Sales Trend (Last 7 Days)
     const { data: salesHistory } = await supabase
       .from('sales')
-      .select('total_amount, created_at')
-      .gte('created_at', `${startDate}T00:00:00`);
+      .select('total_amount, created_at, sale_items(quantity, unit_price, products(category))')
+      .gte('created_at', `${startDateStr}T00:00:00+08:00`);
 
-    // Group sales by day
+    // Group sales by day (respecting Manila Timezone)
     const trendMap = {};
     for (let i = 0; i < 7; i++) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      trendMap[d.toISOString().split('T')[0]] = 0;
+      const dayIter = new Date(now);
+      dayIter.setDate(dayIter.getDate() - i);
+      const dm = String(dayIter.getMonth() + 1).padStart(2, '0');
+      const dd = String(dayIter.getDate()).padStart(2, '0');
+      trendMap[`${dm}/${dd}`] = { revenue: 0, categories: {} };
     }
 
     (salesHistory || []).forEach(s => {
-      const date = s.created_at.split('T')[0];
-      if (trendMap[date] !== undefined) {
-        trendMap[date] += parseFloat(s.total_amount);
+      const localDateObj = new Date(new Date(s.created_at).toLocaleString("en-US", { timeZone: "Asia/Manila" }));
+      const sm = String(localDateObj.getMonth() + 1).padStart(2, '0');
+      const sd = String(localDateObj.getDate()).padStart(2, '0');
+      const dateKey = `${sm}/${sd}`;
+
+      if (trendMap[dateKey] !== undefined) {
+        trendMap[dateKey].revenue += parseFloat(s.total_amount);
+        
+        (s.sale_items || []).forEach(item => {
+           const cat = item.products?.category || 'Uncategorized';
+           const itemRev = parseFloat(item.quantity) * parseFloat(item.unit_price);
+           trendMap[dateKey].categories[cat] = (trendMap[dateKey].categories[cat] || 0) + itemRev;
+        });
       }
     });
 
-    const salesTrend = Object.keys(trendMap).sort().map(date => ({
-      date: date.split('-').slice(1).join('/'), // MM/DD
-      revenue: trendMap[date]
-    }));
+    const salesTrend = Object.keys(trendMap)
+      .sort()
+      .map(dateKey => ({
+        date: dateKey,
+        revenue: trendMap[dateKey].revenue,
+        categories: trendMap[dateKey].categories
+      }));
 
-    // 3. Top Products & Category Breakdown (All Time or Last 30 Days)
+    // 3. Top Products (Unified & Categorized)
     const { data: itemsData } = await supabase
       .from('sale_items')
       .select('quantity, products(name, category)');
 
     const productMap = {};
+    const productCategoryMap = {};
     const categoryMap = {};
 
     (itemsData || []).forEach(item => {
@@ -81,14 +106,29 @@ router.get('/stats', async (req, res) => {
       const cat = item.products?.category || 'Uncategorized';
       const qty = parseInt(item.quantity) || 0;
 
-      productMap[pName] = (productMap[pName] || 0) + qty;
+      if (!productMap[pName]) {
+        productMap[pName] = { name: pName, category: cat, value: 0 };
+      }
+      productMap[pName].value += qty;
+
+      if (!productCategoryMap[cat]) {
+        productCategoryMap[cat] = {};
+      }
+      productCategoryMap[cat][pName] = (productCategoryMap[cat][pName] || 0) + qty;
+      
       categoryMap[cat] = (categoryMap[cat] || 0) + qty;
     });
 
-    const topProducts = Object.entries(productMap)
-      .map(([name, value]) => ({ name, value }))
+    const topProducts = Object.values(productMap)
       .sort((a, b) => b.value - a.value)
-      .slice(0, 5);
+      .slice(0, 10); // get top 10
+
+    const topProductsByCategory = {};
+    for (const cat in productCategoryMap) {
+      topProductsByCategory[cat] = Object.entries(productCategoryMap[cat])
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value);
+    }
 
     const categoryData = Object.entries(categoryMap)
       .map(([name, value]) => ({ name, value }));
@@ -107,6 +147,7 @@ router.get('/stats', async (req, res) => {
       avgTransactionValue: avgTransaction,
       salesTrend,
       topProducts,
+      topProductsByCategory,
       categoryData
     });
   } catch (err) {

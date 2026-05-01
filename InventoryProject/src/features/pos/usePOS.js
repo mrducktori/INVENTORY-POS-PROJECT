@@ -5,13 +5,27 @@ import { getCurrentUser } from "../../utils/authUtils";
 
 export const usePOS = () => {
   const [products, setProducts] = useState([]);
-  const [cart, setCart] = useState([]);
+  const [cart, setCart] = useState(() => {
+    try {
+      const saved = localStorage.getItem("pos_cart");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [searchTerm, setSearchTerm] = useState("");
   const [category, setCategory] = useState("ALL");
   const [loading, setLoading] = useState(false);
   const [saleComplete, setSaleComplete] = useState(false);
   const [recipeProduct, setRecipeProduct] = useState(null);
-  const [ongoingOrders, setOngoingOrders] = useState([]);
+  const [ongoingOrders, setOngoingOrders] = useState(() => {
+    try {
+      const saved = localStorage.getItem("pos_ongoingOrders");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [activeTab, setActiveTab] = useState("cart"); 
   const [recipeLoading, setRecipeLoading] = useState(false);
   const [currentRecipe, setCurrentRecipe] = useState([]);
@@ -22,6 +36,15 @@ export const usePOS = () => {
   useEffect(() => {
     fetchProducts();
   }, []);
+
+  // PERSIST STATE
+  useEffect(() => {
+    localStorage.setItem("pos_cart", JSON.stringify(cart));
+  }, [cart]);
+
+  useEffect(() => {
+    localStorage.setItem("pos_ongoingOrders", JSON.stringify(ongoingOrders));
+  }, [ongoingOrders]);
 
   const fetchProducts = async () => {
     try {

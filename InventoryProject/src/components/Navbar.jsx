@@ -24,7 +24,7 @@ const MENU_CONFIG = {
     },
   ],
   Admin: [
-    { label: 'Business Analytics', value: 'Dashboard' },
+    { label: 'Dashboard Overview', value: 'Dashboard' },
     {
       label: 'Product Management',
       submenu: [
@@ -36,7 +36,7 @@ const MENU_CONFIG = {
       label: 'Inventory Management',
       submenu: [
         { label: 'View Stock', value: 'RawMaterialTracker' },
-        { label: 'Master Inventory', value: 'ManageRawMaterials' },
+        { label: 'Material Inventory', value: 'ManageRawMaterials' },
         { label: 'Update Stock', value: 'StockReceived' },
       ]
     },
@@ -56,7 +56,7 @@ const MENU_CONFIG = {
     },
   ],
   Owner: [
-    { label: 'Business Analytics', value: 'Dashboard' },
+    { label: 'Dashboard Overview', value: 'Dashboard' },
     {
       label: 'Product Management',
       submenu: [
@@ -68,24 +68,22 @@ const MENU_CONFIG = {
       label: 'Inventory Control',
       submenu: [
         { label: 'Real-time Tracker', value: 'RawMaterialTracker' },
-        { label: 'Master Inventory', value: 'ManageRawMaterials' },
+        { label: 'Material Inventory', value: 'ManageRawMaterials' },
         { label: 'Update Stock', value: 'StockReceived' },
       ]
     },
     {
       label: 'Logs & Reports',
-      submenu: [
-        { label: 'Audit Trail', value: 'AuditLogs' },
-        { label: 'Transaction History', value: 'TransactionLogs' },
+      submenu: [  
+        { label: 'Audit Logs', value: 'AuditLogs' },
         { label: 'Receipt Journal', value: 'SalesReceiptJournal' },
-        { label: 'Performance Summary', value: 'SalesSummaryReport' },
+        { label: 'Summary Report', value: 'SalesSummaryReport' },
       ]
     },
     {
       label: 'Staff & Security',
       submenu: [
-        { label: 'User Accounts', value: 'AccountManager' },
-        { label: 'Employee Tracking', value: 'EmployeeTracker' },
+        { label: 'Access Control', value: 'AccountManager' },
       ]
     },
   ],

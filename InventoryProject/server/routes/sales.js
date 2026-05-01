@@ -17,22 +17,29 @@ router.get('/', async (req, res) => {
 
     if (req.query.date) {
       const d = req.query.date;
-      query = query.gte('created_at', `${d}T00:00:00`).lte('created_at', `${d}T23:59:59`);
+      query = query.gte('created_at', `${d}T00:00:00+08:00`).lte('created_at', `${d}T23:59:59+08:00`);
     } else if (req.query.period) {
       const period = req.query.period;
-      const now = new Date();
-      let start;
+      // Get current date in Manila timezone
+      const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }));
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      const d = String(now.getDate()).padStart(2, '0');
+      
+      let startStr;
       if (period === 'day' || period === 'daily') {
-        start = new Date(now.toISOString().split('T')[0] + 'T00:00:00');
+        startStr = `${y}-${m}-${d}T00:00:00+08:00`;
       } else if (period === 'week' || period === 'weekly') {
-        start = new Date(now);
-        start.setDate(now.getDate() - 7);
+        const weekAgo = new Date(now);
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        const wy = weekAgo.getFullYear();
+        const wm = String(weekAgo.getMonth() + 1).padStart(2, '0');
+        const wd = String(weekAgo.getDate()).padStart(2, '0');
+        startStr = `${wy}-${wm}-${wd}T00:00:00+08:00`;
       } else {
-        start = new Date(now);
-        start.setDate(1);
-        start.setHours(0, 0, 0, 0);
+        startStr = `${y}-${m}-01T00:00:00+08:00`;
       }
-      query = query.gte('created_at', start.toISOString());
+      query = query.gte('created_at', startStr);
     }
 
     if (req.query.staff_id) query = query.eq('staff_id', req.query.staff_id);
@@ -45,41 +52,29 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Get single sale detail (Receipt)
-router.get('/:id', async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from('sales')
-      .select(`
-        *,
-        users(id, name, username),
-        sale_items(id, quantity, unit_price, discount_percent, notes, cup_size, add_ons, products(id, name, category))
-      `)
-      .eq('id', req.params.id)
-      .single();
-    if (error) throw error;
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 // Sales summary by period (day/week/month)
 router.get('/summary/report', async (req, res) => {
   try {
     const period = req.query.period || 'day';
-    const now = new Date();
-    let start;
-
+    
+    // Get current date in Manila timezone
+    const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }));
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    
+    let startStr;
     if (period === 'day' || period === 'daily') {
-      start = new Date(now.toISOString().split('T')[0] + 'T00:00:00');
+      startStr = `${y}-${m}-${d}T00:00:00+08:00`;
     } else if (period === 'week' || period === 'weekly') {
-      start = new Date(now);
-      start.setDate(now.getDate() - 7);
+      const weekAgo = new Date(now);
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      const wy = weekAgo.getFullYear();
+      const wm = String(weekAgo.getMonth() + 1).padStart(2, '0');
+      const wd = String(weekAgo.getDate()).padStart(2, '0');
+      startStr = `${wy}-${wm}-${wd}T00:00:00+08:00`;
     } else {
-      start = new Date(now);
-      start.setDate(1);
-      start.setHours(0, 0, 0, 0);
+      startStr = `${y}-${m}-01T00:00:00+08:00`;
     }
 
     const { data: sales, error } = await supabase
@@ -88,7 +83,7 @@ router.get('/summary/report', async (req, res) => {
         total_amount, created_at, users(id, name),
         sale_items(quantity, unit_price, products(id, name))
       `)
-      .gte('created_at', start.toISOString());
+      .gte('created_at', startStr);
 
     if (error) throw error;
 
@@ -120,5 +115,26 @@ router.get('/summary/report', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// Get single sale detail (Receipt)
+router.get('/:id', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('sales')
+      .select(`
+        *,
+        users(id, name, username),
+        sale_items(id, quantity, unit_price, discount_percent, notes, cup_size, add_ons, products(id, name, category))
+      `)
+      .eq('id', req.params.id)
+      .single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 
 export default router;

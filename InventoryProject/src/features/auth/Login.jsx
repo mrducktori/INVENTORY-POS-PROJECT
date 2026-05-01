@@ -1,11 +1,20 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import './Login.css';
 import Dashboard from '../dashboard/Dashboard';
 import { useLogin } from './useLogin';
 import locPic from '../../assets/images/loc_pic.png';
 import coffeeMenu from '../../assets/images/coffee_menu.png';
+import PageLoader from './PageLoader/PageLoader';
 
 function Login() {
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsInitialLoading(false);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, []);
   const {
     form,
     user,
@@ -19,6 +28,8 @@ function Login() {
   } = useLogin();
 
   if (user) return <Dashboard />;
+
+  if (isInitialLoading) return <PageLoader />;
 
   return (
     <div className='default_page'>
