@@ -10,7 +10,7 @@ export const useManageRawMaterials = () => {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
 
-  const [formData, setFormData] = useState({ name: '', unit: '', low_stock_alert: '', stock_quantity: '0' });
+  const [formData, setFormData] = useState({ name: '', unit: '', low_stock_alert: '' });
 
   const [selectedIngredient, setSelectedIngredient] = useState(null);
   const [editName, setEditName] = useState('');
@@ -48,10 +48,10 @@ export const useManageRawMaterials = () => {
         name: formData.name.trim().toUpperCase(),
         unit: formData.unit.trim().toUpperCase(),
         low_stock_alert: parseFloat(formData.low_stock_alert) || 0,
-        stock_quantity: parseFloat(formData.stock_quantity) || 0
+        stock_quantity: 0
       });
       setMessage('Ingredient created successfully!');
-      setFormData({ name: '', unit: '', low_stock_alert: '', stock_quantity: '0' });
+      setFormData({ name: '', unit: '', low_stock_alert: '' });
       fetchIngredients();
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {

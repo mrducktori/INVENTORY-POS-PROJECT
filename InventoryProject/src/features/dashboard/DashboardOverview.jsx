@@ -8,15 +8,10 @@ import RevenueSnapshot from './components/RevenueSnapshot';
 import StatCards from './components/StatCards';
 import TopSalesGrid from './components/TopSalesGrid';
 import LowStockAlerts from './components/LowStockAlerts';
+import ExpandedLowStock from './components/ExpandedLowStock';
 import ExpandedTrendChart from './components/ExpandedTrendChart';
 import QuickActions from './components/QuickActions';
-
-// ---------------------------------------------------------------------------
-// DashboardOverview
-// Orchestration layer only. All business logic lives in `useDashboardStats`.
-// All rendering logic lives in the sub-components imported above.
-// This file should read like a table of contents for the dashboard.
-// ---------------------------------------------------------------------------
+import PredictiveInsights from './components/PredictiveInsights';
 
 const DashboardOverview = ({ onNavigate }) => {
   const user = getCurrentUser();
@@ -30,11 +25,15 @@ const DashboardOverview = ({ onNavigate }) => {
     setIsTrendExpanded,
     setActiveTrendCategory,
     setSortCategorySalesAsc,
+    isLowStockExpanded,
+    toggleLowStock,
     kpiCards,
     trendCategories,
     trendChartData,
     getSortedCategoryProducts,
     COLORS,
+    topSalesPeriod,
+    setTopSalesPeriod,
   } = useDashboardStats();
 
   return (
@@ -55,7 +54,7 @@ const DashboardOverview = ({ onNavigate }) => {
         onExpand={() => setIsTrendExpanded(true)}
       />
 
-      {/* Expanded Trend Chart (appears directly below the snapshot on click) */}
+      {/* Expanded Trend Chart */}
       {isTrendExpanded && (
         <ExpandedTrendChart
           loading={loading}
@@ -69,21 +68,33 @@ const DashboardOverview = ({ onNavigate }) => {
       )}
 
       {/* KPI Cards Row */}
-      <StatCards cards={kpiCards} loading={loading} />
+      <StatCards 
+        cards={kpiCards} 
+        loading={loading} 
+      />
 
-      {/* BI Grid: Top Sales + Low Stock side by side */}
-      <div className="bi-grid">
+      {/* Expanded Low Stock Panel */}
+      {isLowStockExpanded && (
+        <ExpandedLowStock
+          loading={loading}
+          lowStockDetails={stats?.lowStockDetails || []}
+          onCollapse={toggleLowStock}
+        />
+      )}
+
+      {/* Predictive Analytics Section */}
+      <PredictiveInsights />
+
+      {/* BI Grid: Now primarily for Sales Analytics */}
+      <div className="bi-grid" style={{ gridTemplateColumns: '1fr' }}>
         <TopSalesGrid
           loading={loading}
           topProductsByCategory={stats?.topProductsByCategory}
           sortAsc={sortCategorySalesAsc}
           onToggleSort={() => setSortCategorySalesAsc((prev) => !prev)}
           getSortedProducts={getSortedCategoryProducts}
-        />
-
-        <LowStockAlerts
-          loading={loading}
-          lowStockDetails={stats?.lowStockDetails}
+          period={topSalesPeriod}
+          onPeriodChange={setTopSalesPeriod}
         />
       </div>
 

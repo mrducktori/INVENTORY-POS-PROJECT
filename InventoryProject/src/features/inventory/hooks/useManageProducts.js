@@ -18,7 +18,6 @@ export const useManageProducts = () => {
     category: '', 
     price: '',
     track_stock: false,
-    stock_quantity: 0,
     low_stock_threshold: 5
   });
 
@@ -32,6 +31,11 @@ export const useManageProducts = () => {
   const [editTrackStock, setEditTrackStock] = useState(false);
   const [editStockQty, setEditStockQty] = useState(0);
   const [editThreshold, setEditThreshold] = useState(5);
+  const [editSizes, setEditSizes] = useState([]);
+  const [editAddOns, setEditAddOns] = useState([]);
+
+  const [newSize, setNewSize] = useState({ name: '', price_add: '', ingredient_id: '' });
+  const [newAddOn, setNewAddOn] = useState({ name: '', price: '', ingredient_id: '', quantity: '', unit: '' });
 
   useEffect(() => {
     fetchProducts();
@@ -106,7 +110,7 @@ export const useManageProducts = () => {
         category: formData.category,
         price: parseFloat(formData.price),
         track_stock: formData.track_stock,
-        stock_quantity: parseFloat(formData.stock_quantity) || 0,
+        stock_quantity: 0,
         low_stock_threshold: parseFloat(formData.low_stock_threshold) || 0
       });
       setMessage('Product created successfully!');
@@ -115,7 +119,6 @@ export const useManageProducts = () => {
         category: '', 
         price: '', 
         track_stock: false, 
-        stock_quantity: 0, 
         low_stock_threshold: 5 
       });
       fetchProducts();
@@ -148,6 +151,8 @@ export const useManageProducts = () => {
     setEditTrackStock(product.track_stock || false);
     setEditStockQty(product.stock_quantity || 0);
     setEditThreshold(product.low_stock_threshold || 5);
+    setEditSizes(product.sizes || []);
+    setEditAddOns(product.add_ons || []);
     try {
       const data = await getRecipesByProduct(product.id);
       setRecipe(data || []);
@@ -171,7 +176,9 @@ export const useManageProducts = () => {
             price: parseFloat(editPrice),
             track_stock: editTrackStock,
             stock_quantity: parseFloat(editStockQty),
-            low_stock_threshold: parseFloat(editThreshold)
+            low_stock_threshold: parseFloat(editThreshold),
+            sizes: editSizes,
+            add_ons: editAddOns
           });
           setMessage('Product details updated successfully!');
           fetchProducts();
@@ -203,6 +210,32 @@ export const useManageProducts = () => {
         }
       }
     });
+  };
+
+  const handleAddSize = (e) => {
+    if (e) e.preventDefault();
+    if (!newSize.name) return;
+    setEditSizes(prev => [...prev, { ...newSize, price_add: parseFloat(newSize.price_add) || 0 }]);
+    setNewSize({ name: '', price_add: '', ingredient_id: '' });
+  };
+
+  const handleRemoveSize = (index) => {
+    setEditSizes(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleAddAddOn = (e) => {
+    if (e) e.preventDefault();
+    if (!newAddOn.name) return;
+    setEditAddOns(prev => [...prev, { 
+      ...newAddOn, 
+      price: parseFloat(newAddOn.price) || 0,
+      quantity: parseFloat(newAddOn.quantity) || 0
+    }]);
+    setNewAddOn({ name: '', price: '', ingredient_id: '', quantity: '', unit: '' });
+  };
+
+  const handleRemoveAddOn = (index) => {
+    setEditAddOns(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleAddRecipeItem = async (e) => {
@@ -252,12 +285,18 @@ export const useManageProducts = () => {
     selectedProduct, setSelectedProduct,
     recipe, allIngredients,
     newRecipeItem, setNewRecipeItem,
+    newSize, setNewSize,
+    newAddOn, setNewAddOn,
     editPrice, setEditPrice,
     editName, setEditName,
     editCategory, setEditCategory,
     editTrackStock, setEditTrackStock,
     editStockQty, setEditStockQty,
     editThreshold, setEditThreshold,
+    editSizes, setEditSizes,
+    editAddOns, setEditAddOns,
+    handleAddSize, handleRemoveSize,
+    handleAddAddOn, handleRemoveAddOn,
     handleReceiveProductStock,
     handleAddProduct,
     handleArchiveToggle,

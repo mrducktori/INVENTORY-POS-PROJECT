@@ -4,6 +4,7 @@ import CategoryFilter from '../../components/shared/CategoryFilter';
 import ProductCard from "./components/ProductCard";
 import Cart from "./components/Cart";
 import OngoingOrders from "./components/OngoingOrders";
+import PaymentModal from "./components/PaymentModal";
 import { usePOS } from "./usePOS";
 import "./POS.css";
 
@@ -39,7 +40,11 @@ const POS = () => {
     handleCompleteSale,
     handleCompleteOrder,
     handleCancelOrder,
-    handleEditOrder
+    handleEditOrder,
+    showPaymentModal,
+    setShowPaymentModal,
+    paymentOrder,
+    confirmPayment
   } = usePOS();
 
   const filteredProducts = filterProducts(products, category, searchTerm);
@@ -163,12 +168,12 @@ const POS = () => {
               </div>
 
               {/* Cup Size & Add-ons - Only for Drinks */}
-              {["COFFEE", "FRAPPE", "MILK TEA", "SODA"].includes(selectedProduct.category?.toUpperCase()) && (
+              {["COFFEE", "FRAPPE", "MILK TEA", "SODA", "FRUIT DRINKS"].includes(selectedProduct.category?.toUpperCase()) && (
                 <>
                   <div className="option-group">
                     <label>Cup Size</label>
                     <div className="size-picker">
-                      {["Small", "Medium", "Large"].map(size => (
+                      {(selectedProduct.sizes?.length > 0 ? selectedProduct.sizes.map(s => s.name) : ["12 oz", "16 oz", "22 oz"]).map(size => (
                         <button 
                           key={size}
                           className={productOptions.cupSize === size ? "active" : ""}
@@ -183,15 +188,21 @@ const POS = () => {
                   <div className="option-group">
                     <label>Add-ons</label>
                     <div className="addons-grid">
-                      {["Pearl", "Nata", "Jelly", "Pudding", "Extra Sugar", "Extra Ice"].map(addon => (
-                        <button 
-                          key={addon}
-                          className={productOptions.addOns.includes(addon) ? "active" : ""}
-                          onClick={() => toggleAddOn(addon)}
-                        >
-                          {addon}
-                        </button>
-                      ))}
+                      {(() => {
+                        let addonsToList = selectedProduct.add_ons?.length > 0 
+                          ? selectedProduct.add_ons.map(a => a.name)
+                          : ["Pearl", "Nata", "Jelly", "Pudding", "Extra Sugar", "Extra Ice"];
+                        
+                        return addonsToList.map(addon => (
+                          <button 
+                            key={addon}
+                            className={productOptions.addOns.includes(addon) ? "active" : ""}
+                            onClick={() => toggleAddOn(addon)}
+                          >
+                            {addon}
+                          </button>
+                        ));
+                      })()}
                     </div>
                   </div>
                 </>
@@ -200,7 +211,26 @@ const POS = () => {
             <div className="recipe-modal-footer">
               <button className="recipe-close-btn" onClick={() => setShowOptions(false)}>Cancel</button>
               <button className="complete-btn" onClick={handleAddWithOptions}>
-                Add to Transaction (₱{(selectedProduct.price * productOptions.qty).toFixed(2)})
+                {(() => {
+                  let displayPrice = parseFloat(selectedProduct.price);
+                  if (["COFFEE", "FRAPPE", "MILK TEA", "SODA", "FRUIT DRINKS"].includes(selectedProduct.category?.toUpperCase())) {
+                    if (selectedProduct.sizes && selectedProduct.sizes.length > 0) {
+                      const sz = selectedProduct.sizes.find(s => s.name === productOptions.cupSize);
+                      if (sz) displayPrice += parseFloat(sz.price_add || 0);
+                    } else {
+                      if (productOptions.cupSize === "16 oz") displayPrice += 10;
+                      if (productOptions.cupSize === "22 oz") displayPrice += 20;
+                    }
+
+                    productOptions.addOns.forEach(addonName => {
+                      if (selectedProduct.add_ons && selectedProduct.add_ons.length > 0) {
+                        const ao = selectedProduct.add_ons.find(a => a.name === addonName);
+                        if (ao) displayPrice += parseFloat(ao.price || 0);
+                      }
+                    });
+                  }
+                  return `Add to Transaction (₱${(displayPrice * productOptions.qty).toFixed(2)})`;
+                })()}
               </button>
             </div>
           </div>
@@ -254,6 +284,14 @@ const POS = () => {
             </div>
           </div>
         </div>
+      )}
+      {/* Payment Modal */}
+      {showPaymentModal && paymentOrder && (
+        <PaymentModal 
+          order={paymentOrder}
+          onConfirm={confirmPayment}
+          onClose={() => setShowPaymentModal(false)}
+        />
       )}
     </div>
   );

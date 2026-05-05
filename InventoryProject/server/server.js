@@ -11,6 +11,8 @@ import auditRoutes from './routes/audit.js';
 import salesRoutes from './routes/sales.js';
 import usersRoutes from './routes/users.js';
 import productsRoutes from './routes/products.js';
+import analyticsRoutes from './routes/analytics.js';
+import categorySettingsRoutes from './routes/categorySettings.js';
 
 const app = express();
 const PORT = 5000;
@@ -29,6 +31,8 @@ app.use('/api/audit', auditRoutes);
 app.use('/api/sales', salesRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/products', productsRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/categories/settings', categorySettingsRoutes);
 
 app.get('/', (req, res) => {
   res.send('POS & Inventory System API');

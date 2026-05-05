@@ -1,13 +1,18 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useManageProducts } from './hooks/useManageProducts';
 import ConfirmModal from '../../components/shared/ConfirmModal';
 import { CATEGORIES, CATEGORIES_WITH_ALL } from '../../utils/constants';
 import { formatQuantity } from '../../utils/productUtils';
+import { getCurrentUser } from '../../utils/authUtils';
+import CategorySettingsModal from './components/CategorySettingsModal';
 
 import './ManageProducts.css';
 
 
 const ManageProducts = () => {
+  const user = getCurrentUser();
+  const [showCategorySettings, setShowCategorySettings] = useState(false);
+
   const {
     viewMode, setViewMode,
     products, loading, message, setMessage,
@@ -18,6 +23,8 @@ const ManageProducts = () => {
     formData, setFormData, handleInputChange,
     selectedProduct, setSelectedProduct,
     recipe, allIngredients,
+    newSize, setNewSize,
+    newAddOn, setNewAddOn,
     newRecipeItem, setNewRecipeItem,
     editPrice, setEditPrice,
     editName, setEditName,
@@ -25,6 +32,10 @@ const ManageProducts = () => {
     editTrackStock, setEditTrackStock,
     editStockQty, setEditStockQty,
     editThreshold, setEditThreshold,
+    editSizes, setEditSizes,
+    editAddOns, setEditAddOns,
+    handleAddSize, handleRemoveSize,
+    handleAddAddOn, handleRemoveAddOn,
     handleReceiveProductStock,
     handleAddProduct,
     handleArchiveToggle,
@@ -33,6 +44,10 @@ const ManageProducts = () => {
     handleDeleteRecipeItem,
     handleAddRecipeItem
   } = useManageProducts();
+
+  if (user?.role === 'Staff') {
+    return <div className="inventory-container"><h2>Access Denied</h2></div>;
+  }
 
   const filteredProductsList = products.filter(p => {
     const matchSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -60,6 +75,12 @@ const ManageProducts = () => {
             onClick={() => { setViewMode('MODIFY'); setMessage(''); }}
           >
             Modify Existing
+          </button>
+          <button 
+            className="btn btn-secondary"
+            onClick={() => setShowCategorySettings(true)}
+          >
+            Category Defaults
           </button>
         </div>
       </div>
@@ -113,7 +134,7 @@ const ManageProducts = () => {
                   <div className="form-row">
                     <div className="form-group">
                       <label>Initial Stock Level</label>
-                      <input type="number" name="stock_quantity" value={formData.stock_quantity} onChange={handleInputChange} min="0" required />
+                      <input type="number" value="0" disabled style={{ backgroundColor: '#f5f5f5', cursor: 'not-allowed' }} />
                     </div>
                     <div className="form-group">
                       <label>Low Stock Alert at</label>
@@ -296,7 +317,7 @@ const ManageProducts = () => {
         </div>
       )}
 
-      {selectedProduct && (
+      {selectedProduct && viewMode === 'MODIFY' && (
         <div className="modal-overlay" onClick={() => setSelectedProduct(null)}>
           <div className="modal animate-pop-in" style={{ maxWidth: '800px' }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
@@ -349,6 +370,100 @@ const ManageProducts = () => {
                  <button type="submit" className="btn btn-primary">Save Changes</button>
                </form>
 
+              <div className="sizes-addons-section" style={{ marginTop: '30px', borderTop: '1px solid #eee', paddingTop: '20px', display: 'flex', gap: '20px' }}>
+                {/* SIZES CONFIGURATION */}
+                <div style={{ flex: 1 }}>
+                  <h3 className="recipe-title" style={{ fontSize: '16px', marginBottom: '10px' }}>Sizes Configuration</h3>
+                  {editSizes.length > 0 ? (
+                    <table className="table" style={{ marginBottom: '15px', fontSize: '12px' }}>
+                      <thead>
+                        <tr>
+                          <th>Size Name</th>
+                          <th>Price Add (₱)</th>
+                          <th>Cup Mat.</th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {editSizes.map((sz, i) => (
+                          <tr key={i}>
+                            <td>{sz.name}</td>
+                            <td>+{sz.price_add}</td>
+                            <td>{allIngredients.find(ing => ing.id === sz.ingredient_id)?.name || '-'}</td>
+                            <td><button type="button" className="delete-recipe-btn" onClick={() => handleRemoveSize(i)}>✕</button></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <p style={{ fontSize: '12px', color: '#999', marginBottom: '15px' }}>No sizes configured.</p>
+                  )}
+                  
+                  <div className="form-group recipe-form-group small">
+                    <input type="text" placeholder="Size Name (e.g., 16 oz)" value={newSize.name} onChange={e => setNewSize({...newSize, name: e.target.value})} style={{ marginBottom: '5px' }} />
+                    <input type="number" placeholder="Price Increase (₱)" value={newSize.price_add} onChange={e => setNewSize({...newSize, price_add: e.target.value})} min="0" style={{ marginBottom: '5px' }} />
+                    <select value={newSize.ingredient_id} onChange={e => setNewSize({...newSize, ingredient_id: e.target.value})} style={{ marginBottom: '5px' }}>
+                      <option value="">- No Cup Material -</option>
+                      {allIngredients.map(ing => (
+                        <option key={ing.id} value={ing.id}>{ing.name}</option>
+                      ))}
+                    </select>
+                    <button type="button" className="btn btn-secondary btn-small" onClick={handleAddSize}>Add Size</button>
+                  </div>
+                </div>
+
+                {/* ADD-ONS CONFIGURATION */}
+                <div style={{ flex: 1 }}>
+                  <h3 className="recipe-title" style={{ fontSize: '16px', marginBottom: '10px' }}>Add-ons Configuration</h3>
+                  {editAddOns.length > 0 ? (
+                    <table className="table" style={{ marginBottom: '15px', fontSize: '12px' }}>
+                      <thead>
+                        <tr>
+                          <th>Add-on</th>
+                          <th>Price (₱)</th>
+                          <th>Mat. Used</th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {editAddOns.map((ao, i) => (
+                          <tr key={i}>
+                            <td>{ao.name}</td>
+                            <td>+{ao.price}</td>
+                            <td>{ao.quantity}{ao.unit} {allIngredients.find(ing => ing.id === ao.ingredient_id)?.name || '-'}</td>
+                            <td><button type="button" className="delete-recipe-btn" onClick={() => handleRemoveAddOn(i)}>✕</button></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <p style={{ fontSize: '12px', color: '#999', marginBottom: '15px' }}>No add-ons configured.</p>
+                  )}
+
+                  <div className="form-group recipe-form-group small">
+                    <input type="text" placeholder="Add-on Name (e.g., Pearl)" value={newAddOn.name} onChange={e => setNewAddOn({...newAddOn, name: e.target.value})} style={{ marginBottom: '5px' }} />
+                    <input type="number" placeholder="Price (₱)" value={newAddOn.price} onChange={e => setNewAddOn({...newAddOn, price: e.target.value})} min="0" style={{ marginBottom: '5px' }} />
+                    <select value={newAddOn.ingredient_id} onChange={e => {
+                        const id = e.target.value;
+                        const ing = allIngredients.find(i => i.id === id);
+                        setNewAddOn({...newAddOn, ingredient_id: id, unit: (ing?.unit || '').toUpperCase()});
+                      }} style={{ marginBottom: '5px' }}>
+                      <option value="">- No Material -</option>
+                      {allIngredients.map(ing => (
+                        <option key={ing.id} value={ing.id}>{ing.name} ({ing.unit})</option>
+                      ))}
+                    </select>
+                    {newAddOn.ingredient_id && (
+                      <div style={{ display: 'flex', gap: '5px', marginBottom: '5px' }}>
+                        <input type="number" placeholder="Qty Used" value={newAddOn.quantity} onChange={e => setNewAddOn({...newAddOn, quantity: e.target.value})} min="0" />
+                        <span style={{ padding: '8px', background: '#eee', borderRadius: '4px', fontSize: '12px' }}>{newAddOn.unit}</span>
+                      </div>
+                    )}
+                    <button type="button" className="btn btn-secondary btn-small" onClick={handleAddAddOn}>Add Add-on</button>
+                  </div>
+                </div>
+              </div>
+
               <div className="recipe-section" style={{ marginTop: '30px', borderTop: '1px solid #eee', paddingTop: '20px' }}>
                 <h3 className="recipe-title">Recipe Configuration</h3>
                 
@@ -359,7 +474,6 @@ const ManageProducts = () => {
                         <tr>
                           <th>Ingredient</th>
                           <th>Qty Needed</th>
-                          <th>Unit</th>
                           <th>Action</th>
                         </tr>
                       </thead>
@@ -474,6 +588,13 @@ const ManageProducts = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {showCategorySettings && (
+        <CategorySettingsModal 
+          allIngredients={allIngredients} 
+          onClose={() => setShowCategorySettings(false)} 
+        />
       )}
 
       <ConfirmModal 

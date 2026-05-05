@@ -1,31 +1,50 @@
 import React, { useState, useEffect } from 'react';
 import { getIngredients, receiveStock } from '../../api/inventoryApi';
+import { getAllProducts, receiveProductStock } from '../../api/productsApi';
 import { formatQuantity } from '../../utils/productUtils';
 
 import './StockReceived.css';
 
 const StockReceived = () => {
   const [ingredients, setIngredients] = useState([]);
+  const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [selectedId, setSelectedId] = useState('');
   const [quantity, setQuantity] = useState('');
   const [message, setMessage] = useState('');
 
+  // Combined list of trackable items
   const activeIngredients = ingredients.filter(i => !i.is_archived);
-  const selectedIng = activeIngredients.find(i => String(i.id) === String(selectedId));
+  const trackableProducts = products.filter(p => p.track_stock && !p.is_archived);
+
+  const allItems = [
+    ...activeIngredients.map(i => ({ ...i, itemType: 'ingredient' })),
+    ...trackableProducts.map(p => ({ 
+      ...p, 
+      itemType: 'product', 
+      low_stock_alert: p.low_stock_threshold,
+      unit: 'pcs' // Products usually pcs
+    }))
+  ].sort((a, b) => a.name.localeCompare(b.name));
+
+  const selectedItem = allItems.find(i => String(i.id) === String(selectedId));
 
   useEffect(() => {
-    fetchIngredients();
+    fetchData();
   }, []);
 
-  const fetchIngredients = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true);
-      const data = await getIngredients();
-      setIngredients(data || []);
+      const [ingData, prodData] = await Promise.all([
+        getIngredients(),
+        getAllProducts()
+      ]);
+      setIngredients(ingData || []);
+      setProducts(prodData || []);
     } catch (err) {
-      setMessage('Error loading ingredients: ' + err.message);
+      setMessage('Error loading data: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -34,17 +53,22 @@ const StockReceived = () => {
   const handleReceiveStock = async (e) => {
     e.preventDefault();
     if (!selectedId || !quantity) {
-      setMessage('Please select an ingredient and enter a quantity.');
+      setMessage('Please select an item and enter a quantity.');
       return;
     }
     try {
       setSubmitting(true);
-      await receiveStock(selectedId, parseFloat(quantity));
-      setMessage(`Successfully added ${formatQuantity(parseFloat(quantity), selectedIng?.unit || '')} of stock!`);
+      if (selectedItem.itemType === 'ingredient') {
+        await receiveStock(selectedId, parseFloat(quantity));
+      } else {
+        await receiveProductStock(selectedId, parseFloat(quantity));
+      }
+      
+      setMessage(`Successfully added ${parseFloat(quantity)} ${selectedItem.unit || ''} to ${selectedItem.name}!`);
       setSelectedId('');
       setQuantity('');
       setTimeout(() => setMessage(''), 4000);
-      fetchIngredients();
+      fetchData();
     } catch (err) {
       setMessage('Error: ' + err.message);
     } finally {
@@ -56,7 +80,7 @@ const StockReceived = () => {
     <div className="inventory-container">
       <div className="page-header">
         <h1>Stock Received</h1>
-        <p>Log incoming deliveries and top up ingredient stock levels.</p>
+        <p>Log incoming deliveries for ingredients and direct-track products.</p>
       </div>
 
       {message && (
@@ -72,38 +96,47 @@ const StockReceived = () => {
         <div className="card-body">
           <form onSubmit={handleReceiveStock}>
             <div className="form-group">
-              <label>Select Ingredient</label>
+              <label>Select Item (Ingredient or Product)</label>
               <select
                 value={selectedId}
                 onChange={(e) => setSelectedId(e.target.value)}
                 required
               >
-                <option value="">-- Choose an ingredient --</option>
-                {activeIngredients.map(ing => (
-                  <option key={ing.id} value={ing.id}>
-                    {ing.name} — {formatQuantity(ing.stock_quantity, ing.unit)} in stock
-                  </option>
-                ))}
+                <option value="">-- Choose an item --</option>
+                <optgroup label="Ingredients (Raw Materials)">
+                  {activeIngredients.map(ing => (
+                    <option key={`ing-${ing.id}`} value={ing.id}>
+                      {ing.name} — {formatQuantity(ing.stock_quantity, ing.unit)}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Products (Direct Tracking)">
+                  {trackableProducts.map(p => (
+                    <option key={`prod-${p.id}`} value={p.id}>
+                      {p.name} — {p.stock_quantity} pcs
+                    </option>
+                  ))}
+                </optgroup>
               </select>
             </div>
 
-            {selectedIng && (
+            {selectedItem && (
               <div className="stock-preview-box">
-                <span>Current: <strong>{formatQuantity(selectedIng.stock_quantity, selectedIng.unit)}</strong></span>
-                <span>Alert at: <strong>{formatQuantity(selectedIng.low_stock_alert, selectedIng.unit)}</strong></span>
+                <span>Current: <strong>{formatQuantity(selectedItem.stock_quantity, selectedItem.unit)}</strong></span>
+                <span>Alert at: <strong>{formatQuantity(selectedItem.low_stock_alert, selectedItem.unit)}</strong></span>
                 <span className={`stock-badge ${
-                  selectedIng.stock_quantity <= 0 ? 'out' :
-                  selectedIng.stock_quantity <= selectedIng.low_stock_alert ? 'critical' : 'normal'
+                  selectedItem.stock_quantity <= 0 ? 'out' :
+                  selectedItem.stock_quantity <= selectedItem.low_stock_alert ? 'critical' : 'normal'
                 }`}>
-                  {selectedIng.stock_quantity <= 0 ? 'OUT OF STOCK' :
-                   selectedIng.stock_quantity <= selectedIng.low_stock_alert ? 'LOW STOCK' : 'HEALTHY'}
+                  {selectedItem.stock_quantity <= 0 ? 'OUT OF STOCK' :
+                   selectedItem.stock_quantity <= selectedItem.low_stock_alert ? 'LOW STOCK' : 'HEALTHY'}
                 </span>
               </div>
             )}
 
             <div className="form-row">
               <div className="form-group">
-                <label>Quantity to Add ({selectedIng?.unit || 'unit'})</label>
+                <label>Quantity to Add ({selectedItem?.unit || 'unit'})</label>
                 <input
                   type="number"
                   step="0.01"
@@ -125,7 +158,7 @@ const StockReceived = () => {
 
       <div className="card">
         <div className="card-header">
-          <h2>Current Ingredient Inventory</h2>
+          <h2>Inventory Status Overview</h2>
         </div>
         <div className="card-body">
           {loading ? (
@@ -135,27 +168,29 @@ const StockReceived = () => {
               <table className="table">
                 <thead>
                   <tr>
-                    <th>Ingredient</th>
-                    <th>Current Stock</th>
-                    <th>Low Alert</th>
-                    <th>Stock Status</th>
+                    <th>Type</th>
+                    <th>Item Name</th>
+                    <th style={{ textAlign: 'right' }}>Current Stock</th>
+                    <th style={{ textAlign: 'right' }}>Low Alert</th>
+                    <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {activeIngredients.map(ing => (
-                    <tr key={ing.id} className={selectedId === String(ing.id) ? 'row-highlighted' : ''}>
-                      <td><strong>{ing.name}</strong></td>
-                      <td>{formatQuantity(ing.stock_quantity, ing.unit)}</td>
-                      <td>{formatQuantity(ing.low_stock_alert, ing.unit)}</td>
+                  {allItems.map(item => (
+                    <tr key={`${item.itemType}-${item.id}`} className={selectedId === String(item.id) ? 'row-highlighted' : ''}>
+                      <td style={{ fontSize: '10px', color: '#888', textTransform: 'uppercase' }}>{item.itemType}</td>
+                      <td><strong>{item.name}</strong></td>
+                      <td style={{ textAlign: 'right' }}>{formatQuantity(item.stock_quantity, item.unit)}</td>
+                      <td style={{ textAlign: 'right' }}>{formatQuantity(item.low_stock_alert, item.unit)}</td>
                       <td>
                         <span className={`stock-badge ${
-                          ing.stock_quantity <= 0 ? 'out' :
-                          ing.stock_quantity <= ing.low_stock_alert ? 'critical' :
-                          ing.stock_quantity <= ing.low_stock_alert * 1.5 ? 'warning' : 'normal'
+                          item.stock_quantity <= 0 ? 'out' :
+                          item.stock_quantity <= item.low_stock_alert ? 'critical' :
+                          item.stock_quantity <= item.low_stock_alert * 1.5 ? 'warning' : 'normal'
                         }`}>
-                          {ing.stock_quantity <= 0 ? 'OUT' :
-                           ing.stock_quantity <= ing.low_stock_alert ? 'CRITICAL' :
-                           ing.stock_quantity <= ing.low_stock_alert * 1.5 ? 'WARNING' : 'HEALTHY'}
+                          {item.stock_quantity <= 0 ? 'OUT' :
+                           item.stock_quantity <= item.low_stock_alert ? 'CRITICAL' :
+                           item.stock_quantity <= item.low_stock_alert * 1.5 ? 'WARNING' : 'HEALTHY'}
                         </span>
                       </td>
                     </tr>

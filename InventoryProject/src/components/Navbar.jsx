@@ -19,7 +19,6 @@ const MENU_CONFIG = {
       label: 'Inventory Management',
       submenu: [
         { label: 'View Stock', value: 'RawMaterialTracker' },
-        { label: 'Update Stock', value: 'StockReceived' },
       ]
     },
   ],
@@ -29,7 +28,7 @@ const MENU_CONFIG = {
       label: 'Product Management',
       submenu: [
         { label: 'Product List', value: 'Products' },
-        { label: 'Manage Recipes', value: 'ManageProducts' },
+        { label: 'Manage Products', value: 'ManageProducts' },
       ]
     },
     {
@@ -45,7 +44,8 @@ const MENU_CONFIG = {
       submenu: [
         { label: 'Audit Logs', value: 'AuditLogs' },
         { label: 'Receipt Journal', value: 'SalesReceiptJournal' },
-        { label: 'Summary Report', value: 'SalesSummaryReport' },
+        { label: 'Demand Forecasting', value: 'Forecasting' },
+        { label: 'Reports Module', value: 'Reports' },
       ]
     },
     {
@@ -61,7 +61,7 @@ const MENU_CONFIG = {
       label: 'Product Management',
       submenu: [
         { label: 'Product List', value: 'Products' },
-        { label: 'Manage Recipes', value: 'ManageProducts' },
+        { label: 'Manage Products', value: 'ManageProducts' },
       ]
     },
     {
@@ -77,7 +77,8 @@ const MENU_CONFIG = {
       submenu: [  
         { label: 'Audit Logs', value: 'AuditLogs' },
         { label: 'Receipt Journal', value: 'SalesReceiptJournal' },
-        { label: 'Summary Report', value: 'SalesSummaryReport' },
+        { label: 'Demand Forecasting', value: 'Forecasting' },
+        { label: 'Reports Module', value: 'Reports' },
       ]
     },
     {
@@ -98,8 +99,8 @@ const Navbar = ({ activeTab, onTabChange }) => {
     if (user) setUserRole(user.role);
   }, []);
 
-  const handleLogout = () => {
-    logoutUser();
+  const handleLogout = async () => {
+    await logoutUser();
     window.location.href = '/';
   };
 

@@ -1,5 +1,6 @@
 import { supabase } from "../config/supabaseClient.js";
 import { convertToBaseUnit } from "../utils/unitUtils.js";
+import { logAudit } from "../utils/auditHelper.js";
 
 export const getProducts = async () => {
   const { data, error } = await supabase
@@ -93,15 +94,15 @@ export const createSale = async ({
         .eq("id", item.id);
 
       if (!prodUpdateError) {
-        // Log product stock movement
-        await supabase.from("inventory_logs").insert([{
-          product_id: item.id, // We should ensure inventory_logs supports product_id too
-          type: "SOLD",
+        // Log product stock movement to audit_logs
+        await logAudit('PRODUCT_DEDUCTED', staff_id, {
+          product_id: item.id,
+          name: product.name,
           quantity: -item.qty,
-          reference_id: sale.id,
-          user_id: staff_id,
-          notes: `Sold ${item.qty} units of ${product.name} (Direct Stock)`
-        }]);
+          new_stock: newProductStock,
+          sale_id: sale.id,
+          type: 'SALE'
+        });
       }
     } else {
       // MODE B: Recipe-based Ingredient Deduction (e.g., Coffee)
@@ -139,15 +140,79 @@ export const createSale = async ({
             .eq("id", recipe.ingredient_id);
 
           if (!updateError) {
-            // Log ingredient movement
-            await supabase.from("inventory_logs").insert([{
+            // Log ingredient movement to audit_logs
+            await logAudit('INGREDIENT_DEDUCTED', staff_id, {
               ingredient_id: recipe.ingredient_id,
-              type: "SOLD",
+              name: ingredient.name,
               quantity: -totalDeduction,
-              reference_id: sale.id,
-              user_id: staff_id,
-              notes: `Deducted for sale of ${item.qty} units of ${product.name}`
-            }]);
+              new_stock: newStock,
+              sale_id: sale.id,
+              product_name: product.name,
+              type: 'SALE'
+            });
+          }
+        }
+      }
+
+      // MODE C: Deduct Size Cup (if mapped)
+      if (item.cup_size_obj && item.cup_size_obj.ingredient_id) {
+        const { data: ingredient, error: fetchError } = await supabase
+          .from("ingredients")
+          .select("stock_quantity")
+          .eq("id", item.cup_size_obj.ingredient_id)
+          .single();
+
+        if (!fetchError && ingredient) {
+          const totalDeduction = 1 * item.qty; // 1 cup per drink
+          const newStock = parseFloat(ingredient.stock_quantity) - totalDeduction;
+          const { error: updateError } = await supabase.from("ingredients").update({ stock_quantity: newStock }).eq("id", item.cup_size_obj.ingredient_id);
+          
+          if (!updateError) {
+            await logAudit('INGREDIENT_DEDUCTED', staff_id, {
+              ingredient_id: item.cup_size_obj.ingredient_id,
+              type: 'CUP_DEDUCTION',
+              quantity: -totalDeduction,
+              new_stock: newStock,
+              sale_id: sale.id,
+              product_name: product.name
+            });
+          }
+        }
+      }
+
+      // MODE D: Deduct Add-ons (if mapped)
+      if (item.add_ons_objs && item.add_ons_objs.length > 0) {
+        for (const addon of item.add_ons_objs) {
+          if (!addon.ingredient_id) continue;
+          
+          const { data: ingredient, error: fetchError } = await supabase
+            .from("ingredients")
+            .select("stock_quantity, unit")
+            .eq("id", addon.ingredient_id)
+            .single();
+
+          if (fetchError) continue;
+
+          const deductionPerUnit = convertToBaseUnit(
+            addon.quantity || 0,
+            addon.unit || ingredient.unit,
+            ingredient.unit
+          );
+          const totalDeduction = deductionPerUnit * item.qty;
+
+          const newStock = parseFloat(ingredient.stock_quantity) - totalDeduction;
+          const { error: updateError } = await supabase.from("ingredients").update({ stock_quantity: newStock }).eq("id", addon.ingredient_id);
+
+          if (!updateError) {
+            await logAudit('INGREDIENT_DEDUCTED', staff_id, {
+              ingredient_id: addon.ingredient_id,
+              name: addon.name,
+              type: 'ADDON_DEDUCTION',
+              quantity: -totalDeduction,
+              new_stock: newStock,
+              sale_id: sale.id,
+              product_name: product.name
+            });
           }
         }
       }

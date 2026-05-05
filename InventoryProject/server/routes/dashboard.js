@@ -92,36 +92,50 @@ router.get('/stats', async (req, res) => {
         categories: trendMap[dateKey].categories
       }));
 
-    // 3. Top Products (Unified & Categorized)
-    const { data: itemsData } = await supabase
-      .from('sale_items')
-      .select('quantity, products(name, category)');
+    // 3. Top Products (Unified & Categorized) - Filtered by period
+    const period = req.query.period || 'day';
+    let topSalesFilterDate = new Date(now);
+    
+    if (period === 'day') {
+      topSalesFilterDate = `${todayStr}T00:00:00+08:00`;
+    } else if (period === 'week') {
+      topSalesFilterDate = `${startDateStr}T00:00:00+08:00`;
+    } else {
+      topSalesFilterDate = '2000-01-01T00:00:00+00:00'; // All time
+    }
+
+    const { data: salesWithItemsForTop } = await supabase
+      .from('sales')
+      .select('created_at, sale_items(quantity, products(name, category))')
+      .gte('created_at', topSalesFilterDate);
 
     const productMap = {};
     const productCategoryMap = {};
     const categoryMap = {};
 
-    (itemsData || []).forEach(item => {
-      const pName = item.products?.name || 'Unknown';
-      const cat = item.products?.category || 'Uncategorized';
-      const qty = parseInt(item.quantity) || 0;
+    (salesWithItemsForTop || []).forEach(sale => {
+      (sale.sale_items || []).forEach(item => {
+        const pName = item.products?.name || 'Unknown';
+        const cat = item.products?.category || 'Uncategorized';
+        const qty = parseInt(item.quantity) || 0;
 
-      if (!productMap[pName]) {
-        productMap[pName] = { name: pName, category: cat, value: 0 };
-      }
-      productMap[pName].value += qty;
+        if (!productMap[pName]) {
+          productMap[pName] = { name: pName, category: cat, value: 0 };
+        }
+        productMap[pName].value += qty;
 
-      if (!productCategoryMap[cat]) {
-        productCategoryMap[cat] = {};
-      }
-      productCategoryMap[cat][pName] = (productCategoryMap[cat][pName] || 0) + qty;
-      
-      categoryMap[cat] = (categoryMap[cat] || 0) + qty;
+        if (!productCategoryMap[cat]) {
+          productCategoryMap[cat] = {};
+        }
+        productCategoryMap[cat][pName] = (productCategoryMap[cat][pName] || 0) + qty;
+        
+        categoryMap[cat] = (categoryMap[cat] || 0) + qty;
+      });
     });
 
     const topProducts = Object.values(productMap)
       .sort((a, b) => b.value - a.value)
-      .slice(0, 10); // get top 10
+      .slice(0, 10); 
 
     const topProductsByCategory = {};
     for (const cat in productCategoryMap) {

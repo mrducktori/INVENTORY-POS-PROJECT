@@ -101,12 +101,9 @@ const ManageRawMaterials = () => {
                     <label>Initial Stock Quantity</label>
                     <input
                       type="number"
-                      step="0.01"
-                      min="0"
-                      name="stock_quantity"
-                      value={formData.stock_quantity}
-                      onChange={handleInputChange}
-                      required
+                      value="0"
+                      disabled
+                      style={{ backgroundColor: '#f5f5f5', cursor: 'not-allowed' }}
                     />
                   </div>
                   <div className="form-group">
@@ -306,15 +303,21 @@ const ManageRawMaterials = () => {
                 </div>
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Current Stock</label>
+                    <label>Current Stock
+                      <span style={{ marginLeft: 6, fontSize: 10, color: '#888', fontWeight: 400, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        (read-only)
+                      </span>
+                    </label>
                     <input
                       type="number"
                       step="0.01"
-                      min="0"
                       value={editQuantity}
-                      onChange={e => setEditQuantity(e.target.value)}
-                      required
+                      readOnly
+                      style={{ background: '#f5f5f5', color: '#888', cursor: 'not-allowed', borderColor: '#ddd' }}
                     />
+                    <p style={{ fontSize: 11, color: '#999', marginTop: 4, fontStyle: 'italic' }}>
+                      To update stock, use the <strong>Update Stock</strong> module in Inventory Control.
+                    </p>
                   </div>
                   <div className="form-group">
                     <label>Low Alert Level</label>

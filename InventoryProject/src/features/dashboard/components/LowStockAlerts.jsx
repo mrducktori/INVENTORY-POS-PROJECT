@@ -1,55 +1,45 @@
 import React from 'react';
 import { formatQuantity } from '../../../utils/productUtils';
+import './LowStockAlerts.css';
 
-// ---------------------------------------------------------------------------
-// LowStockAlerts
-// Displays the actionable low-stock inventory list. Uses a red top-border
-// to visually signal urgency. No logic — purely presentational.
-// ---------------------------------------------------------------------------
-
-const LowStockAlerts = ({ loading, lowStockDetails }) => {
-  const hasAlerts = lowStockDetails?.length > 0;
+const LowStockAlerts = ({ loading, lowStockDetails, onExpand }) => {
+  const alerts = lowStockDetails?.slice(0, 5) || [];
+  const hasMore = (lowStockDetails?.length || 0) > 5;
 
   return (
     <div
-      className="chart-card large"
-      style={{ gridColumn: 'span 1', borderTop: '4px solid #c62828' }}
+      className="chart-card large clickable low-stock-card"
+      onClick={onExpand}
     >
       <div className="chart-header">
-        <h3>⚠️ Low Stock Alerts</h3>
+        <h3> Low Stock</h3>
       </div>
 
-      <div
-        className="chart-body"
-        style={{ height: 'auto', minHeight: '300px', alignItems: 'flex-start' }}
-      >
+      <div className="chart-body low-stock-body">
         {loading ? (
-          <div className="loading">Checking inventory...</div>
+          <div className="loading">Checking...</div>
         ) : (
           <div style={{ width: '100%' }}>
             <ul className="low-stock-list">
-              {hasAlerts ? (
-                lowStockDetails.map((item) => (
-                  <li key={item.name}>
+              {alerts.length > 0 ? (
+                alerts.map((item) => (
+                  <li key={item.name} className="low-stock-item">
                     <span className="item-name">{item.name}</span>
-                    <span className="item-qty">
-                      {formatQuantity(item.stock, item.unit)}
-                    </span>
+                    <span className="item-qty">{formatQuantity(item.stock, item.unit)}</span>
                   </li>
                 ))
               ) : (
-                <li
-                  style={{
-                    textAlign: 'center',
-                    color: '#666',
-                    borderBottom: 'none',
-                    padding: '20px 0',
-                  }}
-                >
-                  All items are safely stocked.
+                <li className="low-stock-empty">
+                  Stock levels healthy.
                 </li>
               )}
             </ul>
+            {hasMore && (
+              <div className="more-items-hint">
+                + {lowStockDetails.length - 5} more items...
+              </div>
+            )}
+            {alerts.length > 0 && <div className="expand-hint click-hint">Click to expand all</div>}
           </div>
         )}
       </div>

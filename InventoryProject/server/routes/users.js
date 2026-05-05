@@ -1,6 +1,7 @@
 import express from 'express';
 import bcrypt from 'bcrypt';
 import { supabase } from '../config/supabaseClient.js';
+import { logAudit } from '../utils/auditHelper.js';
 
 const router = express.Router();
 
@@ -41,6 +42,14 @@ router.post('/', async (req, res) => {
       .single();
 
     if (error) throw error;
+
+    await logAudit('USER_CREATED', req.body.created_by || null, {
+      new_user_id: data.id,
+      name: data.name,
+      username: data.username,
+      role: data.role
+    });
+
     res.status(201).json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -60,6 +69,14 @@ router.put('/:id/status', async (req, res) => {
       .eq('id', req.params.id)
       .select('id, name, username, role, status')
       .single();
+    if (error) throw error;
+
+    await logAudit('USER_STATUS_CHANGED', req.body.changed_by || null, {
+      target_user_id: req.params.id,
+      name: data.name,
+      new_status: status
+    });
+
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -89,6 +106,14 @@ router.put('/:id', async (req, res) => {
       .single();
 
     if (error) throw error;
+
+    await logAudit('USER_UPDATED', req.body.updated_by || null, {
+      target_user_id: req.params.id,
+      name: data.name,
+      username: data.username,
+      role: data.role
+    });
+
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });

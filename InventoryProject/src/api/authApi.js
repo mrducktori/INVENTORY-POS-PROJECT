@@ -3,9 +3,6 @@ import { apiCall } from "./client.js";
 
 /**
  * Login with username and password
- * @param {string} username
- * @param {string} password
- * @returns {Promise<Object>} User object
  */
 export async function loginUser(username, password) {
   return apiCall("/auth/login", {
@@ -15,15 +12,28 @@ export async function loginUser(username, password) {
 }
 
 /**
- * Logout user (clears local storage)
+ * Logout user — notifies server for audit log, then clears localStorage
  */
-export function logoutUser() {
-  localStorage.removeItem("user");
+export async function logoutUser() {
+  try {
+    const userJson = localStorage.getItem("user");
+    if (userJson) {
+      const user = JSON.parse(userJson);
+      // Fire-and-forget: tell the server so the audit log is written
+      await apiCall("/auth/logout", {
+        method: "POST",
+        body: JSON.stringify({ user_id: user.id, username: user.username, role: user.role })
+      });
+    }
+  } catch {
+    // Don't block logout if the server call fails
+  } finally {
+    localStorage.removeItem("user");
+  }
 }
 
 /**
  * Get current logged-in user from storage
- * @returns {Object|null} User object or null
  */
 export function getCurrentUser() {
   const userJson = localStorage.getItem("user");
@@ -32,7 +42,6 @@ export function getCurrentUser() {
 
 /**
  * Save user to local storage
- * @param {Object} user User object to save
  */
 export function saveUser(user) {
   localStorage.setItem("user", JSON.stringify(user));

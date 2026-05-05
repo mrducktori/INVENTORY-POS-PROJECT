@@ -1,0 +1,55 @@
+.expanded-low-stock-card {
+  margin-top: 20px;
+  border-top: 4px solid #000;
+  border-radius: 4px;
+}
+
+.expanded-low-stock-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  background: #f8f8f8;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.expanded-low-stock-title {
+  color: #000;
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.collapse-btn {
+  font-size: 11px;
+  font-weight: 700;
+  color: #666;
+  border: 1px solid #ccc;
+  background: #fff;
+  padding: 4px 12px;
+  border-radius: 2px;
+  text-transform: uppercase;
+}
+
+.collapse-btn:hover {
+  background: #eee;
+  color: #000;
+}
+
+.expanded-low-stock-body {
+  padding: 24px;
+  height: auto !important;   /* override the fixed 300px from .chart-body */
+  display: block !important;
+  align-items: unset !important;
+  justify-content: unset !important;
+}
+
+.all-stocked-message {
+  text-align: center;
+  color: #777;
+  padding: 40px 0;
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}

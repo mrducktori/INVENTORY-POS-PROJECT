@@ -30,6 +30,12 @@ import EmployeeTracker from '../accounts/EmployeeTracker';
 // Report Broken Items (Staff)
 import ReportWastage from '../wastage/ReportWastage';
 
+// Analytics
+import DemandForecasting from '../analytics/DemandForecasting';
+
+// Reports Module
+import Reports from '../reports/Reports';
+
 const Dashboard = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const [activeTab, setActiveTab] = useState(user.role === 'Staff' ? 'POS' : 'Dashboard');
@@ -74,6 +80,13 @@ const Dashboard = () => {
       // Account Management
       case 'AccountManager':    return <AccountManager />;
       case 'EmployeeTracker':   return <EmployeeTracker />;
+
+      // Analytics
+      case 'Forecasting':       return <DemandForecasting />;
+
+      // Reports Module
+      case 'Reports':           return <Reports />;
+
 
       default:
         return (

@@ -3,8 +3,75 @@ import './Login.css';
 import Dashboard from '../dashboard/Dashboard';
 import { useLogin } from './useLogin';
 import locPic from '../../assets/images/loc_pic.png';
-import coffeeMenu from '../../assets/images/coffee_menu.png';
 import PageLoader from './PageLoader/PageLoader';
+import { getProducts } from '../../api/posApi';
+
+const CATEGORIES = ['ALL', 'COFFEE', 'FRAPPE', 'MILK TEA', 'SODA', 'PASTRY'];
+
+function MenuPanel() {
+  const [products, setProducts] = useState([]);
+  const [activeCategory, setActiveCategory] = useState('ALL');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getProducts()
+      .then(data => setProducts(data || []))
+      .catch(() => setProducts([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filtered = activeCategory === 'ALL'
+    ? products
+    : products.filter(p => p.category?.toUpperCase() === activeCategory);
+
+  // Build dynamic category list from actual products
+  const presentCategories = ['ALL', ...new Set(products.map(p => p.category?.toUpperCase()).filter(Boolean))];
+
+  return (
+    <div className="menu-panel">
+      <div className="menu-panel-header">
+        <h2>Our Menu</h2>
+        <p>Fresh brews &amp; sweet treats</p>
+      </div>
+
+      {/* Category Tabs */}
+      <div className="menu-category-tabs">
+        {presentCategories.map(cat => (
+          <button
+            key={cat}
+            id={`menu-cat-${cat.replace(/\s+/g, '-').toLowerCase()}`}
+            className={`menu-cat-btn ${activeCategory === cat ? 'active' : ''}`}
+            onClick={() => setActiveCategory(cat)}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
+
+      {/* Menu Items */}
+      <div className="menu-items-list">
+        {loading ? (
+          <div className="menu-loading">
+            <div className="menu-spinner" />
+            <span>Loading menu...</span>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="menu-empty">No items in this category yet.</div>
+        ) : (
+          filtered.map(product => (
+            <div key={product.id} className="menu-item-row">
+              <div className="menu-item-info">
+                <span className="menu-item-name">{product.name}</span>
+                <span className="menu-item-category">{product.category}</span>
+              </div>
+              <span className="menu-item-price">₱{parseFloat(product.price).toFixed(2)}</span>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
 
 function Login() {
   const [isInitialLoading, setIsInitialLoading] = useState(true);
@@ -15,20 +82,18 @@ function Login() {
     }, 1500);
     return () => clearTimeout(timer);
   }, []);
+
   const {
     form,
     user,
     error,
     formOpen,
-    isMenuZoomed,
     toggleModal,
-    toggleZoom,
     handleChange,
     handleSubmit
   } = useLogin();
 
   if (user) return <Dashboard />;
-
   if (isInitialLoading) return <PageLoader />;
 
   return (
@@ -41,21 +106,20 @@ function Login() {
         </div>
       </header>
 
-      {/* Main Content - 70/30 Split */}
+      {/* Main Content */}
       <div className="login-main">
-        {/* Left Side - 70% */}
+        {/* Left Side - Location Photo */}
         <div className="login-left">
           <div className="images-container">
-            {/* Photo 1 - Location */}
             <div className="image-placeholder">
               <img src={locPic} alt="Location" className="placeholder-image" />
             </div>
           </div>
         </div>
 
-        {/* Photo 2 - Menu */}
-        <div className="image-placeholder menu-image" onClick={toggleZoom} title="Click to enlarge menu">
-          <img src={coffeeMenu} alt="Coffee Menu" className="placeholder-image" />
+        {/* Right Side - Categorized Menu */}
+        <div className="menu-panel-wrapper">
+          <MenuPanel />
         </div>
       </div>
 
@@ -79,26 +143,17 @@ function Login() {
               <h3 className="back-btn" onClick={toggleModal}> ← Back </h3>
               <h1>Login</h1>
               {error && <p className="error">{error}</p>}
-              
               <label>Username:</label>
-              <input type="text" name="username" 
-                value={form.username} 
+              <input type="text" name="username"
+                value={form.username}
                 onChange={handleChange} required />
-
               <label>Password:</label>
-              <input type="password" name="password" 
-                value={form.password} 
+              <input type="password" name="password"
+                value={form.password}
                 onChange={handleChange} required />
-
               <button type="submit" className="login-submit">Login</button>
             </form>
           </div>
-        </div>
-      )}
-
-      {isMenuZoomed && (
-        <div className="zoom-overlay" onClick={toggleZoom}>
-          <img src={coffeeMenu} alt="Zoomed Menu" />
         </div>
       )}
     </div>

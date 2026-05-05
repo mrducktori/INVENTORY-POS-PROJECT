@@ -5,7 +5,7 @@ import { getDashboardStats } from '../../api/dashboardApi';
 // useDashboardStats
 // Custom hook that encapsulates ALL data-fetching and transformation logic
 // for the Dashboard. The JSX layer (components) should ONLY call this hook
-// and render the values it returns — no business logic in JSX.
+// and render the values it returns ΓÇö no business logic in JSX.
 // ---------------------------------------------------------------------------
 
 const COLORS = ['#000000', '#333333', '#666666', '#999999', '#CCCCCC'];
@@ -74,12 +74,14 @@ const useDashboardStats = () => {
   const [sortCategorySalesAsc, setSortCategorySalesAsc] = useState(false);
   const [isTrendExpanded, setIsTrendExpanded] = useState(false);
   const [activeTrendCategory, setActiveTrendCategory] = useState('All');
+  const [isLowStockExpanded, setIsLowStockExpanded] = useState(false);
+  const [topSalesPeriod, setTopSalesPeriod] = useState('day'); // 'day' | 'week' | 'month'
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
         setLoading(true);
-        const data = await getDashboardStats();
+        const data = await getDashboardStats(topSalesPeriod);
         setStats(data);
       } catch (err) {
         console.error('Failed to load dashboard stats:', err);
@@ -89,7 +91,7 @@ const useDashboardStats = () => {
     };
 
     fetchStats();
-  }, []);
+  }, [topSalesPeriod]); // re-fetch whenever the period changes
 
   // --- Derived / computed values ---
 
@@ -102,6 +104,8 @@ const useDashboardStats = () => {
 
   const getSortedCategoryProducts = (products) =>
     sortProducts(products, sortCategorySalesAsc);
+
+  const toggleLowStock = () => setIsLowStockExpanded((prev) => !prev);
 
   const kpiCards = [
     {
@@ -121,6 +125,8 @@ const useDashboardStats = () => {
       label: 'Low Stock Items',
       value: stats?.lowStockItems ?? '0',
       color: (stats?.lowStockItems || 0) > 0 ? 'red' : 'black',
+      clickable: true,
+      onClick: toggleLowStock,
     },
   ];
 
@@ -132,10 +138,14 @@ const useDashboardStats = () => {
     isTrendExpanded,
     activeTrendCategory,
     sortCategorySalesAsc,
+    isLowStockExpanded,
+    topSalesPeriod,
     // Actions (state setters)
     setIsTrendExpanded,
     setActiveTrendCategory,
     setSortCategorySalesAsc,
+    setTopSalesPeriod,
+    toggleLowStock,
     // Derived data ready for components
     kpiCards,
     trendCategories,

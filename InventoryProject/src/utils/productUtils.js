@@ -19,7 +19,7 @@ export const filterProducts = (products, category, searchTerm = "") => {
 
     const matchSearch = (p.name || "").toLowerCase().includes(searchTerm.toLowerCase());
     return matchCategory && matchSearch;
-  });
+  }).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 };
 
 // Format quantity to handle ML→L and G→KG display conversions

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { getProducts, createSale } from "../../api/posApi";
+import { getProducts, createSale } from '../../api/posApi';
+import { getCategorySettings } from '../../api/categorySettingsApi';
 import { getRecipesByProduct } from "../../api/recipesApi";
 import { getCurrentUser } from "../../utils/authUtils";
 
@@ -16,6 +17,8 @@ export const usePOS = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [category, setCategory] = useState("ALL");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [categorySettings, setCategorySettings] = useState({});
   const [saleComplete, setSaleComplete] = useState(false);
   const [recipeProduct, setRecipeProduct] = useState(null);
   const [ongoingOrders, setOngoingOrders] = useState(() => {
@@ -30,12 +33,30 @@ export const usePOS = () => {
   const [recipeLoading, setRecipeLoading] = useState(false);
   const [currentRecipe, setCurrentRecipe] = useState([]);
 
+  // Payment Modal State
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentOrder, setPaymentOrder] = useState(null);
+
   const user = getCurrentUser();
 
-  // FETCH PRODUCTS
+  // FETCH PRODUCTS AND SETTINGS
   useEffect(() => {
     fetchProducts();
+    fetchCategorySettings();
   }, []);
+
+  const fetchCategorySettings = async () => {
+    try {
+      const data = await getCategorySettings();
+      const settingsMap = {};
+      (data || []).forEach(item => {
+        settingsMap[item.category] = item;
+      });
+      setCategorySettings(settingsMap);
+    } catch (err) {
+      console.error("Failed to fetch category settings", err);
+    }
+  };
 
   // PERSIST STATE
   useEffect(() => {
@@ -83,24 +104,81 @@ export const usePOS = () => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [productOptions, setProductOptions] = useState({
     qty: 1,
-    cupSize: "Medium",
+    cupSize: "12 oz",
     addOns: []
   });
 
   const openOptions = (product) => {
-    setSelectedProduct(product);
-    setProductOptions({ qty: 1, cupSize: "Medium", addOns: [] });
+    const catSettings = categorySettings[product.category?.toUpperCase()];
+    const virtualProduct = {
+      ...product,
+      sizes: [...(product.sizes || [])],
+      add_ons: [...(product.add_ons || [])]
+    };
+
+    if (catSettings) {
+      if (catSettings.sizes && catSettings.sizes.length > 0 && virtualProduct.sizes.length === 0) {
+        virtualProduct.sizes = [...catSettings.sizes];
+      }
+      if (catSettings.add_ons && catSettings.add_ons.length > 0) {
+        const existingNames = virtualProduct.add_ons.map(a => a.name);
+        catSettings.add_ons.forEach(ca => {
+          if (!existingNames.includes(ca.name)) {
+            virtualProduct.add_ons.push(ca);
+          }
+        });
+      }
+    }
+
+    setSelectedProduct(virtualProduct);
+    let defaultSize = "12 oz";
+    if (virtualProduct.sizes && virtualProduct.sizes.length > 0) {
+      defaultSize = virtualProduct.sizes[0].name; // Default to first configured size
+    }
+    setProductOptions({ qty: 1, cupSize: defaultSize, addOns: [] });
     setShowOptions(true);
   };
 
   const handleAddWithOptions = () => {
-    const isDrink = ["COFFEE", "FRAPPE", "MILK TEA", "SODA"].includes(selectedProduct.category?.toUpperCase());
+    const isDrink = ["COFFEE", "FRAPPE", "MILK TEA", "SODA", "FRUIT DRINKS"].includes(selectedProduct.category?.toUpperCase());
     
+    let finalPrice = parseFloat(selectedProduct.price);
+    let selectedSizeObj = null;
+    let selectedAddonObjs = [];
+
+    if (isDrink) {
+      if (selectedProduct.sizes && selectedProduct.sizes.length > 0) {
+        selectedSizeObj = selectedProduct.sizes.find(s => s.name === productOptions.cupSize);
+        if (selectedSizeObj) finalPrice += parseFloat(selectedSizeObj.price_add || 0);
+      } else {
+        // Legacy fallback
+        if (productOptions.cupSize === "16 oz") finalPrice += 10;
+        if (productOptions.cupSize === "22 oz") finalPrice += 20;
+      }
+
+      productOptions.addOns.forEach(addonName => {
+        // Handle dynamic addons attached to the virtualProduct (which includes category defaults)
+        if (selectedProduct.add_ons && selectedProduct.add_ons.length > 0) {
+          const ao = selectedProduct.add_ons.find(a => a.name === addonName);
+          if (ao) {
+            finalPrice += parseFloat(ao.price || 0);
+            selectedAddonObjs.push(ao);
+            return;
+          }
+        }
+        
+        // Legacy string fallback if absolutely nothing was found
+        selectedAddonObjs.push({name: addonName, price: 0});
+      });
+    }
+
     const itemToAdd = {
       ...selectedProduct,
+      price: finalPrice,
       qty: productOptions.qty,
       cup_size: isDrink ? productOptions.cupSize : null,
-      add_ons: isDrink ? productOptions.addOns : [],
+      cup_size_obj: selectedSizeObj,
+      add_ons: isDrink ? selectedAddonObjs : [],
       cartItemId: isDrink 
         ? `${selectedProduct.id}-${productOptions.cupSize}-${productOptions.addOns.sort().join(',')}`
         : `${selectedProduct.id}-standard`
@@ -169,22 +247,34 @@ export const usePOS = () => {
     }
   };
 
-  const handleCompleteOrder = async (orderId) => {
-    try {
-      const order = ongoingOrders.find(o => o.id === orderId);
-      if (!order) return;
-      await createSale({
-        cart: order.items,
-        total: order.total,
-        staff_id: user.id
-      });
-      setOngoingOrders(ongoingOrders.filter(o => o.id !== orderId));
-      setSaleComplete(true);
-      setTimeout(() => setSaleComplete(false), 3000);
-    } catch (err) {
-      console.error(err);
-      alert("Error completing order: " + err.message);
-    }
+  const handleCompleteOrder = (orderId) => {
+    const order = ongoingOrders.find(o => o.id === orderId);
+    if (!order) return;
+    setPaymentOrder(order);
+    setShowPaymentModal(true);
+  };
+
+  const confirmPayment = async (paymentData) => {
+    if (!paymentOrder) return;
+
+    const saleData = {
+      cart: paymentOrder.items,
+      total: paymentOrder.total,
+      staff_id: user.id,
+      payment_method: paymentData.method,
+      amount_received: paymentData.amountReceived || 0,
+      change_amount: paymentData.change || 0,
+      transaction_reference: paymentData.reference || "",
+    };
+
+    // Let any error bubble up to PaymentModal so it can re-enable the button
+    await createSale(saleData);
+
+    setOngoingOrders(ongoingOrders.filter(o => o.id !== paymentOrder.id));
+    setShowPaymentModal(false);
+    setPaymentOrder(null);
+    setSaleComplete(true);
+    setTimeout(() => setSaleComplete(false), 3000);
   };
 
   const handleCancelOrder = (orderId) => {
@@ -242,6 +332,10 @@ export const usePOS = () => {
     handleCompleteOrder,
     handleCancelOrder,
     handleEditOrder,
-    user
+    user,
+    showPaymentModal,
+    setShowPaymentModal,
+    paymentOrder,
+    confirmPayment
   };
 };
