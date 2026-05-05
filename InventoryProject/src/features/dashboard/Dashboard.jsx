@@ -16,6 +16,7 @@ import StockReceived from '../inventory/StockReceived';
 import RawMaterialTracker from '../inventory/RawMaterialTracker';
 import ManageRawMaterials from '../inventory/ManageRawMaterials';
 import LowStockAlerts from '../inventory/LowStockAlerts';
+import ProductStockTracker from '../inventory/ProductStockTracker';
 
 // Logs & Reports
 import AuditLogs from '../logs/AuditLogs';
@@ -67,6 +68,7 @@ const Dashboard = () => {
 
       // Inventory Stock
       case 'RawMaterialTracker': return <RawMaterialTracker />;
+      case 'ProductStockTracker': return <ProductStockTracker />;
       case 'ManageRawMaterials': return <ManageRawMaterials />;
       case 'StockReceived':     return <StockReceived />;
       case 'LowStockAlerts':    return <LowStockAlerts />;

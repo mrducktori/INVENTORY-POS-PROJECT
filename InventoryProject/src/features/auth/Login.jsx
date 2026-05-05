@@ -6,7 +6,24 @@ import locPic from '../../assets/images/loc_pic.png';
 import PageLoader from './PageLoader/PageLoader';
 import { getProducts } from '../../api/posApi';
 
-const CATEGORIES = ['ALL', 'COFFEE', 'FRAPPE', 'MILK TEA', 'SODA', 'PASTRY'];
+// Menu Assets
+import addonMenu from '../../assets/images/Addon_menu.png';
+import amerikanoMenu from '../../assets/images/Amerikano_menu.png';
+import frappeMenu from '../../assets/images/Frappe_menu.png';
+import fruitSodaMenu from '../../assets/images/Fruit&Soda_menu.png';
+import latteMenu from '../../assets/images/Latte_menu.png';
+import milkteaMenu from '../../assets/images/Milktea_menu.png';
+import pastryPlaceholder from '../../assets/images/Pastry_placeholder.png';
+
+const CATEGORY_IMAGES = {
+  'COFFEE': amerikanoMenu,
+  'FRAPPE': frappeMenu,
+  'MILK TEA': milkteaMenu,
+  'SODA': fruitSodaMenu,
+  'ADDONS': addonMenu,
+  'LATTE': latteMenu,
+  'PASTRY': pastryPlaceholder
+};
 
 function MenuPanel() {
   const [products, setProducts] = useState([]);
@@ -27,48 +44,118 @@ function MenuPanel() {
   // Build dynamic category list from actual products
   const presentCategories = ['ALL', ...new Set(products.map(p => p.category?.toUpperCase()).filter(Boolean))];
 
+  const [enlargedImage, setEnlargedImage] = useState(null);
+  const [cycleIndex, setCycleIndex] = useState(0);
+
+  // All menu boards for cycling
+  const allMenuBoards = [amerikanoMenu, latteMenu, frappeMenu, milkteaMenu, fruitSodaMenu, addonMenu, pastryPlaceholder];
+
+  useEffect(() => {
+    let interval;
+    if (activeCategory === 'ALL') {
+      interval = setInterval(() => {
+        setCycleIndex(prev => (prev + 1) % allMenuBoards.length);
+      }, 5000); // Cycle every 5 seconds
+    }
+    return () => clearInterval(interval);
+  }, [activeCategory, allMenuBoards.length]);
+
+  // Map categories to image(s)
+  const getCategoryImages = (cat) => {
+    const key = cat.toUpperCase();
+    if (key === 'ALL') return [allMenuBoards[cycleIndex]];
+    if (key === 'COFFEE' || key === 'LATTE') return [amerikanoMenu, latteMenu];
+    if (key === 'FRUIT DRINKS' || key === 'FRUIT' || key === 'SODA') return [fruitSodaMenu];
+    if (key === 'PASTRY' || key === 'PASTRIES') return [pastryPlaceholder];
+    const single = CATEGORY_IMAGES[key];
+    return single ? [single] : [amerikanoMenu];
+  };
+
+  // Add ADDONS to the category list if not present
+  const displayCategories = presentCategories.includes('ADDONS') 
+    ? presentCategories 
+    : [...presentCategories, 'ADDONS'];
+
+  const activeImages = getCategoryImages(activeCategory);
+
   return (
     <div className="menu-panel">
       <div className="menu-panel-header">
-        <h2>Our Menu</h2>
-        <p>Fresh brews &amp; sweet treats</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h2>Visual Menu</h2>
+            <p>Explore our seasonal offerings. Click an image to enlarge.</p>
+          </div>
+          {activeCategory === 'ALL' && (
+            <div className="cycling-indicator">
+              Auto-cycling...
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Category Tabs */}
       <div className="menu-category-tabs">
-        {presentCategories.map(cat => (
+        {displayCategories.map(cat => (
           <button
             key={cat}
             id={`menu-cat-${cat.replace(/\s+/g, '-').toLowerCase()}`}
             className={`menu-cat-btn ${activeCategory === cat ? 'active' : ''}`}
-            onClick={() => setActiveCategory(cat)}
+            onClick={() => { setActiveCategory(cat); setCycleIndex(0); }}
           >
             {cat}
           </button>
         ))}
       </div>
 
-      {/* Menu Items */}
-      <div className="menu-items-list">
+      {/* Visual Menu Display */}
+      <div className="menu-visual-display">
         {loading ? (
           <div className="menu-loading">
             <div className="menu-spinner" />
             <span>Loading menu...</span>
           </div>
-        ) : filtered.length === 0 ? (
-          <div className="menu-empty">No items in this category yet.</div>
         ) : (
-          filtered.map(product => (
-            <div key={product.id} className="menu-item-row">
-              <div className="menu-item-info">
-                <span className="menu-item-name">{product.name}</span>
-                <span className="menu-item-category">{product.category}</span>
-              </div>
-              <span className="menu-item-price">₱{parseFloat(product.price).toFixed(2)}</span>
+          <div className={`menu-image-container ${activeImages.length > 1 ? 'multi' : ''}`}>
+            {activeImages.map((img, idx) => (
+              <img 
+                src={img} 
+                alt={`${activeCategory}-${idx}`} 
+                className="menu-board-image clickable" 
+                key={`${activeCategory}-${img}-${idx}`}
+                onClick={() => setEnlargedImage(img)}
+              />
+            ))}
+            
+            <div className="menu-board-overlay">
+              <span className="overlay-tag">{activeCategory}</span>
+              <span className="overlay-hint">Click to enlarge</span>
             </div>
-          ))
+          </div>
         )}
       </div>
+
+      {/* Scrollable list remains compact at the bottom */}
+      <div className="menu-items-list mini">
+        {!loading && filtered.map(product => (
+          <div key={product.id} className="menu-item-row compact">
+            <div className="menu-item-info">
+              <span className="menu-item-name">{product.name}</span>
+            </div>
+            <span className="menu-item-price">₱{parseFloat(product.price).toFixed(2)}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Image Modal */}
+      {enlargedImage && (
+        <div className="image-modal-overlay" onClick={() => setEnlargedImage(null)}>
+          <div className="image-modal-content">
+            <img src={enlargedImage} alt="Enlarged Menu" />
+            <button className="close-modal-btn">×</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

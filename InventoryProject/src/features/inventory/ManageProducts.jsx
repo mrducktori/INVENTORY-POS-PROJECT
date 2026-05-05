@@ -358,8 +358,16 @@ const ManageProducts = () => {
                  {editTrackStock && (
                    <div className="form-row">
                      <div className="form-group">
-                       <label>Current Stock</label>
-                       <input type="number" value={editStockQty} onChange={e => setEditStockQty(e.target.value)} min="0" required />
+                       <label>Current Stock <span style={{ fontSize: '10px', color: '#888' }}>(read-only)</span></label>
+                       <input 
+                         type="number" 
+                         value={editStockQty} 
+                         readOnly 
+                         style={{ backgroundColor: '#f5f5f5', cursor: 'not-allowed' }}
+                       />
+                       <small style={{ color: '#888', display: 'block', marginTop: '4px' }}>
+                         Update via <strong>Update Stock</strong> module.
+                       </small>
                      </div>
                      <div className="form-group">
                        <label>Low Stock Alert at</label>

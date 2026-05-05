@@ -18,7 +18,8 @@ const MENU_CONFIG = {
     {
       label: 'Inventory Management',
       submenu: [
-        { label: 'View Stock', value: 'RawMaterialTracker' },
+        { label: 'Raw Material Stock', value: 'RawMaterialTracker' },
+        { label: 'Product Stock', value: 'ProductStockTracker' },
       ]
     },
   ],
@@ -32,9 +33,10 @@ const MENU_CONFIG = {
       ]
     },
     {
-      label: 'Inventory Management',
+      label: 'Inventory Control',
       submenu: [
-        { label: 'View Stock', value: 'RawMaterialTracker' },
+        { label: 'Raw Material Stock', value: 'RawMaterialTracker' },
+        { label: 'Product Stock', value: 'ProductStockTracker' },
         { label: 'Material Inventory', value: 'ManageRawMaterials' },
         { label: 'Update Stock', value: 'StockReceived' },
       ]
@@ -67,7 +69,8 @@ const MENU_CONFIG = {
     {
       label: 'Inventory Control',
       submenu: [
-        { label: 'Real-time Tracker', value: 'RawMaterialTracker' },
+        { label: 'Raw Material Stock', value: 'RawMaterialTracker' },
+        { label: 'Product Stock', value: 'ProductStockTracker' },
         { label: 'Material Inventory', value: 'ManageRawMaterials' },
         { label: 'Update Stock', value: 'StockReceived' },
       ]
