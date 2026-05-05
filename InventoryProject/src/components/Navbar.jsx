@@ -20,6 +20,7 @@ const MENU_CONFIG = {
       submenu: [
         { label: 'Raw Material Stock', value: 'RawMaterialTracker' },
         { label: 'Product Stock', value: 'ProductStockTracker' },
+        { label: 'Report Wastage', value: 'ReportWastage' },
       ]
     },
   ],
