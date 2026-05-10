@@ -34,24 +34,38 @@ CREATE TABLE public.ingredients (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   name character varying NOT NULL,
   unit character varying NOT NULL,
-  stock_quantity numeric DEFAULT 0.00,
+  stock_quantity numeric DEFAULT 0.00 CHECK (stock_quantity >= 0),
   low_stock_alert numeric DEFAULT 10.00,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT ingredients_pkey PRIMARY KEY (id)
 );
 
--- 4. Products Table
+-- 4. Category Settings Table
+CREATE TABLE public.category_settings (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  category character varying NOT NULL UNIQUE,
+  sizes jsonb DEFAULT '[]'::jsonb,
+  add_ons jsonb DEFAULT '[]'::jsonb,
+  image_url character varying,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT category_settings_pkey PRIMARY KEY (id)
+);
+
+-- 5. Products Table
 CREATE TABLE public.products (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   name character varying NOT NULL,
   category character varying NOT NULL,
   price numeric NOT NULL,
   is_archived boolean DEFAULT false,
+  track_stock boolean DEFAULT false,
+  stock_quantity numeric DEFAULT 0 CHECK (stock_quantity >= 0),
   created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT products_pkey PRIMARY KEY (id)
+  CONSTRAINT products_pkey PRIMARY KEY (id),
+  CONSTRAINT products_category_fkey FOREIGN KEY (category) REFERENCES public.category_settings(category) ON DELETE RESTRICT
 );
 
--- 5. Recipes Table
+-- 6. Recipes Table
 CREATE TABLE public.recipes (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   product_id uuid NOT NULL,
@@ -62,17 +76,6 @@ CREATE TABLE public.recipes (
   CONSTRAINT recipes_ingredient_id_fkey FOREIGN KEY (ingredient_id) REFERENCES public.ingredients(id) ON DELETE CASCADE
 );
 
--- 6. Requests Table
-CREATE TABLE public.requests (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  type character varying NOT NULL,
-  details jsonb NOT NULL,
-  status character varying DEFAULT 'PENDING'::character varying,
-  requested_by uuid NOT NULL,
-  created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT requests_pkey PRIMARY KEY (id),
-  CONSTRAINT requests_requested_by_fkey FOREIGN KEY (requested_by) REFERENCES public.users(id) ON DELETE CASCADE
-);
 
 -- 7. Sales Table
 CREATE TABLE public.sales (
@@ -112,30 +115,7 @@ CREATE TABLE public.wastage (
   CONSTRAINT wastage_reported_by_fkey FOREIGN KEY (reported_by) REFERENCES public.users(id)
 );
 
--- 10. Employee Shifts Table
-CREATE TABLE public.employee_shifts (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL,
-  shift_date date NOT NULL DEFAULT CURRENT_DATE,
-  clock_in timestamp with time zone,
-  clock_out timestamp with time zone,
-  shift_type character varying DEFAULT 'Morning',
-  notes text,
-  created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT employee_shifts_pkey PRIMARY KEY (id),
-  CONSTRAINT employee_shifts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE
-);
-ALTER TABLE public.employee_shifts ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Admins and owners can view shifts" ON public.employee_shifts
-  FOR SELECT USING (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role IN ('Admin', 'Owner'))
-  );
-CREATE POLICY "Authenticated users can insert their shifts" ON public.employee_shifts
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Admins can manage shifts" ON public.employee_shifts
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role IN ('Admin', 'Owner'))
-  );
+
 
 -- ==========================================
 -- ROW LEVEL SECURITY (RLS)
@@ -145,9 +125,9 @@ CREATE POLICY "Admins can manage shifts" ON public.employee_shifts
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ingredients ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.category_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.recipes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sales ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sale_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.wastage ENABLE ROW LEVEL SECURITY;
@@ -172,45 +152,44 @@ CREATE POLICY "Admins can manage ingredients" ON public.ingredients
     EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'ADMIN')
   );
 
--- 3. Products
+-- 3. Category Settings
+CREATE POLICY "Anyone can view category settings" ON public.category_settings FOR SELECT USING (true);
+CREATE POLICY "Admins can manage category settings" ON public.category_settings 
+  FOR ALL USING (
+    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'ADMIN')
+  );
+
+-- 4. Products
 CREATE POLICY "Anyone can view products" ON public.products FOR SELECT USING (true);
 CREATE POLICY "Admins can manage products" ON public.products 
   FOR ALL USING (
     EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'ADMIN')
   );
 
--- 4. Recipes
+-- 5. Recipes
 CREATE POLICY "Anyone can view recipes" ON public.recipes FOR SELECT USING (true);
 CREATE POLICY "Admins can manage recipes" ON public.recipes 
   FOR ALL USING (
     EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'ADMIN')
   );
 
--- 5. Sales
+-- 6. Sales
 CREATE POLICY "Anyone can view sales" ON public.sales FOR SELECT USING (true);
 -- Assumes staff member creating the sale maps to auth.uid()
 CREATE POLICY "Staff can insert sales" ON public.sales FOR INSERT 
   WITH CHECK (auth.uid() = staff_id);
 
--- 6. Sale Items
+-- 7. Sale Items
 CREATE POLICY "Anyone can view sale items" ON public.sale_items FOR SELECT USING (true);
 CREATE POLICY "Authenticated users can insert sale items" ON public.sale_items FOR INSERT 
   WITH CHECK (auth.uid() IS NOT NULL);
 
--- 7. Wastage
+-- 8. Wastage
 CREATE POLICY "Anyone can view wastage" ON public.wastage FOR SELECT USING (true);
 CREATE POLICY "Staff can log wastage" ON public.wastage FOR INSERT 
   WITH CHECK (auth.uid() = reported_by);
 
--- 8. Requests
-CREATE POLICY "Anyone can view requests" ON public.requests FOR SELECT USING (true);
-CREATE POLICY "Users can create their own requests" ON public.requests FOR INSERT 
-  WITH CHECK (auth.uid() = requested_by);
-CREATE POLICY "Users can update their own requests or Admins can update" ON public.requests FOR UPDATE 
-  USING (
-    auth.uid() = requested_by OR 
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'ADMIN')
-  );
+
 
 -- 9. Audit Logs
 -- Only admins can read audit logs

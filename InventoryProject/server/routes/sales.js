@@ -56,6 +56,8 @@ router.get('/', async (req, res) => {
 router.get('/summary/report', async (req, res) => {
   try {
     const period = req.query.period || 'day';
+    const customStart = req.query.start_date;
+    const customEnd = req.query.end_date;
     
     // Get current date in Manila timezone
     const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }));
@@ -64,7 +66,12 @@ router.get('/summary/report', async (req, res) => {
     const d = String(now.getDate()).padStart(2, '0');
     
     let startStr;
-    if (period === 'day' || period === 'daily') {
+    let endStr = null;
+
+    if (period === 'custom' && customStart && customEnd) {
+      startStr = `${customStart}T00:00:00+08:00`;
+      endStr = `${customEnd}T23:59:59+08:00`;
+    } else if (period === 'day' || period === 'daily') {
       startStr = `${y}-${m}-${d}T00:00:00+08:00`;
     } else if (period === 'week' || period === 'weekly') {
       const weekAgo = new Date(now);
@@ -77,13 +84,19 @@ router.get('/summary/report', async (req, res) => {
       startStr = `${y}-${m}-01T00:00:00+08:00`;
     }
 
-    const { data: sales, error } = await supabase
+    let query = supabase
       .from('sales')
       .select(`
         total_amount, created_at, users(id, name),
         sale_items(quantity, unit_price, products(id, name))
       `)
       .gte('created_at', startStr);
+
+    if (endStr) {
+      query = query.lte('created_at', endStr);
+    }
+
+    const { data: sales, error } = await query;
 
     if (error) throw error;
 
@@ -92,6 +105,7 @@ router.get('/summary/report', async (req, res) => {
     let total_items_sold = 0;
     
     const staffMap = {};
+    const productMap = {};
 
     (sales || []).forEach(sale => {
       const staffId = sale.users?.id;
@@ -105,12 +119,25 @@ router.get('/summary/report', async (req, res) => {
 
       (sale.sale_items || []).forEach(item => {
         total_items_sold += item.quantity;
+        
+        const prodId = item.products?.id;
+        const prodName = item.products?.name || 'Unknown Product';
+        const category = item.products?.category || 'Uncategorized';
+        
+        if (prodId) {
+          if (!productMap[prodId]) {
+            productMap[prodId] = { id: prodId, name: prodName, category, qty_sold: 0, revenue: 0 };
+          }
+          productMap[prodId].qty_sold += item.quantity;
+          productMap[prodId].revenue += (item.quantity * parseFloat(item.unit_price));
+        }
       });
     });
 
     const staff_data = Object.values(staffMap).sort((a, b) => b.total_sales - a.total_sales);
+    const product_data = Object.values(productMap).sort((a, b) => b.qty_sold - a.qty_sold).slice(0, 10);
 
-    res.json({ total_sales, total_transactions, total_items_sold, staff_data });
+    res.json({ total_sales, total_transactions, total_items_sold, staff_data, product_data });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

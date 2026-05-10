@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useManageProducts } from './hooks/useManageProducts';
 import ConfirmModal from '../../components/shared/ConfirmModal';
 import { CATEGORIES, CATEGORIES_WITH_ALL } from '../../utils/constants';
-import { formatQuantity } from '../../utils/productUtils';
 import { getCurrentUser } from '../../utils/authUtils';
 import CategorySettingsModal from './components/CategorySettingsModal';
 
@@ -20,7 +19,7 @@ const ManageProducts = () => {
     statusFilter, setStatusFilter,
     categoryFilter, setCategoryFilter,
     confirmConfig, setConfirmConfig,
-    formData, setFormData, handleInputChange,
+    formData, handleInputChange,
     selectedProduct, setSelectedProduct,
     recipe, allIngredients,
     newSize, setNewSize,
@@ -30,10 +29,10 @@ const ManageProducts = () => {
     editName, setEditName,
     editCategory, setEditCategory,
     editTrackStock, setEditTrackStock,
-    editStockQty, setEditStockQty,
+    editStockQty,
     editThreshold, setEditThreshold,
-    editSizes, setEditSizes,
-    editAddOns, setEditAddOns,
+    editSizes,
+    editAddOns,
     handleAddSize, handleRemoveSize,
     handleAddAddOn, handleRemoveAddOn,
     handleReceiveProductStock,

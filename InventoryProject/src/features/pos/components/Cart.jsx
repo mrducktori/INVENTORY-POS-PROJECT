@@ -1,5 +1,23 @@
 import React from 'react';
 
+// add_ons may be objects {name,...} or JSON strings — handle both
+const addonName = (a) => {
+  if (!a) return '';
+  if (typeof a === 'object') return a.name ?? '';
+  try { return JSON.parse(a)?.name ?? a; } catch { return a; }
+};
+
+const parseAddons = (raw) => {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [parsed];
+  } catch {
+    return [raw];
+  }
+};
+
 const Cart = ({ cart, total, onUpdateQty, onRemove }) => (
   <>
     <div className="cart-header">
@@ -17,8 +35,8 @@ const Cart = ({ cart, total, onUpdateQty, onRemove }) => (
               <h4>{item.name}</h4>
               <div className="item-meta">
                 {item.cup_size && <span className="size-badge">{item.cup_size}</span>}
-                {item.add_ons?.length > 0 && (
-                  <span className="addons-list"> + {item.add_ons.join(', ')}</span>
+                {parseAddons(item.add_ons).length > 0 && (
+                  <span className="addons-list"> + {parseAddons(item.add_ons).map(addonName).join(', ')}</span>
                 )}
               </div>
               <p>₱ {item.price?.toFixed(2)} each</p>

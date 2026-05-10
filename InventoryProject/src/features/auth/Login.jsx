@@ -177,11 +177,16 @@ function Login() {
     formOpen,
     toggleModal,
     handleChange,
-    handleSubmit
+    handleSubmit,
+    isLocked,
+    countdown,
+    attemptsLeft
   } = useLogin();
 
   if (user) return <Dashboard />;
   if (isInitialLoading) return <PageLoader />;
+
+  const fmt = (s) => `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
 
   return (
     <div className='default_page'>
@@ -229,16 +234,49 @@ function Login() {
             <form onSubmit={handleSubmit}>
               <h3 className="back-btn" onClick={toggleModal}> ← Back </h3>
               <h1>Login</h1>
-              {error && <p className="error">{error}</p>}
+
+              {/* Lockout Banner */}
+              {isLocked && (
+                <div className="lockout-banner">
+                  <span className="lockout-icon">🔒</span>
+                  <div>
+                    <strong>Account Temporarily Locked</strong>
+                    <p>Too many failed attempts. Please wait:</p>
+                    <div className="lockout-countdown">{fmt(countdown)}</div>
+                  </div>
+                </div>
+              )}
+
+              {/* Error / Attempts Warning */}
+              {!isLocked && error && (
+                <p className="error">
+                  {error}
+                  {attemptsLeft > 0 && attemptsLeft < 3 && (
+                    <span className="attempts-warning"> ({attemptsLeft} attempt{attemptsLeft !== 1 ? 's' : ''} left)</span>
+                  )}
+                </p>
+              )}
+
               <label>Username:</label>
               <input type="text" name="username"
                 value={form.username}
-                onChange={handleChange} required />
+                onChange={handleChange}
+                disabled={isLocked}
+                required />
               <label>Password:</label>
               <input type="password" name="password"
                 value={form.password}
-                onChange={handleChange} required />
-              <button type="submit" className="login-submit">Login</button>
+                onChange={handleChange}
+                disabled={isLocked}
+                required />
+              <button
+                type="submit"
+                className="login-submit"
+                disabled={isLocked}
+                style={{ opacity: isLocked ? 0.5 : 1, cursor: isLocked ? 'not-allowed' : 'pointer' }}
+              >
+                {isLocked ? `Locked (${fmt(countdown)})` : 'Login'}
+              </button>
             </form>
           </div>
         </div>

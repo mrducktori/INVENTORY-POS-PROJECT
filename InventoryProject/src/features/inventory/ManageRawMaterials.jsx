@@ -18,7 +18,7 @@ const ManageRawMaterials = () => {
     editName, setEditName,
     editUnit, setEditUnit,
     editAlert, setEditAlert,
-    editQuantity, setEditQuantity,
+    editQuantity,
     UNIT_CHOICES,
     handleAddIngredient,
     handleArchiveToggle,
@@ -87,15 +87,16 @@ const ManageRawMaterials = () => {
                 <div className="form-row">
                   <div className="form-group">
                     <label>Unit</label>
-                    <input
-                      type="text"
+                    <select
                       name="unit"
-                      list="unit-choices"
                       value={formData.unit}
                       onChange={handleInputChange}
-                      placeholder="e.g. KG, ML, PCS"
                       required
-                    />
+                      style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', width: '100%', fontSize: '14px', background: 'white' }}
+                    >
+                      <option value="" disabled>Select Unit</option>
+                      {UNIT_CHOICES.map(u => <option key={u} value={u}>{u}</option>)}
+                    </select>
                   </div>
                   <div className="form-group">
                     <label>Initial Stock Quantity</label>
@@ -293,13 +294,15 @@ const ManageRawMaterials = () => {
                 </div>
                 <div className="form-group">
                   <label>Base Unit</label>
-                  <input
-                    type="text"
-                    list="unit-choices"
+                  <select
                     value={editUnit}
                     onChange={e => setEditUnit(e.target.value)}
                     required
-                  />
+                    style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', width: '100%', fontSize: '14px', background: 'white' }}
+                  >
+                    <option value="" disabled>Select Unit</option>
+                    {UNIT_CHOICES.map(u => <option key={u} value={u}>{u}</option>)}
+                  </select>
                 </div>
                 <div className="form-row">
                   <div className="form-group">
@@ -349,9 +352,7 @@ const ManageRawMaterials = () => {
         onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
       />
 
-      <datalist id="unit-choices">
-        {UNIT_CHOICES.map(u => <option key={u} value={u} />)}
-      </datalist>
+
     </div>
   );
 };

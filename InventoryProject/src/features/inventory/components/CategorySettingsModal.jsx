@@ -53,6 +53,9 @@ const CategorySettingsModal = ({ onClose, allIngredients }) => {
       setTimeout(() => setMessage(''), 3000);
       fetchSettings(); // refresh
     } catch (err) {
+      if (err.message.includes('already exists')) {
+        alert('WARNING: ' + err.message);
+      }
       setMessage('Error saving: ' + err.message);
     } finally {
       setLoading(false);

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getAllProducts, createProduct, updateProduct, archiveProduct, restoreProduct, receiveProductStock } from '../../../api/productsApi';
-import { getRecipesByProduct, updateRecipe, createRecipe, deleteRecipe } from '../../../api/recipesApi';
+import { getRecipesByProduct, createRecipe, deleteRecipe } from '../../../api/recipesApi';
 import { getIngredients } from '../../../api/inventoryApi';
 
 export const useManageProducts = () => {
@@ -104,9 +104,17 @@ export const useManageProducts = () => {
 
   const handleAddProduct = async (e) => {
     if (e) e.preventDefault();
+    const newName = formData.name.trim().toUpperCase();
+
+    const isDuplicate = products.some(p => p.name.toUpperCase() === newName);
+    if (isDuplicate) {
+      const proceed = window.confirm(`WARNING: A product with the name "${formData.name.trim()}" already exists. Do you still want to add it?`);
+      if (!proceed) return;
+    }
+
     try {
       await createProduct({
-        name: formData.name.trim().toUpperCase(),
+        name: newName,
         category: formData.category,
         price: parseFloat(formData.price),
         track_stock: formData.track_stock,
@@ -124,6 +132,9 @@ export const useManageProducts = () => {
       fetchProducts();
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
+      if (err.message.includes('already exists')) {
+        alert('WARNING: ' + err.message);
+      }
       setMessage('Error: ' + err.message);
     }
   };
@@ -169,9 +180,19 @@ export const useManageProducts = () => {
       title: 'Confirm Update',
       message: `Are you sure you want to save changes to "${selectedProduct.name}"?`,
       onConfirm: async () => {
+        const updatedName = editName.trim().toUpperCase();
+        const isDuplicate = products.some(p => p.name.toUpperCase() === updatedName && p.id !== selectedProduct.id);
+        if (isDuplicate) {
+          const proceed = window.confirm(`WARNING: A product with the name "${editName.trim()}" already exists. Do you still want to update to this name?`);
+          if (!proceed) {
+            setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+            return;
+          }
+        }
+
         try {
           await updateProduct(selectedProduct.id, {
-            name: editName.trim().toUpperCase(),
+            name: updatedName,
             category: editCategory,
             price: parseFloat(editPrice),
             track_stock: editTrackStock,
@@ -185,6 +206,9 @@ export const useManageProducts = () => {
           setConfirmConfig(prev => ({ ...prev, isOpen: false }));
           setTimeout(() => setMessage(''), 3000);
         } catch (err) {
+          if (err.message.includes('already exists')) {
+            alert('WARNING: ' + err.message);
+          }
           setMessage('Error updating product: ' + err.message);
           setConfirmConfig(prev => ({ ...prev, isOpen: false }));
         }

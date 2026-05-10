@@ -12,10 +12,13 @@ const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000001'; // your admin use
  */
 export async function logAudit(action, userId, details = {}) {
   try {
+    // Serialize details to JSON string since the audit_logs.details column is type TEXT
+    const detailsStr = typeof details === 'string' ? details : JSON.stringify(details);
+
     const { error } = await supabase.from('audit_logs').insert([{
       action,
       user_id: userId || SYSTEM_USER_ID,
-      details
+      details: detailsStr
     }]);
     if (error) {
       console.error('[AUDIT] Insert failed:', error.message, '| Action:', action);

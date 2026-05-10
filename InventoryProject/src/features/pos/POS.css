@@ -153,6 +153,38 @@
   color: red;
 }
 
+.pos-card.unavailable {
+  opacity: 0.6;
+  filter: grayscale(100%);
+  cursor: not-allowed;
+  background: #f0f0f0;
+}
+
+.pos-card.unavailable:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: #ddd;
+}
+
+.out-of-stock-label {
+  color: #c62828 !important;
+  font-weight: 800;
+  font-size: 14px !important;
+  margin-top: 10px !important;
+  text-align: center;
+  border: 1px solid #c62828;
+  padding: 4px;
+  border-radius: 4px;
+  background: rgba(198, 40, 40, 0.1);
+}
+
+.add-btn[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #999;
+  border-color: #999;
+}
+
 .pos-right {
   flex: 1;
   border-left: 2px solid #ccc;

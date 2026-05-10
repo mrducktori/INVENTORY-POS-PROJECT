@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { getInventoryStatusReport } from '../../api/reportsApi';
-import { formatQuantity } from '../../utils/productUtils';
+
 import { downloadCSV, printReport } from './reportUtils';
 import './Reports.css';
 

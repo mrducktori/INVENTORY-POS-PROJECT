@@ -6,7 +6,7 @@ export const filterProducts = (products, category, searchTerm = "") => {
     const pCat = (p.category || "").toUpperCase();
     const targetCat = category.toUpperCase();
     
-    let matchCategory = false;
+    let matchCategory;
     if (targetCat === "ALL") {
       matchCategory = true;
     } else if (targetCat === "OTHERS") {

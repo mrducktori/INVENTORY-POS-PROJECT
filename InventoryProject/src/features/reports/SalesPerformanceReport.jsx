@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import {
-  getSalesPerformanceReport,
-  getTopProductsReport
+  getSalesPerformanceReport
 } from '../../api/reportsApi';
 import { downloadCSV, printReport } from './reportUtils';
 import './Reports.css';
@@ -38,8 +37,9 @@ const TrendBars = ({ data }) => {
 // ─── Main Component ───────────────────────────────────────────────────────────
 const SalesPerformanceReport = () => {
   const [period, setPeriod]   = useState('daily');
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
   const [summary, setSummary] = useState(null);
-  const [topItems, setTopItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [fetched, setFetched] = useState(false);
   const [sortKey, setSortKey] = useState('total_sales');
@@ -48,19 +48,15 @@ const SalesPerformanceReport = () => {
   const fetchReport = useCallback(async () => {
     setLoading(true);
     try {
-      const [summaryData, forecastData] = await Promise.all([
-        getSalesPerformanceReport(period),
-        getTopProductsReport()
-      ]);
+      const summaryData = await getSalesPerformanceReport(period, customStart, customEnd);
       setSummary(summaryData);
-      setTopItems(forecastData || []);
       setFetched(true);
     } catch (err) {
       console.error('Sales report fetch error:', err);
     } finally {
       setLoading(false);
     }
-  }, [period]);
+  }, [period, customStart, customEnd]);
 
   const sortedStaff = useMemo(() => {
     if (!summary?.staff_data) return [];
@@ -71,8 +67,9 @@ const SalesPerformanceReport = () => {
   }, [summary, sortKey, sortDir]);
 
   const sortedProducts = useMemo(() => {
-    return [...topItems].sort((a, b) => (b.predictedNext7Days || 0) - (a.predictedNext7Days || 0));
-  }, [topItems]);
+    if (!summary?.product_data) return [];
+    return summary.product_data; // already sorted by qty_sold desc from backend
+  }, [summary]);
 
   const handleSort = (key) => {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -95,17 +92,12 @@ const SalesPerformanceReport = () => {
   const avgTicket  = totalTx > 0 ? totalSales / totalTx : 0;
   const totalItems = summary?.total_items_sold || 0;
 
-  // Payment method breakdown from staff data (approximated from top product forecast)
-  const paymentMethods = useMemo(() => {
-    if (!summary?.payment_breakdown) return null;
-    return summary.payment_breakdown;
-  }, [summary]);
 
   const handleExport = () => {
     if (!summary) return;
     const date = new Date().toLocaleDateString('en-PH');
     const time = new Date().toLocaleTimeString('en-PH');
-    const periodLabel = period === 'daily' ? 'Today' : period === 'weekly' ? 'This Week' : 'This Month';
+    const periodLabel = period === 'daily' ? 'Today' : period === 'weekly' ? 'This Week' : period === 'monthly' ? 'This Month' : `${customStart} to ${customEnd}`;
 
     const rows = [
       [`SALES REPORT — ${periodLabel.toUpperCase()}`],
@@ -131,7 +123,7 @@ const SalesPerformanceReport = () => {
   };
 
   const handlePrint = () => {
-    const periodLabel = period === 'daily' ? 'Today' : period === 'weekly' ? 'This Week' : 'This Month';
+    const periodLabel = period === 'daily' ? 'Today' : period === 'weekly' ? 'This Week' : period === 'monthly' ? 'This Month' : `${customStart} to ${customEnd}`;
     const staffRows = sortedStaff.map((s, i) => {
       const avg = s.transactions > 0 ? s.total_sales / s.transactions : 0;
       const share = totalSales > 0 ? (s.total_sales / totalSales) * 100 : 0;
@@ -178,14 +170,32 @@ const SalesPerformanceReport = () => {
               <option value="daily">Today (Daily)</option>
               <option value="weekly">This Week</option>
               <option value="monthly">This Month</option>
+              <option value="custom">Custom Date</option>
             </select>
+            {period === 'custom' && (
+              <div style={{ display: 'flex', gap: '8px', marginLeft: '12px' }}>
+                <input 
+                  type="date" 
+                  className="control-select" 
+                  value={customStart} 
+                  onChange={e => { setCustomStart(e.target.value); setFetched(false); }} 
+                />
+                <span style={{ alignSelf: 'center', fontSize: '12px', color: '#666', fontWeight: 'bold' }}>TO</span>
+                <input 
+                  type="date" 
+                  className="control-select" 
+                  value={customEnd} 
+                  onChange={e => { setCustomEnd(e.target.value); setFetched(false); }} 
+                />
+              </div>
+            )}
           </div>
         </div>
         <div className="report-controls-right">
           <button className="rpt-btn" onClick={handleExport} disabled={!fetched || loading}>
             Export CSV
           </button>
-          <button className="rpt-btn rpt-btn-primary" onClick={fetchReport} disabled={loading}>
+          <button className="rpt-btn rpt-btn-primary" onClick={fetchReport} disabled={loading || (period === 'custom' && (!customStart || !customEnd))}>
             {loading ? 'Loading...' : 'Generate Report'}
           </button>
           <button className="rpt-btn" onClick={handlePrint} disabled={!fetched}>
@@ -301,13 +311,13 @@ const SalesPerformanceReport = () => {
             </div>
           </div>
 
-          {/* Top Products Table */}
+          {/* Top Products Sold Table */}
           {sortedProducts.length > 0 && (
             <div className="rpt-card">
               <div className="rpt-card-header">
-                <h2>Top Products by Demand</h2>
+                <h2>Top Products Sold</h2>
                 <span style={{ fontSize: '10px', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  Based on 30-day forecast
+                  {period === 'custom' ? `${customStart} to ${customEnd}` : period}
                 </span>
               </div>
               <div className="rpt-card-body">
@@ -317,48 +327,26 @@ const SalesPerformanceReport = () => {
                       <th>#</th>
                       <th>Product</th>
                       <th>Category</th>
-                      <th>Daily Avg</th>
-                      <th>7-Day Forecast</th>
-                      <th>Growth</th>
-                      <th>Confidence</th>
-                      <th>Risk</th>
+                      <th style={{ textAlign: 'center' }}>Units Sold</th>
+                      <th>Total Revenue</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedProducts.map((p, i) => {
-                      const growth = parseFloat(p.growthRate || 0);
-                      return (
-                        <tr key={p.id}>
-                          <td>
-                            <span className={`rpt-rank ${i < 3 ? `rank-${i + 1}` : 'rank-other'}`}>
-                              {i + 1}
-                            </span>
-                          </td>
-                          <td style={{ fontWeight: 700 }}>{p.name}</td>
-                          <td style={{ color: '#777', fontSize: 12 }}>{p.category}</td>
-                          <td style={{ fontFamily: 'monospace' }}>{p.avgDailySales}</td>
-                          <td style={{ fontWeight: 700, fontFamily: 'monospace' }}>{p.predictedNext7Days} units</td>
-                          <td>
-                            <span className={`rpt-badge ${growth >= 0 ? 'rpt-badge-up' : 'rpt-badge-down'}`}>
-                              {growth >= 0 ? '↑' : '↓'} {Math.abs(growth)}%
-                            </span>
-                          </td>
-                          <td>
-                            <div className="rpt-bar-row">
-                              <div className="rpt-bar-track" style={{ width: 60 }}>
-                                <div className="rpt-bar-fill blue" style={{ width: `${p.confidence}%` }} />
-                              </div>
-                              <span className="rpt-bar-pct">{p.confidence}%</span>
-                            </div>
-                          </td>
-                          <td>
-                            <span className={`rpt-badge ${p.stockoutRisk === 'Low' ? 'rpt-badge-healthy' : 'rpt-badge-critical'}`}>
-                              {p.stockoutRisk}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {sortedProducts.map((p, i) => (
+                      <tr key={p.id}>
+                        <td>
+                          <span className={`rpt-rank ${i < 3 ? `rank-${i + 1}` : 'rank-other'}`}>
+                            {i + 1}
+                          </span>
+                        </td>
+                        <td style={{ fontWeight: 700 }}>{p.name}</td>
+                        <td style={{ color: '#777', fontSize: 12 }}>{p.category}</td>
+                        <td style={{ textAlign: 'center', fontWeight: 900 }}>{p.qty_sold}</td>
+                        <td style={{ fontFamily: 'monospace', fontWeight: 700, color: '#0b7b07' }}>
+                          ₱{p.revenue.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>

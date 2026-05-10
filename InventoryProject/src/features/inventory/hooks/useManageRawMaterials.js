@@ -43,10 +43,24 @@ export const useManageRawMaterials = () => {
 
   const handleAddIngredient = async (e) => {
     if (e) e.preventDefault();
+    const newName = formData.name.trim().toUpperCase();
+    const newUnit = formData.unit.trim().toUpperCase();
+
+    if (!UNIT_CHOICES.includes(newUnit)) {
+      setMessage(`Error: Invalid unit. Must be one of: ${UNIT_CHOICES.join(', ')}`);
+      return;
+    }
+
+    const isDuplicate = ingredients.some(i => i.name.toUpperCase() === newName);
+    if (isDuplicate) {
+      const proceed = window.confirm(`WARNING: An ingredient with the name "${formData.name.trim()}" already exists. Do you still want to add it?`);
+      if (!proceed) return;
+    }
+
     try {
       await createIngredient({
-        name: formData.name.trim().toUpperCase(),
-        unit: formData.unit.trim().toUpperCase(),
+        name: newName,
+        unit: newUnit,
         low_stock_alert: parseFloat(formData.low_stock_alert) || 0,
         stock_quantity: 0
       });
@@ -81,10 +95,28 @@ export const useManageRawMaterials = () => {
       title: 'Confirm Update',
       message: `Are you sure you want to save changes to "${selectedIngredient.name}"?`,
       onConfirm: async () => {
+        const updatedName = editName.trim().toUpperCase();
+        const updatedUnit = editUnit.trim().toUpperCase();
+
+        if (!UNIT_CHOICES.includes(updatedUnit)) {
+          alert(`Error: Invalid unit. Must be one of: ${UNIT_CHOICES.join(', ')}`);
+          setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+          return;
+        }
+
+        const isDuplicate = ingredients.some(i => i.name.toUpperCase() === updatedName && i.id !== selectedIngredient.id);
+        if (isDuplicate) {
+          const proceed = window.confirm(`WARNING: An ingredient with the name "${editName.trim()}" already exists. Do you still want to update to this name?`);
+          if (!proceed) {
+            setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+            return;
+          }
+        }
+
         try {
           await updateIngredient(selectedIngredient.id, {
-            name: editName.trim().toUpperCase(),
-            unit: editUnit.trim().toUpperCase(),
+            name: updatedName,
+            unit: updatedUnit,
             low_stock_alert: parseFloat(editAlert),
             stock_quantity: parseFloat(editQuantity)
           });

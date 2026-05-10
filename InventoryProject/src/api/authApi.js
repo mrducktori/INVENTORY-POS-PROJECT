@@ -4,12 +4,28 @@ import { apiCall } from "./client.js";
 /**
  * Login with username and password
  */
+/**
+ * Login with username and password.
+ * Propagates lockout fields (locked, secondsLeft, attemptsLeft) on the thrown Error
+ * so the UI can show a proper countdown without inspecting raw HTTP responses.
+ */
 export async function loginUser(username, password) {
-  return apiCall("/auth/login", {
+  const response = await fetch("http://localhost:5000/api/auth/login", {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, password })
   });
+  const data = await response.json();
+  if (!response.ok) {
+    const err = new Error(data.error || "Login failed");
+    err.locked      = data.locked      ?? false;
+    err.secondsLeft = data.secondsLeft ?? 0;
+    err.attemptsLeft = data.attemptsLeft ?? null;
+    throw err;
+  }
+  return data;
 }
+
 
 /**
  * Logout user — notifies server for audit log, then clears localStorage

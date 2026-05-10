@@ -74,7 +74,7 @@ export const printReport = (title, html) => {
     </head>
     <body>
       ${html}
-      <script>window.onload = () => { window.print(); }<\/script>
+      <script>window.onload = () => { window.print(); }</script>
     </body>
     </html>
   `);

@@ -17,7 +17,7 @@ export const usePOS = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [category, setCategory] = useState("ALL");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+
   const [categorySettings, setCategorySettings] = useState({});
   const [saleComplete, setSaleComplete] = useState(false);
   const [recipeProduct, setRecipeProduct] = useState(null);

@@ -3,13 +3,71 @@ import { convertToBaseUnit } from "../utils/unitUtils.js";
 import { logAudit } from "../utils/auditHelper.js";
 
 export const getProducts = async () => {
-  const { data, error } = await supabase
+  // 1. Fetch all active products
+  const { data: products, error: prodError } = await supabase
     .from("products")
     .select("*")
     .eq("is_archived", false);
 
-  if (error) throw error;
-  return data;
+  if (prodError) throw prodError;
+
+  // 2. Fetch all recipes
+  const { data: recipes, error: recError } = await supabase
+    .from("recipes")
+    .select("*");
+    
+  if (recError) throw recError;
+
+  // 3. Fetch all ingredients to check stock
+  const { data: ingredients, error: ingError } = await supabase
+    .from("ingredients")
+    .select("*");
+
+  if (ingError) throw ingError;
+
+  // Create lookup maps
+  const ingMap = {};
+  ingredients.forEach(i => { ingMap[i.id] = i; });
+
+  const recMap = {};
+  recipes.forEach(r => {
+    if (!recMap[r.product_id]) recMap[r.product_id] = [];
+    recMap[r.product_id].push(r);
+  });
+
+  // 4. Calculate availability
+  const productsWithAvailability = products.map(product => {
+    let is_available = true;
+
+    if (product.track_stock) {
+      is_available = parseFloat(product.stock_quantity || 0) > 0;
+    } else {
+      const prodRecipes = recMap[product.id] || [];
+      if (prodRecipes.length > 0) {
+        for (const recipe of prodRecipes) {
+          const ing = ingMap[recipe.ingredient_id];
+          if (!ing) {
+            is_available = false; // Missing ingredient
+            break;
+          }
+          
+          const deductionPerUnit = convertToBaseUnit(recipe.quantity_used, recipe.recipe_unit || ing.unit, ing.unit);
+          if (parseFloat(ing.stock_quantity || 0) < deductionPerUnit) {
+            is_available = false; // Not enough stock
+            break;
+          }
+        }
+      }
+      // If no recipes, we assume available to not break legacy products
+    }
+
+    return {
+      ...product,
+      is_available
+    };
+  });
+
+  return productsWithAvailability;
 };
 
 const generateReceiptNumber = () => {
@@ -34,7 +92,132 @@ export const createSale = async ({
 }) => {
   const receipt_number = generateReceiptNumber();
 
-  // 1. Create the Sale record
+  // --- 1. PRE-FLIGHT INVENTORY CHECK ---
+  const requiredProducts = {};    // { id: { name, qty } }
+  const requiredIngredients = {}; // { id: { name, qty } }
+
+  for (const item of cart) {
+    const { data: product, error: prodFetchError } = await supabase
+      .from("products")
+      .select("track_stock, name")
+      .eq("id", item.id)
+      .single();
+
+    if (prodFetchError || !product) {
+      throw new Error(`Product not found: ${item.name || item.id}`);
+    }
+
+    if (product.track_stock) {
+      if (!requiredProducts[item.id]) {
+        requiredProducts[item.id] = { name: product.name, qty: 0 };
+      }
+      requiredProducts[item.id].qty += item.qty;
+    } else {
+      // Recipe Ingredients
+      const { data: recipes, error: recipeError } = await supabase
+        .from("recipes")
+        .select("ingredient_id, quantity_used, recipe_unit, ingredients(name, unit)")
+        .eq("product_id", item.id);
+
+      if (!recipeError && recipes) {
+        for (const recipe of recipes) {
+          const ing = recipe.ingredients;
+          if (!ing) continue;
+
+          const deductionPerUnit = convertToBaseUnit(recipe.quantity_used, recipe.recipe_unit || ing.unit, ing.unit);
+          const totalDeduction = deductionPerUnit * item.qty;
+
+          if (!requiredIngredients[recipe.ingredient_id]) {
+            requiredIngredients[recipe.ingredient_id] = { name: ing.name, qty: 0 };
+          }
+          requiredIngredients[recipe.ingredient_id].qty += totalDeduction;
+        }
+      }
+
+      // Cup Size Deduction
+      if (item.cup_size_obj && item.cup_size_obj.ingredient_id) {
+        const { data: ingData } = await supabase
+          .from("ingredients")
+          .select("name")
+          .eq("id", item.cup_size_obj.ingredient_id)
+          .single();
+
+        if (ingData) {
+          const totalDeduction = 1 * item.qty;
+          if (!requiredIngredients[item.cup_size_obj.ingredient_id]) {
+            requiredIngredients[item.cup_size_obj.ingredient_id] = { name: ingData.name, qty: 0 };
+          }
+          requiredIngredients[item.cup_size_obj.ingredient_id].qty += totalDeduction;
+        }
+      }
+
+      // Add-ons Deduction
+      if (item.add_ons_objs && item.add_ons_objs.length > 0) {
+        for (const addon of item.add_ons_objs) {
+          if (!addon.ingredient_id) continue;
+
+          const { data: ingData } = await supabase
+            .from("ingredients")
+            .select("name, unit")
+            .eq("id", addon.ingredient_id)
+            .single();
+
+          if (ingData) {
+            const deductionPerUnit = convertToBaseUnit(addon.quantity || 0, addon.unit || ingData.unit, ingData.unit);
+            const totalDeduction = deductionPerUnit * item.qty;
+
+            if (!requiredIngredients[addon.ingredient_id]) {
+              requiredIngredients[addon.ingredient_id] = { name: ingData.name, qty: 0 };
+            }
+            requiredIngredients[addon.ingredient_id].qty += totalDeduction;
+          }
+        }
+      }
+    }
+  }
+
+  // Verify against current DB stock
+  const insufficient = [];
+
+  const pIds = Object.keys(requiredProducts);
+  if (pIds.length > 0) {
+    const { data: prodStocks } = await supabase.from("products").select("id, stock_quantity").in("id", pIds);
+    if (prodStocks) {
+      for (const p of prodStocks) {
+        const currentStock = parseFloat(p.stock_quantity || 0);
+        const req = requiredProducts[p.id].qty;
+        if (currentStock < req) {
+          insufficient.push(`${requiredProducts[p.id].name} (Requires ${req}, Has ${currentStock})`);
+        } else {
+          requiredProducts[p.id].newStock = currentStock - req;
+        }
+      }
+    }
+  }
+
+  const iIds = Object.keys(requiredIngredients);
+  if (iIds.length > 0) {
+    const { data: ingStocks } = await supabase.from("ingredients").select("id, stock_quantity").in("id", iIds);
+    if (ingStocks) {
+      for (const i of ingStocks) {
+        const currentStock = parseFloat(i.stock_quantity || 0);
+        const req = requiredIngredients[i.id].qty;
+        if (currentStock < req) {
+          // Format ingredient requirements to 2 decimal places to avoid floating point length issues
+          insufficient.push(`${requiredIngredients[i.id].name} (Requires ${req.toFixed(2)}, Has ${currentStock.toFixed(2)})`);
+        } else {
+          requiredIngredients[i.id].newStock = currentStock - req;
+        }
+      }
+    }
+  }
+
+  // IF THERE IS ANY INSUFFICIENT STOCK, ABORT SALE
+  if (insufficient.length > 0) {
+    throw new Error(`Insufficient stock for: ${insufficient.join(', ')}`);
+  }
+
+  // --- 2. CREATE THE SALE RECORD ---
   const { data: sale, error: saleError } = await supabase
     .from("sales")
     .insert([{ 
@@ -56,7 +239,7 @@ export const createSale = async ({
 
   if (saleError) throw saleError;
 
-  // 2. Insert Sale Items
+  // --- 3. INSERT SALE ITEMS ---
   const saleItems = cart.map(item => ({
     sale_id: sale.id,
     product_id: item.id,
@@ -74,152 +257,47 @@ export const createSale = async ({
 
   if (itemError) throw itemError;
 
-  // 3. Deduct Stock (Direct Product Stock OR Recipe-based Ingredients)
-  for (const item of cart) {
-    const { data: product, error: prodFetchError } = await supabase
+  // --- 4. APPLY STOCK DEDUCTIONS ---
+  // Since we pre-validated, we can just apply the newStock amounts
+  for (const pid of pIds) {
+    const pData = requiredProducts[pid];
+    const { error: prodUpdateError } = await supabase
       .from("products")
-      .select("track_stock, stock_quantity, name")
-      .eq("id", item.id)
-      .single();
+      .update({ stock_quantity: pData.newStock })
+      .eq("id", pid);
 
-    if (prodFetchError) continue;
-
-    if (product.track_stock) {
-      // MODE A: Direct Product Stock Deduction (e.g., Pastries)
-      const newProductStock = parseFloat(product.stock_quantity) - item.qty;
-      
-      const { error: prodUpdateError } = await supabase
-        .from("products")
-        .update({ stock_quantity: newProductStock })
-        .eq("id", item.id);
-
-      if (!prodUpdateError) {
-        // Log product stock movement to audit_logs
-        await logAudit('PRODUCT_DEDUCTED', staff_id, {
-          product_id: item.id,
-          name: product.name,
-          quantity: -item.qty,
-          new_stock: newProductStock,
-          sale_id: sale.id,
-          type: 'SALE'
-        });
-      }
-    } else {
-      // MODE B: Recipe-based Ingredient Deduction (e.g., Coffee)
-      const { data: recipes, error: recipeError } = await supabase
-        .from("recipes")
-        .select("ingredient_id, quantity_used, recipe_unit")
-        .eq("product_id", item.id);
-
-      if (recipeError) continue;
-
-      if (recipes && recipes.length > 0) {
-        for (const recipe of recipes) {
-          // Fetch ingredient stock AND unit so we can convert
-          const { data: ingredient, error: fetchError } = await supabase
-            .from("ingredients")
-            .select("stock_quantity, unit")
-            .eq("id", recipe.ingredient_id)
-            .single();
-
-          if (fetchError) continue;
-
-          // Convert recipe quantity into the ingredient's storage unit
-          const deductionPerUnit = convertToBaseUnit(
-            recipe.quantity_used,
-            recipe.recipe_unit || ingredient.unit, // fall back to stock unit if no recipe_unit set
-            ingredient.unit
-          );
-          const totalDeduction = deductionPerUnit * item.qty;
-
-          const newStock = parseFloat(ingredient.stock_quantity) - totalDeduction;
-
-          const { error: updateError } = await supabase
-            .from("ingredients")
-            .update({ stock_quantity: newStock })
-            .eq("id", recipe.ingredient_id);
-
-          if (!updateError) {
-            // Log ingredient movement to audit_logs
-            await logAudit('INGREDIENT_DEDUCTED', staff_id, {
-              ingredient_id: recipe.ingredient_id,
-              name: ingredient.name,
-              quantity: -totalDeduction,
-              new_stock: newStock,
-              sale_id: sale.id,
-              product_name: product.name,
-              type: 'SALE'
-            });
-          }
-        }
-      }
-
-      // MODE C: Deduct Size Cup (if mapped)
-      if (item.cup_size_obj && item.cup_size_obj.ingredient_id) {
-        const { data: ingredient, error: fetchError } = await supabase
-          .from("ingredients")
-          .select("stock_quantity")
-          .eq("id", item.cup_size_obj.ingredient_id)
-          .single();
-
-        if (!fetchError && ingredient) {
-          const totalDeduction = 1 * item.qty; // 1 cup per drink
-          const newStock = parseFloat(ingredient.stock_quantity) - totalDeduction;
-          const { error: updateError } = await supabase.from("ingredients").update({ stock_quantity: newStock }).eq("id", item.cup_size_obj.ingredient_id);
-          
-          if (!updateError) {
-            await logAudit('INGREDIENT_DEDUCTED', staff_id, {
-              ingredient_id: item.cup_size_obj.ingredient_id,
-              type: 'CUP_DEDUCTION',
-              quantity: -totalDeduction,
-              new_stock: newStock,
-              sale_id: sale.id,
-              product_name: product.name
-            });
-          }
-        }
-      }
-
-      // MODE D: Deduct Add-ons (if mapped)
-      if (item.add_ons_objs && item.add_ons_objs.length > 0) {
-        for (const addon of item.add_ons_objs) {
-          if (!addon.ingredient_id) continue;
-          
-          const { data: ingredient, error: fetchError } = await supabase
-            .from("ingredients")
-            .select("stock_quantity, unit")
-            .eq("id", addon.ingredient_id)
-            .single();
-
-          if (fetchError) continue;
-
-          const deductionPerUnit = convertToBaseUnit(
-            addon.quantity || 0,
-            addon.unit || ingredient.unit,
-            ingredient.unit
-          );
-          const totalDeduction = deductionPerUnit * item.qty;
-
-          const newStock = parseFloat(ingredient.stock_quantity) - totalDeduction;
-          const { error: updateError } = await supabase.from("ingredients").update({ stock_quantity: newStock }).eq("id", addon.ingredient_id);
-
-          if (!updateError) {
-            await logAudit('INGREDIENT_DEDUCTED', staff_id, {
-              ingredient_id: addon.ingredient_id,
-              name: addon.name,
-              type: 'ADDON_DEDUCTION',
-              quantity: -totalDeduction,
-              new_stock: newStock,
-              sale_id: sale.id,
-              product_name: product.name
-            });
-          }
-        }
-      }
+    if (!prodUpdateError) {
+      await logAudit('PRODUCT_DEDUCTED', staff_id, {
+        product_id: pid,
+        name: pData.name,
+        quantity: -pData.qty,
+        new_stock: pData.newStock,
+        sale_id: sale.id,
+        type: 'SALE'
+      });
     }
   }
 
-  // 4. Log to audit_logs
+  for (const iid of iIds) {
+    const iData = requiredIngredients[iid];
+    const { error: updateError } = await supabase
+      .from("ingredients")
+      .update({ stock_quantity: iData.newStock })
+      .eq("id", iid);
+
+    if (!updateError) {
+      await logAudit('INGREDIENT_DEDUCTED', staff_id, {
+        ingredient_id: iid,
+        name: iData.name,
+        quantity: -iData.qty,
+        new_stock: iData.newStock,
+        sale_id: sale.id,
+        type: 'SALE'
+      });
+    }
+  }
+
+  // --- 5. LOG TO AUDIT ---
   await supabase.from("audit_logs").insert([{
     action: "SALE",
     action_type: "SALE",

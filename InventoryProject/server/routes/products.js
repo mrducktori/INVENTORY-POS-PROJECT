@@ -21,16 +21,19 @@ router.get('/', async (req, res) => {
 // Create new product
 router.post('/', async (req, res) => {
   try {
-    const { name, category, price, description, track_stock, stock_quantity, low_stock_threshold, sizes, add_ons, user_id } = req.body;
+    const { name, category, price, description, track_stock, stock_quantity, low_stock_threshold, sizes, add_ons, image_url, user_id } = req.body;
     if (!name || !category || !price) {
       return res.status(400).json({ error: 'Name, category, and price are required' });
     }
+
     const { data, error } = await supabase
       .from('products')
       .insert([{
         name,
         category,
         price,
+        description,
+        image_url,
         is_archived: false,
         track_stock: track_stock || false,
         stock_quantity: stock_quantity || 0,
@@ -55,18 +58,22 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Update product (price, name, category, etc.)
+// Update product (price, name, category, description, etc.)
+// FIX #1: stock_quantity is intentionally excluded from this endpoint.
+// Stock can only be changed through POST /:id/receive (add) or the POS/wastage flow (subtract).
 router.put('/:id', async (req, res) => {
   try {
-    const { name, category, price, track_stock, stock_quantity, low_stock_threshold, sizes, add_ons, user_id } = req.body;
+    const { name, category, price, description, track_stock, low_stock_threshold, sizes, add_ons, image_url, user_id } = req.body;
+    
     const { data, error } = await supabase
       .from('products')
       .update({
         name,
         category,
         price,
+        description,
+        image_url,
         track_stock,
-        stock_quantity,
         low_stock_threshold,
         sizes: sizes || [],
         add_ons: add_ons || []
@@ -136,10 +143,16 @@ router.put('/:id/restore', async (req, res) => {
 });
 
 // Receive stock for product (Direct Stock Tracking)
+// FIX #11: Validates that quantity is a positive number before adding to stock.
 router.post('/:id/receive', async (req, res) => {
   try {
     const { quantity, user_id } = req.body;
     const productId = req.params.id;
+
+    const parsedQty = parseFloat(quantity);
+    if (!parsedQty || parsedQty <= 0 || isNaN(parsedQty)) {
+      return res.status(400).json({ error: 'Quantity received must be a positive number.' });
+    }
 
     const { data: product, error: fetchError } = await supabase
       .from('products')
@@ -148,7 +161,7 @@ router.post('/:id/receive', async (req, res) => {
       .single();
     if (fetchError) throw fetchError;
 
-    const newStock = (parseFloat(product.stock_quantity) || 0) + parseFloat(quantity);
+    const newStock = (parseFloat(product.stock_quantity) || 0) + parsedQty;
 
     const { data, error: updateError } = await supabase
       .from('products')
@@ -161,7 +174,7 @@ router.post('/:id/receive', async (req, res) => {
     await logAudit('PRODUCT_STOCK_RECEIVED', user_id || null, {
       product_id: productId,
       name: product.name,
-      quantity_added: parseFloat(quantity),
+      quantity_added: parsedQty,
       new_stock: newStock
     });
 

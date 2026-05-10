@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { logoutUser, getCurrentUser } from '../api/authApi';
 
 const MENU_CONFIG = {
@@ -95,13 +95,8 @@ const MENU_CONFIG = {
 };
 
 const Navbar = ({ activeTab, onTabChange }) => {
-  const [userRole, setUserRole] = useState(null);
+  const [userRole] = useState(() => getCurrentUser()?.role || null);
   const [expanded, setExpanded] = useState(null);
-
-  useEffect(() => {
-    const user = getCurrentUser();
-    if (user) setUserRole(user.role);
-  }, []);
 
   const handleLogout = async () => {
     await logoutUser();

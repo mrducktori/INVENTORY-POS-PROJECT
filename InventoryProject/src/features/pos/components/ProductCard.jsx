@@ -10,14 +10,16 @@ const ProductCard = ({ product, onClick, onViewRecipe }) => {
   };
 
   const status = getStockStatus();
+  const isUnavailable = product.is_available === false;
 
   return (
-    <div className="pos-card">
-      <div className={`stock-indicator ${status}`} title={status === 'recipe-based' ? 'Recipe based' : `${product.stock_quantity} in stock`}></div>
-      <div className="card-content" onClick={() => onClick(product)}>
+    <div className={`pos-card ${isUnavailable ? 'unavailable' : ''}`}>
+      <div className={`stock-indicator ${status}`} title={isUnavailable ? 'Insufficient Ingredients' : (status === 'recipe-based' ? 'Recipe based' : `${product.stock_quantity} in stock`)}></div>
+      <div className="card-content" onClick={() => !isUnavailable && onClick(product)}>
         <h4>{product.name}</h4>
         <p className="category">{product.category}</p>
         <p className="price">₱{product.price?.toFixed(2)}</p>
+        {isUnavailable && <p className="out-of-stock-label">UNAVAILABLE</p>}
       </div>
       <div className="pos-card-footer">
         <button
@@ -27,7 +29,9 @@ const ProductCard = ({ product, onClick, onViewRecipe }) => {
         >
           Info
         </button>
-        <button className="add-btn" onClick={() => onClick(product)}>+ Add</button>
+        <button className="add-btn" disabled={isUnavailable} onClick={() => onClick(product)}>
+          {isUnavailable ? 'N/A' : '+ Add'}
+        </button>
       </div>
     </div>
   );

@@ -1,13 +1,35 @@
 import { supabase } from "../config/supabaseClient.js";
+import { getIngredientById } from "./inventoryService.js";
 import { updateStock } from "./inventoryService.js";
+import { logAudit } from "../utils/auditHelper.js";
 
+// FIX #3 & #13: Added a stock sufficiency check BEFORE logging the wastage record.
+// This prevents the audit log from being created if the deduction would fail,
+// keeping the wastage log and actual inventory perfectly in sync.
 export const reportWastage = async ({ ingredient_id, quantity, reason, reported_by }) => {
-  // Record the wastage
+  const qty = parseFloat(quantity);
+  if (!qty || qty <= 0 || isNaN(qty)) {
+    throw new Error("Wastage quantity must be a positive number.");
+  }
+
+  // Check current stock BEFORE logging or deducting
+  const ingredient = await getIngredientById(ingredient_id);
+  if (parseFloat(ingredient.stock_quantity) < qty) {
+    throw new Error(
+      `Cannot report wastage of ${qty} ${ingredient.unit} for "${ingredient.name}". ` +
+      `Current stock is only ${ingredient.stock_quantity} ${ingredient.unit}.`
+    );
+  }
+
+  // Deduct from stock first (most important step)
+  await updateStock(ingredient_id, qty, "subtract");
+
+  // Only log the wastage record AFTER the deduction succeeds
   const { data, error } = await supabase
     .from("wastage")
     .insert([{
       ingredient_id,
-      quantity,
+      quantity: qty,
       reason,
       reported_by
     }])
@@ -16,8 +38,13 @@ export const reportWastage = async ({ ingredient_id, quantity, reason, reported_
 
   if (error) throw error;
 
-  // Deduct from stock
-  await updateStock(ingredient_id, quantity, "subtract");
+  // Create an audit log so it shows up in AuditLogs correctly
+  await logAudit("WASTAGE", reported_by, {
+    ingredient_id,
+    ingredient_name: ingredient.name,
+    quantity: qty,
+    reason
+  });
 
   return data;
 };

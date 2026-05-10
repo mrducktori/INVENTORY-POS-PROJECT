@@ -1,5 +1,22 @@
 import React from 'react';
 
+const addonName = (a) => {
+  if (!a) return '';
+  if (typeof a === 'object') return a.name ?? '';
+  try { return JSON.parse(a)?.name ?? a; } catch { return a; }
+};
+
+const parseAddons = (raw) => {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [parsed];
+  } catch {
+    return [raw];
+  }
+};
+
 const OngoingOrders = ({ orders, onComplete, onCancel, onEdit }) => (
   <>
     <div className="cart-header">
@@ -26,7 +43,7 @@ const OngoingOrders = ({ orders, onComplete, onCancel, onEdit }) => (
                     <span className="order-item-price">₱{(item.price * item.qty).toFixed(2)}</span>
                   </div>
                   <div className="order-item-options">
-                    <small>{item.cup_size}{item.add_ons?.length > 0 ? ` + ${item.add_ons.join(', ')}` : ''}</small>
+                    <small>{item.cup_size}{parseAddons(item.add_ons).length > 0 ? ` + ${parseAddons(item.add_ons).map(addonName).join(', ')}` : ''}</small>
                   </div>
                 </div>
               ))}

@@ -1,25 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
 const PaymentModal = ({ order, onConfirm, onClose }) => {
   const [method, setMethod] = useState('CASH');
   const [amountReceived, setAmountReceived] = useState('');
   const [reference, setReference] = useState('');
-  const [change, setChange] = useState(0);
   const [submitting, setSubmitting] = useState(false); // prevents double-click
 
-  useEffect(() => {
-    if (method === 'CASH' && amountReceived) {
-      const received = parseFloat(amountReceived);
-      const total = order.total;
-      if (received >= total) {
-        setChange(received - total);
-      } else {
-        setChange(0);
-      }
-    } else {
-      setChange(0);
-    }
-  }, [amountReceived, method, order.total]);
+  const received = parseFloat(amountReceived) || 0;
+  const change = (method === 'CASH' && received >= order.total) ? received - order.total : 0;
 
   const handleSubmit = async (e) => {
     e.preventDefault();

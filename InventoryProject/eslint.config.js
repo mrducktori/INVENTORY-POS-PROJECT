@@ -23,19 +23,7 @@ export default defineConfig([
       },
     },
     
-    theme: {
-      extend: {
-        colors: {
-          'brand-dark': '#0f172a',
-          'brand-bg': '#f8f9fa',
-          'brand-border': '#e2e8f0',
-        },
-        borderRadius: {
-          '2xl': '1rem',
-          '3xl': '1.5rem',
-        },
-      },
-    },
+
 
     rules: {
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],

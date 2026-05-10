@@ -8,8 +8,6 @@ import POS from '../pos/POS';
 // Inventory System
 import Products from '../inventory/Products';
 import ManageProducts from '../inventory/ManageProducts';
-import RequestProduct from '../requests/RequestProduct';
-import ViewRequests from '../requests/ViewRequests';
 
 // Inventory Stock
 import StockReceived from '../inventory/StockReceived';
@@ -26,7 +24,6 @@ import SalesSummaryReport from '../logs/SalesSummaryReport';
 
 // Account Management
 import AccountManager from '../accounts/AccountManager';
-import EmployeeTracker from '../accounts/EmployeeTracker';
 
 // Report Broken Items (Staff)
 import ReportWastage from '../wastage/ReportWastage';
@@ -45,7 +42,7 @@ const Dashboard = () => {
     if (user.role === 'Admin' || user.role === 'Owner') return true;
     
     // Staff restricted tabs
-    const staffAllowed = ['POS', 'Products', 'RawMaterialTracker', 'StockReceived', 'ReportWastage'];
+    const staffAllowed = ['POS', 'Products', 'RawMaterialTracker', 'ProductStockTracker', 'StockReceived', 'ReportWastage'];
     return staffAllowed.includes(tab);
   };
 
@@ -63,8 +60,6 @@ const Dashboard = () => {
       // Inventory System
       case 'Products':          return <Products />;
       case 'ManageProducts':    return <ManageProducts />;
-      case 'RequestProduct':    return <RequestProduct />;
-      case 'ViewRequests':      return <ViewRequests />;
 
       // Inventory Stock
       case 'RawMaterialTracker': return <RawMaterialTracker />;
@@ -81,7 +76,6 @@ const Dashboard = () => {
 
       // Account Management
       case 'AccountManager':    return <AccountManager />;
-      case 'EmployeeTracker':   return <EmployeeTracker />;
 
       // Analytics
       case 'Forecasting':       return <DemandForecasting />;

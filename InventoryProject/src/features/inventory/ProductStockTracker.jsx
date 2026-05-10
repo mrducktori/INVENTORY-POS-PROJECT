@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getAllProducts } from '../../api/productsApi';
-import { formatQuantity } from '../../utils/productUtils';
+
 
 import './RawMaterialTracker.css'; // Reuse same styles for consistency
 

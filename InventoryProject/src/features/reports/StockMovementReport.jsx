@@ -72,7 +72,7 @@ const StockMovementReport = () => {
       const combinedAudit = [...(rawAudit || []), ...(prodAudit || [])];
       const parsedReceipts = combinedAudit.map(log => {
         let details = {};
-        try { details = typeof log.details === 'string' ? JSON.parse(log.details) : (log.details || {}); } catch {}
+        try { details = typeof log.details === 'string' ? JSON.parse(log.details) : (log.details || {}); } catch { /* ignore error */ }
         return {
           id:            log.id,
           timestamp:     log.created_at,

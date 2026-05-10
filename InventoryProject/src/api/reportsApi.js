@@ -5,8 +5,12 @@ import { apiCall } from './client.js';
  * Sales Performance Report
  * period: 'daily' | 'weekly' | 'monthly'
  */
-export const getSalesPerformanceReport = async (period = 'daily') => {
-  return apiCall(`/sales/summary/report?period=${period}`, { method: 'GET' });
+export const getSalesPerformanceReport = async (period = 'daily', startDate = '', endDate = '') => {
+  let url = `/sales/summary/report?period=${period}`;
+  if (period === 'custom' && startDate && endDate) {
+    url += `&start_date=${startDate}&end_date=${endDate}`;
+  }
+  return apiCall(url, { method: 'GET' });
 };
 
 /**

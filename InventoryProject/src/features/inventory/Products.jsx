@@ -85,6 +85,7 @@ const Products = () => {
                     <th>Product Name</th>
                     <th>Category</th>
                     <th>Price</th>
+                    <th>Stock</th>
                     <th>Action</th>
                   </tr>
                 </thead>
@@ -94,6 +95,19 @@ const Products = () => {
                       <td><strong>{product.name}</strong></td>
                       <td>{product.category}</td>
                       <td>₱{product.price.toFixed(2)}</td>
+                      <td>
+                        {product.track_stock ? (
+                          <span className={`stock-badge ${
+                            product.stock_quantity <= 0 ? 'out' : 
+                            product.stock_quantity <= product.low_stock_threshold ? 'critical' : 
+                            product.stock_quantity <= product.low_stock_threshold * 1.5 ? 'warning' : 'normal'
+                          }`}>
+                            {product.stock_quantity} in stock
+                          </span>
+                        ) : (
+                          <span className="stock-badge-none" style={{ fontSize: '12px', color: '#888' }}>Recipe based</span>
+                        )}
+                      </td>
                       <td>
                         <button className="btn btn-secondary btn-small" onClick={() => handleProductClick(product)}>
                           View Recipe
