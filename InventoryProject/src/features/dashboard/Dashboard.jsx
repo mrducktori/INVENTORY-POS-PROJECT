@@ -39,6 +39,10 @@ const Dashboard = () => {
   const [activeTab, setActiveTab] = useState(user.role === 'Staff' ? 'POS' : 'Dashboard');
 
   const isAuthorized = (tab) => {
+    // Owner-exclusive tabs
+    const ownerOnly = ['TransactionLogs'];
+    if (ownerOnly.includes(tab)) return user.role === 'Owner';
+
     if (user.role === 'Admin' || user.role === 'Owner') return true;
     
     // Staff restricted tabs

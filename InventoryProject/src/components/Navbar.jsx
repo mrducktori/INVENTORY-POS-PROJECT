@@ -80,6 +80,7 @@ const MENU_CONFIG = {
       label: 'Logs & Reports',
       submenu: [  
         { label: 'Audit Logs', value: 'AuditLogs' },
+        { label: 'Transaction Logs', value: 'TransactionLogs', disabled: true },
         { label: 'Receipt Journal', value: 'SalesReceiptJournal' },
         { label: 'Demand Forecasting', value: 'Forecasting' },
         { label: 'Reports Module', value: 'Reports' },
@@ -148,8 +149,10 @@ const Navbar = ({ activeTab, onTabChange }) => {
                     {item.submenu.map((sub) => (
                       <li
                         key={sub.value}
-                        className={activeTab === sub.value ? 'active' : ''}
-                        onClick={() => selectMenuItem(sub.value)}
+                        className={`${activeTab === sub.value ? 'active' : ''} ${sub.disabled ? 'disabled' : ''}`}
+                        onClick={() => !sub.disabled && selectMenuItem(sub.value)}
+                        style={sub.disabled ? { opacity: 0.4, cursor: 'not-allowed', pointerEvents: 'auto' } : {}}
+                        title={sub.disabled ? 'Coming soon' : ''}
                       >
                         {sub.label}
                       </li>
