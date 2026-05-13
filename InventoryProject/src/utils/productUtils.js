@@ -1,6 +1,6 @@
 // Filter products by category and search term
 export const filterProducts = (products, category, searchTerm = "") => {
-  const mainCategories = ["COFFEE", "FRAPPE", "MILK TEA", "PASTRIES", "PASTRY", "PROMO"];
+  const mainCategories = ["COFFEE", "FRAPPE", "MILK TEA","FRUIT DRINKS", "PASTRIES", "PASTRY", "PROMO"];
   
   return products.filter(p => {
     const pCat = (p.category || "").toUpperCase();

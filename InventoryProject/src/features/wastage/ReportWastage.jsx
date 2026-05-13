@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getIngredients } from '../../api/inventoryApi';
 import { reportWastage, getWastageHistory } from '../../api/wastageApi';
+import { formatQuantity } from '../../utils/productUtils';
 
 import './ReportWastage.css';
 
@@ -14,6 +15,8 @@ const ReportWastage = () => {
     reason: ''
   });
   const [message, setMessage] = useState('');
+
+  const selectedIngredient = ingredients.find(ing => ing.id === formData.ingredient_id);
 
   useEffect(() => {
     fetchData();
@@ -121,6 +124,21 @@ const ReportWastage = () => {
                 ))}
               </select>
             </div>
+
+            {selectedIngredient && (
+              <div className="stock-preview-box">
+                <span>Current: <strong>{formatQuantity(selectedIngredient.stock_quantity, selectedIngredient.unit)}</strong></span>
+                <span>Alert at: <strong>{formatQuantity(selectedIngredient.low_stock_alert, selectedIngredient.unit)}</strong></span>
+                <span className={`stock-badge ${
+                  selectedIngredient.stock_quantity <= 0 ? 'out' :
+                  selectedIngredient.stock_quantity <= selectedIngredient.low_stock_alert ? 'critical' : 'normal'
+                }`}>
+                  {selectedIngredient.stock_quantity <= 0 ? 'OUT OF STOCK' :
+                   selectedIngredient.stock_quantity <= selectedIngredient.low_stock_alert ? 'LOW STOCK' : 'HEALTHY'}
+                </span>
+              </div>
+            )}
+
 
             <div className="form-group">
               <label>Quantity Wasted</label>

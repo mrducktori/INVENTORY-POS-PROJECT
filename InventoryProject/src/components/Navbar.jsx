@@ -7,6 +7,7 @@ const MENU_CONFIG = {
       label: 'POS Terminal',
       submenu: [
         { label: 'Sales Console', value: 'POS' },
+        { label: 'Report Wastage', value: 'ReportWastage' },
       ]
     },
     {
@@ -20,7 +21,6 @@ const MENU_CONFIG = {
       submenu: [
         { label: 'Raw Material Stock', value: 'RawMaterialTracker' },
         { label: 'Product Stock', value: 'ProductStockTracker' },
-        { label: 'Report Wastage', value: 'ReportWastage' },
       ]
     },
   ],
