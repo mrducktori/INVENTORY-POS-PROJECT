@@ -189,51 +189,44 @@ function Login() {
   const fmt = (s) => `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
 
   return (
-    <div className='default_page'>
-      {/* Header */}
-      <header className="login-header">
-        <div className="header-content">
-          <h1>COF/TEA CAFE | ELWOOD</h1>
-          <button className="open-btn" onClick={toggleModal}>Login</button>
-        </div>
-      </header>
+    <div className='default_page' style={{ backgroundImage: `url(${locPic})` }}>
+      <div className="page-overlay">
+        {/* Header */}
+        <header className="glass-header">
+          <div className="header-content">
+            <h1>COF/TEA CAFE <span className="location-tag">| ELWOOD</span></h1>
+            <button className="open-btn glass-btn" onClick={toggleModal}>Login / Access</button>
+          </div>
+        </header>
 
-      {/* Main Content */}
-      <div className="login-main">
-        {/* Left Side - Location Photo */}
-        <div className="login-left">
-          <div className="images-container">
-            <div className="image-placeholder">
-              <img src={locPic} alt="Location" className="placeholder-image" />
+        {/* Main Content */}
+        <div className="login-main">
+          <div className="glass-menu-wrapper">
+            <MenuPanel />
+          </div>
+        </div>
+
+        <footer className="glass-footer">
+          <div className="footer-content">
+            <p>&copy; 2026 Inventory + POS System. All rights matters.</p>
+            <div className="footer-links">
+              <a href="#privacy">Privacy Policy</a>
+              <span>•</span>
+              <a href="#terms">Terms of Service</a>
+              <span>•</span>
+              <a href="#support">Support</a>
             </div>
           </div>
-        </div>
-
-        {/* Right Side - Categorized Menu */}
-        <div className="menu-panel-wrapper">
-          <MenuPanel />
-        </div>
+        </footer>
       </div>
-
-      <footer className="login-footer">
-        <div className="footer-content">
-          <p>&copy; 2026 Inventory + POS System. All rights matters.</p>
-          <div className="footer-links">
-            <a href="#privacy">Privacy Policy</a>
-            <span>•</span>
-            <a href="#terms">Terms of Service</a>
-            <span>•</span>
-            <a href="#support">Support</a>
-          </div>
-        </div>
-      </footer>
 
       {formOpen && (
         <div className="modal-overlay">
-          <div className="login-container">
+          <div className="login-container glass-panel">
             <form onSubmit={handleSubmit}>
               <h3 className="back-btn" onClick={toggleModal}> ← Back </h3>
-              <h1>Login</h1>
+              <h2>Welcome Back</h2>
+              <p className="modal-subtitle">Enter your credentials to access the POS</p>
 
               {/* Lockout Banner */}
               {isLocked && (
@@ -249,29 +242,42 @@ function Login() {
 
               {/* Error / Attempts Warning */}
               {!isLocked && error && (
-                <p className="error">
-                  {error}
-                  {attemptsLeft > 0 && attemptsLeft < 3 && (
-                    <span className="attempts-warning"> ({attemptsLeft} attempt{attemptsLeft !== 1 ? 's' : ''} left)</span>
-                  )}
-                </p>
+                <div className="error-banner">
+                  <span className="error-icon">⚠️</span>
+                  <div>
+                    <strong>Authentication Failed</strong>
+                    <p>{error}
+                      {attemptsLeft > 0 && attemptsLeft < 3 && (
+                        <span className="attempts-warning"> ({attemptsLeft} attempt{attemptsLeft !== 1 ? 's' : ''} left)</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
               )}
 
-              <label>Username:</label>
-              <input type="text" name="username"
-                value={form.username}
-                onChange={handleChange}
-                disabled={isLocked}
-                required />
-              <label>Password:</label>
-              <input type="password" name="password"
-                value={form.password}
-                onChange={handleChange}
-                disabled={isLocked}
-                required />
+              <div className="input-group">
+                <label>Username</label>
+                <input type="text" name="username"
+                  value={form.username}
+                  onChange={handleChange}
+                  disabled={isLocked}
+                  placeholder="Enter username"
+                  required />
+              </div>
+              
+              <div className="input-group">
+                <label>Password</label>
+                <input type="password" name="password"
+                  value={form.password}
+                  onChange={handleChange}
+                  disabled={isLocked}
+                  placeholder="Enter password"
+                  required />
+              </div>
+
               <button
                 type="submit"
-                className="login-submit"
+                className="login-submit glow-btn"
                 disabled={isLocked}
                 style={{ opacity: isLocked ? 0.5 : 1, cursor: isLocked ? 'not-allowed' : 'pointer' }}
               >
