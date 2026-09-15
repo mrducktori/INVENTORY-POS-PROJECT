@@ -9,7 +9,7 @@ export default defineConfig({
       '/api': 'http://localhost:5000'
     }
   },
-  plugins: [react(), tailwindcss()],
+  plugins: [tailwindcss(), react()],
   optimizeDeps: {
     include: ['react-is']
   }

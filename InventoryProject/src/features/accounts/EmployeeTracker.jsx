@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getEmployeeShifts } from '../../api/usersApi';
 
-import './EmployeeTracker.css';
 
 const EmployeeTracker = () => {
   const [shifts, setShifts] = useState([]);

@@ -102,14 +102,25 @@ export const useManageProducts = () => {
     });
   };
 
-  const handleAddProduct = async (e) => {
+  const handleAddProduct = async (e, forceCreate = false) => {
     if (e) e.preventDefault();
     const newName = formData.name.trim().toUpperCase();
 
-    const isDuplicate = products.some(p => p.name.toUpperCase() === newName);
-    if (isDuplicate) {
-      const proceed = window.confirm(`WARNING: A product with the name "${formData.name.trim()}" already exists. Do you still want to add it?`);
-      if (!proceed) return;
+    // Frontend strict match check
+    if (!forceCreate) {
+      const isDuplicate = products.some(p => p.name.toUpperCase() === newName);
+      if (isDuplicate) {
+        setConfirmConfig({
+          isOpen: true,
+          title: 'Duplicate Detected',
+          message: `WARNING: A product with the exact name "${formData.name.trim()}" already exists. Do you still want to add it?`,
+          onConfirm: () => {
+            setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+            handleAddProduct(null, true);
+          }
+        });
+        return;
+      }
     }
 
     try {
@@ -119,7 +130,8 @@ export const useManageProducts = () => {
         price: parseFloat(formData.price),
         track_stock: formData.track_stock,
         stock_quantity: 0,
-        low_stock_threshold: parseFloat(formData.low_stock_threshold) || 0
+        low_stock_threshold: parseFloat(formData.low_stock_threshold) || 0,
+        force_create: forceCreate
       });
       setMessage('Product created successfully!');
       setFormData({ 
@@ -132,10 +144,19 @@ export const useManageProducts = () => {
       fetchProducts();
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
-      if (err.message.includes('already exists')) {
-        alert('WARNING: ' + err.message);
+      if (err.payload?.is_duplicate_warning) {
+        setConfirmConfig({
+          isOpen: true,
+          title: 'Duplicate Detected',
+          message: err.message + '\n\nDo you still want to proceed?',
+          onConfirm: () => {
+            setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+            handleAddProduct(null, true);
+          }
+        });
+      } else {
+        setMessage('Error: ' + err.message);
       }
-      setMessage('Error: ' + err.message);
     }
   };
 

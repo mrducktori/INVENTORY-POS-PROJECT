@@ -1,87 +1,85 @@
 import React, { useState, useEffect } from 'react';
 import { getSalesReceipt } from '../api/logsApi';
-import '../styles/Inventory.css';
-import '../styles/SalesReceiptModal.css';
 
 const SalesReceiptModal = ({ saleId, onClose }) => {
   const [receipt, setReceipt] = useState(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    const fetchReceipt = async () => {
+      try {
+        setLoading(true);
+        const data = await getSalesReceipt(saleId);
+        setReceipt(data);
+      } catch (error) {
+        console.error("Failed to fetch receipt:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     if (saleId) {
       fetchReceipt();
     }
   }, [saleId]);
 
-  const fetchReceipt = async () => {
-    try {
-      setLoading(true);
-      const data = await getSalesReceipt(saleId);
-      setReceipt(data);
-    } catch (error) {
-      console.error("Failed to fetch receipt:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   if (!saleId) return null;
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content receipt-modal-content">
-        <div className="modal-header">
-          <h2>RECEIPT</h2>
-          <button className="close-btn" onClick={onClose}>×</button>
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+          <h2 className="text-sm font-semibold text-gray-800 uppercase tracking-wider m-0">Receipt</h2>
+          <button className="text-gray-400 hover:text-gray-700 transition-colors cursor-pointer text-xl leading-none" onClick={onClose}>×</button>
         </div>
         
-        <div className="modal-body receipt-modal-body">
+        <div className="p-6 overflow-y-auto">
           {loading ? (
-            <p>Loading receipt details...</p>
+            <p className="text-gray-500 text-center py-4 text-sm">Loading receipt details...</p>
           ) : receipt ? (
-            <div>
-              <p>Receipt #: {receipt.receipt_number || "N/A"}</p>
-              <p>Date/Time: {new Date(receipt.created_at).toLocaleString()}</p>
-              <p>Staff: {receipt.users?.name || "System"}</p>
+            <div className="text-sm text-gray-700">
+              <p className="mb-1"><span className="font-semibold text-gray-900">Receipt #:</span> {receipt.receipt_number || "N/A"}</p>
+              <p className="mb-1"><span className="font-semibold text-gray-900">Date:</span> {new Date(receipt.created_at).toLocaleString()}</p>
+              <p className="mb-4"><span className="font-semibold text-gray-900">Staff:</span> {receipt.users?.name || "System"}</p>
               
-              <hr className="receipt-modal-divider" />
+              <div className="border-t border-dashed border-gray-300 my-4"></div>
               
-              <table className="receipt-modal-table">
+              <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr style={{ borderBottom: '1px solid #ddd' }}>
-                    <th className="receipt-modal-th-left">Item</th>
-                    <th className="receipt-modal-th-left">Qty</th>
-                    <th className="receipt-modal-th-left">Price</th>
-                    <th className="receipt-modal-th-right">Total</th>
+                  <tr className="border-b border-gray-200">
+                    <th className="py-2 font-semibold text-gray-900">Item</th>
+                    <th className="py-2 font-semibold text-gray-900 text-center">Qty</th>
+                    <th className="py-2 font-semibold text-gray-900 text-right">Price</th>
+                    <th className="py-2 font-semibold text-gray-900 text-right">Total</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-gray-100">
                   {receipt.sale_items?.map(item => (
                     <tr key={item.id}>
-                      <td className="receipt-modal-td-left">{item.products?.name}</td>
-                      <td className="receipt-modal-td-left">{item.quantity}</td>
-                      <td className="receipt-modal-td-left">₱{parseFloat(item.unit_price).toFixed(2)}</td>
-                      <td className="receipt-modal-td-right">₱{(item.quantity * item.unit_price).toFixed(2)}</td>
+                      <td className="py-2">{item.products?.name}</td>
+                      <td className="py-2 text-center">{item.quantity}</td>
+                      <td className="py-2 text-right">₱{parseFloat(item.unit_price).toFixed(2)}</td>
+                      <td className="py-2 text-right">₱{(item.quantity * item.unit_price).toFixed(2)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
 
-              <hr className="receipt-modal-divider" />
+              <div className="border-t border-dashed border-gray-300 my-4"></div>
 
-              <div className="receipt-modal-totals">
-                <p>Subtotal: ₱{(receipt.total_amount - (receipt.tax_amount || 0) + (receipt.discount_amount || 0)).toFixed(2)}</p>
-                {receipt.discount_amount > 0 && <p>Discount: -₱{parseFloat(receipt.discount_amount).toFixed(2)}</p>}
-                {receipt.tax_amount > 0 && <p>Tax: ₱{parseFloat(receipt.tax_amount).toFixed(2)}</p>}
-                <h3 className="receipt-modal-grandtotal">TOTAL: ₱{parseFloat(receipt.total_amount).toFixed(2)}</h3>
+              <div className="text-right space-y-1">
+                <p className="text-gray-600">Subtotal: ₱{(receipt.total_amount - (receipt.tax_amount || 0) + (receipt.discount_amount || 0)).toFixed(2)}</p>
+                {receipt.discount_amount > 0 && <p className="text-gray-600">Discount: -₱{parseFloat(receipt.discount_amount).toFixed(2)}</p>}
+                {receipt.tax_amount > 0 && <p className="text-gray-600">Tax: ₱{parseFloat(receipt.tax_amount).toFixed(2)}</p>}
+                <h3 className="text-lg font-bold text-gray-900 mt-2">TOTAL: ₱{parseFloat(receipt.total_amount).toFixed(2)}</h3>
               </div>
             </div>
           ) : (
-            <p>Receipt not found.</p>
+            <p className="text-gray-500 text-center py-4 text-sm">Receipt not found.</p>
           )}
         </div>
-        <div className="modal-footer">
-          <button className="btn btn-secondary receipt-modal-close-btn" onClick={onClose}>Close</button>
+        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/30 flex justify-end">
+          <button className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors cursor-pointer" onClick={onClose}>Close</button>
         </div>
       </div>
     </div>

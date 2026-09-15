@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getAuditLogs } from '../../api/auditApi';
 
-import './AdminLogs.css';
 
 const AdminLogs = () => {
   const [logs, setLogs] = useState([]);

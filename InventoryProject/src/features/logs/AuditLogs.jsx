@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { getAuditLogs } from '../../api/auditApi';
 import { getManilaDateOnly } from '../../utils/dateUtils';
 
-import './AuditLogs.css';
 
 // Converts raw action + details into a human-readable sentence
 const formatAuditDescription = (action, rawDetails) => {
@@ -84,9 +83,14 @@ const formatAuditDescription = (action, rawDetails) => {
   }
 };
 
+const PAGE_SIZE_OPTIONS = [50, 100, 200];
+
 const AuditLogs = () => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
+  const [pageSize, setPageSize] = useState(50);
+  const [currentPage, setCurrentPage] = useState(1);
   const today = getManilaDateOnly();
   const [filters, setFilters] = useState({
     start_date: today, // Default to Today
@@ -97,8 +101,13 @@ const AuditLogs = () => {
   const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'desc' });
 
   useEffect(() => {
-    fetchLogs();
+    // Reset to page 1 when filters change
+    setCurrentPage(1);
   }, [filters]);
+
+  useEffect(() => {
+    fetchLogs();
+  }, [filters, currentPage, pageSize]);
 
   const fetchLogs = async () => {
     try {
@@ -106,10 +115,13 @@ const AuditLogs = () => {
       // Extend end_date to end of that day so full-timestamp rows are included
       const adjustedFilters = {
         ...filters,
-        end_date: filters.end_date ? filters.end_date + 'T23:59:59' : undefined
+        end_date: filters.end_date ? filters.end_date + 'T23:59:59' : undefined,
+        limit: pageSize,
+        offset: (currentPage - 1) * pageSize
       };
-      const data = await getAuditLogs(adjustedFilters);
-      setLogs(data);
+      const result = await getAuditLogs(adjustedFilters);
+      setLogs(result.data || []);
+      setTotalCount(result.total || 0);
     } catch (error) {
       console.error("Failed to fetch audit logs:", error);
     } finally {
@@ -153,6 +165,11 @@ const AuditLogs = () => {
         valB = b.users?.name || '';
       }
 
+      if (sortConfig.key === 'action_type') {
+        valA = a.action_type || a.action || '';
+        valB = b.action_type || b.action || '';
+      }
+
       if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
       if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
       return 0;
@@ -162,113 +179,119 @@ const AuditLogs = () => {
   };
 
   const sortedLogs = getSortedLogs();
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const startEntry = totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const endEntry = Math.min(currentPage * pageSize, totalCount);
 
   return (
-    <div className="audit-logs-container">
-      <div className="audit-logs-header">
-        <h1>Audit Logs</h1>
-        <p>Track administrative and staff activities across the system.</p>
+    <div className="p-4 md:p-8 flex-1 bg-gray-50 overflow-y-auto w-full">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <div>
+          <h1 className="m-0 text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">Audit Logs</h1>
+          <p className="m-0 mt-1 text-sm text-gray-500 font-medium">Track administrative and staff activities across the system.</p>
+        </div>
+      	<div className="flex gap-4 items-end">
+	  <div>
+	    <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Date Range</label>
+	    <div className="flex gap-2">
+	      <input
+	        type="date"
+	        name="start_date"
+	        value={filters.start_date}
+	        onChange={handleFilterChange}
+	        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
+	      />
+	      <input
+	        type="date"
+	        name="end_date"
+	        value={filters.end_date}
+	        onChange={handleFilterChange}
+	        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
+	      />
+	    </div>
+	  </div>
+	  <div>
+	    <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Category Filter</label>
+	    <select
+	      name="action"
+	      value={filters.action}
+	      onChange={handleFilterChange}
+	      className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
+	    >
+	      <option value="">All Categories</option>
+	      <option value="SALE">Sales</option>
+	      <option value="PRODUCT">Products</option>
+	      <option value="RAW_MATERIAL">Raw Materials</option>
+	      <option value="RAW_MATERIAL_STOCK">Stock Received</option>
+	      <option value="WASTAGE">Wastage</option>
+	      <option value="USER">Users / Staff</option>
+	      <option value="LOGIN">Login</option>
+	      <option value="LOGOUT">Logout</option>
+	      <option value="LOGIN_FAILED">Failed Logins</option>
+	    </select>
+	  </div>
+	</div>
       </div>
 
-      <div className="audit-filters-card">
-        <div className="filter-group">
-          <label className="filter-label">Start Date</label>
-          <input 
-            type="date" 
-            name="start_date" 
-            value={filters.start_date} 
-            onChange={handleFilterChange} 
-            className="filter-input"
-          />
-        </div>
-        <div className="filter-group">
-          <label className="filter-label">End Date</label>
-          <input 
-            type="date" 
-            name="end_date" 
-            value={filters.end_date} 
-            onChange={handleFilterChange} 
-            className="filter-input"
-          />
-        </div>
-        <div className="filter-group">
-          <label className="filter-label">Category Filter</label>
-          <select 
-            name="action" 
-            value={filters.action} 
-            onChange={handleFilterChange}
-            className="filter-select"
-          >
-                      <option value="">All Categories</option>
-            <option value="SALE">Sales</option>
-            <option value="PRODUCT">Products</option>
-            <option value="RAW_MATERIAL">Raw Materials</option>
-            <option value="RAW_MATERIAL_STOCK">Stock Received</option>
-            <option value="WASTAGE">Wastage</option>
-            <option value="USER">Users / Staff</option>
-            <option value="LOGIN">Login</option>
-            <option value="LOGOUT">Logout</option>
-            <option value="LOGIN_FAILED">Failed Logins</option>
-          </select>
-        </div>
-        <div className="filter-group">
-          <label className="filter-label">Global Search</label>
+      <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-5 mb-8">
+        <div>
+          <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Global Search</label>
           <input 
             type="text" 
             placeholder="Search details..." 
             value={searchTerm} 
             onChange={(e) => setSearchTerm(e.target.value)} 
-            className="filter-input"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
           />
         </div>
       </div>
 
-      <div className="audit-table-card">
-        <div className="audit-table-wrapper">
-          <table className="audit-table">
+      <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden w-full">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse whitespace-nowrap">
             <thead>
-              <tr>
-                <th onClick={() => handleSort('created_at')}>
+              <tr className="bg-gray-50 border-b border-gray-200">
+                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none" onClick={() => handleSort('created_at')}>
                   Timestamp {sortConfig.key === 'created_at' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th onClick={() => handleSort('staff')} style={{ textAlign: 'center' }}>
+                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-center cursor-pointer hover:bg-gray-100 transition-colors select-none" onClick={() => handleSort('staff')}>
                   Operator {sortConfig.key === 'staff' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th onClick={() => handleSort('action_type')} style={{ textAlign: 'center' }}>
+                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-center cursor-pointer hover:bg-gray-100 transition-colors select-none" onClick={() => handleSort('action_type')}>
                   Action {sortConfig.key === 'action_type' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th style={{ textAlign: 'center' }}>Entity</th>
-                <th>Event Details</th>
+                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Entity</th>
+                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Event Details</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td colSpan="5" className="audit-loading-row">
-                    <div className="audit-loading-text">Synchronizing...</div>
+                  <td colSpan="5" className="p-8 text-center text-gray-500 font-medium bg-gray-50/50">
+                    <div>Synchronizing...</div>
                   </td>
                 </tr>
               ) : sortedLogs.length > 0 ? (
                 sortedLogs.map(log => (
-                  <tr key={log.id}>
-                    <td className="log-timestamp">
+                  <tr key={log.id} className="hover:bg-gray-50/50 transition-colors">
+                    <td className="px-6 py-4 text-sm font-medium text-gray-600">
                       {new Date(log.created_at).toLocaleString()}
                     </td>
-                    <td style={{ textAlign: 'center' }}>
-                      <span className="log-operator">{log.users?.name || 'System'}</span>
+                    <td className="px-6 py-4 text-center">
+                      <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">{log.users?.name || 'System'}</span>
                     </td>
-                    <td style={{ textAlign: 'center' }}>
-                      <span className="log-action-badge">
+                    <td className="px-6 py-4 text-center">
+                      <span className="inline-flex px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-700 border border-gray-200">
                         {log.action_type || log.action}
                       </span>
                     </td>
-                    <td style={{ textAlign: 'center' }}>
-                      <span className="log-entity-tag">
+                    <td className="px-6 py-4 text-center">
+                      <span className="text-xs font-semibold text-gray-500">
                         {log.entity_type ? `${log.entity_type} #${log.entity_id || ''}` : '---'}
                       </span>
                     </td>
-                    <td>
-                      <p className="log-details-text">
+                    <td className="px-6 py-4">
+                      <p className="m-0 text-sm font-medium text-gray-800 whitespace-normal">
                         {formatAuditDescription(log.action, log.details)}
                       </p>
                     </td>
@@ -276,14 +299,72 @@ const AuditLogs = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="5" className="audit-empty-row">
-                    <div className="audit-empty-text">No activity found</div>
+                  <td colSpan="5" className="p-12 text-center text-gray-400 bg-gray-50/50">
+                    <svg className="w-12 h-12 mb-3 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    <div className="text-sm font-medium">No activity found</div>
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        {!loading && totalCount > 0 && (
+          <div className="px-6 py-4 border-t border-gray-200 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-gray-600 font-medium">
+                Showing <span className="font-bold text-gray-900">{startEntry}–{endEntry}</span> of <span className="font-bold text-gray-900">{totalCount}</span> logs
+              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 font-bold uppercase tracking-wider">Per page</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
+                  className="px-2 py-1 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent cursor-pointer"
+                >
+                  {PAGE_SIZE_OPTIONS.map(size => (
+                    <option key={size} value={size}>{size}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage <= 1}
+                className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                First
+              </button>
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage <= 1}
+                className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                Previous
+              </button>
+              <span className="px-3 py-1.5 text-sm font-bold text-gray-900">
+                {currentPage} / {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages}
+                className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                Next
+              </button>
+              <button
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage >= totalPages}
+                className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                Last
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

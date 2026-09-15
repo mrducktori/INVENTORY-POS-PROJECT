@@ -1,11 +1,14 @@
 // Sales & transaction log API
 import { apiCall } from './client.js';
 
-export const getSales = async (filters = {}) => {
+export const getSales = async (filters = {}, pageSize = 50, page = 1) => {
   const params = new URLSearchParams();
-  if (filters.date) params.append('date', filters.date);
-  if (filters.staff_id) params.append('staff_id', filters.staff_id);
-  if (filters.period) params.append('period', filters.period);
+  if (filters.start_date) params.append('start_date', filters.start_date);
+  if (filters.end_date) params.append('end_date', filters.end_date);
+  if (filters.category) params.append('category', filters.category);
+  // pagination parameters
+  params.append('limit', pageSize);
+  params.append('offset', (page - 1) * pageSize);
   return apiCall(`/sales?${params.toString()}`);
 };
 

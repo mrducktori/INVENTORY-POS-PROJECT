@@ -37,6 +37,30 @@ export const usePOS = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentOrder, setPaymentOrder] = useState(null);
 
+  const [confirmConfig, setConfirmConfig] = useState({
+    isOpen: false,
+    message: '',
+    onConfirm: () => {},
+    onCancel: () => {}
+  });
+
+  const requestConfirm = (message) => {
+    return new Promise((resolve) => {
+      setConfirmConfig({
+        isOpen: true,
+        message,
+        onConfirm: () => {
+          setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+          resolve(true);
+        },
+        onCancel: () => {
+          setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+          resolve(false);
+        }
+      });
+    });
+  };
+
   const user = getCurrentUser();
 
   // FETCH PRODUCTS AND SETTINGS
@@ -102,10 +126,11 @@ export const usePOS = () => {
 
   const [showOptions, setShowOptions] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [editingCartItemId, setEditingCartItemId] = useState(null);
   const [productOptions, setProductOptions] = useState({
     qty: 1,
     cupSize: "12 oz",
-    addOns: []
+    addOns: {}
   });
 
   const openOptions = (product) => {
@@ -135,8 +160,37 @@ export const usePOS = () => {
     if (virtualProduct.sizes && virtualProduct.sizes.length > 0) {
       defaultSize = virtualProduct.sizes[0].name; // Default to first configured size
     }
-    setProductOptions({ qty: 1, cupSize: defaultSize, addOns: [] });
+    setProductOptions({ qty: 1, cupSize: defaultSize, addOns: {} });
+    setEditingCartItemId(null);
     setShowOptions(true);
+  };
+
+  const openEditOptions = (cartItemId) => {
+    const item = cart.find(i => i.cartItemId === cartItemId);
+    if (!item || !item.baseProduct) return;
+
+    setSelectedProduct(item.baseProduct);
+    
+    const reconstructedAddOns = {};
+    if (item.add_ons && item.add_ons.length > 0) {
+      item.add_ons.forEach(ao => {
+        reconstructedAddOns[ao.name] = ao.customer_qty || 1;
+      });
+    }
+
+    setProductOptions({
+      qty: item.qty,
+      cupSize: item.cup_size || (item.baseProduct.sizes?.[0]?.name) || "12 oz",
+      addOns: reconstructedAddOns
+    });
+    setEditingCartItemId(cartItemId);
+    setShowOptions(true);
+  };
+
+  const closeOptions = () => {
+    setShowOptions(false);
+    setSelectedProduct(null);
+    setEditingCartItemId(null);
   };
 
   const handleAddWithOptions = () => {
@@ -156,19 +210,19 @@ export const usePOS = () => {
         if (productOptions.cupSize === "22 oz") finalPrice += 20;
       }
 
-      productOptions.addOns.forEach(addonName => {
+      Object.entries(productOptions.addOns).forEach(([addonName, customerQty]) => {
         // Handle dynamic addons attached to the virtualProduct (which includes category defaults)
         if (selectedProduct.add_ons && selectedProduct.add_ons.length > 0) {
           const ao = selectedProduct.add_ons.find(a => a.name === addonName);
           if (ao) {
-            finalPrice += parseFloat(ao.price || 0);
-            selectedAddonObjs.push(ao);
+            finalPrice += parseFloat(ao.price || 0) * customerQty;
+            selectedAddonObjs.push({...ao, customer_qty: customerQty});
             return;
           }
         }
         
         // Legacy string fallback if absolutely nothing was found
-        selectedAddonObjs.push({name: addonName, price: 0});
+        selectedAddonObjs.push({name: addonName, price: 0, customer_qty: customerQty});
       });
     }
 
@@ -180,33 +234,41 @@ export const usePOS = () => {
       cup_size_obj: selectedSizeObj,
       add_ons: isDrink ? selectedAddonObjs : [],
       cartItemId: isDrink 
-        ? `${selectedProduct.id}-${productOptions.cupSize}-${productOptions.addOns.sort().join(',')}`
-        : `${selectedProduct.id}-standard`
+        ? `${selectedProduct.id}-${productOptions.cupSize}-${Object.entries(productOptions.addOns).map(([n, q]) => `${n}x${q}`).sort().join(',')}`
+        : `${selectedProduct.id}-standard`,
+      baseProduct: selectedProduct
     };
 
     setCart(prevCart => {
-      const existing = prevCart.find(item => item.cartItemId === itemToAdd.cartItemId);
+      let newCart = [...prevCart];
+      if (editingCartItemId) {
+        newCart = newCart.filter(item => item.cartItemId !== editingCartItemId);
+      }
+
+      const existing = newCart.find(item => item.cartItemId === itemToAdd.cartItemId);
       if (existing) {
-        return prevCart.map(item =>
+        return newCart.map(item =>
           item.cartItemId === itemToAdd.cartItemId
             ? { ...item, qty: item.qty + itemToAdd.qty }
             : item
         );
       }
-      return [...prevCart, itemToAdd];
+      return [...newCart, itemToAdd];
     });
 
-    setShowOptions(false);
-    setSelectedProduct(null);
+    closeOptions();
   };
 
-  const toggleAddOn = (addOn) => {
-    setProductOptions(prev => ({
-      ...prev,
-      addOns: prev.addOns.includes(addOn)
-        ? prev.addOns.filter(a => a !== addOn)
-        : [...prev.addOns, addOn]
-    }));
+  const updateAddOnQty = (addOn, qty) => {
+    setProductOptions(prev => {
+      const newAddOns = { ...prev.addOns };
+      if (qty <= 0) {
+        delete newAddOns[addOn];
+      } else {
+        newAddOns[addOn] = qty;
+      }
+      return { ...prev, addOns: newAddOns };
+    });
   };
 
   const updateQty = (cartItemId, qty) => {
@@ -223,13 +285,18 @@ export const usePOS = () => {
     setCart(cart.filter(item => item.cartItemId !== cartItemId));
   };
 
-  const clearCart = () => setCart([]);
+  const clearCart = async () => {
+    if (await requestConfirm("Are you sure you want to clear the cart?")) {
+      setCart([]);
+    }
+  };
 
   const calculateTotal = () =>
     cart.reduce((sum, item) => sum + item.price * item.qty, 0);
 
   const handleCompleteSale = async () => {
     if (cart.length === 0) return;
+    if (!(await requestConfirm("Are you sure you want to create this order?"))) return;
     try {
       const newOrder = {
         id: Date.now(),
@@ -247,9 +314,54 @@ export const usePOS = () => {
     }
   };
 
-  const handleCompleteOrder = (orderId) => {
+  const handleCompleteOrder = async (orderId) => {
     const order = ongoingOrders.find(o => o.id === orderId);
     if (!order) return;
+
+    // Fetch the latest product prices to ensure we charge the correct amount
+    try {
+      const latestProducts = await getProducts();
+      if (latestProducts && latestProducts.length > 0) {
+        let updatedTotal = 0;
+        const updatedItems = order.items.map(item => {
+          const latestProd = latestProducts.find(p => p.id === item.id);
+          if (latestProd) {
+            let finalPrice = parseFloat(latestProd.price || 0);
+
+            // Re-apply size price
+            if (item.cup_size_obj) {
+              const sz = latestProd.sizes?.find(s => s.name === item.cup_size_obj.name);
+              if (sz) finalPrice += parseFloat(sz.price_add || 0);
+            } else if (item.cup_size) {
+              if (item.cup_size === "16 oz") finalPrice += 10;
+              if (item.cup_size === "22 oz") finalPrice += 20;
+            }
+
+            // Re-apply add-ons
+            if (item.add_ons && item.add_ons.length > 0) {
+              item.add_ons.forEach(ao => {
+                const latestAo = latestProd.add_ons?.find(a => a.name === ao.name);
+                if (latestAo) finalPrice += parseFloat(latestAo.price || 0) * (ao.customer_qty || 1);
+                else finalPrice += parseFloat(ao.price || 0) * (ao.customer_qty || 1); // fallback
+              });
+            }
+            
+            item.price = finalPrice;
+          }
+          updatedTotal += (item.price * item.qty);
+          return item;
+        });
+
+        order.items = updatedItems;
+        order.total = updatedTotal;
+        
+        // Update the ongoing order in state so the UI reflects the new total
+        setOngoingOrders(prev => prev.map(o => o.id === orderId ? order : o));
+      }
+    } catch (err) {
+      console.error("Failed to fetch latest prices before checkout", err);
+    }
+
     setPaymentOrder(order);
     setShowPaymentModal(true);
   };
@@ -277,8 +389,10 @@ export const usePOS = () => {
     setTimeout(() => setSaleComplete(false), 3000);
   };
 
-  const handleCancelOrder = (orderId) => {
-    setOngoingOrders(ongoingOrders.filter(o => o.id !== orderId));
+  const handleCancelOrder = async (orderId) => {
+    if (await requestConfirm("Are you sure you want to cancel this order?")) {
+      setOngoingOrders(ongoingOrders.filter(o => o.id !== orderId));
+    }
   };
 
   const handleEditOrder = (orderId) => {
@@ -317,13 +431,15 @@ export const usePOS = () => {
     recipeLoading,
     currentRecipe,
     showOptions,
-    setShowOptions,
+    closeOptions,
     selectedProduct,
     productOptions,
     setProductOptions,
     openOptions,
+    openEditOptions,
+    editingCartItemId,
     handleAddWithOptions,
-    toggleAddOn,
+    updateAddOnQty,
     updateQty,
     removeFromCart,
     clearCart,
@@ -336,6 +452,7 @@ export const usePOS = () => {
     showPaymentModal,
     setShowPaymentModal,
     paymentOrder,
-    confirmPayment
+    confirmPayment,
+    confirmConfig
   };
 };

@@ -18,12 +18,29 @@ router.get('/', async (req, res) => {
   }
 });
 
+import { findSimilarName } from "../utils/stringHelper.js";
+
 // Create new product
 router.post('/', async (req, res) => {
   try {
-    const { name, category, price, description, track_stock, stock_quantity, low_stock_threshold, sizes, add_ons, image_url, user_id } = req.body;
+    const { name, category, price, description, track_stock, stock_quantity, low_stock_threshold, sizes, add_ons, image_url, user_id, force_create } = req.body;
     if (!name || !category || !price) {
       return res.status(400).json({ error: 'Name, category, and price are required' });
+    }
+
+    // Check for duplicates
+    if (!force_create) {
+      const { data: existingProducts } = await supabase.from("products").select("name");
+      if (existingProducts) {
+        const existingNames = existingProducts.map(p => p.name);
+        const similar = findSimilarName(name, existingNames);
+        if (similar) {
+          return res.status(409).json({ 
+            error: `A product with a similar name ("${similar}") already exists.`,
+            is_duplicate_warning: true 
+          });
+        }
+      }
     }
 
     const { data, error } = await supabase

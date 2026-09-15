@@ -30,7 +30,7 @@ const deriveTrendCategories = (salesTrend) => {
  * @param {string} activeCategory
  * @returns {Array} Chart-ready data array.
  */
-const buildTrendChartData = (salesTrend, activeCategory) => {
+const buildTrendChartData = (salesTrend, activeCategory, allCategories = []) => {
   if (!salesTrend) return [];
 
   if (activeCategory !== 'All') {
@@ -41,10 +41,16 @@ const buildTrendChartData = (salesTrend, activeCategory) => {
   }
 
   return salesTrend.map((day) => {
-    const dataPoint = { date: day.date, revenue: day.revenue };
+    const dataPoint = { date: day.date, revenue: day.revenue || 0 };
+    
+    // Initialize all known categories to 0 so Recharts always has a continuous path
+    allCategories.forEach((cat) => {
+      dataPoint[cat] = 0;
+    });
+
     if (day.categories) {
       Object.keys(day.categories).forEach((cat) => {
-        dataPoint[cat] = day.categories[cat];
+        dataPoint[cat] = day.categories[cat] || 0;
       });
     }
     return dataPoint;
@@ -99,7 +105,8 @@ const useDashboardStats = () => {
 
   const trendChartData = buildTrendChartData(
     stats?.salesTrend,
-    activeTrendCategory
+    activeTrendCategory,
+    trendCategories
   );
 
   const getSortedCategoryProducts = (products) =>

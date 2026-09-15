@@ -30,7 +30,7 @@ export const requireAuth = async (req, res, next) => {
 
     req.user = data;
     next();
-  } catch (err) {
+  } catch {
     return res.status(500).json({ error: 'Authentication check failed.' });
   }
 };

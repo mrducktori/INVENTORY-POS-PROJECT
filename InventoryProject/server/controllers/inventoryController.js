@@ -32,7 +32,10 @@ export const createIngredient = async (req, res) => {
 
     res.status(201).json(data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    if (err.is_duplicate_warning) {
+      return res.status(409).json({ error: err.message, is_duplicate_warning: true });
+    }
+    res.status(500).json({ error: err.message || err });
   }
 };
 

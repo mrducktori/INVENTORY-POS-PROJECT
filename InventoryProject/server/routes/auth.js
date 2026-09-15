@@ -113,7 +113,7 @@ router.post("/login", async (req, res) => {
     resetLockout(username);
     await logAudit("LOGIN", data.id, { username: data.username, role: data.role });
 
-    const { password_hash, ...userWithoutPassword } = data;
+    const { password_hash: _password_hash, ...userWithoutPassword } = data;
     res.json(userWithoutPassword);
 
   } catch (err) {

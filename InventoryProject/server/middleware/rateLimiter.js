@@ -8,7 +8,7 @@ export const generalLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: false,
-  keyGenerator: (req, res) => {
+  keyGenerator: (req) => {
     return req.ip || req.connection.remoteAddress;
   }
 });
@@ -21,7 +21,7 @@ export const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true,
-  keyGenerator: (req, res) => {
+  keyGenerator: (req) => {
     return req.ip || req.connection.remoteAddress;
   }
 });
@@ -33,7 +33,7 @@ export const userManagementLimiter = rateLimit({
   message: 'Too many user management requests, please try again later',
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req, res) => {
+  keyGenerator: (req) => {
     return req.ip || req.connection.remoteAddress;
   }
 });
@@ -45,7 +45,7 @@ export const looseLimiter = rateLimit({
   message: 'Too many requests, please try again later',
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req, res) => {
+  keyGenerator: (req) => {
     return req.ip || req.connection.remoteAddress;
   }
 });
@@ -57,7 +57,7 @@ export const createLimiter = rateLimit({
   message: 'Too many creation requests, please try again later',
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req, res) => {
+  keyGenerator: (req) => {
     return req.ip || req.connection.remoteAddress;
   }
 });

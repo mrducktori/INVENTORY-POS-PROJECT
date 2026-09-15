@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { getInventoryDepletion, getDemandForecast } from '../../../api/analyticsApi';
-import './PredictiveInsights.css';
 
 const PredictiveInsights = () => {
   const [depletionData, setDepletionData] = useState([]);
@@ -27,59 +26,59 @@ const PredictiveInsights = () => {
   }, []);
 
   return (
-    <div className="stats-grid insights-container">
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-6 mt-8">
       {/* Demand Forecast Card */}
-      <div className="stat-card insight-card">
-        <div className="insight-header">
-          <div className="insight-label">Demand Forecast & Growth</div>
-          <span className="ai-badge">AI Predicted</span>
+      <div className="text-left p-[18px] bg-white border border-[#e0e0e0] rounded-[4px] shadow-[0_2px_4px_rgba(0,0,0,0.02)]">
+        <div className="flex justify-between items-center mb-4 pb-2 border-b border-[#f0f0f0]">
+          <div className="text-[11px] font-bold uppercase tracking-[0.5px] text-[#333]">Demand Forecast & Growth</div>
+          <span className="text-[9px] bg-black text-white px-2 py-0.5 rounded-[2px] uppercase font-bold tracking-[0.5px]">AI Predicted</span>
         </div>
         
-        <div className="insight-list">
+        <div className="flex flex-col gap-3">
           {loading ? (
-            <div className="loading">Calculating...</div>
+            <div className="text-[#666] italic">Calculating...</div>
           ) : multiForecast.length > 0 ? (
             multiForecast.slice(0, 3).map(f => (
-              <div key={f.id} className="forecast-item">
-                <div className="forecast-main">
-                  <span className="forecast-product">{f.name}</span>
-                  <span className="forecast-qty">{f.predictedNext7Days} units</span>
+              <div key={f.id} className="py-2 border-b border-[#f9f9f9] last:border-b-0">
+                <div className="flex justify-between text-[13px] mb-1">
+                  <span className="font-semibold text-black">{f.name}</span>
+                  <span className="font-bold font-mono text-black">{f.predictedNext7Days} units</span>
                 </div>
-                <div className="forecast-details">
-                  <span>Growth: <strong className={`forecast-growth ${parseFloat(f.growthRate) >= 0 ? 'up' : 'down'}`}>{f.growthRate}%</strong></span>
-                  <span>Confidence: <strong className="forecast-confidence">{f.confidence}%</strong></span>
-                  <span>Risk: <strong className={`forecast-risk ${f.stockoutRisk === 'Low' ? 'low' : 'high'}`}>{f.stockoutRisk}</strong></span>
+                <div className="flex gap-3 text-[10px] text-[#777] uppercase tracking-[0.2px]">
+                  <span>Growth: <strong className={`font-bold ${parseFloat(f.growthRate) >= 0 ? 'text-[#2e7d32]' : 'text-[#c62828]'}`}>{f.growthRate}%</strong></span>
+                  <span>Confidence: <strong className="font-bold text-[#333]">{f.confidence}%</strong></span>
+                  <span>Risk: <strong className={`font-bold ${f.stockoutRisk === 'Low' ? 'text-[#2e7d32]' : 'text-[#c62828]'}`}>{f.stockoutRisk}</strong></span>
                 </div>
               </div>
             ))
           ) : (
-            <div className="empty-state-text">No forecast available.</div>
+            <div className="text-center text-[#999] py-5 text-[11px] uppercase tracking-[0.5px]">No forecast available.</div>
           )}
         </div>
       </div>
 
       {/* Stock Depletion Card */}
-      <div className="stat-card insight-card border-red">
-        <div className="insight-header">
-          <div className="insight-label">Predictive Stock Depletion</div>
-          <span className="depletion-badge">30-day usage base</span>
+      <div className="text-left p-[18px] bg-white border border-[#e0e0e0] border-t-4 border-t-[#c62828] rounded-[4px] shadow-[0_2px_4px_rgba(0,0,0,0.02)]">
+        <div className="flex justify-between items-center mb-4 pb-2 border-b border-[#f0f0f0]">
+          <div className="text-[11px] font-bold uppercase tracking-[0.5px] text-[#333]">Predictive Stock Depletion</div>
+          <span className="text-[9px] text-[#888] uppercase font-semibold">30-day usage base</span>
         </div>
 
-        <div className="insight-list">
+        <div className="flex flex-col gap-3">
           {loading ? (
-            <div className="loading">Analyzing...</div>
+            <div className="text-[#666] italic">Analyzing...</div>
           ) : depletionData.length > 0 ? (
             depletionData.slice(0, 4).map(item => (
               <div key={item.id}>
-                <div className="depletion-item-header">
-                  <span className="depletion-product">{item.name}</span>
-                  <span className={`depletion-days ${item.daysRemaining < 3 ? 'critical' : 'stable'}`}>
+                <div className="flex justify-between text-[13px] mb-1">
+                  <span className="font-semibold text-black">{item.name}</span>
+                  <span className={`font-bold text-[11px] uppercase ${item.daysRemaining < 3 ? 'text-[#c62828]' : 'text-[#777]'}`}>
                     {item.daysRemaining ? `${item.daysRemaining} days left` : 'Stable'}
                   </span>
                 </div>
-                <div className="progress-track depletion-bar">
+                <div className="w-full bg-[#eee] h-1 rounded-none overflow-hidden">
                   <div 
-                    className="progress-fill"
+                    className="h-full transition-all duration-300 ease-out"
                     style={{ 
                       width: `${item.depletionPercentage}%`,
                       background: item.depletionPercentage > 80 ? '#c62828' : item.depletionPercentage > 50 ? '#f57f17' : '#2e7d32'
@@ -89,7 +88,7 @@ const PredictiveInsights = () => {
               </div>
             ))
           ) : (
-            <div className="empty-state-text">No depletion data available.</div>
+            <div className="text-center text-[#999] py-5 text-[11px] uppercase tracking-[0.5px]">No depletion data available.</div>
           )}
         </div>
       </div>

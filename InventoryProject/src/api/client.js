@@ -1,5 +1,8 @@
 // Centralized API client for all backend calls
-const API_BASE_URL = "http://localhost:5000/api";
+// Using a relative path so this works in both:
+//   - Development: Vite proxy forwards /api → http://localhost:5000
+//   - Production:  Same domain, /api is served by the Node.js app
+const API_BASE_URL = "/api";
 
 /**
  * Returns the currently logged-in user's ID from localStorage.
@@ -49,7 +52,10 @@ export async function apiCall(endpoint, options = {}) {
         localStorage.removeItem("user");
         window.location.href = "/";
       }
-      throw new Error(data.error || `API Error: ${response.status}`);
+      const err = new Error(data.error || `API Error: ${response.status}`);
+      err.payload = data;
+      err.status = response.status;
+      throw err;
     }
 
     return data;

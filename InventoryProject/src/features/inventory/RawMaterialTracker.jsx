@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { getIngredients } from '../../api/inventoryApi';
 import { formatQuantity } from '../../utils/productUtils';
 
-import './RawMaterialTracker.css';
 
 const RawMaterialTracker = () => {
   const [ingredients, setIngredients] = useState([]);
@@ -34,10 +33,10 @@ const RawMaterialTracker = () => {
   };
 
   const getStatusLabel = (status) => {
-    if (status === 'out') return 'OUT';
-    if (status === 'critical') return 'CRITICAL';
-    if (status === 'warning') return 'WARNING';
-    return 'HEALTHY';
+    if (status === 'out') return 'Out of Stock';
+    if (status === 'critical') return 'Restock Needed';
+    if (status === 'warning') return 'Low Stock';
+    return 'In Stock';
   };
 
   const getStockPercent = (current, alert_level) => {
@@ -64,102 +63,116 @@ const RawMaterialTracker = () => {
   };
 
   return (
-    <div className="inventory-container">
-      <div className="page-header tracker-page-header">
+    <div className="p-4 md:p-8 flex-1 bg-gray-50 overflow-y-auto w-full">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-          <h1>Raw Material Tracker</h1>
-          <p>Monitor your ingredient stock levels in real-time.</p>
+          <h1 className="m-0 text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">Raw Material Tracker</h1>
+          <p className="m-0 mt-1 text-sm text-gray-500 font-medium">Monitor your ingredient stock levels in real-time.</p>
         </div>
-        <button className="btn btn-secondary" onClick={fetchIngredients} disabled={loading}>
+        <button 
+          className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-gray-50 transition-colors shadow-sm disabled:bg-gray-100 disabled:text-gray-400"
+          onClick={fetchIngredients} 
+          disabled={loading}
+        >
           {loading ? 'Refreshing...' : 'Refresh'}
         </button>
       </div>
 
       {/* ---- Stats Row ---- */}
-      <div className="tracker-stats-row">
-        <div className="tracker-stat-card">
-          <div className="tracker-stat-label">Total Ingredients</div>
-          <div className="tracker-stat-value">{stats.total}</div>
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+        <div className="bg-white border border-gray-200 p-5 rounded-xl shadow-sm flex flex-col justify-center text-center">
+          <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Total Ingredients</div>
+          <div className="text-2xl font-extrabold text-gray-900">{stats.total}</div>
         </div>
-        <div className="tracker-stat-card stat-out">
-          <div className="tracker-stat-label">Out of Stock</div>
-          <div className="tracker-stat-value">{stats.out}</div>
+        <div className="bg-red-50 border border-red-200 p-5 rounded-xl shadow-sm flex flex-col justify-center text-center">
+          <div className="text-xs font-bold text-red-600 uppercase tracking-wider mb-1">Out of Stock</div>
+          <div className="text-2xl font-extrabold text-red-700">{stats.out}</div>
         </div>
-        <div className="tracker-stat-card stat-critical">
-          <div className="tracker-stat-label">Critical</div>
-          <div className="tracker-stat-value">{stats.critical}</div>
+        <div className="bg-red-50 border border-red-100 p-5 rounded-xl shadow-sm flex flex-col justify-center text-center">
+          <div className="text-xs font-bold text-red-600 uppercase tracking-wider mb-1">Restock Needed</div>
+          <div className="text-2xl font-extrabold text-red-600">{stats.critical}</div>
         </div>
-        <div className="tracker-stat-card stat-warning">
-          <div className="tracker-stat-label">Warning</div>
-          <div className="tracker-stat-value">{stats.warning}</div>
+        <div className="bg-amber-50 border border-amber-100 p-5 rounded-xl shadow-sm flex flex-col justify-center text-center">
+          <div className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">Low Stock</div>
+          <div className="text-2xl font-extrabold text-amber-600">{stats.warning}</div>
         </div>
-        <div className="tracker-stat-card stat-healthy">
-          <div className="tracker-stat-label">Healthy</div>
-          <div className="tracker-stat-value">{stats.healthy}</div>
+        <div className="bg-green-50 border border-green-100 p-5 rounded-xl shadow-sm flex flex-col justify-center text-center">
+          <div className="text-xs font-bold text-green-600 uppercase tracking-wider mb-1">In Stock</div>
+          <div className="text-2xl font-extrabold text-green-600">{stats.healthy}</div>
         </div>
       </div>
 
       {/* ---- Main Table Card ---- */}
-      <div className="card">
-        <div className="card-header manage-products-header">
-          <h2>Ingredient Stock Levels</h2>
-          <div className="table-filters-container">
+      <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden w-full">
+        <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <h2 className="m-0 text-lg font-bold text-gray-900 tracking-tight">Ingredient Stock Levels</h2>
+          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
             <input
               type="text"
               placeholder="Search ingredients..."
-              className="filter-input"
+              className="w-full sm:w-64 px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
             <select
-              className="filter-select"
+              className="w-full sm:w-48 px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
               value={stockFilter}
               onChange={e => setStockFilter(e.target.value)}
             >
               <option value="ALL">All Status</option>
-              <option value="OUT">Out of Stock</option>
-              <option value="CRITICAL">Critical Only</option>
-              <option value="WARNING">Warning Only</option>
-              <option value="HEALTHY">Healthy Only</option>
+              <option value="OUT">Out of Stock Only</option>
+              <option value="CRITICAL">Restock Needed Only</option>
+              <option value="WARNING">Low Stock Only</option>
+              <option value="HEALTHY">In Stock Only</option>
             </select>
           </div>
         </div>
-        <div className="card-body">
+        <div className="p-0">
           {loading ? (
-            <p>Loading...</p>
+            <div className="p-8 text-center text-gray-500 font-medium">Loading...</div>
           ) : filteredIngredients.length > 0 ? (
-            <div className="table-container">
-              <table className="table">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse whitespace-nowrap">
                 <thead>
-                  <tr>
-                    <th>Ingredient</th>
-                    <th>Current Stock</th>
-                    <th>Alert Level</th>
-                    <th>Stock Level</th>
-                    <th>Status</th>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Ingredient</th>
+                    <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Current Stock</th>
+                    <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Alert Level</th>
+                    <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Stock Level</th>
+                    <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-gray-100">
                   {filteredIngredients.map(ing => {
                     const status = getStockStatus(ing.stock_quantity, ing.low_stock_alert);
                     const pct = getStockPercent(ing.stock_quantity, ing.low_stock_alert);
 
                     return (
-                      <tr key={ing.id}>
-                        <td><strong>{ing.name}</strong></td>
-                        <td>{formatQuantity(ing.stock_quantity, ing.unit)}</td>
-                        <td>{formatQuantity(ing.low_stock_alert, ing.unit)}</td>
-                        <td>
-                          <div className="progress-track">
-                            <div
-                              className={`progress-fill bg-${status}`}
-                              style={{ width: `${pct}%` }}
-                            />
+                      <tr key={ing.id} className="hover:bg-gray-50/50 transition-colors">
+                        <td className="px-6 py-4"><strong className="text-sm font-bold text-gray-900">{ing.name}</strong></td>
+                        <td className="px-6 py-4 text-sm font-extrabold text-gray-900 text-right">{formatQuantity(ing.stock_quantity, ing.unit)}</td>
+                        <td className="px-6 py-4 text-sm font-medium text-gray-500 text-right">{formatQuantity(ing.low_stock_alert, ing.unit)}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${
+                                  status === 'out' ? 'bg-red-600' :
+                                  status === 'critical' ? 'bg-red-500' :
+                                  status === 'warning' ? 'bg-orange-500' : 'bg-green-500'
+                                }`}
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                            <span className="text-xs font-bold text-gray-600 w-8">{pct}%</span>
                           </div>
-                          <span className="progress-percentage">{pct}%</span>
                         </td>
-                        <td>
-                          <span className={`stock-badge ${status}`}>
+                        <td className="px-6 py-4">
+                          <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                            status === 'out' ? 'bg-red-50 text-red-700 border border-red-200' :
+                            status === 'critical' ? 'bg-red-50 text-red-600 border border-red-100' :
+                            status === 'warning' ? 'bg-orange-50 text-orange-600 border border-orange-100' : 'bg-green-50 text-green-700 border border-green-200'
+                          }`}>
                             {getStatusLabel(status)}
                           </span>
                         </td>
@@ -170,8 +183,9 @@ const RawMaterialTracker = () => {
               </table>
             </div>
           ) : (
-            <div className="empty-state">
-              <p>No ingredients match your search.</p>
+            <div className="p-12 flex flex-col items-center justify-center text-gray-400 bg-gray-50/50">
+              <svg className="w-12 h-12 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+              <p className="m-0 text-sm font-medium">No ingredients match your search.</p>
             </div>
           )}
         </div>

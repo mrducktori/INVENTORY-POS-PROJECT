@@ -7,6 +7,8 @@ export const getAuditLogs = async (filters = {}) => {
   if (filters.action) params.append('action', filters.action);
   if (filters.start_date) params.append('start_date', filters.start_date);
   if (filters.end_date) params.append('end_date', filters.end_date);
+  if (filters.limit) params.append('limit', filters.limit);
+  if (filters.offset) params.append('offset', filters.offset);
   return apiCall(`/audit?${params.toString()}`);
 };
 

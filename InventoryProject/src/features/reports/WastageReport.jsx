@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { getWastageReport, getWastageStats } from '../../api/reportsApi';
 import { downloadCSV, printReport } from './reportUtils';
-import './Reports.css';
 
 // ─── Reason badge colors ──────────────────────────────────────────────────────
 const reasonBadgeStyle = (reason) => {
@@ -161,43 +160,45 @@ const WastageReport = () => {
   };
 
   return (
-    <>
+    <div className="flex flex-col gap-6">
       {/* Controls */}
-      <div className="report-controls">
-        <div className="report-controls-left">
-          <div className="control-group">
-            <span className="control-label">Start Date</span>
+      <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-6 flex flex-col lg:flex-row justify-between gap-6">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-bold text-gray-700 uppercase tracking-wider">Start Date</span>
             <input
               type="date"
-              className="control-input"
+              className="px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm w-40"
               value={startDate}
               onChange={e => { setStartDate(e.target.value); setFetched(false); }}
-              style={{ minWidth: 150 }}
             />
           </div>
-          <div className="control-group">
-            <span className="control-label">End Date</span>
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-bold text-gray-700 uppercase tracking-wider">End Date</span>
             <input
               type="date"
-              className="control-input"
+              className="px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm w-40"
               value={endDate}
               onChange={e => { setEndDate(e.target.value); setFetched(false); }}
-              style={{ minWidth: 150 }}
             />
           </div>
           {fetched && (
             <>
-              <div className="control-group">
-                <span className="control-label">Reason</span>
-                <select className="control-select" value={reasonFilter} onChange={e => setReasonFilter(e.target.value)}>
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-bold text-gray-700 uppercase tracking-wider">Reason</span>
+                <select 
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
+                  value={reasonFilter} 
+                  onChange={e => setReasonFilter(e.target.value)}
+                >
                   {reasons.map(r => <option key={r} value={r}>{r === 'ALL' ? 'All Reasons' : r}</option>)}
                 </select>
               </div>
-              <div className="control-group">
-                <span className="control-label">Search</span>
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-bold text-gray-700 uppercase tracking-wider">Search</span>
                 <input
                   type="text"
-                  className="control-input"
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm w-48"
                   placeholder="Item, reason, staff..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
@@ -206,129 +207,145 @@ const WastageReport = () => {
             </>
           )}
         </div>
-        <div className="report-controls-right">
-          <button className="rpt-btn" onClick={handleExport} disabled={!fetched || loading}>
+        <div className="flex flex-wrap gap-3">
+          <button 
+            className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-gray-50 transition-colors disabled:opacity-50 shadow-sm" 
+            onClick={handleExport} 
+            disabled={!fetched || loading}
+          >
             Export CSV
           </button>
-          <button className="rpt-btn rpt-btn-primary" onClick={fetchReport} disabled={loading}>
-            {loading ? 'Loading...' : fetched ? 'Refresh' : 'Generate Report'}
+          <button 
+            className="px-5 py-2.5 bg-gray-900 text-white rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm" 
+            onClick={fetchReport} 
+            disabled={loading}
+          >
+            {loading ? 'Loading...' : fetched ? 'Refresh Data' : 'Generate Report'}
           </button>
-          <button className="rpt-btn" onClick={handlePrint} disabled={!fetched}>
+          <button 
+            className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-gray-50 transition-colors disabled:opacity-50 shadow-sm" 
+            onClick={handlePrint} 
+            disabled={!fetched}
+          >
             Print
           </button>
         </div>
       </div>
 
       {!fetched && !loading && (
-        <div className="rpt-empty">
-          <div className="rpt-empty-title">Ready to Generate</div>
-          <p>Optionally set a date range, then click <strong>Generate Report</strong> to view wastage data.</p>
+        <div className="p-12 flex flex-col items-center justify-center text-gray-500 bg-white border border-gray-200 border-dashed rounded-xl h-64">
+          <svg className="w-16 h-16 mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+          <div className="text-lg font-bold text-gray-900 mb-1">Ready to Generate</div>
+          <p className="m-0 text-sm">Optionally set a date range, then click <strong className="text-gray-900">Generate Report</strong> to view wastage data.</p>
         </div>
       )}
 
-      {loading && <div className="rpt-loading">Loading wastage records...</div>}
+      {loading && (
+        <div className="p-12 flex flex-col items-center justify-center text-gray-500 bg-white border border-gray-200 rounded-xl h-64 animate-pulse">
+          <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-900 rounded-full animate-spin mb-4"></div>
+          <p className="m-0 font-medium">Loading wastage records...</p>
+        </div>
+      )}
 
       {fetched && !loading && (
-        <>
+        <div className="flex flex-col gap-6 animate-[fadeIn_0.3s_ease-out]">
           {/* KPI Cards */}
-          <div className="rpt-kpi-grid">
-            <div className="rpt-kpi-card accent-red">
-              <div className="rpt-kpi-label">Total Records</div>
-              <div className="rpt-kpi-value">{filtered.length}</div>
-              <div className="rpt-kpi-sub">wastage events</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-t-4 border-t-gray-900">
+              <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Total Records</div>
+              <div className="text-2xl font-extrabold text-gray-900 mb-1">{filtered.length}</div>
+              <div className="text-xs font-medium text-gray-400">wastage events</div>
             </div>
-            <div className="rpt-kpi-card accent-orange">
-              <div className="rpt-kpi-label">Estimated Cost Loss</div>
-              <div className="rpt-kpi-value">₱{totalCost.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-              <div className="rpt-kpi-sub">total loss value</div>
+            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-t-4 border-t-red-500">
+              <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Estimated Cost Loss</div>
+              <div className="text-2xl font-extrabold text-red-700 mb-1">₱{totalCost.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              <div className="text-xs font-medium text-gray-400">total loss value</div>
             </div>
-            <div className="rpt-kpi-card">
-              <div className="rpt-kpi-label">Total Quantity Wasted</div>
-              <div className="rpt-kpi-value">{totalQuantity.toFixed(2)}</div>
-              <div className="rpt-kpi-sub">units lost</div>
+            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-t-4 border-t-orange-500">
+              <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Total Quantity Wasted</div>
+              <div className="text-2xl font-extrabold text-gray-900 mb-1">{totalQuantity.toFixed(2)}</div>
+              <div className="text-xs font-medium text-gray-400">units lost</div>
             </div>
-            <div className="rpt-kpi-card">
-              <div className="rpt-kpi-label">Reason Categories</div>
-              <div className="rpt-kpi-value">{byReason.length}</div>
-              <div className="rpt-kpi-sub">distinct reasons</div>
+            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-t-4 border-t-purple-500">
+              <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Reason Categories</div>
+              <div className="text-2xl font-extrabold text-gray-900 mb-1">{byReason.length}</div>
+              <div className="text-xs font-medium text-gray-400">distinct reasons</div>
             </div>
           </div>
 
           {/* Reason Breakdown */}
           {byReason.length > 0 && (
-            <div className="rpt-two-col">
-              <div className="rpt-card">
-                <div className="rpt-card-header">
-                  <h2>Breakdown by Reason</h2>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden">
+                <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50">
+                  <h2 className="m-0 text-lg font-bold text-gray-900 tracking-tight">Breakdown by Reason</h2>
                 </div>
-                <div className="rpt-card-body">
-                  <table className="rpt-table">
-                    <thead>
-                      <tr>
-                        <th>Reason</th>
-                        <th style={{ textAlign: 'center' }}>Events</th>
-                        <th style={{ textAlign: 'right' }}>Cost Loss</th>
-                        <th>Share</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {byReason.map(([reason, data]) => {
-                        const share = filtered.length > 0 ? (data.count / filtered.length) * 100 : 0;
-                        return (
-                          <tr key={reason}>
-                            <td>
-                              <span
-                                className="rpt-badge"
-                                style={reasonBadgeStyle(reason)}
-                              >
-                                {reason}
-                              </span>
-                            </td>
-                            <td style={{ textAlign: 'center', fontWeight: 700 }}>{data.count}</td>
-                            <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700 }}>
-                              ₱{data.cost.toFixed(2)}
-                            </td>
-                            <td>
-                              <div className="rpt-bar-row">
-                                <div className="rpt-bar-track" style={{ flex: 1 }}>
-                                  <div className="rpt-bar-fill red" style={{ width: `${share}%` }} />
+                <div className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse whitespace-nowrap">
+                      <thead>
+                        <tr className="bg-gray-50 border-b border-gray-200">
+                          <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Reason</th>
+                          <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Events</th>
+                          <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Cost Loss</th>
+                          <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider min-w-[150px]">Share</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {byReason.map(([reason, data]) => {
+                          const share = filtered.length > 0 ? (data.count / filtered.length) * 100 : 0;
+                          return (
+                            <tr key={reason} className="hover:bg-gray-50/50 transition-colors">
+                              <td className="px-6 py-4">
+                                <span
+                                  className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                                  style={reasonBadgeStyle(reason)}
+                                >
+                                  {reason}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 text-sm font-extrabold text-gray-900 text-center">{data.count}</td>
+                              <td className="px-6 py-4 text-sm font-bold font-mono text-red-700 text-right">
+                                ₱{data.cost.toFixed(2)}
+                              </td>
+                              <td className="px-6 py-4">
+                                <div className="flex items-center gap-3">
+                                  <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                                    <div className="h-full bg-red-600 rounded-full" style={{ width: `${share}%` }} />
+                                  </div>
+                                  <span className="text-xs font-bold text-gray-600 w-10 text-right">{share.toFixed(0)}%</span>
                                 </div>
-                                <span className="rpt-bar-pct">{share.toFixed(0)}%</span>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
 
               {/* Stats from /wastage/stats */}
               {stats && (
-                <div className="rpt-card">
-                  <div className="rpt-card-header">
-                    <h2>Overall Statistics</h2>
+                <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden h-fit">
+                  <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50">
+                    <h2 className="m-0 text-lg font-bold text-gray-900 tracking-tight">Overall Statistics</h2>
                   </div>
-                  <div style={{ padding: 20 }}>
-                    {Object.entries(stats).map(([k, v]) => (
-                      <div key={k} style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        padding: '10px 0',
-                        borderBottom: '1px solid #f0f0f0',
-                        fontSize: 13
-                      }}>
-                        <span style={{ color: '#666', textTransform: 'capitalize' }}>{k.replace(/_/g, ' ')}</span>
-                        <span style={{ fontWeight: 700, fontFamily: 'monospace' }}>
-                          {k === 'wastageByIngredient' 
-                            ? Object.keys(v).length + ' items' 
-                            : (typeof v === 'number' && k.toLowerCase().includes('cost'))
-                              ? `₱${parseFloat(v).toFixed(2)}`
-                              : v}
-                        </span>
-                      </div>
-                    ))}
+                  <div className="p-6">
+                    <div className="flex flex-col divide-y divide-gray-100">
+                      {Object.entries(stats).map(([k, v]) => (
+                        <div key={k} className="py-3 flex justify-between items-center text-sm">
+                          <span className="text-gray-500 font-medium capitalize">{k.replace(/_/g, ' ')}</span>
+                          <span className="font-bold text-gray-900 font-mono">
+                            {k === 'wastageByIngredient' 
+                              ? Object.keys(v).length + ' items' 
+                              : (typeof v === 'number' && k.toLowerCase().includes('cost'))
+                                ? `₱${parseFloat(v).toFixed(2)}`
+                                : v}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
@@ -336,69 +353,71 @@ const WastageReport = () => {
           )}
 
           {/* Main Wastage Table */}
-          <div className="rpt-card">
-            <div className="rpt-card-header">
-              <h2>Wastage Log ({filtered.length} records)</h2>
+          <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden">
+            <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50">
+              <h2 className="m-0 text-lg font-bold text-gray-900 tracking-tight">Wastage Log ({filtered.length} records)</h2>
             </div>
-            <div className="rpt-card-body">
+            <div className="p-0">
               {filtered.length > 0 ? (
-                <table className="rpt-table">
-                  <thead>
-                    <tr>
-                      <th onClick={() => handleSort('created_at')}>Date & Time{arrow('created_at')}</th>
-                      <th onClick={() => handleSort('ingredient_name')}>Ingredient{arrow('ingredient_name')}</th>
-                      <th style={{ textAlign: 'right' }} onClick={() => handleSort('quantity')}>
-                        Qty{arrow('quantity')}
-                      </th>
-                      <th>Unit</th>
-                      <th onClick={() => handleSort('reason')}>Reason{arrow('reason')}</th>
-                      <th style={{ textAlign: 'right' }} onClick={() => handleSort('estimated_cost')}>
-                        Loss Value{arrow('estimated_cost')}
-                      </th>
-                      <th>By</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtered.map((e, i) => (
-                      <tr key={e.id || i}>
-                        <td style={{ fontFamily: 'monospace', fontSize: 11, color: '#777' }}>
-                          {new Date(e.created_at).toLocaleString()}
-                        </td>
-                        <td style={{ fontWeight: 600 }}>
-                          {e.ingredients?.name || e.ingredient_name || '—'}
-                        </td>
-                        <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700 }}>
-                          {parseFloat(e.quantity || 0).toFixed(2)}
-                        </td>
-                        <td style={{ color: '#777', fontSize: 12 }}>
-                          {e.ingredients?.unit || e.unit || '—'}
-                        </td>
-                        <td>
-                          {e.reason
-                            ? <span className="rpt-badge" style={reasonBadgeStyle(e.reason)}>{e.reason}</span>
-                            : <span style={{ color: '#ccc' }}>—</span>}
-                        </td>
-                        <td style={{ textAlign: 'right', fontFamily: 'monospace', color: '#c62828', fontWeight: 700 }}>
-                          ₱{parseFloat(e.estimated_cost || 0).toFixed(2)}
-                        </td>
-                        <td style={{ fontSize: 12, color: '#555' }}>
-                          {e.users?.name || e.reported_by_name || '—'}
-                        </td>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse whitespace-nowrap">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-200">
+                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-900" onClick={() => handleSort('created_at')}>Date & Time{arrow('created_at')}</th>
+                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-900" onClick={() => handleSort('ingredient_name')}>Ingredient{arrow('ingredient_name')}</th>
+                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-900 text-right" onClick={() => handleSort('quantity')}>
+                          Qty{arrow('quantity')}
+                        </th>
+                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Unit</th>
+                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-900" onClick={() => handleSort('reason')}>Reason{arrow('reason')}</th>
+                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-900 text-right" onClick={() => handleSort('estimated_cost')}>
+                          Loss Value{arrow('estimated_cost')}
+                        </th>
+                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">By</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {filtered.map((e, i) => (
+                        <tr key={e.id || i} className="hover:bg-gray-50/50 transition-colors">
+                          <td className="px-6 py-4 text-xs font-medium font-mono text-gray-500">
+                            {new Date(e.created_at).toLocaleString()}
+                          </td>
+                          <td className="px-6 py-4 text-sm font-bold text-gray-900">
+                            {e.ingredients?.name || e.ingredient_name || '—'}
+                          </td>
+                          <td className="px-6 py-4 text-sm font-bold font-mono text-gray-900 text-right">
+                            {parseFloat(e.quantity || 0).toFixed(2)}
+                          </td>
+                          <td className="px-6 py-4 text-xs font-medium text-gray-500">
+                            {e.ingredients?.unit || e.unit || '—'}
+                          </td>
+                          <td className="px-6 py-4">
+                            {e.reason
+                              ? <span className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider" style={reasonBadgeStyle(e.reason)}>{e.reason}</span>
+                              : <span className="text-gray-300">—</span>}
+                          </td>
+                          <td className="px-6 py-4 text-sm font-bold font-mono text-red-700 text-right">
+                            ₱{parseFloat(e.estimated_cost || 0).toFixed(2)}
+                          </td>
+                          <td className="px-6 py-4 text-xs font-medium text-gray-600">
+                            {e.users?.name || e.reported_by_name || '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               ) : (
-                <div className="rpt-empty">
-                  <div className="rpt-empty-title">No Records Found</div>
-                  <p>No wastage events match your current filters.</p>
+                <div className="p-12 flex flex-col items-center justify-center text-gray-500 bg-gray-50/50">
+                  <div className="text-lg font-bold text-gray-900 mb-1">No Records Found</div>
+                  <p className="m-0 text-sm">No wastage events match your current filters.</p>
                 </div>
               )}
             </div>
           </div>
-        </>
+        </div>
       )}
-    </>
+    </div>
   );
 };
 

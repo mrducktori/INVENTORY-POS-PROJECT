@@ -67,29 +67,18 @@ const CustomTooltip = ({ active, payload, label }) => {
   }
 
   return (
-    <div
-      style={{
-        background: '#111',
-        color: '#fff',
-        padding: '12px 16px',
-        borderRadius: '4px',
-        fontSize: '13px',
-        lineHeight: '1.8',
-        minWidth: '180px',
-        border: '1px solid #333',
-      }}
-    >
-      <div style={{ fontWeight: '700', marginBottom: '6px', borderBottom: '1px solid #444', paddingBottom: '6px', color: '#fff' }}>
+    <div className="bg-gray-900 text-white px-4 py-3 rounded-lg text-sm leading-relaxed min-w-[180px] border border-gray-700 shadow-lg">
+      <div className="font-semibold mb-2 border-b border-gray-700 pb-2 text-white">
         {formattedDate}
       </div>
       {payload.map((entry) => (
-        <div key={entry.name} style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'center' }}>
+        <div key={entry.name} className="flex justify-between gap-4 items-center mb-1 last:mb-0">
           {/* Colored swatch (square) instead of bullet to avoid black-on-black */}
-          <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#fff' }}>
+          <span className="flex items-center gap-2 text-gray-200">
             <span style={{ width: '10px', height: '10px', borderRadius: '2px', background: entry.color, display: 'inline-block', flexShrink: 0 }} />
             {entry.name}
           </span>
-          <span style={{ fontWeight: '600', color: '#fff' }}>
+          <span className="font-bold text-white">
             ₱{Number(entry.value).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
           </span>
         </div>
@@ -114,23 +103,14 @@ const ExpandedTrendChart = ({
   const isShowingAll = activeTrendCategory === 'All';
 
   return (
-    <div
-      className="chart-card large animate-pop-in"
-      style={{ marginTop: '20px' }}
-    >
-      <div
-        className="chart-header"
-        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-      >
-        <h3>Detailed Sales Trend (Last 7 Days)</h3>
+    <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm col-span-1 lg:col-span-2 mt-8 mb-8 animate-[fadeIn_0.2s_ease-in-out]">
+      <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4 flex-wrap gap-4">
+        <h3 className="m-0 text-sm font-semibold text-gray-800 uppercase tracking-wider">Detailed Sales Trend (Last 7 Days)</h3>
 
-        <div
-          className="chart-filters"
-          style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-        >
+        <div className="flex items-center gap-3 flex-wrap">
           {/* "All" filter button */}
           <button
-            className={`filter-btn ${isShowingAll ? 'active' : ''}`}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium uppercase tracking-wider cursor-pointer transition-colors ${isShowingAll ? 'bg-gray-900 text-white border border-gray-900' : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'}`}
             onClick={() => onCategoryChange('All')}
           >
             All
@@ -140,7 +120,7 @@ const ExpandedTrendChart = ({
           {trendCategories.map((cat) => (
             <button
               key={cat}
-              className={`filter-btn ${activeTrendCategory === cat ? 'active' : ''}`}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium uppercase tracking-wider cursor-pointer transition-colors ${activeTrendCategory === cat ? 'bg-gray-900 text-white border border-gray-900' : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'}`}
               onClick={() => onCategoryChange(cat)}
             >
               {cat}
@@ -148,22 +128,21 @@ const ExpandedTrendChart = ({
           ))}
 
           {/* Divider */}
-          <div style={{ width: '1px', height: '20px', background: '#ccc', margin: '0 8px' }} />
+          <div className="w-px h-5 bg-gray-300 mx-1" />
 
           {/* Collapse button */}
           <button
-            className="filter-btn"
+            className="bg-white border border-gray-300 text-gray-600 font-semibold px-3 py-1.5 rounded-lg text-xs uppercase tracking-wider cursor-pointer transition-colors hover:bg-gray-50 hover:text-gray-900"
             onClick={onCollapse}
-            style={{ fontWeight: 'bold', color: '#c62828', borderColor: '#c62828' }}
           >
             ✖ Collapse
           </button>
         </div>
       </div>
 
-      <div className="chart-body">
+      <div className="h-80 flex items-center justify-center">
         {loading ? (
-          <div className="loading">Loading chart...</div>
+          <div className="text-[#666] italic">Loading chart...</div>
         ) : (
           <ResponsiveContainer width="100%" height={320}>
             <LineChart data={trendChartData} margin={{ top: 10, right: 20, left: 10, bottom: 20 }}>

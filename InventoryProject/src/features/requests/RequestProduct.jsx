@@ -5,7 +5,6 @@ import { getProducts } from '../../api/posApi';
 import { getIngredients } from '../../api/inventoryApi';
 import { getRecipesByProduct } from '../../api/recipesApi';
 
-import './RequestProduct.css';
 
 const RequestProduct = () => {
   const [activeTab, setActiveTab] = useState('SUBMIT'); // 'SUBMIT' | 'HISTORY'
@@ -156,21 +155,25 @@ const RequestProduct = () => {
   };
 
   return (
-    <div className="inventory-container">
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div className="p-4 md:p-8 flex-1 bg-gray-50 overflow-y-auto w-full">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-          <h1>Staff Request Center</h1>
-          <p>Submit structured requests for product additions or modifications.</p>
+          <h1 className="m-0 text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">Staff Request Center</h1>
+          <p className="m-0 mt-1 text-sm text-gray-500 font-medium">Submit structured requests for product additions or modifications.</p>
         </div>
-        <div className="tab-buttons">
+        <div className="flex bg-gray-200 p-1 rounded-xl shadow-inner">
           <button 
-            className={`btn ${activeTab === 'SUBMIT' ? 'btn-primary' : 'btn-secondary'}`}
+            className={`px-6 py-2.5 rounded-lg text-sm font-bold uppercase tracking-wider transition-all ${
+              activeTab === 'SUBMIT' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            }`}
             onClick={() => setActiveTab('SUBMIT')}
           >
             New Request
           </button>
           <button 
-            className={`btn ${activeTab === 'HISTORY' ? 'btn-primary' : 'btn-secondary'}`}
+            className={`px-6 py-2.5 rounded-lg text-sm font-bold uppercase tracking-wider transition-all ${
+              activeTab === 'HISTORY' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            }`}
             onClick={() => setActiveTab('HISTORY')}
           >
             My History
@@ -179,31 +182,43 @@ const RequestProduct = () => {
       </div>
 
       {message && (
-        <div className={`alert ${message.includes('success') ? 'alert-success' : 'alert-error'}`}>
+        <div className={`p-4 mb-6 rounded-xl text-sm font-bold flex items-center shadow-sm border ${
+          message.includes('success') 
+            ? 'bg-green-50 text-green-800 border-green-200' 
+            : 'bg-red-50 text-red-800 border-red-200'
+        }`}>
           {message}
         </div>
       )}
 
       {activeTab === 'SUBMIT' ? (
-        <div className="card request-card-large">
-          <div className="card-header">
-            <h2>{type.replace('_', ' ')} FORM</h2>
+        <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden max-w-4xl mx-auto w-full mb-8">
+          <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50">
+            <h2 className="m-0 text-lg font-bold text-gray-900 tracking-tight">{type.replace('_', ' ')} FORM</h2>
           </div>
-          <div className="card-body">
-            <form onSubmit={handleSubmit}>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Request Category</label>
-                  <select value={type} onChange={e => { setType(e.target.value); resetForm(); }}>
+          <div className="p-6 md:p-8">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-gray-50 rounded-xl border border-gray-100">
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-bold text-gray-700">Request Category</label>
+                  <select 
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
+                    value={type} 
+                    onChange={e => { setType(e.target.value); resetForm(); }}
+                  >
                     <option value="NEW_PRODUCT">Add New Item</option>
                     <option value="PRICE_CHANGE">Modify Pricing</option>
                     <option value="RECIPE_CHANGE">Modify Recipe</option>
                     <option value="OTHER">General Feedback</option>
                   </select>
                 </div>
-                <div className="form-group">
-                  <label>Urgency</label>
-                  <select value={priority} onChange={e => setPriority(e.target.value)}>
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-bold text-gray-700">Urgency</label>
+                  <select 
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
+                    value={priority} 
+                    onChange={e => setPriority(e.target.value)}
+                  >
                     <option value="LOW">Low</option>
                     <option value="NORMAL">Normal</option>
                     <option value="HIGH">High</option>
@@ -212,35 +227,38 @@ const RequestProduct = () => {
                 </div>
               </div>
 
-              <div className="request-form-content animate-fade-in">
+              <div className="animate-[fadeIn_0.3s_ease-out] flex flex-col gap-6">
                 {type === 'NEW_PRODUCT' && (
-                  <div className="structured-form">
-                    <div className="form-group">
-                      <label>Proposed Item Name</label>
+                  <div className="flex flex-col gap-6">
+                    <div className="flex flex-col gap-2">
+                      <label className="text-sm font-bold text-gray-700">Proposed Item Name</label>
                       <input 
                         type="text" 
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
                         value={newProduct.name} 
                         onChange={e => setNewProduct({...newProduct, name: e.target.value})} 
                         placeholder="e.g. Spanish Latte"
                         required 
                       />
                     </div>
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label>Category</label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="flex flex-col gap-2">
+                        <label className="text-sm font-bold text-gray-700">Category</label>
                         <input 
                           type="text" 
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
                           value={newProduct.category} 
                           onChange={e => setNewProduct({...newProduct, category: e.target.value})} 
                           placeholder="e.g. COFFEE"
                           required 
                         />
                       </div>
-                      <div className="form-group">
-                        <label>Suggested Price (₱)</label>
+                      <div className="flex flex-col gap-2">
+                        <label className="text-sm font-bold text-gray-700">Suggested Price (₱)</label>
                         <input 
                           type="number" 
                           step="0.01" 
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
                           value={newProduct.price} 
                           onChange={e => setNewProduct({...newProduct, price: e.target.value})} 
                           required 
@@ -251,9 +269,10 @@ const RequestProduct = () => {
                 )}
 
                 {(type === 'PRICE_CHANGE' || type === 'RECIPE_CHANGE') && (
-                  <div className="form-group">
-                    <label>Select Existing Product</label>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-bold text-gray-700">Select Existing Product</label>
                     <select 
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
                       value={selectedProductId} 
                       onChange={e => handleProductSelect(e.target.value)}
                       required
@@ -265,45 +284,62 @@ const RequestProduct = () => {
                 )}
 
                 {type === 'PRICE_CHANGE' && selectedProductId && (
-                  <div className="form-group animate-fade-in">
-                    <label>Proposed New Price (₱)</label>
+                  <div className="flex flex-col gap-2 animate-[fadeIn_0.3s_ease-out]">
+                    <label className="text-sm font-bold text-gray-700">Proposed New Price (₱)</label>
                     <input 
                       type="number" 
                       step="0.01" 
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
                       value={newPrice} 
                       onChange={e => setNewPrice(e.target.value)} 
                       required 
                     />
-                    <small style={{color: '#666'}}>Current price: ₱{products.find(p => p.id === selectedProductId)?.price}</small>
+                    <small className="text-xs text-gray-500 font-medium">Current price: ₱{products.find(p => p.id === selectedProductId)?.price}</small>
                   </div>
                 )}
 
                 {type === 'RECIPE_CHANGE' && selectedProductId && (
-                  <div className="proposed-recipe-section animate-fade-in">
-                    <h3>Proposed Recipe Changes</h3>
-                    <div className="table-container">
-                      <table className="table">
+                  <div className="animate-[fadeIn_0.3s_ease-out] border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                    <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                      <h3 className="m-0 text-sm font-bold text-gray-900 uppercase tracking-wider">Proposed Recipe Changes</h3>
+                    </div>
+                    
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse whitespace-nowrap">
                         <thead>
-                          <tr><th>Ingredient</th><th>Proposed Qty</th><th>Action</th></tr>
+                          <tr className="bg-gray-50/50 border-b border-gray-100">
+                            <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Ingredient</th>
+                            <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Proposed Qty</th>
+                            <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider w-16 text-right">Action</th>
+                          </tr>
                         </thead>
-                        <tbody>
+                        <tbody className="divide-y divide-gray-100">
                           {proposedRecipe.map(item => (
-                            <tr key={item.ingredient_id}>
-                              <td>{item.name}</td>
-                              <td>
-                                <input 
-                                  type="number" 
-                                  step="0.01" 
-                                  value={item.qty} 
-                                  onChange={e => {
-                                    const val = parseFloat(e.target.value) || 0;
-                                    setProposedRecipe(proposedRecipe.map(i => i.ingredient_id === item.ingredient_id ? {...i, qty: val} : i));
-                                  }}
-                                  style={{width: '80px'}}
-                                /> {item.unit}
+                            <tr key={item.ingredient_id} className="hover:bg-gray-50 transition-colors">
+                              <td className="px-6 py-4 text-sm font-bold text-gray-900">{item.name}</td>
+                              <td className="px-6 py-4">
+                                <div className="flex items-center gap-2">
+                                  <input 
+                                    type="number" 
+                                    step="0.01" 
+                                    className="w-24 px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                                    value={item.qty} 
+                                    onChange={e => {
+                                      const val = parseFloat(e.target.value) || 0;
+                                      setProposedRecipe(proposedRecipe.map(i => i.ingredient_id === item.ingredient_id ? {...i, qty: val} : i));
+                                    }}
+                                  /> 
+                                  <span className="text-sm text-gray-500 font-medium">{item.unit}</span>
+                                </div>
                               </td>
-                              <td>
-                                <button type="button" className="btn btn-small btn-danger" onClick={() => removeIngredientFromProposed(item.ingredient_id)}>×</button>
+                              <td className="px-6 py-4 text-right">
+                                <button 
+                                  type="button" 
+                                  className="w-8 h-8 flex items-center justify-center rounded-full bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                                  onClick={() => removeIngredientFromProposed(item.ingredient_id)}
+                                >
+                                  ✕
+                                </button>
                               </td>
                             </tr>
                           ))}
@@ -311,8 +347,9 @@ const RequestProduct = () => {
                       </table>
                     </div>
                     
-                    <div className="add-proposed-ing" style={{display: 'flex', gap: '10px', marginTop: '10px'}}>
+                    <div className="p-4 bg-gray-50 border-t border-gray-200 flex flex-wrap gap-3 items-center">
                       <select 
+                        className="flex-1 min-w-[200px] px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 cursor-pointer shadow-sm"
                         value={newRecipeItem.ingredient_id} 
                         onChange={e => setNewRecipeItem({...newRecipeItem, ingredient_id: e.target.value})}
                       >
@@ -324,20 +361,27 @@ const RequestProduct = () => {
                       <input 
                         type="number" 
                         placeholder="Qty" 
+                        className="w-24 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 shadow-sm"
                         value={newRecipeItem.quantity} 
                         onChange={e => setNewRecipeItem({...newRecipeItem, quantity: e.target.value})}
-                        style={{width: '70px'}}
                       />
-                      <button type="button" className="btn btn-secondary btn-small" onClick={addIngredientToProposed}>Add</button>
+                      <button 
+                        type="button" 
+                        className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-50 transition-colors shadow-sm"
+                        onClick={addIngredientToProposed}
+                      >
+                        Add
+                      </button>
                     </div>
                   </div>
                 )}
               </div>
 
-              <div className="form-group" style={{marginTop: '20px'}}>
-                <label>Justification / Notes</label>
+              <div className="flex flex-col gap-2 mt-4 pt-6 border-t border-gray-100">
+                <label className="text-sm font-bold text-gray-700">Justification / Notes</label>
                 <textarea
                   rows="3"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm resize-y"
                   placeholder="Why is this change necessary?"
                   value={description}
                   onChange={e => setDescription(e.target.value)}
@@ -345,8 +389,12 @@ const RequestProduct = () => {
                 ></textarea>
               </div>
 
-              <div className="form-actions">
-                <button type="submit" className="btn btn-primary" disabled={loading}>
+              <div className="pt-4 flex justify-end">
+                <button 
+                  type="submit" 
+                  className="px-8 py-3 bg-gray-900 text-white rounded-xl text-sm font-bold uppercase tracking-wider hover:bg-gray-800 transition-colors shadow-md disabled:opacity-50 flex items-center justify-center min-w-[200px]" 
+                  disabled={loading}
+                >
                   {loading ? 'Submitting...' : 'Send Request'}
                 </button>
               </div>
@@ -354,30 +402,39 @@ const RequestProduct = () => {
           </div>
         </div>
       ) : (
-        <div className="card">
-          <div className="card-header">
-            <h2>Your Request History</h2>
+        <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden w-full mb-8 flex flex-col h-full min-h-[400px]">
+          <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50">
+            <h2 className="m-0 text-lg font-bold text-gray-900 tracking-tight">Your Request History</h2>
           </div>
-          <div className="card-body">
+          <div className="p-0 flex-1">
             {loading ? (
-              <p>Loading history...</p>
+              <div className="p-8 text-center text-gray-500 font-medium">Loading history...</div>
             ) : history.length > 0 ? (
-              <div className="table-container">
-                <table className="table">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse whitespace-nowrap">
                   <thead>
-                    <tr><th>Date</th><th>Type</th><th>Subject</th><th>Status</th></tr>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider w-32">Date</th>
+                      <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider w-40">Type</th>
+                      <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Subject</th>
+                      <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider w-32 text-right">Status</th>
+                    </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-gray-100">
                     {history.map(req => (
-                      <tr key={req.id}>
-                        <td>{new Date(req.created_at).toLocaleDateString()}</td>
-                        <td><strong>{req.type.replace('_', ' ')}</strong></td>
-                        <td>
-                          <div className="request-subject">{req.details.product_name || req.details.new_product?.name || 'General'}</div>
-                          <div className="request-desc-small">{req.details.description}</div>
+                      <tr key={req.id} className="hover:bg-gray-50/50 transition-colors">
+                        <td className="px-6 py-4 text-sm font-medium text-gray-500">{new Date(req.created_at).toLocaleDateString()}</td>
+                        <td className="px-6 py-4 text-sm font-bold text-gray-900">{req.type.replace('_', ' ')}</td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm font-bold text-gray-900">{req.details.product_name || req.details.new_product?.name || 'General'}</div>
+                          <div className="text-xs text-gray-500 truncate max-w-xs md:max-w-md">{req.details.description}</div>
                         </td>
-                        <td>
-                          <span className={`status ${req.status === 'APPROVED' ? 'normal' : req.status === 'REJECTED' ? 'critical' : 'low'}`}>
+                        <td className="px-6 py-4 text-right">
+                          <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                            req.status === 'APPROVED' ? 'bg-green-50 text-green-700 border border-green-200' : 
+                            req.status === 'REJECTED' ? 'bg-red-50 text-red-700 border border-red-200' : 
+                            'bg-yellow-50 text-yellow-700 border border-yellow-200'
+                          }`}>
                             {req.status}
                           </span>
                         </td>
@@ -387,7 +444,10 @@ const RequestProduct = () => {
                 </table>
               </div>
             ) : (
-              <div className="empty-state"><p>No history found.</p></div>
+              <div className="p-12 flex flex-col items-center justify-center text-gray-400 bg-gray-50/50 h-full">
+                <svg className="w-12 h-12 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                <p className="m-0 text-sm font-medium">No request history found.</p>
+              </div>
             )}
           </div>
         </div>

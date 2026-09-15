@@ -1,4 +1,6 @@
 import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import cors from 'cors';
 import authRoutes from './routes/auth.js';
 import posRoutes from './routes/pos.js';
@@ -13,17 +15,24 @@ import usersRoutes from './routes/users.js';
 import productsRoutes from './routes/products.js';
 import analyticsRoutes from './routes/analytics.js';
 import categorySettingsRoutes from './routes/categorySettings.js';
+import purchasingRoutes from './routes/purchasing.js';
 import { requireAuth } from './middleware/authMiddleware.js';
 
 const app = express();
-const PORT = 5000;
+// Use PORT from environment (cPanel sets this) or fall back to 5000 for local dev
+const PORT = process.env.PORT || 5000;
 
-// FIX #15: Restrict CORS to only the local Vite dev server and same-origin production.
-// Adjust the origin list if your frontend runs on a different port.
+// Resolve __dirname for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Allowed origins: local dev + production domain
 const allowedOrigins = [
-  'http://localhost:5173', // Vite dev server
-  'http://localhost:4173', // Vite preview
-  'http://localhost:5000', // Same-origin production
+  'http://localhost:5173',       // Vite dev server
+  'http://localhost:4173',       // Vite preview
+  'http://localhost:5000',       // Local production
+  'https://cofteacafe.space',    // Production domain
+  'https://www.cofteacafe.space',// Production www
 ];
 
 app.use(cors({
@@ -61,9 +70,18 @@ app.use('/api/users', usersRoutes); // users.js applies its own granular per-rou
 app.use('/api/products', requireAuth, productsRoutes);
 app.use('/api/analytics', requireAuth, analyticsRoutes);
 app.use('/api/categories/settings', requireAuth, categorySettingsRoutes);
+app.use('/api/purchasing', requireAuth, purchasingRoutes);
 
-app.get('/', (req, res) => {
-  res.send('POS & Inventory System API');
+// ==========================================
+// STATIC FILES — Serve the React frontend build
+// In production on cPanel, the dist/ folder sits one level up from server/
+// ==========================================
+const distPath = path.resolve(__dirname, '../dist');
+app.use(express.static(distPath));
+
+// Catch-all: return index.html for any non-API route so React Router works
+app.get('*', (req, res) => {
+  res.sendFile(path.join(distPath, 'index.html'));
 });
 
 app.listen(PORT, () => {

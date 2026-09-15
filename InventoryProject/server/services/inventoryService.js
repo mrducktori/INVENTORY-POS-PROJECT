@@ -22,7 +22,24 @@ export const getIngredientById = async (id) => {
   return data;
 };
 
-export const createIngredient = async ({ name, unit, stock_quantity, low_stock_alert, image_url }) => {
+import { findSimilarName } from "../utils/stringHelper.js";
+
+export const createIngredient = async ({ name, unit, stock_quantity, low_stock_alert, image_url, force_create }) => {
+  // Check for duplicates
+  if (!force_create) {
+    const { data: existingIngredients } = await supabase.from("ingredients").select("name");
+    if (existingIngredients) {
+      const existingNames = existingIngredients.map(i => i.name);
+      const similar = findSimilarName(name, existingNames);
+      if (similar) {
+        throw { 
+          message: `An ingredient with a similar name ("${similar}") already exists.`,
+          is_duplicate_warning: true 
+        };
+      }
+    }
+  }
+
   const { data, error } = await supabase
     .from("ingredients")
     .insert([{

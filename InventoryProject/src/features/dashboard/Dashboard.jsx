@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import './Dashboard.css';
 
 import Navbar from '../../components/Navbar';
 import DashboardOverview from './DashboardOverview';
@@ -15,6 +14,7 @@ import RawMaterialTracker from '../inventory/RawMaterialTracker';
 import ManageRawMaterials from '../inventory/ManageRawMaterials';
 import LowStockAlerts from '../inventory/LowStockAlerts';
 import ProductStockTracker from '../inventory/ProductStockTracker';
+import PurchaseOrders from '../inventory/PurchaseOrders';
 
 // Logs & Reports
 import AuditLogs from '../logs/AuditLogs';
@@ -71,6 +71,7 @@ const Dashboard = () => {
       case 'ManageRawMaterials': return <ManageRawMaterials />;
       case 'StockReceived':     return <StockReceived />;
       case 'LowStockAlerts':    return <LowStockAlerts />;
+      case 'PurchaseOrders':    return <PurchaseOrders />;
 
       // Logs & Reports
       case 'AuditLogs':         return <AuditLogs />;
@@ -90,7 +91,7 @@ const Dashboard = () => {
 
       default:
         return (
-          <div className="dashboard-not-found">
+          <div className="p-10 text-center text-[#999]">
             <h2>Page not found</h2>
             <p>The selected tab "{activeTab}" does not have a component yet.</p>
           </div>
@@ -99,14 +100,12 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="dashboard-body">
-      <div className="dashboard-container">
-        <div className="dashboard-content">
-          <Navbar activeTab={activeTab} onTabChange={setActiveTab} />
-          <main className="dashboard-main">
-            {renderContent()}
-          </main>
-        </div>
+    <div className="w-full h-screen bg-white text-gray-900 font-sans flex flex-col">
+      <div className="flex flex-1 overflow-hidden">
+        <Navbar activeTab={activeTab} onTabChange={setActiveTab} />
+        <main className="flex-1 overflow-y-auto bg-gray-50 scrollbar-thin scrollbar-thumb-gray-300 hover:scrollbar-thumb-gray-400">
+          {renderContent()}
+        </main>
       </div>
     </div>
   );

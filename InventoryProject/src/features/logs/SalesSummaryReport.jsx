@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getSalesReportByPeriod } from '../../api/logsApi';
 
-import './SalesSummaryReport.css';
 
 const SalesSummaryReport = () => {
   const [period, setPeriod] = useState('daily'); // 'daily', 'weekly', 'monthly'
@@ -68,14 +67,14 @@ const SalesSummaryReport = () => {
   };
 
   return (
-    <div className="report-container">
-      <div className="report-header-flex">
-        <div className="report-title">
-          <h1>Sales Summary Report</h1>
-          <p>Analyze revenue and performance. Click on a staff member to view detailed logs.</p>
+    <div className="p-4 md:p-8 flex-1 bg-gray-50 overflow-y-auto w-full">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <div>
+          <h1 className="m-0 text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">Sales Summary Report</h1>
+          <p className="m-0 mt-1 text-sm text-gray-500 font-medium">Analyze revenue and performance. Click on a staff member to view detailed logs.</p>
         </div>
         <button 
-          className="export-btn" 
+          className="px-5 py-2.5 bg-gray-900 hover:bg-black text-white font-bold rounded-xl shadow-sm transition-all flex items-center gap-2 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
           onClick={handleExport} 
           disabled={loading || !summary}
         >
@@ -83,12 +82,12 @@ const SalesSummaryReport = () => {
         </button>
       </div>
 
-      <div className="period-selector">
-        <label className="period-label">Analysis Period</label>
+      <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-5 mb-8 flex flex-col md:flex-row items-center gap-4">
+        <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">Analysis Period</label>
         <select 
           value={period} 
           onChange={(e) => setPeriod(e.target.value)}
-          className="period-select"
+          className="w-full md:w-64 px-4 py-2 border border-gray-300 rounded-lg text-sm font-bold bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
         >
           <option value="daily">Daily / Today</option>
           <option value="weekly">Weekly</option>
@@ -97,27 +96,27 @@ const SalesSummaryReport = () => {
       </div>
 
       {loading ? (
-        <div className="audit-loading-row">
-          <div className="audit-loading-text">Compiling Report Data...</div>
+        <div className="p-12 text-center text-gray-500 font-medium bg-white rounded-xl shadow-sm border border-gray-200">
+          <div>Compiling Report Data...</div>
         </div>
       ) : summary ? (
-        <div className="space-y-10">
-          <div className="summary-grid">
-            <div className="summary-card border-blue">
-              <p className="summary-card-label">Gross Revenue</p>
-              <p className="summary-card-value">₱{(summary.total_sales || 0).toFixed(2)}</p>
+        <div className="space-y-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white border-l-4 border-blue-500 border-y border-r border-gray-200 rounded-xl shadow-sm p-6">
+              <p className="m-0 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Gross Revenue</p>
+              <p className="m-0 text-3xl font-black text-gray-900 tracking-tight">₱{(summary.total_sales || 0).toFixed(2)}</p>
             </div>
-            <div className="summary-card border-green">
-              <p className="summary-card-label">Volume</p>
-              <p className="summary-card-value">{summary.total_transactions || 0}</p>
+            <div className="bg-white border-l-4 border-green-500 border-y border-r border-gray-200 rounded-xl shadow-sm p-6">
+              <p className="m-0 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Volume</p>
+              <p className="m-0 text-3xl font-black text-gray-900 tracking-tight">{summary.total_transactions || 0}</p>
             </div>
-            <div className="summary-card">
-              <p className="summary-card-label">Items Dispatched</p>
-              <p className="summary-card-value">{summary.total_items_sold || 0}</p>
+            <div className="bg-white border-l-4 border-amber-500 border-y border-r border-gray-200 rounded-xl shadow-sm p-6">
+              <p className="m-0 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Items Dispatched</p>
+              <p className="m-0 text-3xl font-black text-gray-900 tracking-tight">{summary.total_items_sold || 0}</p>
             </div>
-            <div className="summary-card border-purple">
-              <p className="summary-card-label">Average Ticket</p>
-              <p className="summary-card-value">
+            <div className="bg-white border-l-4 border-purple-500 border-y border-r border-gray-200 rounded-xl shadow-sm p-6">
+              <p className="m-0 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Average Ticket</p>
+              <p className="m-0 text-3xl font-black text-gray-900 tracking-tight">
                 ₱{summary.total_transactions > 0 
                   ? ((summary.total_sales || 0) / summary.total_transactions).toFixed(2) 
                   : '0.00'}
@@ -125,43 +124,43 @@ const SalesSummaryReport = () => {
             </div>
           </div>
 
-          <div className="performance-card">
-            <div className="performance-header">
-              <h2>Personnel Performance Breakdown</h2>
+          <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden w-full">
+            <div className="px-6 py-5 border-b border-gray-100 bg-gray-50">
+              <h2 className="m-0 text-lg font-black text-gray-900">Personnel Performance Breakdown</h2>
             </div>
             <div>
               {summary.staff_data && summary.staff_data.length > 0 ? (
-                <div className="audit-table-wrapper">
-                  <table className="performance-table">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse whitespace-nowrap">
                     <thead>
-                      <tr>
-                        <th>Operator</th>
-                        <th>Total Sales</th>
-                        <th style={{ textAlign: 'center' }}>Transactions</th>
-                        <th style={{ textAlign: 'center' }}>Avg Trans</th>
-                        <th>Market Share</th>
+                      <tr className="bg-white border-b border-gray-200">
+                        <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Operator</th>
+                        <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Total Sales</th>
+                        <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Transactions</th>
+                        <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Avg Trans</th>
+                        <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider w-1/4">Market Share</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-gray-100">
                       {summary.staff_data.map(staff => (
                         <tr 
                           key={staff.id} 
                           onClick={() => fetchStaffDetails(staff)}
-                          className="performance-row"
+                          className="hover:bg-gray-50 transition-colors cursor-pointer"
                         >
-                          <td><span className="operator-name">{staff.name}</span></td>
-                          <td><span className="sales-value">₱{staff.total_sales.toFixed(2)}</span></td>
-                          <td style={{ textAlign: 'center', fontWeight: '900' }}>{staff.transactions}</td>
-                          <td style={{ textAlign: 'center', color: '#777', fontFamily: 'monospace' }}>₱{(staff.total_sales / staff.transactions).toFixed(2)}</td>
-                          <td>
-                            <div className="share-flex">
-                              <div className="share-track">
+                          <td className="px-6 py-5"><span className="inline-flex px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-800 border border-gray-200">{staff.name}</span></td>
+                          <td className="px-6 py-5"><span className="text-sm font-black text-green-700 bg-green-50 px-2 py-1 rounded">₱{staff.total_sales.toFixed(2)}</span></td>
+                          <td className="px-6 py-5 text-center font-black text-gray-900">{staff.transactions}</td>
+                          <td className="px-6 py-5 text-center text-sm font-mono text-gray-500 font-bold">₱{(staff.total_sales / staff.transactions).toFixed(2)}</td>
+                          <td className="px-6 py-5">
+                            <div className="flex items-center gap-3 w-full max-w-[200px]">
+                              <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
                                 <div 
-                                  className="share-fill" 
+                                  className="h-full bg-indigo-500 rounded-full" 
                                   style={{ width: `${(staff.total_sales / summary.total_sales) * 100}%` }} 
                                 />
                               </div>
-                              <span className="share-percent">
+                              <span className="text-xs font-bold text-gray-500 whitespace-nowrap min-w-[40px] text-right">
                                 {((staff.total_sales / summary.total_sales) * 100).toFixed(1)}%
                               </span>
                             </div>
@@ -172,90 +171,73 @@ const SalesSummaryReport = () => {
                   </table>
                 </div>
               ) : (
-                <div className="audit-empty-row">
-                  <div className="audit-empty-text">No personnel activity recorded</div>
+                <div className="p-12 text-center text-gray-400 bg-gray-50/50">
+                  <div className="text-sm font-medium">No personnel activity recorded</div>
                 </div>
               )}
             </div>
           </div>
         </div>
       ) : (
-        <div className="audit-empty-row" style={{ color: '#c62828' }}>
-          <div className="audit-empty-text" style={{ borderColor: '#ffcdd2' }}>Data compilation failed</div>
+        <div className="p-12 text-center text-red-500 font-medium bg-red-50 rounded-xl shadow-sm border border-red-100">
+          <div>Data compilation failed</div>
         </div>
       )}
 
       {/* Detail Modal */}
       {selectedStaff && (
-        <div className="audit-modal-overlay" onClick={() => setSelectedStaff(null)}>
-          <div className="audit-modal-content" onClick={e => e.stopPropagation()}>
-            <div className="audit-modal-header">
-              <h2 className="audit-modal-title">Sales Audit: {selectedStaff.name}</h2>
-              <button className="audit-modal-close" onClick={() => setSelectedStaff(null)}>✕</button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm" onClick={() => setSelectedStaff(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-[popIn_0.2s_ease-out]" onClick={e => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+              <h2 className="m-0 text-xl font-black text-gray-900">Sales Audit: {selectedStaff.name}</h2>
+              <button className="text-gray-400 hover:text-gray-900 bg-transparent border-none text-xl cursor-pointer p-2 transition-colors" onClick={() => setSelectedStaff(null)}>✕</button>
             </div>
             
-            <div className="audit-modal-body">
+            <div className="flex-1 overflow-y-auto p-0">
               {detailsLoading ? (
-                <div className="audit-loading-row">
-                  <div className="audit-loading-text">Loading audit history...</div>
+                <div className="p-12 text-center text-gray-500 font-medium">
+                  <div>Loading audit history...</div>
                 </div>
               ) : (
-                <div className="audit-table-wrapper">
-                  <table className="audit-table">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse whitespace-nowrap">
                     <thead>
-                      <tr>
-                        <th>Reference</th>
-                        <th style={{ textAlign: 'center' }}>Time</th>
-                        <th>Manifest</th>
-                        <th style={{ textAlign: 'right' }}>Total</th>
-                        <th style={{ textAlign: 'center' }}>Method</th>
+                      <tr className="bg-white border-b border-gray-200">
+                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Reference</th>
+                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Time</th>
+                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Manifest</th>
+                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Total</th>
+                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Method</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-gray-100">
                       {staffSales.map(sale => (
-                        <tr key={sale.id}>
-                          <td style={{ fontFamily: 'monospace', fontWeight: '700', color: '#aaa', fontSize: '11px' }}>
+                        <tr key={sale.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-6 py-4 font-mono font-bold text-gray-400 text-[11px]">
                             #{sale.receipt_number || sale.id.substring(0,8).toUpperCase()}
                           </td>
-                          <td style={{ textAlign: 'center', fontSize: '11px', fontWeight: '700', color: '#777' }}>
+                          <td className="px-6 py-4 text-center text-[11px] font-bold text-gray-500">
                             {new Date(sale.created_at).toLocaleTimeString()}
                           </td>
-                          <td style={{ minWidth: '200px' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <td className="px-6 py-4 min-w-[200px]">
+                            <div className="flex flex-col gap-1.5">
                               {sale.sale_items?.map((it, idx) => (
-                                <div key={idx} style={{ 
-                                  display: 'flex', 
-                                  alignItems: 'center',
-                                  gap: '10px',
-                                  padding: '4px 0',
-                                  borderBottom: idx < (sale.sale_items.length - 1) ? '1px solid #f0f0f0' : 'none'
-                                }}>
-                                  <span style={{ 
-                                    fontSize: '11px', 
-                                    fontWeight: '900', 
-                                    color: '#000',
-                                    background: '#eee',
-                                    padding: '2px 6px',
-                                    borderRadius: '3px',
-                                    minWidth: '24px',
-                                    textAlign: 'center'
-                                  }}>{it.quantity}</span>
-                                  <span style={{ 
-                                    fontSize: '12px', 
-                                    fontWeight: '700', 
-                                    color: '#333', 
-                                    textTransform: 'uppercase',
-                                    letterSpacing: '0.3px'
-                                  }}>{it.products?.name}</span>
+                                <div key={idx} className={`flex items-center gap-2.5 py-1 ${idx < (sale.sale_items.length - 1) ? 'border-b border-gray-100' : ''}`}>
+                                  <span className="text-[11px] font-black text-gray-900 bg-gray-200 px-1.5 py-0.5 rounded min-w-[24px] text-center">
+                                    {it.quantity}
+                                  </span>
+                                  <span className="text-xs font-bold text-gray-800 uppercase tracking-wider">
+                                    {it.products?.name}
+                                  </span>
                                 </div>
                               ))}
                             </div>
                           </td>
-                          <td style={{ textAlign: 'right' }}>
-                            <span style={{ fontSize: '14px', fontWeight: '900', color: '#000' }}>₱{parseFloat(sale.total_amount).toFixed(2)}</span>
+                          <td className="px-6 py-4 text-right">
+                            <span className="text-sm font-black text-gray-900">₱{parseFloat(sale.total_amount).toFixed(2)}</span>
                           </td>
-                          <td style={{ textAlign: 'center' }}>
-                             <span className="log-action-badge" style={{ background: '#eee', color: '#777' }}>
+                          <td className="px-6 py-4 text-center">
+                             <span className="inline-flex px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-600 border border-gray-200">
                                {sale.payment_method}
                              </span>
                           </td>
@@ -263,8 +245,8 @@ const SalesSummaryReport = () => {
                       ))}
                       {staffSales.length === 0 && (
                         <tr>
-                          <td colSpan="5" className="audit-empty-row">
-                            <div className="audit-empty-text">No records found</div>
+                          <td colSpan="5" className="p-12 text-center text-gray-400 bg-gray-50/50">
+                            <div className="text-sm font-medium">No records found</div>
                           </td>
                         </tr>
                       )}
@@ -274,9 +256,9 @@ const SalesSummaryReport = () => {
               )}
             </div>
             
-            <div className="audit-modal-footer">
+            <div className="px-6 py-4 border-t border-gray-100 bg-white flex justify-end">
               <button 
-                className="export-btn" 
+                className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold rounded-xl transition-colors" 
                 onClick={() => setSelectedStaff(null)}
               >
                 Close Audit View

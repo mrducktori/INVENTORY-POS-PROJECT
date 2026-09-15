@@ -6,16 +6,26 @@ const router = express.Router();
 // Get all sales with filters
 router.get('/', async (req, res) => {
   try {
+    // Parse pagination parameters (default limit 50, offset 0)
+    const limit = parseInt(req.query.limit) || 50;
+    const offset = parseInt(req.query.offset) || 0;
+
     let query = supabase
       .from('sales')
       .select(`
         *,
         users(id, name, username),
         sale_items(id, quantity, unit_price, cup_size, add_ons, products(id, name, category))
-      `)
-      .order('created_at', { ascending: false });
+      `, { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
 
-    if (req.query.date) {
+    // Date range filtering
+    if (req.query.start_date && req.query.end_date) {
+      const s = req.query.start_date;
+      const e = req.query.end_date;
+      query = query.gte('created_at', `${s}T00:00:00+08:00`).lte('created_at', `${e}T23:59:59+08:00`);
+    } else if (req.query.date) {
       const d = req.query.date;
       query = query.gte('created_at', `${d}T00:00:00+08:00`).lte('created_at', `${d}T23:59:59+08:00`);
     } else if (req.query.period) {
@@ -44,9 +54,19 @@ router.get('/', async (req, res) => {
 
     if (req.query.staff_id) query = query.eq('staff_id', req.query.staff_id);
 
-    const { data, error } = await query;
+    const { data, error, count } = await query;
     if (error) throw error;
-    res.json(data);
+    // Category filtering (applied after fetching)
+    let filteredData = data;
+    let total = count;
+    if (req.query.category) {
+      const cat = req.query.category;
+      filteredData = (data || []).filter(sale =>
+        sale.sale_items?.some(item => item.products?.category === cat)
+      );
+      total = filteredData.length;
+    }
+    res.json({ data: filteredData, total, limit, offset });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

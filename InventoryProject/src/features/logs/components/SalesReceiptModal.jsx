@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { getSalesReceipt } from '../../../api/logsApi';
-import '../SalesReceiptModal.css';
 
 const SalesReceiptModal = ({ saleId, onClose }) => {
   const [receipt, setReceipt] = useState(null);

@@ -14,35 +14,27 @@ const RevenueSnapshot = ({ stats, loading, isTrendExpanded, onExpand }) => {
       : '0.00';
 
   return (
-    <div className="revenue-snapshot-card">
-      <div className="revenue-info">
-        <div className="label">Total Revenue (Today)</div>
-        <div className="value">₱{revenueDisplay}</div>
+    <div className="bg-white border border-gray-200 rounded-xl p-8 mb-8 flex flex-col sm:flex-row sm:justify-between sm:items-center shadow-sm relative group overflow-hidden">
+      <div className="flex-1 relative z-10">
+        <div className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">Total Revenue (Today)</div>
+        <div className="text-4xl font-bold text-gray-900 mb-1">₱{revenueDisplay}</div>
         {!isTrendExpanded && (
-          <div className="trend-label">7-Day Sales Trend (Click to Expand)</div>
+          <div className="text-xs text-gray-400 font-medium">7-Day Sales Trend (Click to Expand)</div>
         )}
       </div>
 
       {!isTrendExpanded && (
         <div
-          className="revenue-mini-chart"
-          style={{ cursor: 'pointer', position: 'relative' }}
+          className="flex-1 max-w-[300px] h-[80px] w-full mt-5 sm:mt-0 relative cursor-pointer"
           title="Click to expand full trend analysis"
         >
           {/* Transparent overlay ensures clicks register above the SVG */}
           <div
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              zIndex: 10,
-            }}
+            className="absolute inset-0 z-10"
             onClick={onExpand}
           />
           {loading ? (
-            <div className="loading">...</div>
+            <div className="text-gray-500 italic">...</div>
           ) : (
             <ResponsiveContainer width="100%" height={80}>
               <LineChart data={stats?.salesTrend || []}>

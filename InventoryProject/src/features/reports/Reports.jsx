@@ -3,7 +3,6 @@ import SalesPerformanceReport from './SalesPerformanceReport';
 import InventoryStatusReport  from './InventoryStatusReport';
 import StockMovementReport    from './StockMovementReport';
 import WastageReport          from './WastageReport';
-import './Reports.css';
 
 const TABS = [
   {
@@ -44,22 +43,26 @@ const Reports = () => {
   };
 
   return (
-    <div className="reports-wrapper">
+    <div className="p-4 md:p-8 flex-1 bg-gray-50 overflow-y-auto w-full flex flex-col h-full">
       {/* Page Header */}
-      <div className="reports-page-header">
-        <h1>Reports &amp; Analytics</h1>
-        <p>
+      <div className="mb-6 shrink-0">
+        <h1 className="m-0 text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">Reports &amp; Analytics</h1>
+        <p className="m-0 mt-1 text-sm text-gray-500 font-medium">
           {currentTab?.desc} — generate, filter, export, or print.
         </p>
       </div>
 
       {/* Tab Navigation */}
-      <nav className="reports-tabs">
+      <nav className="flex flex-wrap gap-2 mb-6 border-b border-gray-200 pb-2 shrink-0">
         {TABS.map(tab => (
           <button
             key={tab.id}
             id={`reports-tab-${tab.id}`}
-            className={`reports-tab-btn${activeTab === tab.id ? ' active' : ''}`}
+            className={`px-5 py-2.5 rounded-lg text-sm font-bold uppercase tracking-wider transition-all border-b-2 -mb-[10px] ${
+              activeTab === tab.id 
+                ? 'bg-gray-900 text-white border-gray-900 shadow-sm' 
+                : 'bg-transparent text-gray-500 border-transparent hover:text-gray-900 hover:bg-gray-100'
+            }`}
             onClick={() => setActiveTab(tab.id)}
           >
             {tab.label}
@@ -68,7 +71,9 @@ const Reports = () => {
       </nav>
 
       {/* Active Report */}
-      {renderContent()}
+      <div className="flex-1 flex flex-col min-h-0">
+        {renderContent()}
+      </div>
     </div>
   );
 };

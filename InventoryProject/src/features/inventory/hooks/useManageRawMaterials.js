@@ -41,7 +41,7 @@ export const useManageRawMaterials = () => {
     setFormData({ ...formData, [name]: value });
   };
 
-  const handleAddIngredient = async (e) => {
+  const handleAddIngredient = async (e, forceCreate = false) => {
     if (e) e.preventDefault();
     const newName = formData.name.trim().toUpperCase();
     const newUnit = formData.unit.trim().toUpperCase();
@@ -51,10 +51,20 @@ export const useManageRawMaterials = () => {
       return;
     }
 
-    const isDuplicate = ingredients.some(i => i.name.toUpperCase() === newName);
-    if (isDuplicate) {
-      const proceed = window.confirm(`WARNING: An ingredient with the name "${formData.name.trim()}" already exists. Do you still want to add it?`);
-      if (!proceed) return;
+    if (!forceCreate) {
+      const isDuplicate = ingredients.some(i => i.name.toUpperCase() === newName);
+      if (isDuplicate) {
+        setConfirmConfig({
+          isOpen: true,
+          title: 'Duplicate Detected',
+          message: `WARNING: An ingredient with the exact name "${formData.name.trim()}" already exists. Do you still want to add it?`,
+          onConfirm: () => {
+            setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+            handleAddIngredient(null, true);
+          }
+        });
+        return;
+      }
     }
 
     try {
@@ -62,14 +72,27 @@ export const useManageRawMaterials = () => {
         name: newName,
         unit: newUnit,
         low_stock_alert: parseFloat(formData.low_stock_alert) || 0,
-        stock_quantity: 0
+        stock_quantity: 0,
+        force_create: forceCreate
       });
       setMessage('Ingredient created successfully!');
       setFormData({ name: '', unit: '', low_stock_alert: '' });
       fetchIngredients();
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
-      setMessage('Error: ' + err.message);
+      if (err.payload?.is_duplicate_warning) {
+        setConfirmConfig({
+          isOpen: true,
+          title: 'Duplicate Detected',
+          message: err.message + '\n\nDo you still want to proceed?',
+          onConfirm: () => {
+            setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+            handleAddIngredient(null, true);
+          }
+        });
+      } else {
+        setMessage('Error: ' + err.message);
+      }
     }
   };
 

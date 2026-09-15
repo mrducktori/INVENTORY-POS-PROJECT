@@ -63,7 +63,8 @@ export const getProducts = async () => {
 
     return {
       ...product,
-      is_available
+      is_available,
+      has_recipe: (recMap[product.id] || []).length > 0
     };
   });
 
@@ -152,8 +153,8 @@ export const createSale = async ({
       }
 
       // Add-ons Deduction
-      if (item.add_ons_objs && item.add_ons_objs.length > 0) {
-        for (const addon of item.add_ons_objs) {
+      if (item.add_ons && item.add_ons.length > 0) {
+        for (const addon of item.add_ons) {
           if (!addon.ingredient_id) continue;
 
           const { data: ingData } = await supabase
@@ -164,7 +165,7 @@ export const createSale = async ({
 
           if (ingData) {
             const deductionPerUnit = convertToBaseUnit(addon.quantity || 0, addon.unit || ingData.unit, ingData.unit);
-            const totalDeduction = deductionPerUnit * item.qty;
+            const totalDeduction = deductionPerUnit * item.qty * (addon.customer_qty || 1);
 
             if (!requiredIngredients[addon.ingredient_id]) {
               requiredIngredients[addon.ingredient_id] = { name: ingData.name, qty: 0 };

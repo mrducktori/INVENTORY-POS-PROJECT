@@ -22,20 +22,20 @@ const QuickActions = ({ onNavigate, userRole }) => {
       : ALL_LINKS;
 
   return (
-    <div className="card" style={{ marginTop: '20px' }}>
-      <div className="card-header">
-        <h2>Quick Actions</h2>
+    <div className="bg-white border border-gray-200 rounded-xl shadow-sm mt-8 overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+        <h2 className="m-0 text-sm font-semibold uppercase tracking-wider text-gray-800">Quick Actions</h2>
       </div>
-      <div className="card-body">
-        <div className="overview-grid">
+      <div className="p-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {visibleLinks.map((link) => (
             <button
               key={link.value}
               onClick={() => onNavigate(link.value)}
-              className="overview-link-btn"
+              className="group bg-white border border-gray-200 p-6 rounded-lg text-left cursor-pointer transition-all duration-200 flex flex-col gap-2 hover:bg-gray-900 hover:border-gray-900 hover:-translate-y-1 hover:shadow-md active:scale-95"
             >
-              <div className="overview-link-title">{link.label}</div>
-              <div className="overview-link-desc">{link.desc}</div>
+              <div className="text-sm font-bold text-gray-900 uppercase tracking-wider group-hover:text-white transition-colors">{link.label}</div>
+              <div className="text-xs font-medium text-gray-500 group-hover:text-gray-300 transition-colors">{link.desc}</div>
             </button>
           ))}
         </div>

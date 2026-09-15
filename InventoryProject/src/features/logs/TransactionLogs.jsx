@@ -3,7 +3,6 @@ import { getAuditLogs } from '../../api/auditApi';
 import { getCurrentUser } from '../../api/authApi';
 import { getManilaDateOnly } from '../../utils/dateUtils';
 
-import './TransactionLogs.css';
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -123,37 +122,38 @@ const TransactionLogs = () => {
   const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'desc' });
   const [currentPage, setCurrentPage] = useState(1);
 
+  useEffect(() => {
+    const fetchLogs = async () => {
+      if (!user || user.role !== 'Owner') return;
+      try {
+        setLoading(true);
+        const adjustedFilters = {
+          ...filters,
+          end_date: filters.end_date ? filters.end_date + 'T23:59:59' : undefined
+        };
+        const data = await getAuditLogs(adjustedFilters);
+        setLogs(data || []);
+      } catch (error) {
+        console.error('Failed to fetch transaction logs:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLogs();
+    setCurrentPage(1);
+  }, [filters, user]);
+
   // ── Access guard: Owner only ──
   if (!user || user.role !== 'Owner') {
     return (
-      <div className="txlog-access-denied">
-        <div className="denied-icon">🔒</div>
-        <h2>Access Restricted</h2>
-        <p>Transaction Logs are only accessible to the system Owner. Contact your administrator for access.</p>
+      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-gray-50">
+        <div className="text-6xl mb-4">🔒</div>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Restricted</h2>
+        <p className="text-gray-500 font-medium">Transaction Logs are only accessible to the system Owner. Contact your administrator for access.</p>
       </div>
     );
   }
-
-  useEffect(() => {
-    fetchLogs();
-    setCurrentPage(1);
-  }, [filters]);
-
-  const fetchLogs = async () => {
-    try {
-      setLoading(true);
-      const adjustedFilters = {
-        ...filters,
-        end_date: filters.end_date ? filters.end_date + 'T23:59:59' : undefined
-      };
-      const data = await getAuditLogs(adjustedFilters);
-      setLogs(data || []);
-    } catch (error) {
-      console.error('Failed to fetch transaction logs:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -213,110 +213,109 @@ const TransactionLogs = () => {
   const wastageCount = processedLogs.filter(l => l.action?.toUpperCase() === 'WASTAGE').length;
 
   return (
-    <div className="txlog-container">
+    <div className="p-4 md:p-8 flex-1 bg-gray-50 overflow-y-auto w-full">
       {/* Header */}
-      <div className="txlog-header">
-        <div className="txlog-header-left">
-          <h1>Transaction Logs</h1>
-          <p>Owner-level view of all system transactions and activity.</p>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <div>
+          <h1 className="m-0 text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">Transaction Logs</h1>
+          <p className="m-0 mt-1 text-sm text-gray-500 font-medium">Owner-level view of all system transactions and activity.</p>
         </div>
-        <div className="txlog-owner-badge">
-          <span className="lock-icon">🔒</span>
-          Owner Access Only
+        <div className="bg-amber-100 text-amber-800 px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-wider flex items-center gap-2 shadow-sm border border-amber-200">
+          <span>🔒</span> Owner Access Only
         </div>
       </div>
 
       {/* Stat Cards */}
-      <div className="txlog-stats">
-        <div className="txlog-stat-card">
-          <div className="txlog-stat-value">{totalTransactions}</div>
-          <div className="txlog-stat-label">Total Records</div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="bg-white border border-gray-200 p-5 rounded-xl shadow-sm flex flex-col justify-center">
+          <div className="text-2xl font-extrabold text-gray-900">{totalTransactions}</div>
+          <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mt-1">Total Records</div>
         </div>
-        <div className="txlog-stat-card">
-          <div className="txlog-stat-value">{saleCount}</div>
-          <div className="txlog-stat-label">Sales Transactions</div>
+        <div className="bg-blue-50 border border-blue-100 p-5 rounded-xl shadow-sm flex flex-col justify-center">
+          <div className="text-2xl font-extrabold text-blue-700">{saleCount}</div>
+          <div className="text-xs font-bold text-blue-600 uppercase tracking-wider mt-1">Sales Transactions</div>
         </div>
-        <div className="txlog-stat-card">
-          <div className="txlog-stat-value">{stockCount}</div>
-          <div className="txlog-stat-label">Stock Received</div>
+        <div className="bg-green-50 border border-green-100 p-5 rounded-xl shadow-sm flex flex-col justify-center">
+          <div className="text-2xl font-extrabold text-green-700">{stockCount}</div>
+          <div className="text-xs font-bold text-green-600 uppercase tracking-wider mt-1">Stock Received</div>
         </div>
-        <div className="txlog-stat-card">
-          <div className="txlog-stat-value">{wastageCount}</div>
-          <div className="txlog-stat-label">Wastage Reports</div>
+        <div className="bg-red-50 border border-red-100 p-5 rounded-xl shadow-sm flex flex-col justify-center">
+          <div className="text-2xl font-extrabold text-red-700">{wastageCount}</div>
+          <div className="text-xs font-bold text-red-600 uppercase tracking-wider mt-1">Wastage Reports</div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="txlog-filters">
-        <div className="txlog-filter-group">
-          <label className="txlog-filter-label">Start Date</label>
+      <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-5 mb-8 grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div>
+          <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Start Date</label>
           <input
             type="date"
             name="start_date"
             value={filters.start_date}
             onChange={handleFilterChange}
-            className="txlog-filter-input"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
           />
         </div>
-        <div className="txlog-filter-group">
-          <label className="txlog-filter-label">End Date</label>
+        <div>
+          <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">End Date</label>
           <input
             type="date"
             name="end_date"
             value={filters.end_date}
             onChange={handleFilterChange}
-            className="txlog-filter-input"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
           />
         </div>
-        <div className="txlog-filter-group">
-          <label className="txlog-filter-label">Transaction Type</label>
+        <div>
+          <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Transaction Type</label>
           <select
             name="action"
             value={filters.action}
             onChange={handleFilterChange}
-            className="txlog-filter-select"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
           >
             {CATEGORY_OPTIONS.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
         </div>
-        <div className="txlog-filter-group">
-          <label className="txlog-filter-label">Search</label>
+        <div>
+          <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Search</label>
           <input
             type="text"
             placeholder="Search by user, action, or details..."
             value={searchTerm}
             onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-            className="txlog-filter-input"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
           />
         </div>
       </div>
 
       {/* Table */}
-      <div className="txlog-table-card">
-        <div className="txlog-table-wrapper">
-          <table className="txlog-table">
+      <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden w-full">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse whitespace-nowrap">
             <thead>
-              <tr>
-                <th onClick={() => handleSort('created_at')}>
+              <tr className="bg-gray-50 border-b border-gray-200">
+                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('created_at')}>
                   Timestamp {sortConfig.key === 'created_at' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th onClick={() => handleSort('staff')}>
+                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('staff')}>
                   Operator {sortConfig.key === 'staff' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th style={{ textAlign: 'center' }}>Category</th>
-                <th onClick={() => handleSort('action')} style={{ textAlign: 'center' }}>
+                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Category</th>
+                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-center cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('action')}>
                   Action {sortConfig.key === 'action' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th>Details</th>
+                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Details</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td colSpan="5" className="txlog-loading-row">
-                    <div className="txlog-loading-text">Synchronizing transaction ledger...</div>
+                  <td colSpan="5" className="p-8 text-center text-gray-500 font-medium bg-gray-50/50">
+                    <div>Synchronizing transaction ledger...</div>
                   </td>
                 </tr>
               ) : paginatedLogs.length > 0 ? (
@@ -324,28 +323,30 @@ const TransactionLogs = () => {
                   const cat = getCategory(log.action);
                   const userRole = log.users?.role?.toLowerCase() || 'staff';
                   return (
-                    <tr key={log.id}>
-                      <td className="txlog-timestamp">
+                    <tr key={log.id} className="hover:bg-gray-50/50 transition-colors">
+                      <td className="px-6 py-4 text-sm font-medium text-gray-600">
                         {new Date(log.created_at).toLocaleString()}
                       </td>
-                      <td>
-                        <span className="txlog-operator">{log.users?.name || 'System'}</span>
-                        <span className={`txlog-role-tag ${userRole}`}>
-                          {log.users?.role || 'SYS'}
-                        </span>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col items-start">
+                          <span className="text-sm font-bold text-gray-900">{log.users?.name || 'System'}</span>
+                          <span className={`inline-flex mt-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${userRole === 'owner' ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-gray-100 text-gray-600 border-gray-200'} border`}>
+                            {log.users?.role || 'SYS'}
+                          </span>
+                        </div>
                       </td>
-                      <td style={{ textAlign: 'center' }}>
-                        <span className={`txlog-category-badge ${cat.css}`}>
+                      <td className="px-6 py-4 text-center">
+                        <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
                           {cat.label}
                         </span>
                       </td>
-                      <td style={{ textAlign: 'center' }}>
-                        <span className="txlog-category-badge system">
+                      <td className="px-6 py-4 text-center">
+                        <span className="inline-flex px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-700 border border-gray-200">
                           {log.action}
                         </span>
                       </td>
-                      <td>
-                        <p className="txlog-details-text">
+                      <td className="px-6 py-4">
+                        <p className="m-0 text-sm font-medium text-gray-800 whitespace-normal">
                           {formatDescription(log.action, log.details)}
                         </p>
                       </td>
@@ -354,8 +355,9 @@ const TransactionLogs = () => {
                 })
               ) : (
                 <tr>
-                  <td colSpan="5" className="txlog-empty-row">
-                    <div className="txlog-empty-text">No transaction records found</div>
+                  <td colSpan="5" className="p-12 text-center text-gray-400 bg-gray-50/50">
+                    <svg className="w-12 h-12 mb-3 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    <div className="text-sm font-medium">No transaction records found</div>
                   </td>
                 </tr>
               )}
@@ -365,20 +367,20 @@ const TransactionLogs = () => {
 
         {/* Pagination */}
         {processedLogs.length > ITEMS_PER_PAGE && (
-          <div className="txlog-pagination">
-            <div className="txlog-page-info">
+          <div className="px-6 py-4 border-t border-gray-100 bg-white flex items-center justify-between">
+            <div className="text-sm font-medium text-gray-500">
               Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, processedLogs.length)} of {processedLogs.length} records
             </div>
-            <div className="txlog-page-controls">
+            <div className="flex gap-2">
               <button
-                className="txlog-page-btn"
+                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-bold text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
               >
                 ← Previous
               </button>
               <button
-                className="txlog-page-btn"
+                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-bold text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
               >

@@ -1,5 +1,4 @@
 import React from 'react';
-import './DashboardOverview.css';
 
 import { getCurrentUser } from '../../api/authApi';
 import useDashboardStats from './useDashboardStats';
@@ -37,10 +36,10 @@ const DashboardOverview = ({ onNavigate }) => {
   } = useDashboardStats();
 
   return (
-    <div className="inventory-container">
-      <div className="page-header">
-        <h1>Dashboard Overview</h1>
-        <p>
+    <div className="p-6 md:p-10 max-w-[1400px] mx-auto min-h-full">
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-gray-900 tracking-tight mb-1 mt-0">Dashboard Overview</h1>
+        <p className="text-sm text-gray-500 m-0">
           Welcome back, {user?.name || user?.username || 'User'}. Real-time
           analytics for your business.
         </p>
@@ -86,7 +85,7 @@ const DashboardOverview = ({ onNavigate }) => {
       <PredictiveInsights />
 
       {/* BI Grid: Now primarily for Sales Analytics */}
-      <div className="bi-grid" style={{ gridTemplateColumns: '1fr' }}>
+      <div className="grid grid-cols-1 gap-8 mt-8">
         <TopSalesGrid
           loading={loading}
           topProductsByCategory={stats?.topProductsByCategory}
