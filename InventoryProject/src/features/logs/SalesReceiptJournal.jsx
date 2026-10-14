@@ -46,23 +46,31 @@ const ExpandableReceiptRow = ({ sale }) => {
     <React.Fragment>
       <tr onClick={toggleExpand} className="hover:bg-gray-50 transition-colors cursor-pointer border-b border-gray-100">
         <td className="px-6 py-4 text-center w-16">
-          <span className={`inline-block transition-transform duration-200 text-gray-400 ${expanded ? 'rotate-90 text-gray-900' : ''}`}>▶</span>
+          <svg 
+            className={`w-4 h-4 text-gray-500 transition-transform duration-200 mx-auto ${expanded ? 'rotate-90 text-gray-900' : ''}`}
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth={2.5} 
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
         </td>
         <td className="px-6 py-4">
-          <span className="text-sm font-bold text-gray-900 bg-gray-100 px-2.5 py-1 rounded-md tracking-wider">
+          <span className="text-sm md:text-base font-bold text-gray-900 bg-gray-100 px-2.5 py-1 rounded-md tracking-wider">
             #{sale.receipt_number || sale.id.substring(0, 8).toUpperCase()}
           </span>
         </td>
-        <td className="px-6 py-4 text-sm font-medium text-gray-600">{new Date(sale.created_at).toLocaleString()}</td>
+        <td className="px-6 py-4 text-sm md:text-base font-medium text-gray-600">{new Date(sale.created_at).toLocaleString()}</td>
         <td className="px-6 py-4">
-          <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-bold bg-gray-50 text-gray-700 border border-gray-200">
+          <span className="inline-flex px-2.5 py-1 rounded-full text-sm md:text-base font-bold bg-gray-50 text-gray-700 border border-gray-200">
             {sale.users?.name || 'System'}
           </span>
         </td>
-        <td className="px-6 py-4 text-[11px] font-black text-gray-400 uppercase tracking-wider">
+        <td className="px-6 py-4 text-xs md:text-sm font-bold text-gray-500 uppercase tracking-wider">
           {sale.sale_items?.length || 0} units
         </td>
-        <td className="px-6 py-4 text-right text-sm font-black italic text-gray-900">
+        <td className="px-6 py-4 text-right text-sm md:text-base font-black italic text-gray-900">
           ₱{parseFloat(sale.total_amount).toFixed(2)}
         </td>
       </tr>
@@ -75,71 +83,124 @@ const ExpandableReceiptRow = ({ sale }) => {
                   <div>Retrieving digital record...</div>
                 </div>
               ) : receiptDetails ? (
-                <div className="max-w-md mx-auto bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden font-mono text-sm">
-                  <div className="text-center p-6 border-b border-gray-200 bg-gray-50">
-                    <h3 className="m-0 text-lg font-black text-gray-900 tracking-tight">COF/TEA System</h3>
-                    <p className="m-0 text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">Digital Audit Copy</p>
-                    <div className="mt-4">
-                       <p className="m-0 font-black text-gray-900 text-[11px] tracking-wider">
-                         #{receiptDetails.receipt_number || sale.id.substring(0,8).toUpperCase()}
-                       </p>
-                       <p className="m-0 text-[9px] font-bold text-gray-400 mt-1">
-                         {new Date(receiptDetails.created_at).toLocaleString()}
-                       </p>
-                    </div>
-                  </div>
-                  
-                  <div className="p-6">
-                    <div className="flex flex-col gap-3">
-                      {receiptDetails.sale_items?.map(item => (
-                        <div key={item.id} className="flex justify-between items-start">
-                          <div className="flex flex-col">
-                            <span className="font-bold text-gray-900">{item.quantity}x {item.products?.name}</span>
-                            {(item.cup_size || item.add_ons?.length > 0) && (
-                            <span className="text-[11px] text-gray-500 font-medium mt-0.5">
-                              {item.cup_size && <span>[{item.cup_size}] </span>}
-                              {parseAddons(item.add_ons).length > 0 && (
-                                <span>+{parseAddons(item.add_ons).map(addonName).join(', ')}</span>
-                              )}
-                            </span>
-                            )}
-                          </div>
-                          <span className="font-bold text-gray-900">₱{(item.quantity * item.unit_price).toFixed(2)}</span>
-                        </div>
-                      ))}
+                <div className="max-w-md mx-auto bg-white border border-gray-200 shadow-md rounded-2xl overflow-hidden text-sm md:text-base text-gray-800">
+                  <div className="p-6 md:p-8">
+                    {/* --- HEADER ZONE --- */}
+                    <div className="text-center mb-5">
+                      <h1 className="text-2xl md:text-3xl font-black tracking-tight text-gray-900 m-0">COF/TEA CAFE</h1>
+                      <div className="text-gray-500 text-sm font-semibold mt-1">
+                        <p className="m-0">Store #001 • Main Branch</p>
+                      </div>
                     </div>
 
-                    <div className="border-t-2 border-dashed border-gray-200 my-4" />
-                    <div className="flex flex-col gap-2">
-                      <div className="flex justify-between text-gray-600 font-medium">
-                        <span>Base Amount</span>
-                        <span>₱{(receiptDetails.total_amount - (receiptDetails.tax_amount || 0) + (receiptDetails.discount_amount || 0)).toFixed(2)}</span>
+                    {/* --- BODY ZONE --- */}
+                    <div className="border-t-2 border-b-2 border-dashed border-gray-300 py-3.5 mb-5 text-sm md:text-base text-gray-800 space-y-1">
+                      <div className="flex justify-between font-semibold">
+                        <span>{new Date(receiptDetails.created_at).toLocaleDateString()} {new Date(receiptDetails.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                        <span className="font-bold">Staff: {sale.users?.name || "System"}</span>
                       </div>
-                      {(receiptDetails.discount_amount > 0) && (
-                        <div className="flex justify-between text-red-600 font-bold">
-                          <span>Markdowns</span>
-                          <span>-₱{parseFloat(receiptDetails.discount_amount).toFixed(2)}</span>
-                        </div>
-                      )}
-                      {(receiptDetails.tax_amount > 0) && (
-                        <div className="flex justify-between text-gray-600 font-medium">
-                          <span>Service Tax</span>
-                          <span>₱{parseFloat(receiptDetails.tax_amount).toFixed(2)}</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between text-base font-black text-gray-900 mt-2 pt-2 border-t border-gray-100">
-                        <span>Final Total</span>
-                        <span>₱{parseFloat(receiptDetails.total_amount).toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between text-[10px] italic text-gray-400 font-medium mt-4">
-                        <span>Method</span>
-                        <span className="uppercase">{receiptDetails.payment_method}</span>
+                      <div className="flex justify-between font-mono font-bold text-gray-900">
+                        <span>Receipt #: {receiptDetails.receipt_number || "N/A"}</span>
                       </div>
                     </div>
-                  </div>
-                  
-                  <div className="bg-gray-900 text-white text-center py-2 text-[10px] font-bold uppercase tracking-widest">
-                    EndOfTransmission
+                    
+                    <table className="w-full text-left border-collapse mb-5">
+                      <thead>
+                        <tr className="border-b-2 border-gray-300">
+                          <th className="py-2.5 font-bold text-gray-900 text-xs md:text-sm uppercase tracking-wider">Item</th>
+                          <th className="py-2.5 font-bold text-gray-900 text-center text-xs md:text-sm uppercase tracking-wider">Qty</th>
+                          <th className="py-2.5 font-bold text-gray-900 text-right text-xs md:text-sm uppercase tracking-wider">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-sm md:text-base divide-y divide-gray-100">
+                        {receiptDetails.sale_items?.map(item => (
+                          <React.Fragment key={item.id}>
+                            <tr className="align-top">
+                              <td className="py-2.5">
+                                <div className="font-extrabold text-gray-900 text-sm md:text-base">{item.products?.name}</div>
+                                <div className="text-xs md:text-sm text-gray-600 mt-0.5">
+                                  {item.cup_size && <span className="font-bold text-gray-800">Size: {item.cup_size} </span>}
+                                  <span className="italic">(@ ₱{parseFloat(item.unit_price).toFixed(2)})</span>
+                                </div>
+                                {parseAddons(item.add_ons).length > 0 && (
+                                  <div className="text-xs md:text-sm text-indigo-700 font-bold mt-1">
+                                    + {parseAddons(item.add_ons).map(addon => {
+                                      const name = addonName(addon);
+                                      const qty = typeof addon === 'object' && addon.customer_qty ? addon.customer_qty : 1;
+                                      return `${qty}x ${name}`;
+                                    }).join(', ')}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="py-2.5 text-center font-bold text-gray-900">{item.quantity}</td>
+                              <td className="py-2.5 text-right font-black text-gray-900">₱{(item.quantity * item.unit_price).toFixed(2)}</td>
+                            </tr>
+                          </React.Fragment>
+                        ))}
+                      </tbody>
+                    </table>
+
+                    {/* --- MONEY BLOCK ZONE --- */}
+                    <div className="border-t-2 border-gray-300 pt-3.5 mb-5">
+                      <div className="flex flex-col items-end space-y-1.5 text-sm md:text-base">
+                        <div className="w-full flex justify-between text-gray-700 font-medium">
+                          <span>Subtotal:</span>
+                          <span className="font-semibold">₱{(receiptDetails.total_amount - (receiptDetails.tax_amount || 0) + (receiptDetails.discount_amount || 0)).toFixed(2)}</span>
+                        </div>
+                        
+                        {receiptDetails.discount_amount > 0 && (
+                          <div className="w-full flex justify-between text-emerald-700 font-bold">
+                            <span>Discount:</span>
+                            <span>-₱{parseFloat(receiptDetails.discount_amount).toFixed(2)}</span>
+                          </div>
+                        )}
+                        
+                        {receiptDetails.tax_amount > 0 && (
+                          <div className="w-full flex justify-between text-gray-700 font-medium">
+                            <span>Tax (VAT):</span>
+                            <span>₱{parseFloat(receiptDetails.tax_amount).toFixed(2)}</span>
+                          </div>
+                        )}
+                        
+                        <div className="w-full flex justify-between items-end mt-2 pt-2 border-t-2 border-gray-900">
+                          <span className="text-lg md:text-xl font-black text-gray-900">TOTAL</span>
+                          <span className="text-xl md:text-2xl font-black text-gray-900">₱{parseFloat(receiptDetails.total_amount).toFixed(2)}</span>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 pt-3.5 border-t-2 border-dashed border-gray-300 text-sm text-gray-700 space-y-1.5">
+                        <div className="flex justify-between font-bold">
+                          <span>TENDER ({receiptDetails.payment_method || 'CASH'})</span>
+                          <span className="font-black">₱{parseFloat(receiptDetails.amount_received || receiptDetails.total_amount).toFixed(2)}</span>
+                        </div>
+                        {receiptDetails.transaction_reference && (
+                          <div className="flex justify-between text-gray-600">
+                            <span className="font-semibold">CARD/REF #</span>
+                            <span className="font-mono font-bold text-gray-900">{receiptDetails.transaction_reference}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between font-bold text-emerald-800">
+                          <span>CHANGE</span>
+                          <span className="font-black text-base">₱{parseFloat(receiptDetails.change_amount || 0).toFixed(2)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* --- FOOTER ZONE --- */}
+                    <div className="border-t border-gray-900 mt-6 pt-4 text-center text-xs md:text-sm text-gray-500 space-y-2">
+                      <div className="font-mono text-xs tracking-wider text-gray-500 font-semibold">
+                        TXN: {receiptDetails.id?.substring(0, 8).toUpperCase()}-{receiptDetails.receipt_number}
+                      </div>
+                      
+                      <div className="font-semibold text-gray-700">
+                        <p>Follow us on our socials!</p>
+                        <p className="mt-0.5">@cofteacafe</p>
+                      </div>
+                      
+                      <div className="text-[11px] text-gray-600 font-medium leading-tight mt-4">
+                        <p>Thank you for your business!</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -186,25 +247,25 @@ const SalesReceiptJournal = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="m-0 text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">Receipt Journal</h1>
-          <p className="m-0 mt-1 text-sm text-gray-500 font-medium">Click any transaction row to expand and view its full receipt.</p>
+          <p className="m-0 mt-1 text-sm md:text-base text-gray-500 font-medium">Click any transaction row to expand and view its full receipt.</p>
         </div>
         <div className="flex gap-4 items-end">
   <div>
-    <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Date Range</label>
+    <label className="block text-sm md:text-base font-bold text-gray-600 uppercase tracking-wider mb-2">Date Range</label>
     <div className="flex gap-2">
       <input
         type="date"
         name="start_date"
         value={filters.start_date}
         onChange={e => setFilters(prev => ({ ...prev, start_date: e.target.value }))}
-        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
+        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm md:text-base bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
       />
       <input
         type="date"
         name="end_date"
         value={filters.end_date}
         onChange={e => setFilters(prev => ({ ...prev, end_date: e.target.value }))}
-        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
+        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm md:text-base bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
       />
     </div>
   </div>
@@ -217,11 +278,11 @@ const SalesReceiptJournal = () => {
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
                 <th className="px-6 py-3 w-16"></th>
-                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Receipt Ref</th>
-                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Timestamp</th>
-                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Operator</th>
-                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Items</th>
-                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Settlement</th>
+                <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider">Receipt Ref</th>
+                <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider">Timestamp</th>
+                <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider">Operator</th>
+                <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider">Items</th>
+                <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider text-right">Settlement</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -237,7 +298,7 @@ const SalesReceiptJournal = () => {
                 <tr>
                   <td colSpan="6" className="p-12 text-center text-gray-400 bg-gray-50/50">
                     <svg className="w-12 h-12 mb-3 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                    <div className="text-sm font-medium">No transactions recorded</div>
+                    <div className="text-sm md:text-base font-medium">No transactions recorded</div>
                   </td>
                 </tr>
               )}
@@ -246,15 +307,15 @@ const SalesReceiptJournal = () => {
 {!loading && totalCount > 0 && (
   <div className="px-6 py-4 border-t border-gray-200 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-4">
     <div className="flex items-center gap-4">
-      <span className="text-sm text-gray-600 font-medium">
+      <span className="text-sm md:text-base text-gray-600 font-medium">
         Showing <span className="font-bold text-gray-900">{(currentPage-1)*pageSize + 1}–{Math.min(currentPage*pageSize, totalCount)}</span> of <span className="font-bold text-gray-900">{totalCount}</span> receipts
       </span>
       <div className="flex items-center gap-2">
-        <span className="text-xs text-gray-500 font-bold uppercase tracking-wider">Per page</span>
+        <span className="text-sm md:text-base text-gray-500 font-bold uppercase tracking-wider">Per page</span>
         <select
           value={pageSize}
           onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
-          className="px-2 py-1 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent cursor-pointer"
+          className="px-2 py-1 border border-gray-300 rounded-md text-sm md:text-base bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent cursor-pointer"
         >
           {[50,100,200].map(size => (
             <option key={size} value={size}>{size}</option>
@@ -266,23 +327,23 @@ const SalesReceiptJournal = () => {
       <button
         onClick={() => setCurrentPage(1)}
         disabled={currentPage <= 1}
-        className="px-3 py-1.5 text-xs font-bold uppercase rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        className="px-3 py-1.5 text-sm md:text-base font-bold uppercase rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
       >First</button>
       <button
         onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
         disabled={currentPage <= 1}
-        className="px-3 py-1.5 text-xs font-bold uppercase rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        className="px-3 py-1.5 text-sm md:text-base font-bold uppercase rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
       >Previous</button>
-      <span className="px-3 py-1.5 text-sm font-bold text-gray-900">{currentPage} / {Math.max(1, Math.ceil(totalCount / pageSize))}</span>
+      <span className="px-3 py-1.5 text-sm md:text-base font-bold text-gray-900">{currentPage} / {Math.max(1, Math.ceil(totalCount / pageSize))}</span>
       <button
         onClick={() => setCurrentPage(p => Math.min(Math.max(1, Math.ceil(totalCount / pageSize)), p + 1))}
         disabled={currentPage >= Math.max(1, Math.ceil(totalCount / pageSize))}
-        className="px-3 py-1.5 text-xs font-bold uppercase rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        className="px-3 py-1.5 text-sm md:text-base font-bold uppercase rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
       >Next</button>
       <button
         onClick={() => setCurrentPage(Math.max(1, Math.ceil(totalCount / pageSize)))}
         disabled={currentPage >= Math.max(1, Math.ceil(totalCount / pageSize))}
-        className="px-3 py-1.5 text-xs font-bold uppercase rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        className="px-3 py-1.5 text-sm md:text-base font-bold uppercase rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
       >Last</button>
     </div>
   </div>

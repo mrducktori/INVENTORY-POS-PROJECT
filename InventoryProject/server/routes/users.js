@@ -7,7 +7,7 @@ import { requireAuth, requireRole } from '../middleware/authMiddleware.js';
 const router = express.Router();
 
 // Allowed roles in the system
-const ALLOWED_ROLES = ['Admin', 'Owner', 'Staff'];
+const ALLOWED_ROLES = ['Admin', 'Owner', 'Staff', 'Supplier'];
 
 // Get all users — requires authentication
 router.get('/', requireAuth, async (req, res) => {
@@ -31,7 +31,7 @@ router.get('/', requireAuth, async (req, res) => {
 // Create a new user — FIX #6: requires Admin or Owner role
 router.post('/', requireAuth, requireRole('Admin', 'Owner'), async (req, res) => {
   try {
-    const { name, username, password, role } = req.body;
+    const { name, username, password, role, supplier_id } = req.body;
     if (!name || !username || !password || !role) {
       return res.status(400).json({ error: 'All fields required' });
     }
@@ -41,13 +41,37 @@ router.post('/', requireAuth, requireRole('Admin', 'Owner'), async (req, res) =>
       return res.status(400).json({ error: `Invalid role. Must be one of: ${ALLOWED_ROLES.join(', ')}` });
     }
 
+    // Supplier role requires a linked supplier
+    if (role === 'Supplier' && !supplier_id) {
+      return res.status(400).json({ error: 'Supplier role requires a linked supplier.' });
+    }
+
+    if (role === 'Owner') {
+      if (req.user.role !== 'Owner') {
+        return res.status(403).json({ error: 'Only the current Owner can assign the Owner role.' });
+      }
+      
+      // Demote current owner(s) to Admin before creating this one
+      const { error: demoteError } = await supabase
+        .from('users')
+        .update({ role: 'Admin' })
+        .eq('role', 'Owner');
+      
+      if (demoteError) throw demoteError;
+    }
+
     const saltRounds = 10;
     const password_hash = await bcrypt.hash(password, saltRounds);
 
+    const insertData = { name, username, password_hash, role, status: 'ACTIVE' };
+    if (role === 'Supplier' && supplier_id) {
+      insertData.supplier_id = supplier_id;
+    }
+
     const { data, error } = await supabase
       .from('users')
-      .insert([{ name, username, password_hash, role, status: 'ACTIVE' }])
-      .select('id, name, username, role, status, created_at')
+      .insert([insertData])
+      .select('id, name, username, role, status, created_at, supplier_id')
       .single();
 
     if (error) throw error;
@@ -62,6 +86,9 @@ router.post('/', requireAuth, requireRole('Admin', 'Owner'), async (req, res) =>
 
     res.status(201).json(data);
   } catch (err) {
+    if (err.message && err.message.includes('users_username_key')) {
+      return res.status(400).json({ error: 'This username is already taken. Please choose a different one.' });
+    }
     res.status(500).json({ error: err.message });
   }
 });
@@ -77,6 +104,14 @@ router.put('/:id/status', requireAuth, requireRole('Admin', 'Owner'), async (req
     // Prevent deactivating yourself
     if (req.params.id === req.user.id && status === 'INACTIVE') {
       return res.status(400).json({ error: 'You cannot deactivate your own account.' });
+    }
+
+    // Admins cannot deactivate the Owner
+    if (req.user.role !== 'Owner') {
+      const { data: targetUser } = await supabase.from('users').select('role').eq('id', req.params.id).single();
+      if (targetUser && targetUser.role === 'Owner') {
+        return res.status(403).json({ error: 'Admins cannot modify the Owner account status.' });
+      }
     }
 
     const { data, error } = await supabase
@@ -113,6 +148,43 @@ router.put('/:id', requireAuth, requireRole('Admin', 'Owner'), async (req, res) 
       return res.status(400).json({ error: `Invalid role. Must be one of: ${ALLOWED_ROLES.join(', ')}` });
     }
 
+    // Admins cannot modify the Owner
+    if (req.user.role !== 'Owner') {
+      const { data: targetUser } = await supabase.from('users').select('role').eq('id', req.params.id).single();
+      if (targetUser && targetUser.role === 'Owner') {
+        return res.status(403).json({ error: 'Admins cannot modify the Owner account.' });
+      }
+    }
+
+    if (role === 'Owner') {
+      if (req.user.role !== 'Owner') {
+        return res.status(403).json({ error: 'Only the current Owner can assign the Owner role.' });
+      }
+
+      // If making someone else the owner, demote all current owners to Admin
+      const { data: currentOwnerData, error: checkError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('role', 'Owner');
+        
+      if (checkError) throw checkError;
+
+      const currentOwnerIds = currentOwnerData.map(o => o.id);
+
+      if (!currentOwnerIds.includes(req.params.id)) {
+        await supabase
+          .from('users')
+          .update({ role: 'Admin' })
+          .eq('role', 'Owner');
+      }
+    } else {
+      // Prevent demoting the ONLY owner directly
+      const { data: targetUser } = await supabase.from('users').select('role').eq('id', req.params.id).single();
+      if (targetUser && targetUser.role === 'Owner') {
+        return res.status(400).json({ error: 'Cannot demote the Owner. Transfer ownership to another user instead.' });
+      }
+    }
+
     const updates = { name, username, role };
 
     if (password && password.trim() !== '') {
@@ -139,6 +211,9 @@ router.put('/:id', requireAuth, requireRole('Admin', 'Owner'), async (req, res) 
 
     res.json(data);
   } catch (err) {
+    if (err.message && err.message.includes('users_username_key')) {
+      return res.status(400).json({ error: 'This username is already taken. Please choose a different one.' });
+    }
     res.status(500).json({ error: err.message });
   }
 });

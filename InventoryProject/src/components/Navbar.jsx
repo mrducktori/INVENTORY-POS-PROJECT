@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { logoutUser, getCurrentUser } from '../api/authApi';
+import { useNotifications } from '../features/dashboard/useNotifications';
 
 const MENU_CONFIG = {
   Staff: [
@@ -23,6 +24,9 @@ const MENU_CONFIG = {
         { label: 'Product Stock', value: 'ProductStockTracker' },
       ]
     },
+  ],
+  Supplier: [
+    { label: 'Supplier Portal', value: 'SupplierPortal' },
   ],
   Admin: [
     { label: 'Dashboard Overview', value: 'Dashboard' },
@@ -64,7 +68,7 @@ const MENU_CONFIG = {
     {
       label: 'Website Management',
       submenu: [
-        { label: 'Public Landing Page', value: 'CMSDashboard' },
+        { label: 'Content Manager', value: 'CMSDashboard' },
       ]
     },
   ],
@@ -93,7 +97,7 @@ const MENU_CONFIG = {
       label: 'Logs & Reports',
       submenu: [  
         { label: 'Audit Logs', value: 'AuditLogs' },
-        { label: 'Transaction Logs', value: 'TransactionLogs', disabled: true },
+        { label: 'Transaction Logs', value: 'TransactionLogs' },
         { label: 'Receipt Journal', value: 'SalesReceiptJournal' },
 
         { label: 'Demand Forecasting', value: 'Forecasting' },
@@ -109,7 +113,7 @@ const MENU_CONFIG = {
     {
       label: 'Website Management',
       submenu: [
-        { label: 'Public Landing Page', value: 'CMSDashboard' },
+        { label: 'Content Manager', value: 'CMSDashboard' },
       ]
     },
   ],
@@ -148,6 +152,7 @@ const ICONS = {
 const Navbar = ({ activeTab, onTabChange }) => {
   const [userRole] = useState(() => getCurrentUser()?.role || null);
   const [expanded, setExpanded] = useState(null);
+  const { unreadCount } = useNotifications();
 
   const handleLogout = async () => {
     await logoutUser();
@@ -176,39 +181,53 @@ const Navbar = ({ activeTab, onTabChange }) => {
   const effectiveExpanded = expanded !== null ? expanded : getExpandedGroup();
 
   return (
-    <nav className="w-64 bg-gray-900 text-white flex flex-col border-r border-gray-800 shrink-0 h-full overflow-hidden">
-      <div className="p-5 border-b border-gray-800 bg-black">
-        <div className="text-lg font-bold text-white tracking-wide mb-1">Cof/Tea System</div>
-        <div className="text-xs uppercase tracking-widest text-gray-400 font-semibold">{userRole || 'Staff'}</div>
+    <nav className="w-68 bg-zinc-950 text-white flex flex-col border-r border-zinc-800 shrink-0 h-full overflow-hidden select-none">
+      {/* Brand header */}
+      <div className="p-5 border-b border-zinc-800 bg-black">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-white text-zinc-900 flex items-center justify-center font-extrabold text-sm">
+            C
+          </div>
+          <span className="text-base font-extrabold text-white tracking-wide">CofTea Cafe</span>
+        </div>
+        <div className="text-xs uppercase tracking-wider text-zinc-400 font-semibold mt-1">
+          {userRole ? `${userRole} Portal` : 'Staff Console'}
+        </div>
       </div>
 
-      <ul className="list-none p-0 flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 hover:scrollbar-thumb-gray-600">
+      {/* Nav list */}
+      <ul className="list-none p-3 flex-1 overflow-y-auto space-y-1.5 scrollbar-thin scrollbar-thumb-zinc-800 hover:scrollbar-thumb-zinc-700 m-0">
         {menuItems.map((item) => (
-          <li key={item.value || item.label} className="p-0 border-b border-gray-800/50">
+          <li key={item.value || item.label} className="p-0">
             {item.submenu ? (
               <>
                 <div
-                  className={`px-5 py-3.5 cursor-pointer flex justify-between items-center select-none text-sm transition-colors hover:bg-gray-800 text-gray-300`}
+                  className="px-3.5 py-3 rounded-xl cursor-pointer flex justify-between items-center text-sm font-bold tracking-wide transition-colors hover:bg-zinc-900 text-zinc-300 hover:text-white"
                   onClick={() => toggleMenu(item.label)}
                 >
                   <div className="flex items-center gap-3">
                     {ICONS[item.label] || ICONS['Default']}
-                    <span className="font-medium">{item.label}</span>
+                    <span>{item.label}</span>
                   </div>
-                  <span className={`text-[10px] ml-2 transition-transform duration-200 ${effectiveExpanded === item.label ? 'rotate-180' : ''}`}>▼</span>
+                  <span className={`text-[10px] transition-transform duration-200 ${effectiveExpanded === item.label ? 'rotate-180' : ''}`}>▼</span>
                 </div>
                 {effectiveExpanded === item.label && (
-                  <ul className="list-none p-0 m-0 bg-gray-950/50 border-b border-gray-800/50">
+                  <ul className="list-none p-1 m-0 space-y-1 pl-4">
                     {item.submenu.map((sub) => {
                       const isActive = activeTab === sub.value;
                       return (
                         <li
                           key={sub.value}
-                          className={`py-2.5 pr-5 pl-12 cursor-pointer text-sm transition-colors border-l-2 ${isActive ? 'bg-gray-800 text-white border-white' : 'border-transparent text-gray-400 hover:bg-gray-800/80 hover:text-gray-200'} ${sub.disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
+                          className={`py-2.5 px-3.5 rounded-lg cursor-pointer text-sm transition-colors flex items-center justify-between ${
+                            isActive
+                              ? 'bg-zinc-800 text-white font-bold shadow-xs'
+                              : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200 font-medium'
+                          } ${sub.disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
                           onClick={() => !sub.disabled && selectMenuItem(sub.value)}
                           title={sub.disabled ? 'Coming soon' : ''}
                         >
-                          {sub.label}
+                          <span>{sub.label}</span>
+                          {isActive && <span className="w-2 h-2 rounded-full bg-white"></span>}
                         </li>
                       );
                     })}
@@ -217,12 +236,24 @@ const Navbar = ({ activeTab, onTabChange }) => {
               </>
             ) : (
               <div
-                className={`px-5 py-3.5 cursor-pointer flex justify-between items-center select-none text-sm transition-colors border-l-2 ${activeTab === item.value ? 'bg-gray-800 text-white border-white' : 'text-gray-300 border-transparent hover:bg-gray-800'}`}
+                className={`px-3.5 py-3 rounded-xl cursor-pointer flex justify-between items-center text-sm font-bold tracking-wide transition-colors ${
+                  activeTab === item.value 
+                    ? 'bg-zinc-800 text-white shadow-xs font-bold' 
+                    : 'text-zinc-300 hover:bg-zinc-900 hover:text-white'
+                }`}
                 onClick={() => selectMenuItem(item.value)}
               >
                 <div className="flex items-center gap-3">
                   {ICONS[item.label] || ICONS['Default']}
-                  <span className="font-medium">{item.label}</span>
+                  <span>{item.label}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {item.value === 'Dashboard' && unreadCount > 0 && (
+                    <span className="px-2 py-0.5 rounded-full text-xs font-black bg-rose-600 text-white tabular-nums shadow-xs">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
+                  {activeTab === item.value && <span className="w-2 h-2 rounded-full bg-white"></span>}
                 </div>
               </div>
             )}
@@ -230,10 +261,13 @@ const Navbar = ({ activeTab, onTabChange }) => {
         ))}
       </ul>
 
-      <div className="p-4 border-t border-gray-800">
-        <button className="w-full py-2.5 px-4 bg-gray-800 text-white rounded-lg text-sm font-medium hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 cursor-pointer" onClick={handleLogout}>
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-          Logout
+      {/* Logout button */}
+      <div className="p-4 border-t border-zinc-800 bg-zinc-950">
+        <button 
+          className="w-full py-3 px-4 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-2 cursor-pointer border border-zinc-800" 
+          onClick={handleLogout}
+        >
+          Logout Session
         </button>
       </div>
     </nav>

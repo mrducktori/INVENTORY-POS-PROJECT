@@ -1,23 +1,25 @@
 import { supabase } from '../config/supabaseClient.js';
+import jwt from 'jsonwebtoken';
 
 /**
- * requireAuth — Validates the x-user-id header against the users table.
- * Falls back to req.body.user_id for backward compatibility with existing frontend calls.
+ * requireAuth — Validates the JWT token in the Authorization header.
  * Attaches the validated user object to req.user.
  */
 export const requireAuth = async (req, res, next) => {
-  // Accept from header (preferred) or body (legacy fallback)
-  const userId = req.headers['x-user-id'] || req.body?.user_id || req.body?.staff_id;
-
-  if (!userId) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Authentication required. Please log in.' });
   }
 
+  const token = authHeader.split(' ')[1];
+
   try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret-key-change-me');
+
     const { data, error } = await supabase
       .from('users')
       .select('id, name, username, role, status')
-      .eq('id', userId)
+      .eq('id', decoded.userId)
       .single();
 
     if (error || !data) {
@@ -30,8 +32,8 @@ export const requireAuth = async (req, res, next) => {
 
     req.user = data;
     next();
-  } catch {
-    return res.status(500).json({ error: 'Authentication check failed.' });
+  } catch (err) {
+    return res.status(401).json({ error: 'Session expired or invalid. Please log in again.' });
   }
 };
 

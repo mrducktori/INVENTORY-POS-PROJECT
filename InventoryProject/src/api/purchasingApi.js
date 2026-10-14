@@ -41,3 +41,32 @@ export async function updatePurchaseOrderStatus(id, status, items_received = [])
     body: JSON.stringify({ status, items_received })
   });
 }
+
+// === Supplier Portal ===
+export async function getSupplierOwnOrders() {
+  return apiCall("/purchasing/my-orders", {
+    method: "GET"
+  });
+}
+
+export async function updateSupplierOrderStatus(id, status, expected_date = null) {
+  return apiCall(`/purchasing/my-orders/${id}/status`, {
+    method: "PUT",
+    body: JSON.stringify({ status, expected_date })
+  });
+}
+
+export async function submitSupplierItemResponses(id, items) {
+  return apiCall(`/purchasing/my-orders/${id}/item-responses`, {
+    method: "PUT",
+    body: JSON.stringify({ items })
+  });
+}
+
+export async function respondToSupplierProposal(id, itemId, decision, splitIntoBackorder = true) {
+  return apiCall(`/purchasing/${id}/proposals/respond`, {
+    method: "PUT",
+    body: JSON.stringify({ item_id: itemId, decision, split_into_backorder: splitIntoBackorder })
+  });
+}
+

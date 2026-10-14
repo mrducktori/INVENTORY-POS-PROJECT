@@ -67,7 +67,7 @@ const CustomTooltip = ({ active, payload, label }) => {
   }
 
   return (
-    <div className="bg-gray-900 text-white px-4 py-3 rounded-lg text-sm leading-relaxed min-w-[180px] border border-gray-700 shadow-lg">
+    <div className="bg-gray-900 text-white px-4 py-3 rounded-lg text-sm md:text-base leading-relaxed min-w-[180px] border border-gray-700 shadow-lg">
       <div className="font-semibold mb-2 border-b border-gray-700 pb-2 text-white">
         {formattedDate}
       </div>
@@ -103,39 +103,52 @@ const ExpandedTrendChart = ({
   const isShowingAll = activeTrendCategory === 'All';
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm col-span-1 lg:col-span-2 mt-8 mb-8 animate-[fadeIn_0.2s_ease-in-out]">
+    <div className="bg-white border border-gray-200 rounded-2xl p-6 md:p-8 shadow-xs animate-[fadeIn_0.2s_ease-in-out]">
       <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4 flex-wrap gap-4">
-        <h3 className="m-0 text-sm font-semibold text-gray-800 uppercase tracking-wider">Detailed Sales Trend (Last 7 Days)</h3>
+        <div>
+          <h3 className="m-0 text-lg font-bold text-zinc-900">
+            7-Day Detailed Category Trend
+          </h3>
+          <p className="text-sm text-zinc-500 m-0 mt-1">Daily sales revenue breakdown by category</p>
+        </div>
 
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2.5 flex-wrap">
           {/* "All" filter button */}
           <button
-            className={`px-3 py-1.5 rounded-full text-xs font-medium uppercase tracking-wider cursor-pointer transition-colors ${isShowingAll ? 'bg-gray-900 text-white border border-gray-900' : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'}`}
+            type="button"
+            className={`px-4 py-2 rounded-xl text-sm font-bold cursor-pointer transition-colors ${
+              isShowingAll 
+                ? 'bg-zinc-900 text-white shadow-xs' 
+                : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200'
+            }`}
             onClick={() => onCategoryChange('All')}
           >
-            All
+            All Categories
           </button>
 
           {/* Per-category filter buttons */}
           {trendCategories.map((cat) => (
             <button
               key={cat}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium uppercase tracking-wider cursor-pointer transition-colors ${activeTrendCategory === cat ? 'bg-gray-900 text-white border border-gray-900' : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'}`}
+              type="button"
+              className={`px-4 py-2 rounded-xl text-sm font-bold cursor-pointer transition-colors ${
+                activeTrendCategory === cat 
+                  ? 'bg-zinc-900 text-white shadow-xs' 
+                  : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200'
+              }`}
               onClick={() => onCategoryChange(cat)}
             >
               {cat}
             </button>
           ))}
 
-          {/* Divider */}
-          <div className="w-px h-5 bg-gray-300 mx-1" />
-
           {/* Collapse button */}
           <button
-            className="bg-white border border-gray-300 text-gray-600 font-semibold px-3 py-1.5 rounded-lg text-xs uppercase tracking-wider cursor-pointer transition-colors hover:bg-gray-50 hover:text-gray-900"
+            type="button"
+            className="bg-white border border-zinc-200 text-zinc-900 font-bold px-4 py-2 rounded-xl text-sm cursor-pointer transition-colors hover:bg-zinc-100 shadow-xs ml-2"
             onClick={onCollapse}
           >
-            ✖ Collapse
+            ✕ Close View
           </button>
         </div>
       </div>
@@ -152,7 +165,7 @@ const ExpandedTrendChart = ({
               <XAxis
                 dataKey="date"
                 tickFormatter={formatDateLabel}
-                tick={{ fontSize: 11, fill: '#555' }}
+                tick={{ fontSize: 14, fill: '#555' }}
                 angle={-20}
                 textAnchor="end"
                 height={50}
@@ -162,14 +175,14 @@ const ExpandedTrendChart = ({
               {/* Y Axis: peso-formatted values */}
               <YAxis
                 tickFormatter={formatPesoTick}
-                tick={{ fontSize: 11, fill: '#555' }}
-                width={60}
+                tick={{ fontSize: 14, fill: '#555' }}
+                width={80}
                 label={{
                   value: 'Revenue (₱)',
                   angle: -90,
                   position: 'insideLeft',
                   offset: 10,
-                  style: { fontSize: 11, fill: '#999', textAnchor: 'middle' },
+                  style: { fontSize: 14, fill: '#999', textAnchor: 'middle' },
                 }}
               />
 
@@ -207,8 +220,8 @@ const ExpandedTrendChart = ({
                   verticalAlign="top"
                   align="right"
                   iconType="circle"
-                  iconSize={8}
-                  wrapperStyle={{ fontSize: '12px', paddingBottom: '10px' }}
+                  iconSize={10}
+                  wrapperStyle={{ fontSize: '14px', paddingBottom: '10px' }}
                 />
               ) : null}
             </LineChart>

@@ -92,103 +92,103 @@ const CategorySettingsModal = ({ onClose, allIngredients }) => {
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 overflow-y-auto" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden animate-[popIn_0.2s_ease-out] flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
         <div className="bg-gray-900 text-white px-6 py-4 flex justify-between items-center shrink-0">
-          <h2 className="m-0 text-base font-semibold tracking-wide">Global Category Settings</h2>
-          <button className="text-gray-200 hover:text-white transition-colors bg-transparent border-none text-xl leading-none cursor-pointer p-0" onClick={onClose}>✕</button>
+          <h2 className="m-0 text-lg md:text-xl font-bold tracking-wide">Global Category Settings</h2>
+          <button className="text-gray-200 hover:text-white transition-colors bg-transparent border-none text-2xl leading-none cursor-pointer p-0" onClick={onClose}>✕</button>
         </div>
         <div className="p-6 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200">
-          {message && <div className={`p-4 mb-6 rounded-xl text-sm font-semibold flex items-center shadow-sm ${message.includes('saved') ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>{message}</div>}
+          {message && <div className={`p-4 mb-6 rounded-xl text-base font-bold flex items-center shadow-sm ${message.includes('saved') ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>{message}</div>}
           
           <div className="flex flex-col gap-1.5 mb-2">
-            <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Select Category to Configure</label>
-            <select className="w-full sm:w-64 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium focus:outline-none focus:bg-white focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors cursor-pointer" value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)}>
+            <label className="text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider">Select Category to Configure</label>
+            <select className="w-full sm:w-72 px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-sm md:text-base font-semibold focus:outline-none focus:bg-white focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors cursor-pointer" value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)}>
               {CATEGORIES.map(cat => (
                 <option key={cat} value={cat}>{cat}</option>
               ))}
             </select>
           </div>
 
-          <p className="text-sm text-gray-500 mb-6">
+          <p className="text-sm md:text-base text-gray-600 mb-6 font-medium">
             Any sizes or add-ons defined here will automatically apply to ALL products inside the <strong className="text-gray-900">{selectedCategory}</strong> category.
           </p>
 
           <div className="flex flex-col lg:flex-row gap-6 bg-gray-50 p-5 rounded-xl border border-gray-100">
             {/* SIZES CONFIGURATION */}
             <div className="flex-1 bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-              <h3 className="m-0 text-base font-bold text-gray-900 mb-4 tracking-tight">Default Sizes</h3>
+              <h3 className="m-0 text-base md:text-lg font-black text-gray-900 mb-4 tracking-tight">Default Sizes</h3>
               {editSizes.length > 0 ? (
-                <div className="overflow-x-auto mb-4 border border-gray-100 rounded-lg">
+                <div className="overflow-x-auto mb-4 border border-gray-200 rounded-lg">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="bg-gray-50 border-b border-gray-100">
-                        <th className="px-3 py-2 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Size Name</th>
-                        <th className="px-3 py-2 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Price Add (₱)</th>
-                        <th className="px-3 py-2 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Cup Mat.</th>
-                        <th className="px-3 py-2"></th>
+                      <tr className="bg-gray-100/70 border-b border-gray-200">
+                        <th className="px-3 py-2.5 text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider">Size Name</th>
+                        <th className="px-3 py-2.5 text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider">Price Add (₱)</th>
+                        <th className="px-3 py-2.5 text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider">Cup Mat.</th>
+                        <th className="px-3 py-2.5"></th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-50">
+                    <tbody className="divide-y divide-gray-100">
                       {editSizes.map((sz, i) => (
                         <tr key={i} className="hover:bg-gray-50/50">
-                          <td className="px-3 py-2 text-sm font-medium text-gray-900">{sz.name}</td>
-                          <td className="px-3 py-2 text-sm text-gray-600">+{sz.price_add}</td>
-                          <td className="px-3 py-2 text-xs text-gray-500 whitespace-normal break-words">{allIngredients.find(ing => ing.id === sz.ingredient_id)?.name || '-'}</td>
-                          <td className="px-3 py-2 text-right"><button type="button" className="text-gray-400 hover:text-red-600 transition-colors bg-transparent border-none cursor-pointer" onClick={() => handleRemoveSize(i)}>✕</button></td>
+                          <td className="px-3 py-2.5 text-sm md:text-base font-bold text-gray-900">{sz.name}</td>
+                          <td className="px-3 py-2.5 text-sm md:text-base font-bold text-gray-800">+{sz.price_add}</td>
+                          <td className="px-3 py-2.5 text-sm md:text-base text-gray-700 font-medium whitespace-normal break-words">{allIngredients.find(ing => ing.id === sz.ingredient_id)?.name || '-'}</td>
+                          <td className="px-3 py-2.5 text-right"><button type="button" className="text-gray-400 hover:text-red-600 transition-colors bg-transparent border-none cursor-pointer text-lg font-bold" onClick={() => handleRemoveSize(i)}>✕</button></td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
               ) : (
-                <p className="text-sm text-gray-500 italic mb-4">No default sizes.</p>
+                <p className="text-sm md:text-base text-gray-500 italic mb-4">No default sizes.</p>
               )}
               
-              <div className="flex flex-col gap-3 p-4 bg-gray-50 rounded-lg border border-gray-100">
-                <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-gray-500" placeholder="Size Name (e.g., 16 oz)" value={newSize.name} onChange={e => setNewSize({...newSize, name: e.target.value})} />
-                <input type="number" className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-gray-500" placeholder="Price Increase (₱)" value={newSize.price_add} onChange={e => setNewSize({...newSize, price_add: e.target.value})} min="0" />
-                <select className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:border-gray-500" value={newSize.ingredient_id} onChange={e => setNewSize({...newSize, ingredient_id: e.target.value})}>
+              <div className="flex flex-col gap-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <input type="text" className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm md:text-base font-medium focus:outline-none focus:border-gray-900" placeholder="Size Name (e.g., 16 oz)" value={newSize.name} onChange={e => setNewSize({...newSize, name: e.target.value})} />
+                <input type="number" className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm md:text-base font-medium focus:outline-none focus:border-gray-900" placeholder="Price Increase (₱)" value={newSize.price_add} onChange={e => setNewSize({...newSize, price_add: e.target.value})} min="0" />
+                <select className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm md:text-base font-medium bg-white focus:outline-none focus:border-gray-900" value={newSize.ingredient_id} onChange={e => setNewSize({...newSize, ingredient_id: e.target.value})}>
                   <option value="">- No Cup Material -</option>
                   {allIngredients.map(ing => (
                     <option key={ing.id} value={ing.id}>{ing.name}</option>
                   ))}
                 </select>
-                <button type="button" className="w-full py-2 bg-white border border-gray-300 text-gray-700 text-xs font-bold uppercase tracking-wider rounded hover:bg-gray-100 transition-colors mt-1" onClick={handleAddSize}>Add Default Size</button>
+                <button type="button" className="w-full py-2.5 bg-white border border-gray-300 text-gray-800 text-sm md:text-base font-bold uppercase tracking-wider rounded-lg hover:bg-gray-100 transition-colors mt-1 cursor-pointer" onClick={handleAddSize}>Add Default Size</button>
               </div>
             </div>
 
             {/* ADD-ONS CONFIGURATION */}
             <div className="flex-1 bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-              <h3 className="m-0 text-base font-bold text-gray-900 mb-4 tracking-tight">Default Add-ons</h3>
+              <h3 className="m-0 text-base md:text-lg font-black text-gray-900 mb-4 tracking-tight">Default Add-ons</h3>
               {editAddOns.length > 0 ? (
-                <div className="overflow-x-auto mb-4 border border-gray-100 rounded-lg">
+                <div className="overflow-x-auto mb-4 border border-gray-200 rounded-lg">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="bg-gray-50 border-b border-gray-100">
-                        <th className="px-3 py-2 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Add-on</th>
-                        <th className="px-3 py-2 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Price (₱)</th>
-                        <th className="px-3 py-2 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Mat. Used</th>
-                        <th className="px-3 py-2"></th>
+                      <tr className="bg-gray-100/70 border-b border-gray-200">
+                        <th className="px-3 py-2.5 text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider">Add-on</th>
+                        <th className="px-3 py-2.5 text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider">Price (₱)</th>
+                        <th className="px-3 py-2.5 text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider">Mat. Used</th>
+                        <th className="px-3 py-2.5"></th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-50">
+                    <tbody className="divide-y divide-gray-100">
                       {editAddOns.map((ao, i) => (
                         <tr key={i} className="hover:bg-gray-50/50">
-                          <td className="px-3 py-2 text-sm font-medium text-gray-900">{ao.name}</td>
-                          <td className="px-3 py-2 text-sm text-gray-600">+{ao.price}</td>
-                          <td className="px-3 py-2 text-xs text-gray-500 whitespace-normal break-words">{ao.quantity}{ao.unit} {allIngredients.find(ing => ing.id === ao.ingredient_id)?.name || '-'}</td>
-                          <td className="px-3 py-2 text-right"><button type="button" className="text-gray-400 hover:text-red-600 transition-colors bg-transparent border-none cursor-pointer" onClick={() => handleRemoveAddOn(i)}>✕</button></td>
+                          <td className="px-3 py-2.5 text-sm md:text-base font-bold text-gray-900">{ao.name}</td>
+                          <td className="px-3 py-2.5 text-sm md:text-base font-bold text-gray-800">+{ao.price}</td>
+                          <td className="px-3 py-2.5 text-sm md:text-base text-gray-700 font-medium whitespace-normal break-words">{ao.quantity}{ao.unit} {allIngredients.find(ing => ing.id === ao.ingredient_id)?.name || '-'}</td>
+                          <td className="px-3 py-2.5 text-right"><button type="button" className="text-gray-400 hover:text-red-600 transition-colors bg-transparent border-none cursor-pointer text-lg font-bold" onClick={() => handleRemoveAddOn(i)}>✕</button></td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
               ) : (
-                <p className="text-sm text-gray-500 italic mb-4">No default add-ons.</p>
+                <p className="text-sm md:text-base text-gray-500 italic mb-4">No default add-ons.</p>
               )}
 
-              <div className="flex flex-col gap-3 p-4 bg-gray-50 rounded-lg border border-gray-100">
-                <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-gray-500" placeholder="Add-on Name (e.g., Pearl)" value={newAddOn.name} onChange={e => setNewAddOn({...newAddOn, name: e.target.value})} />
-                <input type="number" className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-gray-500" placeholder="Price (₱)" value={newAddOn.price} onChange={e => setNewAddOn({...newAddOn, price: e.target.value})} min="0" />
-                <select className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:border-gray-500" value={newAddOn.ingredient_id} onChange={e => {
+              <div className="flex flex-col gap-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <input type="text" className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm md:text-base font-medium focus:outline-none focus:border-gray-900" placeholder="Add-on Name (e.g., Pearl)" value={newAddOn.name} onChange={e => setNewAddOn({...newAddOn, name: e.target.value})} />
+                <input type="number" className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm md:text-base font-medium focus:outline-none focus:border-gray-900" placeholder="Price (₱)" value={newAddOn.price} onChange={e => setNewAddOn({...newAddOn, price: e.target.value})} min="0" />
+                <select className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm md:text-base font-medium bg-white focus:outline-none focus:border-gray-900" value={newAddOn.ingredient_id} onChange={e => {
                     const id = e.target.value;
                     const ing = allIngredients.find(i => i.id === id);
                     setNewAddOn({...newAddOn, ingredient_id: id, unit: (ing?.unit || '').toUpperCase()});
@@ -200,17 +200,17 @@ const CategorySettingsModal = ({ onClose, allIngredients }) => {
                 </select>
                 {newAddOn.ingredient_id && (
                   <div className="flex gap-2">
-                    <input type="number" className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-gray-500" placeholder="Qty Used" value={newAddOn.quantity} onChange={e => setNewAddOn({...newAddOn, quantity: e.target.value})} min="0" />
-                    <span className="flex items-center justify-center px-4 bg-gray-200 rounded-md text-xs font-bold text-gray-700">{newAddOn.unit}</span>
+                    <input type="number" className="flex-1 px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm md:text-base font-medium focus:outline-none focus:border-gray-900" placeholder="Qty Used" value={newAddOn.quantity} onChange={e => setNewAddOn({...newAddOn, quantity: e.target.value})} min="0" />
+                    <span className="flex items-center justify-center px-4 bg-gray-200 rounded-lg text-sm font-bold text-gray-800">{newAddOn.unit}</span>
                   </div>
                 )}
-                <button type="button" className="w-full py-2 bg-white border border-gray-300 text-gray-700 text-xs font-bold uppercase tracking-wider rounded hover:bg-gray-100 transition-colors mt-1" onClick={handleAddAddOn}>Add Default Add-on</button>
+                <button type="button" className="w-full py-2.5 bg-white border border-gray-300 text-gray-800 text-sm md:text-base font-bold uppercase tracking-wider rounded-lg hover:bg-gray-100 transition-colors mt-1 cursor-pointer" onClick={handleAddAddOn}>Add Default Add-on</button>
               </div>
             </div>
           </div>
           
           <div className="mt-8 flex justify-end">
-            <button className="px-6 py-2.5 bg-gray-600 text-white rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-black hover:shadow-lg transition-all hover:-translate-y-0.5 disabled:bg-gray-400 disabled:hover:translate-y-0" onClick={handleSave} disabled={loading}>
+            <button className="px-7 py-3 bg-gray-900 text-white rounded-xl text-sm md:text-base font-bold uppercase tracking-wider hover:bg-black hover:shadow-lg transition-all hover:-translate-y-0.5 disabled:bg-gray-400 disabled:hover:translate-y-0 cursor-pointer" onClick={handleSave} disabled={loading}>
               {loading ? 'Saving...' : 'Save Settings for ' + selectedCategory}
             </button>
           </div>

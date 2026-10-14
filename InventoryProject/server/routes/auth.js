@@ -1,11 +1,12 @@
 import express from "express";
 import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 import { supabase } from "../config/supabaseClient.js";
 import { logAudit } from "../utils/auditHelper.js";
 
 const router = express.Router();
 
-// ─── In-memory lockout store ──────────────────────────────────────────────────
+// ─── In-memory lockout store 
 // { username_lowercase: { attempts: number, lockedUntil: Date|null } }
 const loginAttempts = {};
 const MAX_ATTEMPTS  = 3;
@@ -114,7 +115,15 @@ router.post("/login", async (req, res) => {
     await logAudit("LOGIN", data.id, { username: data.username, role: data.role });
 
     const { password_hash: _password_hash, ...userWithoutPassword } = data;
-    res.json(userWithoutPassword);
+    
+    // Create JWT token
+    const token = jwt.sign(
+      { userId: data.id, role: data.role },
+      process.env.JWT_SECRET || 'fallback-secret-key-change-me',
+      { expiresIn: '8h' }
+    );
+    
+    res.json({ token, ...userWithoutPassword });
 
   } catch (err) {
     res.status(500).json({ error: err.message });

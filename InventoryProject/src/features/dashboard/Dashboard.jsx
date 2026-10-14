@@ -38,9 +38,16 @@ import Reports from '../reports/Reports';
 // Content Management
 import CMSDashboard from '../cms/CMSDashboard';
 
+// Supplier Portal
+import SupplierPortal from '../inventory/SupplierPortal';
+import { getCurrentUser } from '../../utils/authUtils';
+
 const Dashboard = () => {
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const [activeTab, setActiveTab] = useState(user.role === 'Staff' ? 'POS' : 'Dashboard');
+  const user = getCurrentUser() || {};
+  const [activeTab, setActiveTab] = useState(
+    user.role === 'Supplier' ? 'SupplierPortal' : 
+    (user.role === 'Staff' ? 'POS' : 'Dashboard')
+  );
 
   const isAuthorized = (tab) => {
     // Owner-exclusive tabs
@@ -49,6 +56,8 @@ const Dashboard = () => {
 
     if (user.role === 'Admin' || user.role === 'Owner') return true;
     
+    if (user.role === 'Supplier') return tab === 'SupplierPortal';
+
     // Staff restricted tabs
     const staffAllowed = ['POS', 'Products', 'RawMaterialTracker', 'ProductStockTracker', 'ReportWastage'];
     return staffAllowed.includes(tab);
@@ -94,7 +103,11 @@ const Dashboard = () => {
       case 'Reports':           return <Reports />;
 
       // Content Management
+      // Content Management
       case 'CMSDashboard':      return <CMSDashboard />;
+
+      // Supplier Portal
+      case 'SupplierPortal':    return <SupplierPortal />;
 
       default:
         return (
@@ -107,10 +120,10 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="w-full h-screen bg-white text-gray-900 font-sans flex flex-col">
+    <div className="w-full h-screen bg-[#f8fafc] text-zinc-900 font-sans flex flex-col">
       <div className="flex flex-1 overflow-hidden">
         <Navbar activeTab={activeTab} onTabChange={setActiveTab} />
-        <main className="flex-1 overflow-y-auto bg-gray-50 scrollbar-thin scrollbar-thumb-gray-300 hover:scrollbar-thumb-gray-400">
+        <main className="flex-1 overflow-y-auto bg-[#f8fafc] scrollbar-thin scrollbar-thumb-zinc-300 hover:scrollbar-thumb-zinc-400">
           {renderContent()}
         </main>
       </div>

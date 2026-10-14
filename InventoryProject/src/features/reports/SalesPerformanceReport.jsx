@@ -160,9 +160,9 @@ const SalesPerformanceReport = () => {
       <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-6 flex flex-col lg:flex-row justify-between gap-6">
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-3">
-            <span className="text-sm font-bold text-gray-700 uppercase tracking-wider">Period</span>
+            <span className="text-sm md:text-base font-bold text-gray-700 uppercase tracking-wider">Period</span>
             <select
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
+              className="px-4 py-2 border border-gray-300 rounded-lg text-sm md:text-base bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
               value={period}
               onChange={e => { setPeriod(e.target.value); setFetched(false); }}
             >
@@ -176,14 +176,14 @@ const SalesPerformanceReport = () => {
             <div className="flex items-center gap-3 bg-gray-50 p-2 rounded-lg border border-gray-200">
               <input 
                 type="date" 
-                className="px-3 py-1.5 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent" 
+                className="px-3 py-1.5 border border-gray-300 rounded text-sm md:text-base bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent" 
                 value={customStart} 
                 onChange={e => { setCustomStart(e.target.value); setFetched(false); }} 
               />
-              <span className="text-xs font-bold text-gray-400">TO</span>
+              <span className="text-sm md:text-base font-bold text-gray-400">TO</span>
               <input 
                 type="date" 
-                className="px-3 py-1.5 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent" 
+                className="px-3 py-1.5 border border-gray-300 rounded text-sm md:text-base bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent" 
                 value={customEnd} 
                 onChange={e => { setCustomEnd(e.target.value); setFetched(false); }} 
               />
@@ -192,21 +192,21 @@ const SalesPerformanceReport = () => {
         </div>
         <div className="flex flex-wrap gap-3">
           <button 
-            className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-gray-50 transition-colors disabled:opacity-50 shadow-sm" 
+            className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm md:text-base font-bold uppercase tracking-wider hover:bg-gray-50 transition-colors disabled:opacity-50 shadow-sm" 
             onClick={handleExport} 
             disabled={!fetched || loading}
           >
             Export CSV
           </button>
           <button 
-            className="px-5 py-2.5 bg-gray-900 text-white rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm" 
+            className="px-5 py-2.5 bg-gray-900 text-white rounded-lg text-sm md:text-base font-bold uppercase tracking-wider hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm" 
             onClick={fetchReport} 
             disabled={loading || (period === 'custom' && (!customStart || !customEnd))}
           >
             {loading ? 'Loading...' : 'Generate Report'}
           </button>
           <button 
-            className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-gray-50 transition-colors disabled:opacity-50 shadow-sm" 
+            className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm md:text-base font-bold uppercase tracking-wider hover:bg-gray-50 transition-colors disabled:opacity-50 shadow-sm" 
             onClick={handlePrint} 
             disabled={!fetched}
           >
@@ -220,7 +220,7 @@ const SalesPerformanceReport = () => {
         <div className="p-12 flex flex-col items-center justify-center text-gray-500 bg-white border border-gray-200 border-dashed rounded-xl h-64">
           <svg className="w-16 h-16 mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
           <div className="text-lg font-bold text-gray-900 mb-1">Ready to Generate</div>
-          <p className="m-0 text-sm">Select a period and click <strong className="text-gray-900">Generate Report</strong> to load data.</p>
+          <p className="m-0 text-sm md:text-base">Select a period and click <strong className="text-gray-900">Generate Report</strong> to load data.</p>
         </div>
       )}
 
@@ -236,24 +236,24 @@ const SalesPerformanceReport = () => {
           {/* KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-t-4 border-t-blue-500">
-              <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Gross Revenue</div>
+              <div className="text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider mb-2">Gross Revenue</div>
               <div className="text-2xl font-extrabold text-gray-900 mb-1">₱{totalSales.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-              <div className="text-xs font-medium text-gray-400 lowercase">{period} total</div>
+              <div className="text-sm md:text-base font-medium text-gray-400 lowercase">{period} total</div>
             </div>
             <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-t-4 border-t-green-500">
-              <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Total Transactions</div>
+              <div className="text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider mb-2">Total Transactions</div>
               <div className="text-2xl font-extrabold text-gray-900 mb-1">{totalTx.toLocaleString()}</div>
-              <div className="text-xs font-medium text-gray-400">sales recorded</div>
+              <div className="text-sm md:text-base font-medium text-gray-400">sales recorded</div>
             </div>
             <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-t-4 border-t-gray-900">
-              <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Average Ticket</div>
+              <div className="text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider mb-2">Average Ticket</div>
               <div className="text-2xl font-extrabold text-gray-900 mb-1">₱{avgTicket.toFixed(2)}</div>
-              <div className="text-xs font-medium text-gray-400">per transaction</div>
+              <div className="text-sm md:text-base font-medium text-gray-400">per transaction</div>
             </div>
             <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-t-4 border-t-purple-500">
-              <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Items Sold</div>
+              <div className="text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider mb-2">Items Sold</div>
               <div className="text-2xl font-extrabold text-gray-900 mb-1">{totalItems.toLocaleString()}</div>
-              <div className="text-xs font-medium text-gray-400">units dispatched</div>
+              <div className="text-sm md:text-base font-medium text-gray-400">units dispatched</div>
             </div>
           </div>
 
@@ -262,7 +262,7 @@ const SalesPerformanceReport = () => {
             <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden pt-4 pb-2">
               <div className="px-6 flex justify-between items-baseline mb-4">
                 <h2 className="m-0 text-lg font-bold text-gray-900 tracking-tight">Revenue by Operator</h2>
-                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                <span className="text-xs md:text-sm text-gray-400 font-bold uppercase tracking-wider">
                   {period} view
                 </span>
               </div>
@@ -283,14 +283,14 @@ const SalesPerformanceReport = () => {
                   <table className="w-full text-left border-collapse whitespace-nowrap">
                     <thead>
                       <tr className="bg-gray-50 border-b border-gray-200">
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider w-16">#</th>
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-900" onClick={() => handleSort('name')}>Operator{sortArrow('name')}</th>
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-900" onClick={() => handleSort('total_sales')}>Total Sales{sortArrow('total_sales')}</th>
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-900 text-center" onClick={() => handleSort('transactions')}>
+                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider w-16">#</th>
+                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-900" onClick={() => handleSort('name')}>Operator{sortArrow('name')}</th>
+                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-900" onClick={() => handleSort('total_sales')}>Total Sales{sortArrow('total_sales')}</th>
+                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-900 text-center" onClick={() => handleSort('transactions')}>
                           Transactions{sortArrow('transactions')}
                         </th>
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Avg Per Sale</th>
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider min-w-[180px]">Market Share</th>
+                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider text-center">Avg Per Sale</th>
+                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider min-w-[180px]">Market Share</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -300,21 +300,16 @@ const SalesPerformanceReport = () => {
                         return (
                           <tr key={staff.id} className="hover:bg-gray-50/50 transition-colors">
                             <td className="px-6 py-4">
-                              <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
-                                i === 0 ? 'bg-yellow-100 text-yellow-700' :
-                                i === 1 ? 'bg-gray-200 text-gray-700' :
-                                i === 2 ? 'bg-orange-100 text-orange-700' :
-                                'bg-gray-100 text-gray-500'
-                              }`}>
+                              <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-sm md:text-base font-bold ${ i === 0 ? 'bg-yellow-100 text-yellow-700' : i === 1 ? 'bg-gray-200 text-gray-700' : i === 2 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500' }`}>
                                 {i + 1}
                               </span>
                             </td>
-                            <td className="px-6 py-4 text-xs font-bold text-gray-900 uppercase tracking-wider">{staff.name}</td>
-                            <td className="px-6 py-4 text-sm font-bold font-mono text-gray-900">
+                            <td className="px-6 py-4 text-sm md:text-base font-bold text-gray-900 uppercase tracking-wider">{staff.name}</td>
+                            <td className="px-6 py-4 text-sm md:text-base font-bold font-mono text-gray-900">
                               ₱{(staff.total_sales || 0).toFixed(2)}
                             </td>
-                            <td className="px-6 py-4 text-sm font-extrabold text-gray-900 text-center">{staff.transactions}</td>
-                            <td className="px-6 py-4 text-sm font-medium font-mono text-gray-500 text-center">
+                            <td className="px-6 py-4 text-sm md:text-base font-extrabold text-gray-900 text-center">{staff.transactions}</td>
+                            <td className="px-6 py-4 text-sm md:text-base font-medium font-mono text-gray-500 text-center">
                               ₱{avg.toFixed(2)}
                             </td>
                             <td className="px-6 py-4">
@@ -322,7 +317,7 @@ const SalesPerformanceReport = () => {
                                 <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
                                   <div className="h-full bg-gray-900 rounded-full" style={{ width: `${share}%` }} />
                                 </div>
-                                <span className="text-xs font-bold text-gray-600 w-12 text-right">{share.toFixed(1)}%</span>
+                                <span className="text-sm md:text-base font-bold text-gray-600 w-12 text-right">{share.toFixed(1)}%</span>
                               </div>
                             </td>
                           </tr>
@@ -342,7 +337,7 @@ const SalesPerformanceReport = () => {
             <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden">
               <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex justify-between items-baseline">
                 <h2 className="m-0 text-lg font-bold text-gray-900 tracking-tight">Top Products Sold</h2>
-                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                <span className="text-xs md:text-sm text-gray-400 font-bold uppercase tracking-wider">
                   {period === 'custom' ? `${customStart} to ${customEnd}` : period}
                 </span>
               </div>
@@ -351,30 +346,25 @@ const SalesPerformanceReport = () => {
                   <table className="w-full text-left border-collapse whitespace-nowrap">
                     <thead>
                       <tr className="bg-gray-50 border-b border-gray-200">
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider w-16">#</th>
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Product</th>
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Category</th>
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Units Sold</th>
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Total Revenue</th>
+                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider w-16">#</th>
+                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider">Product</th>
+                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider">Category</th>
+                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider text-center">Units Sold</th>
+                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider">Total Revenue</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {sortedProducts.map((p, i) => (
                         <tr key={p.id} className="hover:bg-gray-50/50 transition-colors">
                           <td className="px-6 py-4">
-                            <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
-                              i === 0 ? 'bg-yellow-100 text-yellow-700' :
-                              i === 1 ? 'bg-gray-200 text-gray-700' :
-                              i === 2 ? 'bg-orange-100 text-orange-700' :
-                              'bg-gray-100 text-gray-500'
-                            }`}>
+                            <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-sm md:text-base font-bold ${ i === 0 ? 'bg-yellow-100 text-yellow-700' : i === 1 ? 'bg-gray-200 text-gray-700' : i === 2 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500' }`}>
                               {i + 1}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-sm font-bold text-gray-900">{p.name}</td>
-                          <td className="px-6 py-4 text-xs font-medium text-gray-500">{p.category}</td>
-                          <td className="px-6 py-4 text-sm font-extrabold text-gray-900 text-center">{p.qty_sold}</td>
-                          <td className="px-6 py-4 text-sm font-bold font-mono text-green-700">
+                          <td className="px-6 py-4 text-sm md:text-base font-bold text-gray-900">{p.name}</td>
+                          <td className="px-6 py-4 text-sm md:text-base font-medium text-gray-500">{p.category}</td>
+                          <td className="px-6 py-4 text-sm md:text-base font-extrabold text-gray-900 text-center">{p.qty_sold}</td>
+                          <td className="px-6 py-4 text-sm md:text-base font-bold font-mono text-green-700">
                             ₱{p.revenue.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                           </td>
                         </tr>
@@ -391,7 +381,7 @@ const SalesPerformanceReport = () => {
       {fetched && !loading && !summary && (
         <div className="p-12 flex flex-col items-center justify-center text-gray-500 bg-white border border-gray-200 rounded-xl">
           <div className="text-lg font-bold text-gray-900 mb-1">No Data</div>
-          <p className="m-0 text-sm">No sales data found for the selected period.</p>
+          <p className="m-0 text-sm md:text-base">No sales data found for the selected period.</p>
         </div>
       )}
     </div>

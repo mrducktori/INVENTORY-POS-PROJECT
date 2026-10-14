@@ -31,7 +31,7 @@ export const downloadCSV = (rows, filename) => {
 export const printReport = (title, html) => {
   const win = window.open('', '_blank', 'width=900,height=700');
   if (!win) {
-    alert('Pop-up blocked. Please allow pop-ups for this site to use Print.');
+    console.error('Pop-up blocked. Please allow pop-ups for this site to use Print.');
     return;
   }
   win.document.write(`

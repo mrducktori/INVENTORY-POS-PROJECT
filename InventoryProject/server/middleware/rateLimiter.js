@@ -7,10 +7,7 @@ export const generalLimiter = rateLimit({
   message: 'Too many requests from this IP, please try again later',
   standardHeaders: true,
   legacyHeaders: false,
-  skipSuccessfulRequests: false,
-  keyGenerator: (req) => {
-    return req.ip || req.connection.remoteAddress;
-  }
+  skipSuccessfulRequests: false
 });
 
 // Auth rate limiter - stricter limits for login attempts
@@ -20,10 +17,7 @@ export const authLimiter = rateLimit({
   message: 'Too many login attempts, please try again later',
   standardHeaders: true,
   legacyHeaders: false,
-  skipSuccessfulRequests: true,
-  keyGenerator: (req) => {
-    return req.ip || req.connection.remoteAddress;
-  }
+  skipSuccessfulRequests: true
 });
 
 // User management rate limiter - moderate limits for user creation/updates
@@ -32,10 +26,7 @@ export const userManagementLimiter = rateLimit({
   max: 10,
   message: 'Too many user management requests, please try again later',
   standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: (req) => {
-    return req.ip || req.connection.remoteAddress;
-  }
+  legacyHeaders: false
 });
 
 // Loose limiter for general operations - 200 requests per 15 minutes
@@ -44,10 +35,7 @@ export const looseLimiter = rateLimit({
   max: 200,
   message: 'Too many requests, please try again later',
   standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: (req) => {
-    return req.ip || req.connection.remoteAddress;
-  }
+  legacyHeaders: false
 });
 
 // Create/Write operations limiter - moderate limits
@@ -56,8 +44,5 @@ export const createLimiter = rateLimit({
   max: 30,
   message: 'Too many creation requests, please try again later',
   standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: (req) => {
-    return req.ip || req.connection.remoteAddress;
-  }
+  legacyHeaders: false
 });

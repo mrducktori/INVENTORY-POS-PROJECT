@@ -2,6 +2,264 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Fix White Screen Render Crash & Realtime Collision — 2026-10-10]
+- **Supabase Realtime Channel Collision (`useNotifications.js`):**
+  - Resolved `cannot add postgres_changes callbacks for realtime after subscribe()` error when multiple components mount `useNotifications` by assigning unique timestamped channel IDs per hook instance.
+- **Public CMS Endpoint Access (`client.js`):**
+  - Added `GET /cms` to public endpoints in `client.js` so public landing page visitors can load café CMS content without triggering authentication or session expiration redirects.
+- **Render-Phase Navigation Guard (`LoginPage.jsx`):**
+  - Moved `navigate('/dashboard')` into a `useEffect` hook to prevent React 18/19 `Cannot update a component while rendering a different component` render-phase crash.
+
+## [Item-by-Item Supplier PO Acceptance, Date Proposals & Backorders — 2026-10-10]
+- **Supplier Review & Product Availability Breakdown (`SupplierPortal.jsx`, `SupplierReviewPOModal.jsx`):**
+  - Replaced bulk-only acceptance with an interactive per-item review modal.
+  - Suppliers can select availability status for each ordered product individually:
+    - **Available**: Confirmed for delivery on the requested schedule.
+    - **Propose Later Date**: Set a specific proposed delivery date with an explanatory note when items are temporarily out of stock.
+    - **Unavailable**: Mark items that cannot be fulfilled along with a required reason.
+  - Quick action to "Mark All Available" with a single click.
+  - Added filter tabs in Supplier Portal: `All Orders`, `Pending Review`, `Proposals & Rescheduled`, `Active Deliveries`, and `Completed`.
+- **Shop Review & Backorder Conversion (`PurchaseOrders.jsx`):**
+  - Added dedicated **"Supplier Proposals"** tab in Purchase Orders highlighting orders with proposed dates or unavailable items.
+  - Shop (Admin/Owner) can review the supplier's proposals per item:
+    - **Accept Proposed Date**: Confirms the supplier's proposed date and splits the delayed product into a distinct accepted Backorder PO.
+    - **Decline Date**: Rejects the proposed date without affecting available items.
+  - Displays supplier notes, unavailable reasons, and approval states in order breakdown rows.
+- **Backend & Service Logic (`purchasingService.js`, `purchasingController.js`, `purchasing.js`):**
+  - Added `enrichPOsWithSupplierProposals` to enrich PO items with supplier proposals and shop decisions using audit logs.
+  - Added `PUT /api/purchasing/my-orders/:id/item-responses` for suppliers to submit availability breakdowns.
+  - Added `PUT /api/purchasing/:id/proposals/respond` for the shop to accept or decline proposed dates and trigger automatic backorder PO creation.
+- **Live Notifications (`useNotifications.js`):**
+  - Added alert notifications for `Proposal Pending` status to notify managers in real-time when a supplier submits date proposals.
+
+## [Live Dashboard Notification & Alerts Inbox — 2026-10-10]
+- **Dashboard Notification Inbox (`NotificationInbox.jsx`, `useNotifications.js`):**
+  - Built an interactive Notification / Alerts Inbox trigger button with unread count badges in the Dashboard header.
+  - Implemented a slide-over drawer with backdrop blur, quick filter tabs (`All`, `Unread`, `PO Updates`, `Stock Alerts`), relative timestamps, and one-click deep navigation.
+  - **Purchase Order & Supplier Lifecycle Alerts:** Real-time tracking of PO statuses:
+    - `Accepted`: Alerts when a supplier accepts an order with total amount and scheduled delivery date.
+    - `Declined`: Immediate critical alert when a supplier declines an order.
+    - `Postponed`: Rescheduled alert with supplier's new expected arrival date.
+    - `Delivering` / `To Be Delivered`: Alerts staff to prepare for incoming stock delivery.
+    - `Pending`: Awaiting supplier confirmation.
+    - `Partial`: Tracks partially received orders with remaining pending items.
+  - **Inventory Stock Alerts:** Tracks low stock warnings and critical out-of-stock (0 units) alerts across both raw materials and stock-tracked products.
+  - **Real-time Synchronization:** Listens to Supabase `postgres_changes` on `purchase_orders` to reflect updates instantly without page refreshes.
+  - **State Persistence:** Preserves read and dismissed notification states in `localStorage` across user sessions with "Mark all as read" and "Clear Read" controls.
+  - **Global Navigation Indicator (`Navbar.jsx`):** Added dynamic unread badge count on the sidebar's "Dashboard Overview" navigation item.
+
+## [Extended Inactivity Session Timeout to 2 Hours — 2026-10-10]
+- **Session Timeout (`authUtils.js`, `client.js`):**
+  - Updated rolling inactivity session timeout `SESSION_TIMEOUT_MS` from 30 minutes to 2 hours (`2 * 60 * 60 * 1000`).
+  - Updated session expiration alert banner notice to inform users that sessions expire after 2 hours of inactivity.
+
+## [Auto-Bring Up Selected PO Items — 2026-10-07]
+- **Purchase Order Form (`PurchaseOrderForm.jsx`):**
+  - Configured item checklist to automatically float all selected PO items to the top of the list so users immediately see and configure their active order items without scrolling through unselected ingredients.
+  - Added clean section separation with an "Available Items" divider when both selected and unselected items exist.
+  - Added dynamic "X Selected" pill badge in the checklist header and a live order summary (`X items selected: ₱Total`) in the modal footer.
+  - Improved quantity typing interaction so clearing the input doesn't prematurely reset to 1.
+
+## [Direct Per-Receive Rows & Batch History Tracking — 2026-10-07]
+- **Audit Log Enrichment (`purchasingService.js`):**
+  - Added `enrichPOsWithReceiptHistory` to cross-reference stock receipt audit logs with purchase orders. Every partial or complete receiving event (`RAW_MATERIAL_STOCK_RECEIVED`) is now accurately attached to its PO item with its specific timestamp and quantity.
+  - Previous multiple receive actions (e.g., Receive 1: 1 pack, Receive 2: 1 pack) now preserve distinct events rather than collapsing into a single updated number.
+- **Direct Table Row Rendering (`PurchaseOrders.jsx`):**
+  - Removed the inner nested table container completely.
+  - Each receipt event is rendered as an explicit direct table row (`Received 1`, `Received 2`, `Received 3`...) immediately beneath the ordered ingredient, with exact timestamps, received quantity, unit price, and received total value.
+  - Restarted backend server to apply the updated purchasing service.
+
+## [Fix Timezone & Timestamp Display for Received POs — 2026-10-07]
+- **Timezone Standardization (`dateUtils.js`, `PurchaseOrders.jsx`, `ReceivePOModal.jsx`):**
+  - Resolved timezone bug where timestamps without a `Z` suffix from PostgreSQL (`timestamp without time zone`) were parsed as local morning times (e.g., 07:00 UTC displayed as 07:00 AM instead of 3:00 PM).
+  - Implemented `parseUTCDate` in `src/utils/dateUtils.js` which accurately detects UTC timestamps lacking a timezone offset and converts them into proper Date objects.
+  - Implemented and wired `formatDisplayDateTime` and `formatDisplayDate` using the official `Asia/Manila` (+08:00) timezone across `PurchaseOrders.jsx` (Receiving History sub-table, expected dates) and `ReceivePOModal.jsx`.
+
+## [Purchase Orders Receiving History Rows Redesign — 2026-10-07]
+- **Purchase Orders (`PurchaseOrders.jsx`):**
+  - Replaced the misaligned red sub-rows (`↳ Received` with red left border and negative red total) with a clean, beautifully aligned Receiving History sub-table under each ordered item.
+  - Dedicated table columns for each receipt batch: `Batch` (`Batch #1`, `Batch #2`), `Date & Time Received`, `Quantity Received` (highlighted in emerald green), `Unit Price`, and `Received Value`.
+  - Added total received progress header badge (`Total Received: X / Y units`).
+  - Supports both multi-batch partial receiving records and single-batch receipts gracefully.
+
+## [Fix Purchase Orders Loading Error — 2026-10-07]
+- **Purchase Orders Service (`purchasingService.js`):**
+  - Resolved `column purchase_order_items_1.receipt_history does not exist` database error (PostgREST code `42703`) which prevented purchase orders from loading on the frontend.
+  - Added resilient schema-safe fallbacks to `getPurchaseOrders` and `getPurchaseOrdersBySupplier`: if `receipt_history` does not exist in the database table, it falls back cleanly to the existing table schema without throwing an error.
+  - Added safe conditional handling in `updatePurchaseOrderStatus` so partial receiving updates work whether or not `receipt_history` column exists.
+  - Restarted backend server to apply the updated purchasing service.
+
+## [Unified Revenue Snapshot Sparkline & Trends Widget — 2026-10-07]
+- **Revenue Snapshot (`RevenueSnapshot.jsx`):**
+  - Merged the disconnected mini sparkline card and the standalone "7-Day Trends" button into a single unified, interactive widget button.
+  - The unified container houses the live sparkline chart on the left and an integrated "7-Day Trends >" badge pill on the right.
+  - Clicking anywhere on the combined card opens the expanded 7-day trend analysis view with smooth hover highlights and micro-interactions.
+
+## [Modal & Product Management Typography Upgrades — 2026-10-07]
+- **Receipt Journal (`SalesReceiptJournal.jsx`):**
+  - Replaced the blue emoji play button (`▶`) with a clean vector chevron arrow (`>`) that smoothly rotates 90 degrees downward (`v`) when a receipt row is expanded.
+  - Upgraded expanded digital receipt card text sizes, item descriptions, and totals for high legibility.
+- **Product Management (`ManageProducts.jsx`):**
+  - Enlarged form labels from cramped/broken `text` classes to `text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider`.
+  - Upgraded table column headers from tiny `text-[10px]/text-[11px]` to `text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider`.
+  - Upgraded table row elements: Product names (`text-sm md:text-base font-extrabold`), Category (`text-xs md:text-sm font-bold text-gray-600`), and Price (`text-sm md:text-base font-extrabold`).
+  - Enlarged Stock badges (`Recipe based` & `{stock} in stock`) and Status badges from `text-[10px]` to `text-xs font-bold`.
+  - Enlarged Action buttons (`Edit`, `Archive`, `Restore`) to `text-xs md:text-sm font-bold`.
+- **System-wide Modals Typography Overhaul:**
+  - **`SalesReceiptModal.jsx`**: Expanded modal width (`max-w-lg`) and boosted typography across store header, date/staff lines, table items, bold prices, and footer metadata.
+  - **`PaymentModal.jsx`**: Enlarged modal width (`max-w-lg`), cash tender quick buttons (`text-xs md:text-sm font-bold`), cash input (`text-xl font-bold`), and change amount (`text-2xl md:text-3xl font-black`).
+  - **`POS.jsx` (Options & Recipe Modals)**: Upgraded quantity counter, cup size buttons, add-on stepper items, and ingredient recipe details to clear, accessible sizes.
+  - **`CategorySettingsModal.jsx`**: Replaced micro-text table headers and inputs with readable `text-sm md:text-base` elements.
+  - **`ReceivePOModal.jsx`**: Upgraded header, verification note, item labels, received history, and quantity input box.
+  - **`SupplierPortal.jsx`**: Enlarged Postpone modal container, input, and action buttons.
+  - **`ConfirmModal.jsx`**: Upgraded to `max-w-md` with `text-xl md:text-2xl` title and `text-base` description.
+
+## [Top Sales Category Accordion & Responsive Grid Fix — 2026-10-07]
+- **Fixed Category Compact / Collapse Behavior:**
+  - Resolved the issue where clicking `Compact` or `Compact All` failed to collapse categories with 1 or 2 items because the code was previously slicing `(0, 2)` instead of folding.
+  - When compacted (`isCompacted === true`), category cards now truly collapse their item lists and display a sleek summary bar (`Total Units: X sold • Click to view items ▼`).
+  - When opened (`isCompacted === false`), the full ranked products with share meters and quantities expand smoothly.
+  - Clicking `▲ Compact All` now collapses all category cards into compact view, and `▼ Open All` expands them all.
+- **Adaptive Grid Columns (No Empty Gaps):**
+  - Updated grid column sizing to dynamically adapt to the number of categories:
+    - 3 categories (like in the dashboard) now render as `md:grid-cols-2 lg:grid-cols-3` filling the full container width with no empty 4th column.
+    - 1 or 2 categories adapt to `grid-cols-1` and `md:grid-cols-2`.
+- **Dedicated Clickable Toggle Buttons:**
+  - Added explicit `▼ Open` (dark active pill) and `▲ Compact` buttons with event propagation isolation so clicking either the button or the header card toggles the state reliably.
+
+## [POS Input Limits & Sanity Bounds — 2026-10-07]
+- **Item Quantity Bounds (Limit: 1 – 99):**
+  - In `POS.jsx` and `usePOS.js`, item quantities are capped at a maximum of 99 per line item.
+  - Buttons (`−` and `+`) automatically disable when reaching the minimum (1) or maximum (99).
+  - Manual numeric inputs clamp values between 1 and 99, preventing accidental entries like 100,000.
+- **Add-on Limits (Max 5 per add-on):**
+  - In `POS.jsx` and `usePOS.js`, beverage add-ons (pearl, nata, jelly, extra sugar/ice, etc.) are capped at a realistic maximum of 5 servings per drink.
+  - The `+` button disables once 5 is reached, and displays a clear `"Max 5 per add-on"` notice.
+- **Cart Stepper Controls & Clamped Inputs:**
+  - Upgraded the quantity field in `Cart.jsx` with dedicated increment/decrement stepper buttons and strict clamping (`min="1" max="99"`).
+- **Payment Modal Cash Tender Limits & Quick Presets:**
+  - In `PaymentModal.jsx`, added a reasonable upper bound for cash tender (`Math.min(100000, Math.max(order.total + 5000, 50000))`).
+  - Entering illogical amounts (e.g., ₱1,000,000 for a ₱150 purchase) is blocked with an informative validation error explaining the upper bound.
+  - Added quick cash denomination preset buttons (`Exact`, `₱100`, `₱200`, `₱500`, `₱1,000`) for one-tap cashier tendering to prevent extra-zero typing typos.
+- **Backend API Guardrails:**
+  - In `server/controllers/posController.js`, enforced strict validation on `POST /api/pos/sale`:
+    - Validates cart item counts (`<= 100` distinct items) and item quantities (`1 <= qty <= 99`).
+    - Validates add-on counts (`0 <= customer_qty <= 5`).
+    - Validates cash received (`amount_received >= total` and `<= ₱100,000`).
+
+## [30-Minute Inactivity Session Timeout & Auto-Logout — 2026-10-07]
+- **30-Minute Rolling Inactivity Session Timeout:**
+  - Configured `SESSION_TIMEOUT_MS = 30 * 60 * 1000` (30 minutes) in `src/utils/authUtils.js`.
+  - Added timestamp tracking (`session_last_activity` in `localStorage`) updated automatically whenever the user interacts with the app (clicks, typing, scrolling, API calls) throttled to avoid overhead.
+  - Resolves the issue where closing the browser or staying offline for hours or days left accounts permanently logged in.
+- **Offline / Closed Browser Auto-Expiration:**
+  - If a user closes their browser or tab and returns after 30 minutes (or days later), `getCurrentUser()` and `PrivateRoute` detect the elapsed timeout, clear the local credentials, and redirect them to `/coftealoginpageforstaff`.
+  - Sets an informative notice in `sessionStorage` (`"Your session timed out after 30 minutes of inactivity. Please log in again."`).
+- **Live Inactivity Watcher (`SessionTimeoutWatcher`):**
+  - Added background activity listener and 15-second timer interval in `App.jsx` to catch idle open browser tabs and automatically redirect them when 30 minutes elapse.
+  - Multi-tab synchronization: Listens to the `window` storage event so that logging out or timing out in one tab instantly updates and locks all other open tabs.
+- **Protected API Request Validation:**
+  - Updated `src/api/client.js` to verify session validity before sending authenticated requests and touch the activity timestamp on successful calls.
+- **Informative Login Banner in `LoginPage.jsx`:**
+  - Added a dedicated blue session timeout notice alert banner informing returning users why they need to sign in again after an inactive period.
+
+## [5-Year Historical Sales Seeding & Accessible Adaptive Dashboard — 2026-10-07]
+- **5-Year Historical Sales Seeding:**
+  - Created and ran `docs/database/seed_5yr_sales.cjs` to generate realistic past sales transactions spanning 2021-10-08 to 2026-10-07.
+  - **Preserved Existing Data:** Checked database for dates that already had recorded sales (54 existing dates) and strictly skipped them, seeding only the 1,809 missing days.
+  - Seeded **6,424 sales transactions** and **12,875 sale item records** with authentic Philippine cafe items, realistic order distributions, and payment methods (`Cash`, `GCash`, `Card`).
+- **Adaptive Screen Width:**
+  - Removed restrictive `max-w-7xl` and fixed width constraints in `DashboardOverview.jsx` and related subcomponents.
+  - Upgraded layout to full-width fluid responsive sizing (`w-full px-6 lg:px-10 py-6 min-h-full space-y-6`), seamlessly adapting to wider desktop displays (e.g., 1920x945 and ultrawide) without awkward gutters.
+- **Enhanced Typography & Legibility:**
+  - Enlarged small text across all dashboard sections for better readability and visual accessibility.
+  - Key metric values boosted to `text-4xl md:text-5xl font-black tabular-nums`.
+  - Section headers, table labels, card captions, and item names increased from small `text-xs`/`text-[11px]` to legible `text-sm`, `text-base`, and `text-lg`.
+- **Eliminated Icon Clutter & Visual Noise:**
+  - Stripped redundant decorative icon badges from metric cards, headers, and quick-action buttons.
+  - Kept only functional, minimal icons where necessary (e.g., chevron collapse arrows, register button).
+  - Removed repetitive tags and sub-captions (e.g., "POS Synced", "Past 7 Days Rolling Window"), streamlining the operational workspace.
+- **Top Sales Grid Adaptive Balance:**
+  - Upgraded category grid in `TopSalesGrid.jsx` to `xl:grid-cols-4`, allowing the 4 drink categories (Coffee, Milk Tea, Fruit Drinks, Frappe) to sit side-by-side on wide viewports without leaving orphaned single cards.
+  - Softened high-contrast black underline bars to subtle, refined `h-1.5` progress meters with breathing room between items.
+- **Role-Based POS Register Access:**
+  - Restricted the `"Open POS Register →"` header action button in `DashboardOverview.jsx` exclusively to `Staff` accounts (`user.role === 'Staff'`). Hidden for `Admin` and `Owner` roles.
+  - In `QuickActions.jsx`, replaced the POS register card with `"Manage Products"` for `Admin`/`Owner` accounts.
+- **Complete Product Catalog Images:**
+  - Seeded and uploaded high-resolution, professional cafe beverage and pastry images to Supabase Storage (`cms-images/public/`) for all 32 products previously lacking photos.
+  - Now **41 of 41 products (100%)** have authentic image assets displayed across the Product List (`ManageProducts`), POS item cards, and public Landing Page.
+- **Report Wastage Page Restyle & Adaptive Layout:**
+  - Redesigned `ReportWastage.jsx` into an adaptive 2-column layout (Left: Incident Logging Form, Right: Wastage Audit Log with live search filtering) eliminating awkward empty whitespace on desktop.
+  - Replaced outdated colored top-border stripes (`border-t-4 border-orange-500`, etc.) with unified `rounded-2xl` KPI metric cards featuring `text-4xl md:text-5xl` typography.
+  - Corrected header title from inaccurate `"Report Broken Items"` to `"Report Wastage"`.
+  - Added live stock availability context chips, larger form inputs (`h-12`), and soft status pill badges for reasons (`Expiry`, `Spoilage`, `Damage`, `Spillage`).
+- **View Products Dual View Modes & Photo Support:**
+  - Added a segmented view mode switcher (`Table View` vs `Grid Cards View`) to `Products.jsx`.
+  - **Table View**: Added `w-12 h-12` rounded product image thumbnails alongside product titles with lazy loading.
+  - **Grid Cards View**: Implemented a responsive 4-column card grid featuring full-width photo banners (`h-48`), category overlays, live stock status pills, and prominent "View Recipe" actions.
+  - Enhanced the Recipe Breakdown modal to display the selected product's photo in the header.
+- **Top Sales Category Tabs, Compact/Open Toggles & Bigger Indicator:**
+  - Added Category Tabs (`All Categories`, `Coffee`, `Milk Tea`, `Fruit Drinks`, `Frappe`) to `TopSalesGrid.jsx` for quick category filtering.
+  - Added individual category card compact/open toggling as well as a global `Compact All` / `Open All` button. When compacted, each card shows the top 2 items with a "+ more items (Click to open)" button.
+  - Enlarged the items indicator badge to a prominent, high-visibility `text-base font-black px-3.5 py-1.5 bg-zinc-900 text-white rounded-xl` badge.
+- **Archive & Restore UX Friction Protection:**
+  - Added explicit confirmation modal friction to both `ManageProducts.jsx` and `ManageRawMaterials.jsx` before performing Archive or Restore actions.
+  - Clicking **Archive** prompts an informative warning dialog explaining that the item will be deactivated from the POS register/active inventory while preserving all historical sales/orders, requiring a deliberate "Yes, Archive" confirmation.
+  - Clicking **Restore** prompts a clear activation confirmation ("Yes, Restore") with distinct green/red action buttons and cancel options, preventing accidental misclicks.
+- **System-Wide Async Button Lockout & Double-Click Protection:**
+  - Added strict execution lockouts (`isProcessing` and `processingId`) to prevent race conditions from rapid spam-clicking.
+  - In `ConfirmModal.jsx`, disabled both Cancel and Confirm buttons while the async action is executing, showing a loading spinner and "Processing..." label.
+  - In `ManageProducts.jsx` and `ManageRawMaterials.jsx`, disabled all table action buttons (`Archive`, `Restore`, `Edit`) during active operations (`disabled={isProcessing}` with `disabled:opacity-50 disabled:cursor-not-allowed`). The targeted button displays a spinner and "Please wait..." indicator until the database transaction and state reload completely finish.
+  - Restored `BLUEBERRY` status to active after resolving the collision.
+- **Top Sales Grid Quantity & Sold Text Legibility:**
+  - Enlarged the sold units figure to `text-base md:text-lg font-black text-zinc-900` and the "sold" label from `text-xs font-medium text-zinc-500` to `text-sm md:text-base font-extrabold text-zinc-700` for clear readability on wide screens.
+
+## [Dashboard Restyle & Human-Crafted Polish — 2026-10-07]
+- **Removed "AI-Generated" Elements:** Removed tacky `[AI Predicted]` badge and raw debug text ("Growth: 128.6% Confidence: 65% Risk: HIGH"). Replaced with professional, operational cafe metrics (`Velocity Model` and `Runout Rate` indicators).
+- **Eliminated Harsh 4px Colored Borders:** Replaced old Bootstrap/AdminLTE style colored top stripes (`border-t-4 border-t-red-500`, `border-t-black`) with unified modern `rounded-2xl` card geometry and subtle borders (`border-gray-200/90`).
+- **Typography & Font Polish:** Imported `Plus Jakarta Sans` with antialiasing and switched currency/numeric figures to `tabular-nums` for crisp, aligned layout.
+- **Operational Context Header:** Added live shift status indicator (pulsing emerald dot), date and Manila time badge, and clear station role greeting.
+- **Revenue Hero & Sparkline:** Added thousand-separator currency formatting (`₱X,XXX.XX`), area gradient sparkline, and interactive `Trends ↗` button.
+- **Tailored Stat Cards & Icons:** Added dedicated station monochrome icons for Transactions, Average Sale, and Low Stock. Replaced generic alerts with subtle pulsing indicators and refined `Details →` prompts.
+- **Thoughtful Empty State:** Replaced blank void with an illustrated, informative empty state in `TopSalesGrid` explaining that sales compile live as orders are finalized in POS.
+- **Tactile Quick Actions & Sidebar:** Upgraded station shortcut cards with dedicated icons and hover transitions. Polished sidebar with clean `CofTea Cafe` branding and rounded active pills.
+
+## [Full System Test Cases, ISO 25010 Questionnaire & Real-Time PO Sync — 2026-09-30]
+- **Partial Delivery Tracking:** Enhanced Purchase Orders with batch-level receipt logs, timestamped delivery history, remaining quantity calculation, and subtotal deductions.
+- **Supplier Portal & Real-Time Sync:** Implemented Supabase real-time channel subscriptions in `PurchaseOrders.jsx` and `SupplierPortal.jsx` so state changes (acceptance, postponement, stock receiving) sync without page refresh.
+- **Comprehensive Test Cases:** Created 30 full-system test cases (`supplier_po_test_cases.md`) covering all modules (POS, Inventory, PO, Wastage, Reports, Accounts, CMS, RBAC, etc.) in clean, student-style tables.
+- **System-Wide ISO 25010 Questionnaire:** Updated `iso_25010_questionnaire.md` to comprehensively evaluate the entire system across all 8 software quality dimensions (Functional Suitability, Performance Efficiency, Compatibility, Usability, Reliability, Security, Maintainability, Portability).
+- **Word (.docx) Export:** Generated formatted Microsoft Word documents for both the System Test Cases (`CofTea_System_Test_Cases.docx`) and Evaluation Questionnaire (`CofTea_ISO_25010_Evaluation_Questionnaire.docx`) saved in the `docs/` folder.
+
+## [PO Defaults on Ingredient + UX Improvements — 2026-09-25]
+- **PO Defaults on Ingredient:** Moved `purchase_unit`, `conversion_factor`, and `cost_per_purchase_unit` defaults from the `supplier_ingredients` join table to the ingredient record itself. Now PO defaults persist regardless of which supplier is assigned. The PO form reads defaults from the ingredient, not the supplier mapping.
+- **Raw Materials Edit Modal:** Added a "Purchase Order Defaults" section to the edit modal so users can set purchase unit, conversion factor, and cost once per ingredient.
+- **Backend:** Updated `inventoryService.updateIngredient()` to accept and persist the new PO default columns.
+- **ManageProducts Stock Column:** Removed the inline stock receive widget (input + Add button). Products with `track_stock` now show "Restock via Supplier PO" hint instead.
+- **POS Card Clicks:** Removed `onClick` from the card body in POS ProductCard — only the "Info" and "+ Add" buttons trigger actions now.
+- **Inventory Card Clicks:** Same treatment for ManageProducts and ManageRawMaterials grid cards — only the "Edit" button is clickable, not the entire card.
+- **CMS Friction:** Replaced text URL display with visual image preview in CMS edit form. Added auto-save on image upload to remove extra click.
+- **Cart Price Sync:** Fixed add-ons not being included when syncing cart prices. Added `getVirtualProduct()` helper to inject category-level sizes and add-ons before recalculating.
+
+## [Product Image Uploads & CMS Bridging — 2026-09-25]
+- **Landing Page Login Icon:** Disabled/removed the discreet sign-in lock icon from the public landing page header as per user preference. Staff login is now exclusively accessed by manually navigating to `/coftealoginpageforstaff`.
+- **Menu Images:** Added image upload functionality to `ManageProducts.jsx` connecting to Supabase storage (`cms-images` bucket). Fixed a database issue where missing RLS policies blocked anonymous image uploads.
+- **Table Thumbnail:** Added a small product image thumbnail preview in the product list table inside `ManageProducts.jsx`.
+- **CMS Shortcut:** Added an informational banner in `CMSDashboard.jsx` to explicitly guide users to the "Manage Products" tab for updating the landing page menu pictures and prices.
+- **Rule Compliance:** Moved temporary AI database seeding files (`temp_insert.cjs`) to `docs/database/` in compliance with Rule 15.
+
+## [Agent Rules Expanded — 2026-09-24]
+- **Updated `.agents/rules/AGENTS.md`** from 6 rules to 15 rules (0–14). New rules cover: mandatory project reference reading (Rule 0), backend architecture pattern (7), tab-based navigation system (8), audit logging with `req.user.id` (9), CMS conventions (10), soft deletes (11), stock operation patterns (12), timezone (13), and known tech debt avoidance (14).
+
+## [Dynamic Menu Pricing Documentation — 2026-09-24]
+- **Documented 3 approaches** for the advisor's request to auto-update prices on landing page menu boards. Added to `docs/PROJECT_REFERENCE.md` under "Advisor Feature: Dynamic Pricing on Menu Board Images."
+  - **Approach A (Recommended):** Generate menu boards in code from DB data
+  - **Approach B:** Hybrid — client provides images without prices, system overlays a price bar
+  - **Approach C:** Drag-and-drop price positioning on images (complex, not recommended for capstone timeline)
+
+## [Project Reference Guide — 2026-09-24]
+- **Created `docs/PROJECT_REFERENCE.md`** — Comprehensive guide covering architecture, file map, CMS implementation plan (3 phases), styling conventions (CSS vs Tailwind), backend/frontend patterns, database schema notes, security status, known tech debt, future task backlog, deployment checklist, and agent handoff instructions.
+
 ## [Security Audit — 2026-09-24]
 - **Full-stack security scan:** Identified 15 issues across Critical (3), High (4), Medium (5), Low (3) severity levels.
 - **Key findings:** Secrets in git history, user ID spoofing via `x-user-id` header, rate limiters defined but never wired, missing Helmet headers, raw error messages leaked to clients.

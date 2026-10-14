@@ -43,11 +43,11 @@ const Reports = () => {
   };
 
   return (
-    <div className="p-4 md:p-8 flex-1 bg-gray-50 overflow-y-auto w-full flex flex-col h-full">
+    <div className="p-4 md:p-8 pb-24 bg-gray-50 w-full flex flex-col min-h-full">
       {/* Page Header */}
       <div className="mb-6 shrink-0">
         <h1 className="m-0 text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">Reports &amp; Analytics</h1>
-        <p className="m-0 mt-1 text-sm text-gray-500 font-medium">
+        <p className="m-0 mt-1 text-sm md:text-base text-gray-500 font-medium">
           {currentTab?.desc} — generate, filter, export, or print.
         </p>
       </div>
@@ -58,11 +58,7 @@ const Reports = () => {
           <button
             key={tab.id}
             id={`reports-tab-${tab.id}`}
-            className={`px-5 py-2.5 rounded-lg text-sm font-bold uppercase tracking-wider transition-all border-b-2 -mb-[10px] ${
-              activeTab === tab.id 
-                ? 'bg-gray-900 text-white border-gray-900 shadow-sm' 
-                : 'bg-transparent text-gray-500 border-transparent hover:text-gray-900 hover:bg-gray-100'
-            }`}
+            className={`px-5 py-2.5 rounded-lg text-sm md:text-base font-bold uppercase tracking-wider transition-all border-b-2 -mb-[10px] ${ activeTab === tab.id ? 'bg-gray-900 text-white border-gray-900 shadow-sm' : 'bg-transparent text-gray-500 border-transparent hover:text-gray-900 hover:bg-gray-100' }`}
             onClick={() => setActiveTab(tab.id)}
           >
             {tab.label}

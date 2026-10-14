@@ -1,9 +1,16 @@
 // Authentication API endpoints
 import { apiCall } from "./client.js";
+import {
+  getCurrentUser,
+  touchSessionActivity,
+  clearUserSession,
+  USER_STORAGE_KEY,
+  EXPIRED_MSG_KEY
+} from "../utils/authUtils.js";
 
-/**
- * Login with username and password
- */
+// Re-export getCurrentUser for existing consumers
+export { getCurrentUser };
+
 /**
  * Login with username and password.
  * Propagates lockout fields (locked, secondsLeft, attemptsLeft) on the thrown Error
@@ -26,13 +33,12 @@ export async function loginUser(username, password) {
   return data;
 }
 
-
 /**
- * Logout user — notifies server for audit log, then clears localStorage
+ * Logout user — notifies server for audit log, then clears localStorage session
  */
 export async function logoutUser() {
   try {
-    const userJson = localStorage.getItem("user");
+    const userJson = localStorage.getItem(USER_STORAGE_KEY);
     if (userJson) {
       const user = JSON.parse(userJson);
       // Fire-and-forget: tell the server so the audit log is written
@@ -44,21 +50,19 @@ export async function logoutUser() {
   } catch {
     // Don't block logout if the server call fails
   } finally {
-    localStorage.removeItem("user");
+    clearUserSession();
   }
 }
 
 /**
- * Get current logged-in user from storage
- */
-export function getCurrentUser() {
-  const userJson = localStorage.getItem("user");
-  return userJson ? JSON.parse(userJson) : null;
-}
-
-/**
- * Save user to local storage
+ * Save user to local storage and activate session activity timestamp
  */
 export function saveUser(user) {
-  localStorage.setItem("user", JSON.stringify(user));
+  localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+  touchSessionActivity();
+  try {
+    sessionStorage.removeItem(EXPIRED_MSG_KEY);
+  } catch {
+    // Ignore storage errors
+  }
 }

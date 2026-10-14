@@ -71,7 +71,7 @@ const SalesSummaryReport = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="m-0 text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">Sales Summary Report</h1>
-          <p className="m-0 mt-1 text-sm text-gray-500 font-medium">Analyze revenue and performance. Click on a staff member to view detailed logs.</p>
+          <p className="m-0 mt-1 text-sm md:text-base text-gray-500 font-medium">Analyze revenue and performance. Click on a staff member to view detailed logs.</p>
         </div>
         <button 
           className="px-5 py-2.5 bg-gray-900 hover:bg-black text-white font-bold rounded-xl shadow-sm transition-all flex items-center gap-2 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
@@ -83,11 +83,11 @@ const SalesSummaryReport = () => {
       </div>
 
       <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-5 mb-8 flex flex-col md:flex-row items-center gap-4">
-        <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">Analysis Period</label>
+        <label className="text-sm md:text-base font-bold text-gray-600 uppercase tracking-wider">Analysis Period</label>
         <select 
           value={period} 
           onChange={(e) => setPeriod(e.target.value)}
-          className="w-full md:w-64 px-4 py-2 border border-gray-300 rounded-lg text-sm font-bold bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
+          className="w-full md:w-64 px-4 py-2 border border-gray-300 rounded-lg text-sm md:text-base font-bold bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
         >
           <option value="daily">Daily / Today</option>
           <option value="weekly">Weekly</option>
@@ -103,19 +103,19 @@ const SalesSummaryReport = () => {
         <div className="space-y-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white border-l-4 border-blue-500 border-y border-r border-gray-200 rounded-xl shadow-sm p-6">
-              <p className="m-0 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Gross Revenue</p>
+              <p className="m-0 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider mb-2">Gross Revenue</p>
               <p className="m-0 text-3xl font-black text-gray-900 tracking-tight">₱{(summary.total_sales || 0).toFixed(2)}</p>
             </div>
             <div className="bg-white border-l-4 border-green-500 border-y border-r border-gray-200 rounded-xl shadow-sm p-6">
-              <p className="m-0 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Volume</p>
+              <p className="m-0 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider mb-2">Volume</p>
               <p className="m-0 text-3xl font-black text-gray-900 tracking-tight">{summary.total_transactions || 0}</p>
             </div>
             <div className="bg-white border-l-4 border-amber-500 border-y border-r border-gray-200 rounded-xl shadow-sm p-6">
-              <p className="m-0 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Items Dispatched</p>
+              <p className="m-0 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider mb-2">Items Dispatched</p>
               <p className="m-0 text-3xl font-black text-gray-900 tracking-tight">{summary.total_items_sold || 0}</p>
             </div>
             <div className="bg-white border-l-4 border-purple-500 border-y border-r border-gray-200 rounded-xl shadow-sm p-6">
-              <p className="m-0 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Average Ticket</p>
+              <p className="m-0 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider mb-2">Average Ticket</p>
               <p className="m-0 text-3xl font-black text-gray-900 tracking-tight">
                 ₱{summary.total_transactions > 0 
                   ? ((summary.total_sales || 0) / summary.total_transactions).toFixed(2) 
@@ -134,11 +134,11 @@ const SalesSummaryReport = () => {
                   <table className="w-full text-left border-collapse whitespace-nowrap">
                     <thead>
                       <tr className="bg-white border-b border-gray-200">
-                        <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Operator</th>
-                        <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Total Sales</th>
-                        <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Transactions</th>
-                        <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Avg Trans</th>
-                        <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider w-1/4">Market Share</th>
+                        <th className="px-6 py-4 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider">Operator</th>
+                        <th className="px-6 py-4 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider">Total Sales</th>
+                        <th className="px-6 py-4 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider text-center">Transactions</th>
+                        <th className="px-6 py-4 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider text-center">Avg Trans</th>
+                        <th className="px-6 py-4 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider w-1/4">Market Share</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -148,10 +148,10 @@ const SalesSummaryReport = () => {
                           onClick={() => fetchStaffDetails(staff)}
                           className="hover:bg-gray-50 transition-colors cursor-pointer"
                         >
-                          <td className="px-6 py-5"><span className="inline-flex px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-800 border border-gray-200">{staff.name}</span></td>
-                          <td className="px-6 py-5"><span className="text-sm font-black text-green-700 bg-green-50 px-2 py-1 rounded">₱{staff.total_sales.toFixed(2)}</span></td>
+                          <td className="px-6 py-5"><span className="inline-flex px-3 py-1 rounded-full text-sm md:text-base font-bold bg-gray-100 text-gray-800 border border-gray-200">{staff.name}</span></td>
+                          <td className="px-6 py-5"><span className="text-sm md:text-base font-black text-green-700 bg-green-50 px-2 py-1 rounded">₱{staff.total_sales.toFixed(2)}</span></td>
                           <td className="px-6 py-5 text-center font-black text-gray-900">{staff.transactions}</td>
-                          <td className="px-6 py-5 text-center text-sm font-mono text-gray-500 font-bold">₱{(staff.total_sales / staff.transactions).toFixed(2)}</td>
+                          <td className="px-6 py-5 text-center text-sm md:text-base font-mono text-gray-500 font-bold">₱{(staff.total_sales / staff.transactions).toFixed(2)}</td>
                           <td className="px-6 py-5">
                             <div className="flex items-center gap-3 w-full max-w-[200px]">
                               <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
@@ -160,7 +160,7 @@ const SalesSummaryReport = () => {
                                   style={{ width: `${(staff.total_sales / summary.total_sales) * 100}%` }} 
                                 />
                               </div>
-                              <span className="text-xs font-bold text-gray-500 whitespace-nowrap min-w-[40px] text-right">
+                              <span className="text-sm md:text-base font-bold text-gray-500 whitespace-nowrap min-w-[40px] text-right">
                                 {((staff.total_sales / summary.total_sales) * 100).toFixed(1)}%
                               </span>
                             </div>
@@ -172,7 +172,7 @@ const SalesSummaryReport = () => {
                 </div>
               ) : (
                 <div className="p-12 text-center text-gray-400 bg-gray-50/50">
-                  <div className="text-sm font-medium">No personnel activity recorded</div>
+                  <div className="text-sm md:text-base font-medium">No personnel activity recorded</div>
                 </div>
               )}
             </div>
@@ -203,11 +203,11 @@ const SalesSummaryReport = () => {
                   <table className="w-full text-left border-collapse whitespace-nowrap">
                     <thead>
                       <tr className="bg-white border-b border-gray-200">
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Reference</th>
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Time</th>
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Manifest</th>
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Total</th>
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Method</th>
+                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider">Reference</th>
+                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider text-center">Time</th>
+                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider">Manifest</th>
+                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider text-right">Total</th>
+                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider text-center">Method</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -226,7 +226,7 @@ const SalesSummaryReport = () => {
                                   <span className="text-[11px] font-black text-gray-900 bg-gray-200 px-1.5 py-0.5 rounded min-w-[24px] text-center">
                                     {it.quantity}
                                   </span>
-                                  <span className="text-xs font-bold text-gray-800 uppercase tracking-wider">
+                                  <span className="text-sm md:text-base font-bold text-gray-800 uppercase tracking-wider">
                                     {it.products?.name}
                                   </span>
                                 </div>
@@ -234,10 +234,10 @@ const SalesSummaryReport = () => {
                             </div>
                           </td>
                           <td className="px-6 py-4 text-right">
-                            <span className="text-sm font-black text-gray-900">₱{parseFloat(sale.total_amount).toFixed(2)}</span>
+                            <span className="text-sm md:text-base font-black text-gray-900">₱{parseFloat(sale.total_amount).toFixed(2)}</span>
                           </td>
                           <td className="px-6 py-4 text-center">
-                             <span className="inline-flex px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-600 border border-gray-200">
+                             <span className="inline-flex px-2 py-1 rounded-md text-xs md:text-sm font-bold uppercase tracking-wider bg-gray-100 text-gray-600 border border-gray-200">
                                {sale.payment_method}
                              </span>
                           </td>
@@ -246,7 +246,7 @@ const SalesSummaryReport = () => {
                       {staffSales.length === 0 && (
                         <tr>
                           <td colSpan="5" className="p-12 text-center text-gray-400 bg-gray-50/50">
-                            <div className="text-sm font-medium">No records found</div>
+                            <div className="text-sm md:text-base font-medium">No records found</div>
                           </td>
                         </tr>
                       )}

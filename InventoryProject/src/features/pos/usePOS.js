@@ -103,6 +103,72 @@ export const usePOS = () => {
     }
   };
 
+  const getVirtualProduct = (product) => {
+    if (!product) return null;
+    const catSettings = categorySettings[product.category?.toUpperCase()];
+    const virtualProduct = {
+      ...product,
+      sizes: [...(product.sizes || [])],
+      add_ons: [...(product.add_ons || [])]
+    };
+
+    if (catSettings) {
+      if (catSettings.sizes && catSettings.sizes.length > 0 && virtualProduct.sizes.length === 0) {
+        virtualProduct.sizes = [...catSettings.sizes];
+      }
+      if (catSettings.add_ons && catSettings.add_ons.length > 0) {
+        const existingNames = virtualProduct.add_ons.map(a => a.name);
+        catSettings.add_ons.forEach(ca => {
+          if (!existingNames.includes(ca.name)) {
+            virtualProduct.add_ons.push(ca);
+          }
+        });
+      }
+    }
+    return virtualProduct;
+  };
+
+  // Sync cart prices with latest fetched products
+  useEffect(() => {
+    if (products.length === 0 || cart.length === 0 || Object.keys(categorySettings).length === 0) return;
+    
+    setCart(prevCart => {
+      let hasChanges = false;
+      const updatedCart = prevCart.map(item => {
+        let latestProd = products.find(p => p.id === item.id);
+        if (!latestProd) return item;
+        
+        latestProd = getVirtualProduct(latestProd); // Inject category settings
+        
+        let finalPrice = parseFloat(latestProd.price || 0);
+
+        if (item.cup_size_obj) {
+          const sz = latestProd.sizes?.find(s => s.name === item.cup_size_obj.name);
+          if (sz) finalPrice += parseFloat(sz.price_add || 0);
+          else finalPrice += parseFloat(item.cup_size_obj.price_add || 0); // fallback
+        } else if (item.cup_size) {
+          if (item.cup_size === "16 oz") finalPrice += 10;
+          if (item.cup_size === "22 oz") finalPrice += 20;
+        }
+
+        if (item.add_ons && item.add_ons.length > 0) {
+          item.add_ons.forEach(ao => {
+            const latestAo = latestProd.add_ons?.find(a => a.name === ao.name);
+            if (latestAo) finalPrice += parseFloat(latestAo.price || 0) * (ao.customer_qty || 1);
+            else finalPrice += parseFloat(ao.price || 0) * (ao.customer_qty || 1);
+          });
+        }
+        
+        if (item.price !== finalPrice || item.baseProduct?.price !== latestProd.price) {
+          hasChanges = true;
+          return { ...item, price: finalPrice, baseProduct: { ...latestProd } };
+        }
+        return item;
+      });
+      return hasChanges ? updatedCart : prevCart;
+    });
+  }, [products, categorySettings]);
+
   // FETCH RECIPE FOR MODAL
   useEffect(() => {
     if (recipeProduct) {
@@ -249,7 +315,7 @@ export const usePOS = () => {
       if (existing) {
         return newCart.map(item =>
           item.cartItemId === itemToAdd.cartItemId
-            ? { ...item, qty: item.qty + itemToAdd.qty }
+            ? { ...item, qty: Math.min(99, item.qty + itemToAdd.qty) }
             : item
         );
       }
@@ -265,7 +331,7 @@ export const usePOS = () => {
       if (qty <= 0) {
         delete newAddOns[addOn];
       } else {
-        newAddOns[addOn] = qty;
+        newAddOns[addOn] = Math.min(5, Math.max(1, qty));
       }
       return { ...prev, addOns: newAddOns };
     });
@@ -276,8 +342,9 @@ export const usePOS = () => {
       removeFromCart(cartItemId);
       return;
     }
+    const safeQty = Math.min(99, Math.max(1, qty));
     setCart(cart.map(item =>
-      item.cartItemId === cartItemId ? { ...item, qty } : item
+      item.cartItemId === cartItemId ? { ...item, qty: safeQty } : item
     ));
   };
 
@@ -307,7 +374,7 @@ export const usePOS = () => {
         status: 'pending'
       };
       setOngoingOrders([...ongoingOrders, newOrder]);
-      clearCart();
+      setCart([]); // Directly empty the cart without asking for confirmation again
       setActiveTab('ongoing');
     } catch (err) {
       console.error(err);
@@ -324,14 +391,17 @@ export const usePOS = () => {
       if (latestProducts && latestProducts.length > 0) {
         let updatedTotal = 0;
         const updatedItems = order.items.map(item => {
-          const latestProd = latestProducts.find(p => p.id === item.id);
+          let latestProd = latestProducts.find(p => p.id === item.id);
           if (latestProd) {
+            latestProd = getVirtualProduct(latestProd); // Inject category settings
+
             let finalPrice = parseFloat(latestProd.price || 0);
 
             // Re-apply size price
             if (item.cup_size_obj) {
               const sz = latestProd.sizes?.find(s => s.name === item.cup_size_obj.name);
               if (sz) finalPrice += parseFloat(sz.price_add || 0);
+              else finalPrice += parseFloat(item.cup_size_obj.price_add || 0);
             } else if (item.cup_size) {
               if (item.cup_size === "16 oz") finalPrice += 10;
               if (item.cup_size === "22 oz") finalPrice += 20;

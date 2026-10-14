@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getUsers, createUser, updateUser, updateUserStatus } from '../../api/usersApi';
+import { getCurrentUser, logoutUser } from '../../api/authApi';
 
 
 const AccountManager = () => {
@@ -11,13 +12,31 @@ const AccountManager = () => {
     name: '',
     username: '',
     password: '',
-    role: 'Staff'
+    role: 'Staff',
+    supplier_id: ''
   });
   const [editingUserId, setEditingUserId] = useState(null);
+  
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null); // 'save' or 'status'
+  const [statusTarget, setStatusTarget] = useState(null);
+
+  const [suppliers, setSuppliers] = useState([]);
 
   useEffect(() => {
     fetchUsers();
+    fetchSuppliers();
   }, []);
+
+  const fetchSuppliers = async () => {
+    try {
+      const { getSuppliers } = await import('../../api/purchasingApi.js');
+      const data = await getSuppliers();
+      setSuppliers(data || []);
+    } catch (err) {
+      console.error('Failed to load suppliers:', err);
+    }
+  };
 
   const fetchUsers = async () => {
     try {
@@ -33,22 +52,48 @@ const AccountManager = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    if (name === 'username') {
+      setFormData({ ...formData, [name]: value.replace(/\s/g, '') });
+    } else {
+      setFormData({ ...formData, [name]: value });
+    }
   };
 
   const handleSaveUser = async (e) => {
     e.preventDefault();
+    setConfirmAction('save');
+    setShowConfirmModal(true);
+  };
+
+  const executeSaveUser = async () => {
+    setShowConfirmModal(false);
     try {
       if (editingUserId) {
-        await updateUser(editingUserId, formData);
+        const updatedUser = await updateUser(editingUserId, formData);
         setMessage('User account updated successfully!');
+        
+        // If editing own account, update local storage
+        const currentUser = getCurrentUser();
+        if (currentUser && currentUser.id === editingUserId) {
+          localStorage.setItem('user', JSON.stringify({ ...currentUser, name: updatedUser.name, username: updatedUser.username, role: updatedUser.role }));
+        }
       } else {
         await createUser(formData);
         setMessage('User account created successfully!');
       }
-      handleCancelEdit();
-      fetchUsers();
-      setTimeout(() => setMessage(''), 3000);
+
+      if (formData.role === 'Owner' && (!editingUserId || formData.role !== users.find(u => u.id === editingUserId)?.role)) {
+        // If they transferred ownership, demote them to Admin in local storage so the UI updates
+        const currentUser = getCurrentUser();
+        if (currentUser && currentUser.role === 'Owner') {
+          localStorage.setItem('user', JSON.stringify({ ...currentUser, role: 'Admin' }));
+        }
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        handleCancelEdit();
+        fetchUsers();
+        setTimeout(() => setMessage(''), 3000);
+      }
     } catch (err) {
       setMessage(`Error ${editingUserId ? 'updating' : 'creating'} user: ` + err.message);
     }
@@ -69,10 +114,19 @@ const AccountManager = () => {
     setFormData({ name: '', username: '', password: '', role: 'Staff' });
   };
 
-  const handleToggleStatus = async (id, currentStatus) => {
+  const handleToggleStatusClick = (id, currentStatus) => {
+    setStatusTarget({ id, currentStatus });
+    setConfirmAction('status');
+    setShowConfirmModal(true);
+  };
+
+  const executeToggleStatus = async () => {
+    setShowConfirmModal(false);
+    if (!statusTarget) return;
+    
     try {
-      const newStatus = currentStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
-      await updateUserStatus(id, newStatus);
+      const newStatus = statusTarget.currentStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+      await updateUserStatus(statusTarget.id, newStatus);
       fetchUsers();
     } catch (err) {
       setMessage('Error updating user status: ' + err.message);
@@ -143,15 +197,41 @@ const AccountManager = () => {
                   <label className="text-sm font-bold text-gray-700">Role</label>
                   <select 
                     name="role" 
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
                     value={formData.role} 
                     onChange={handleInputChange}
+                    disabled={editingUserId === getCurrentUser()?.id && getCurrentUser()?.role === 'Owner'}
                   >
                     <option value="Staff">Staff</option>
                     <option value="Admin">Admin</option>
-                    <option value="Owner">Owner</option>
+                    <option value="Supplier">Supplier</option>
+                    {getCurrentUser()?.role === 'Owner' && <option value="Owner">Owner</option>}
                   </select>
+                  {editingUserId === getCurrentUser()?.id && getCurrentUser()?.role === 'Owner' && (
+                    <p className="text-xs text-gray-500 font-bold mt-1">You cannot demote yourself directly. You must assign the Owner role to another user first.</p>
+                  )}
+                  {formData.role === 'Owner' && formData.role !== users.find(u => u.id === editingUserId)?.role && (
+                    <p className="text-sm text-red-600 font-bold mt-1">Warning: Assigning this role will transfer Ownership to this user and you will become an Admin.</p>
+                  )}
                 </div>
+                
+                {formData.role === 'Supplier' && (
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-bold text-gray-700">Link to Supplier</label>
+                    <select 
+                      name="supplier_id" 
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
+                      value={formData.supplier_id} 
+                      onChange={handleInputChange}
+                      required
+                    >
+                      <option value="">Select a Supplier</option>
+                      {suppliers.map(s => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 
                 <div className="flex gap-3 mt-2">
                   <button 
@@ -212,22 +292,28 @@ const AccountManager = () => {
                           </td>
                           <td className="px-6 py-4 text-right">
                             <div className="flex justify-end gap-2">
-                              <button 
-                                className="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 rounded text-xs font-bold uppercase tracking-wider hover:bg-gray-50 transition-colors"
-                                onClick={() => handleEditClick(u)}
-                              >
-                                Edit
-                              </button>
-                              <button 
-                                className={`px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider transition-colors border ${
-                                  u.status === 'ACTIVE' 
-                                    ? 'bg-red-50 hover:bg-red-100 text-red-700 border-red-200' 
-                                    : 'bg-green-50 hover:bg-green-100 text-green-700 border-green-200'
-                                }`}
-                                onClick={() => handleToggleStatus(u.id, u.status)}
-                              >
-                                {u.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
-                              </button>
+                              {!(u.role === 'Owner' && getCurrentUser()?.role !== 'Owner') ? (
+                                <>
+                                  <button 
+                                    className="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 rounded text-xs md:text-sm font-bold uppercase tracking-wider hover:bg-gray-50 transition-colors"
+                                    onClick={() => handleEditClick(u)}
+                                  >
+                                    Edit
+                                  </button>
+                                  <button 
+                                    className={`px-3 py-1.5 rounded text-xs md:text-sm font-bold uppercase tracking-wider transition-colors border ${
+                                      u.status === 'ACTIVE' 
+                                        ? 'bg-red-50 hover:bg-red-100 text-red-700 border-red-200' 
+                                        : 'bg-green-50 hover:bg-green-100 text-green-700 border-green-200'
+                                    }`}
+                                    onClick={() => handleToggleStatusClick(u.id, u.status)}
+                                  >
+                                    {u.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+                                  </button>
+                                </>
+                              ) : (
+                                <span className="text-xs md:text-sm text-gray-400 font-bold italic px-3 py-1.5">Owner Protected</span>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -245,6 +331,40 @@ const AccountManager = () => {
           </div>
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-[fadeIn_0.2s_ease-out]">
+          <div className="bg-white rounded-2xl p-6 md:p-8 w-full max-w-sm shadow-2xl animate-[slideUp_0.3s_ease-out]">
+            <div className="w-12 h-12 rounded-full bg-yellow-100 text-yellow-600 flex items-center justify-center mb-6">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <h3 className="m-0 text-xl font-bold text-gray-900 mb-2">Confirm Action</h3>
+            <p className="m-0 text-sm text-gray-500 mb-8">
+              {confirmAction === 'save' 
+                ? `Are you sure you want to ${editingUserId ? 'save changes to this' : 'create this new'} account? Please double-check the details.` 
+                : `Are you sure you want to ${statusTarget?.currentStatus === 'ACTIVE' ? 'deactivate' : 'activate'} this user account?`}
+            </p>
+            <div className="flex gap-3 w-full">
+              <button 
+                className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-gray-200 transition-colors"
+                onClick={() => setShowConfirmModal(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                className="flex-1 px-4 py-2.5 bg-gray-900 text-white rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-gray-800 transition-colors shadow-sm"
+                onClick={confirmAction === 'save' ? executeSaveUser : executeToggleStatus}
+              >
+                Proceed
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

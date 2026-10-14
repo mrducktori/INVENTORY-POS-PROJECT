@@ -7,9 +7,16 @@ import PageLoader from './PageLoader/PageLoader';
 
 function LoginPage() {
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [sessionNotice, setSessionNotice] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
+    const expiredMsg = sessionStorage.getItem('session_expired_msg');
+    if (expiredMsg) {
+      setSessionNotice(expiredMsg);
+      sessionStorage.removeItem('session_expired_msg');
+    }
+
     const timer = setTimeout(() => {
       setIsInitialLoading(false);
     }, 1500);
@@ -24,14 +31,18 @@ function LoginPage() {
     handleSubmit,
     isLocked,
     countdown,
-    attemptsLeft
+    attemptsLeft,
+    loading
   } = useLogin();
 
-  // If already logged in, redirect to dashboard or render it
-  if (user) {
-    navigate('/dashboard');
-    return null;
-  }
+  // If already logged in, redirect to dashboard
+  useEffect(() => {
+    if (user) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [user, navigate]);
+
+  if (user) return null;
   
   if (isInitialLoading) return <PageLoader />;
 
@@ -55,6 +66,21 @@ function LoginPage() {
               <h2 className="text-2xl font-bold m-0 mb-1">Welcome back</h2>
               <p className="text-sm text-gray-400 m-0">Sign in to access the dashboard</p>
             </div>
+
+            {/* Session Timeout Banner */}
+            {sessionNotice && !isLocked && !error && (
+              <div className="flex gap-3 bg-[#132338] border border-[#38bdf8] text-[#7dd3fc] p-4 rounded-lg mb-6 shadow-lg">
+                <span className="flex items-center justify-center pt-0.5">
+                  <svg className="w-5 h-5 text-[#38bdf8]" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </span>
+                <div>
+                  <strong className="block text-sm mb-1 text-white">Session Timed Out</strong>
+                  <p className="text-xs m-0 text-white/90">{sessionNotice}</p>
+                </div>
+              </div>
+            )}
 
             {/* Lockout Banner */}
             {isLocked && (
@@ -93,7 +119,7 @@ function LoginPage() {
               <input type="text" name="username"
                 value={form.username}
                 onChange={handleChange}
-                disabled={isLocked}
+                disabled={isLocked || loading}
                 placeholder="Enter username"
                 required
                 className="w-full bg-[#1a1a1a] border border-[#333] text-white p-3 rounded-lg text-sm focus:outline-none focus:border-white transition-colors disabled:opacity-50"
@@ -105,7 +131,7 @@ function LoginPage() {
               <input type="password" name="password"
                 value={form.password}
                 onChange={handleChange}
-                disabled={isLocked}
+                disabled={isLocked || loading}
                 placeholder="Enter password"
                 required
                 className="w-full bg-[#1a1a1a] border border-[#333] text-white p-3 rounded-lg text-sm focus:outline-none focus:border-white transition-colors disabled:opacity-50"
@@ -114,10 +140,16 @@ function LoginPage() {
 
             <button
               type="submit"
-              disabled={isLocked}
-              className="w-full bg-white text-black font-bold uppercase tracking-widest text-xs py-3.5 rounded-lg border-none hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isLocked || loading}
+              className="w-full bg-white text-black font-bold uppercase tracking-widest text-xs py-3.5 rounded-lg border-none hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              {isLocked ? `Locked (${fmt(countdown)})` : 'Sign In'}
+              {loading && (
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              )}
+              {isLocked ? `Locked (${fmt(countdown)})` : loading ? 'Authenticating...' : 'Sign In'}
             </button>
           </form>
         </div>

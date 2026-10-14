@@ -8,7 +8,7 @@ import { getDashboardStats } from '../../api/dashboardApi';
 // and render the values it returns ΓÇö no business logic in JSX.
 // ---------------------------------------------------------------------------
 
-const COLORS = ['#000000', '#333333', '#666666', '#999999', '#CCCCCC'];
+const COLORS = ['#1e40af', '#991b1b', '#166534', '#6b21a8', '#9a3412', '#115e59'];
 
 /**
  * Derives unique category names from the 7-day sales trend data.

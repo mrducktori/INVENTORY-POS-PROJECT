@@ -2,30 +2,86 @@ import React from 'react';
 
 // ---------------------------------------------------------------------------
 // StatCards
-// Renders the top-row KPI stat cards (e.g. Sales Transactions, Avg Sale,
-// Low Stock Items). Receives pre-computed card config from the hook.
+// Top-row operational KPI cards with tailored monochrome iconography,
+// clean status indicators, and subtle tactile hover feedback.
 // ---------------------------------------------------------------------------
+
+const ICONS = {
+  'Sales Transactions': (
+    <svg className="w-5 h-5 text-zinc-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+    </svg>
+  ),
+  'Avg Sale': (
+    <svg className="w-5 h-5 text-zinc-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+    </svg>
+  ),
+  'Low Stock Items': (
+    <svg className="w-5 h-5 text-zinc-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+    </svg>
+  ),
+};
 
 const StatCards = ({ cards, loading }) => {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
       {cards.map((card) => {
-        const borderColorClass = 
-          card.color === 'green' ? 'border-t-gray-900' :
-          card.color === 'red' ? 'border-t-red-500' :
-          card.color === 'blue' ? 'border-t-blue-500' :
-          card.color === 'purple' ? 'border-t-indigo-500' :
-          card.color === 'orange' ? 'border-t-orange-500' : 'border-t-gray-900';
+        const isLowStock = card.label === 'Low Stock Items';
+        const lowStockCount = parseInt(card.value, 10) || 0;
+        const hasLowStockAlert = isLowStock && lowStockCount > 0;
 
         return (
           <div
             key={card.label}
-            className={`bg-white border border-gray-200 border-t-4 rounded-xl p-6 flex flex-col justify-center transition-all duration-200 shadow-sm ${borderColorClass} ${card.clickable ? 'cursor-pointer hover:-translate-y-1 hover:shadow-md' : ''}`}
             onClick={card.onClick}
+            className={`bg-white border rounded-2xl p-6 md:p-8 flex flex-col justify-between transition-all duration-200 shadow-xs ${
+              card.clickable
+                ? 'cursor-pointer hover:border-zinc-500 hover:shadow-md'
+                : 'hover:border-zinc-300'
+            } ${hasLowStockAlert ? 'border-amber-400 bg-amber-50/20' : 'border-gray-200'}`}
           >
-            <div className="text-3xl font-bold text-gray-900 mb-1">{loading ? '...' : card.value}</div>
-            <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">{card.label}</div>
-            {card.clickable && <div className="text-[10px] uppercase text-gray-400 mt-3 font-medium tracking-wider">View Details →</div>}
+            {/* Top Row: Clear Label */}
+            <div className="mb-3">
+              <span className="text-sm md:text-base font-bold uppercase tracking-wider text-zinc-500">
+                {card.label}
+              </span>
+            </div>
+
+            {/* Middle Row: Prominent, Big Numbers */}
+            <div className="mb-4">
+              <span className="text-4xl md:text-5xl font-extrabold text-zinc-900 tracking-tight tabular-nums">
+                {loading ? '---' : card.value}
+              </span>
+            </div>
+
+            {/* Bottom Row: Context / Action Prompt */}
+            <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-sm">
+              {isLowStock ? (
+                hasLowStockAlert ? (
+                  <span className="inline-flex items-center gap-2 font-bold text-amber-800">
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                    Immediate reorder needed
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-2 font-semibold text-emerald-700">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    Stock levels healthy
+                  </span>
+                )
+              ) : card.label === 'Avg Sale' ? (
+                <span className="text-zinc-500 font-medium">Per completed transaction</span>
+              ) : (
+                <span className="text-zinc-500 font-medium">Today's register count</span>
+              )}
+
+              {card.clickable && (
+                <span className="font-bold text-zinc-900 hover:text-black underline underline-offset-4">
+                  View Items →
+                </span>
+              )}
+            </div>
           </div>
         );
       })}

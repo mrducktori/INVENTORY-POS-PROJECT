@@ -188,35 +188,35 @@ const AuditLogs = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="m-0 text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">Audit Logs</h1>
-          <p className="m-0 mt-1 text-sm text-gray-500 font-medium">Track administrative and staff activities across the system.</p>
+          <p className="m-0 mt-1 text-sm md:text-base text-gray-500 font-medium">Track administrative and staff activities across the system.</p>
         </div>
       	<div className="flex gap-4 items-end">
 	  <div>
-	    <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Date Range</label>
+	    <label className="block text-sm md:text-base font-bold text-gray-600 uppercase tracking-wider mb-2">Date Range</label>
 	    <div className="flex gap-2">
 	      <input
 	        type="date"
 	        name="start_date"
 	        value={filters.start_date}
 	        onChange={handleFilterChange}
-	        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
+	        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm md:text-base bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
 	      />
 	      <input
 	        type="date"
 	        name="end_date"
 	        value={filters.end_date}
 	        onChange={handleFilterChange}
-	        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
+	        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm md:text-base bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
 	      />
 	    </div>
 	  </div>
 	  <div>
-	    <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Category Filter</label>
+	    <label className="block text-sm md:text-base font-bold text-gray-600 uppercase tracking-wider mb-2">Category Filter</label>
 	    <select
 	      name="action"
 	      value={filters.action}
 	      onChange={handleFilterChange}
-	      className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
+	      className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm md:text-base bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
 	    >
 	      <option value="">All Categories</option>
 	      <option value="SALE">Sales</option>
@@ -235,13 +235,13 @@ const AuditLogs = () => {
 
       <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-5 mb-8">
         <div>
-          <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Global Search</label>
+          <label className="block text-sm md:text-base font-bold text-gray-600 uppercase tracking-wider mb-2">Global Search</label>
           <input 
             type="text" 
             placeholder="Search details..." 
             value={searchTerm} 
             onChange={(e) => setSearchTerm(e.target.value)} 
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm md:text-base bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
           />
         </div>
       </div>
@@ -251,17 +251,17 @@ const AuditLogs = () => {
           <table className="w-full text-left border-collapse whitespace-nowrap">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none" onClick={() => handleSort('created_at')}>
+                <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none" onClick={() => handleSort('created_at')}>
                   Timestamp {sortConfig.key === 'created_at' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-center cursor-pointer hover:bg-gray-100 transition-colors select-none" onClick={() => handleSort('staff')}>
+                <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider text-center cursor-pointer hover:bg-gray-100 transition-colors select-none" onClick={() => handleSort('staff')}>
                   Operator {sortConfig.key === 'staff' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-center cursor-pointer hover:bg-gray-100 transition-colors select-none" onClick={() => handleSort('action_type')}>
+                <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider text-center cursor-pointer hover:bg-gray-100 transition-colors select-none" onClick={() => handleSort('action_type')}>
                   Action {sortConfig.key === 'action_type' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Entity</th>
-                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Event Details</th>
+                <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider text-center">Entity</th>
+                <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider">Event Details</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -274,24 +274,24 @@ const AuditLogs = () => {
               ) : sortedLogs.length > 0 ? (
                 sortedLogs.map(log => (
                   <tr key={log.id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-6 py-4 text-sm font-medium text-gray-600">
+                    <td className="px-6 py-4 text-sm md:text-base font-medium text-gray-600">
                       {new Date(log.created_at).toLocaleString()}
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-bold bg-gray-50 text-gray-700 border border-gray-200">{log.users?.name || 'System'}</span>
+                      <span className="inline-flex px-2.5 py-1 rounded-full text-sm md:text-base font-bold bg-gray-50 text-gray-700 border border-gray-200">{log.users?.name || 'System'}</span>
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <span className="inline-flex px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-700 border border-gray-200">
+                      <span className="inline-flex px-2.5 py-1 rounded-md text-xs md:text-sm font-bold uppercase tracking-wider bg-gray-100 text-gray-700 border border-gray-200">
                         {log.action_type || log.action}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <span className="text-xs font-semibold text-gray-500">
+                      <span className="text-sm md:text-base font-semibold text-gray-500">
                         {log.entity_type ? `${log.entity_type} #${log.entity_id || ''}` : '---'}
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <p className="m-0 text-sm font-medium text-gray-800 whitespace-normal">
+                      <p className="m-0 text-sm md:text-base font-medium text-gray-800 whitespace-normal">
                         {formatAuditDescription(log.action, log.details)}
                       </p>
                     </td>
@@ -301,7 +301,7 @@ const AuditLogs = () => {
                 <tr>
                   <td colSpan="5" className="p-12 text-center text-gray-400 bg-gray-50/50">
                     <svg className="w-12 h-12 mb-3 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                    <div className="text-sm font-medium">No activity found</div>
+                    <div className="text-sm md:text-base font-medium">No activity found</div>
                   </td>
                 </tr>
               )}
@@ -313,15 +313,15 @@ const AuditLogs = () => {
         {!loading && totalCount > 0 && (
           <div className="px-6 py-4 border-t border-gray-200 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-600 font-medium">
+              <span className="text-sm md:text-base text-gray-600 font-medium">
                 Showing <span className="font-bold text-gray-900">{startEntry}–{endEntry}</span> of <span className="font-bold text-gray-900">{totalCount}</span> logs
               </span>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500 font-bold uppercase tracking-wider">Per page</span>
+                <span className="text-sm md:text-base text-gray-500 font-bold uppercase tracking-wider">Per page</span>
                 <select
                   value={pageSize}
                   onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
-                  className="px-2 py-1 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent cursor-pointer"
+                  className="px-2 py-1 border border-gray-300 rounded-md text-sm md:text-base bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent cursor-pointer"
                 >
                   {PAGE_SIZE_OPTIONS.map(size => (
                     <option key={size} value={size}>{size}</option>
@@ -334,31 +334,31 @@ const AuditLogs = () => {
               <button
                 onClick={() => setCurrentPage(1)}
                 disabled={currentPage <= 1}
-                className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="px-3 py-1.5 text-sm md:text-base font-bold uppercase tracking-wider rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 First
               </button>
               <button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage <= 1}
-                className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="px-3 py-1.5 text-sm md:text-base font-bold uppercase tracking-wider rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 Previous
               </button>
-              <span className="px-3 py-1.5 text-sm font-bold text-gray-900">
+              <span className="px-3 py-1.5 text-sm md:text-base font-bold text-gray-900">
                 {currentPage} / {totalPages}
               </span>
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage >= totalPages}
-                className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="px-3 py-1.5 text-sm md:text-base font-bold uppercase tracking-wider rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 Next
               </button>
               <button
                 onClick={() => setCurrentPage(totalPages)}
                 disabled={currentPage >= totalPages}
-                className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="px-3 py-1.5 text-sm md:text-base font-bold uppercase tracking-wider rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 Last
               </button>

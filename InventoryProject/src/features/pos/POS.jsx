@@ -67,7 +67,7 @@ const POS = () => {
           <input
             type="text"
             placeholder="Search products..."
-            className="w-full sm:w-64 px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all"
+            className="w-full sm:w-64 px-4 py-2 border border-gray-300 rounded-lg text-sm md:text-base bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -100,13 +100,13 @@ const POS = () => {
         {/* Tabs */}
         <div className="flex border-b border-gray-200 bg-gray-50/50">
           <button
-            className={`flex-1 py-4 text-sm font-semibold uppercase tracking-wider transition-colors border-b-2 ${activeTab === 'cart' ? 'border-gray-900 text-gray-900 bg-white' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
+            className={`flex-1 py-4 text-sm md:text-base font-semibold uppercase tracking-wider transition-colors border-b-2 ${activeTab === 'cart' ? 'border-gray-900 text-gray-900 bg-white' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
             onClick={() => setActiveTab('cart')}
           >
             Transaction ({cart.length})
           </button>
           <button
-            className={`flex-1 py-4 text-sm font-semibold uppercase tracking-wider transition-colors border-b-2 ${activeTab === 'ongoing' ? 'border-gray-900 text-gray-900 bg-white' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
+            className={`flex-1 py-4 text-sm md:text-base font-semibold uppercase tracking-wider transition-colors border-b-2 ${activeTab === 'ongoing' ? 'border-gray-900 text-gray-900 bg-white' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
             onClick={() => setActiveTab('ongoing')}
           >
             Ongoing Orders ({ongoingOrders.length})
@@ -126,14 +126,14 @@ const POS = () => {
 
             <div className="p-4 border-t border-gray-200 bg-gray-50 mt-auto flex flex-col gap-3">
               <button
-                className="w-full py-4 rounded-xl text-sm font-bold uppercase tracking-wider text-white bg-gray-900 transition-all hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
+                className="w-full py-4 rounded-xl text-sm md:text-base font-bold uppercase tracking-wider text-white bg-gray-900 transition-all hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
                 onClick={handleCompleteSale}
                 disabled={cart.length === 0}
               >
                 Create Order
               </button>
               <button
-                className="w-full py-3 rounded-xl text-sm font-semibold uppercase tracking-wider text-red-600 bg-red-50 border border-red-200 transition-all hover:bg-red-100 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+                className="w-full py-3 rounded-xl text-sm md:text-base font-semibold uppercase tracking-wider text-red-600 bg-red-50 border border-red-200 transition-all hover:bg-red-100 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
                 onClick={clearCart}
                 disabled={cart.length === 0}
               >
@@ -153,23 +153,46 @@ const POS = () => {
           />
         )}
       </div>
-
       {/* Options Modal */}
       {showOptions && selectedProduct && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) closeOptions(); }}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-[popIn_0.2s_ease-out]" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-[popIn_0.2s_ease-out]" onClick={e => e.stopPropagation()}>
             <div className="bg-gray-900 text-white px-6 py-4 flex justify-between items-center">
-              <h3 className="m-0 text-base font-semibold tracking-wide">{editingCartItemId ? 'Edit:' : 'Customize:'} {selectedProduct.name}</h3>
-              <button className="text-gray-400 hover:text-white transition-colors bg-transparent border-none text-xl leading-none cursor-pointer p-0" onClick={closeOptions}>✕</button>
+              <h3 className="m-0 text-lg md:text-xl font-bold tracking-wide">{editingCartItemId ? 'Edit:' : 'Customize:'} {selectedProduct.name}</h3>
+              <button className="text-gray-400 hover:text-white transition-colors bg-transparent border-none text-2xl leading-none cursor-pointer p-0" onClick={closeOptions}>✕</button>
             </div>
-            <div className="p-6 overflow-y-auto max-h-[60vh] scrollbar-thin scrollbar-thumb-gray-200">
+            <div className="p-6 overflow-y-auto max-h-[65vh] scrollbar-thin scrollbar-thumb-gray-200">
               {/* Quantity */}
               <div className="mb-6">
-                <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">Quantity</label>
-                <div className="flex items-center gap-1 border border-gray-300 rounded-lg overflow-hidden w-32">
-                  <button className="flex-1 px-3 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 font-bold text-lg transition-colors" onClick={() => setProductOptions(p => ({...p, qty: Math.max(1, p.qty - 1)}))}>−</button>
-                  <input type="number" className="w-12 text-center text-gray-900 font-bold border-none focus:outline-none bg-white p-0" value={productOptions.qty} readOnly />
-                  <button className="flex-1 px-3 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 font-bold text-lg transition-colors" onClick={() => setProductOptions(p => ({...p, qty: p.qty + 1}))}>+</button>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-sm md:text-base font-bold text-gray-800 uppercase tracking-wider">Quantity</label>
+                  <span className="text-xs md:text-sm text-gray-500 font-semibold">Limit: 1 – 99</span>
+                </div>
+                <div className="flex items-center gap-1 border-2 border-gray-300 rounded-xl overflow-hidden w-40">
+                  <button 
+                    type="button"
+                    className="flex-1 px-3 py-2.5 bg-gray-50 hover:bg-gray-100 text-gray-800 font-bold text-xl transition-colors disabled:opacity-30 disabled:cursor-not-allowed" 
+                    onClick={() => setProductOptions(p => ({...p, qty: Math.max(1, p.qty - 1)}))}
+                    disabled={productOptions.qty <= 1}
+                  >−</button>
+                  <input 
+                    type="number" 
+                    min="1" 
+                    max="99" 
+                    className="w-16 text-center text-gray-900 font-black text-xl border-none focus:outline-none bg-white p-0" 
+                    value={productOptions.qty} 
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      if (isNaN(val)) return;
+                      setProductOptions(p => ({ ...p, qty: Math.min(99, Math.max(1, val)) }));
+                    }}
+                  />
+                  <button 
+                    type="button"
+                    className="flex-1 px-3 py-2.5 bg-gray-50 hover:bg-gray-100 text-gray-800 font-bold text-xl transition-colors disabled:opacity-30 disabled:cursor-not-allowed" 
+                    onClick={() => setProductOptions(p => ({...p, qty: Math.min(99, p.qty + 1)}))}
+                    disabled={productOptions.qty >= 99}
+                  >+</button>
                 </div>
               </div>
 
@@ -177,12 +200,12 @@ const POS = () => {
               {["COFFEE", "FRAPPE", "MILK TEA", "SODA", "FRUIT DRINKS"].includes(selectedProduct.category?.toUpperCase()) && (
                 <>
                   <div className="mb-6">
-                    <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">Cup Size</label>
-                    <div className="flex gap-2 flex-wrap">
+                    <label className="block text-sm md:text-base font-bold text-gray-800 uppercase tracking-wider mb-2">Cup Size</label>
+                    <div className="flex gap-2.5 flex-wrap">
                       {(selectedProduct.sizes?.length > 0 ? selectedProduct.sizes.map(s => s.name) : ["12 oz", "16 oz", "22 oz"]).map(size => (
                         <button 
                           key={size}
-                          className={`px-4 py-2 text-sm font-bold uppercase tracking-wider rounded-lg border transition-all ${productOptions.cupSize === size ? "bg-gray-900 text-white border-gray-900 shadow-sm" : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"}`}
+                          className={`px-5 py-2.5 text-sm md:text-base font-bold uppercase tracking-wider rounded-xl border transition-all cursor-pointer ${productOptions.cupSize === size ? "bg-gray-900 text-white border-gray-900 shadow-md" : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"}`}
                           onClick={() => setProductOptions(p => ({...p, cupSize: size}))}
                         >
                           {size}
@@ -192,7 +215,10 @@ const POS = () => {
                   </div>
 
                   <div className="mb-2">
-                    <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">Add-ons</label>
+                    <div className="flex justify-between items-center mb-2">
+                      <label className="block text-sm md:text-base font-bold text-gray-800 uppercase tracking-wider">Add-ons</label>
+                      <span className="text-xs md:text-sm text-gray-500 font-semibold">Max 5 per add-on</span>
+                    </div>
                     <div className="grid grid-cols-2 gap-3">
                       {(() => {
                         let addonsToList = selectedProduct.add_ons?.length > 0 
@@ -202,12 +228,22 @@ const POS = () => {
                         return addonsToList.map(addon => {
                           const currentQty = productOptions.addOns[addon] || 0;
                           return (
-                            <div key={addon} className={`flex flex-col p-3 rounded-xl border transition-colors ${currentQty > 0 ? 'bg-indigo-50/50 border-indigo-200' : 'bg-white border-gray-200'}`}>
-                              <span className="text-sm font-semibold text-gray-800 mb-2 truncate">{addon}</span>
+                            <div key={addon} className={`flex flex-col p-3 rounded-xl border-2 transition-colors ${currentQty > 0 ? 'bg-indigo-50/60 border-indigo-400' : 'bg-white border-gray-200'}`}>
+                              <span className="text-sm md:text-base font-bold text-gray-900 mb-2 truncate">{addon}</span>
                               <div className="flex items-center justify-between mt-auto">
-                                <button className="w-8 h-8 rounded-full bg-white border border-gray-300 flex items-center justify-center font-bold text-gray-600 hover:bg-gray-50 transition-colors" onClick={() => updateAddOnQty(addon, currentQty - 1)}>-</button>
-                                <span className="font-bold text-gray-900 w-6 text-center">{currentQty}</span>
-                                <button className="w-8 h-8 rounded-full bg-white border border-gray-300 flex items-center justify-center font-bold text-gray-600 hover:bg-gray-50 transition-colors" onClick={() => updateAddOnQty(addon, currentQty + 1)}>+</button>
+                                <button 
+                                  type="button"
+                                  className="w-9 h-9 rounded-full bg-white border border-gray-300 flex items-center justify-center font-bold text-gray-700 hover:bg-gray-100 transition-colors text-lg disabled:opacity-30 disabled:cursor-not-allowed" 
+                                  onClick={() => updateAddOnQty(addon, currentQty - 1)}
+                                  disabled={currentQty <= 0}
+                                >-</button>
+                                <span className="font-black text-gray-900 text-lg w-7 text-center">{currentQty}</span>
+                                <button 
+                                  type="button"
+                                  className="w-9 h-9 rounded-full bg-white border border-gray-300 flex items-center justify-center font-bold text-gray-700 hover:bg-gray-100 transition-colors text-lg disabled:opacity-30 disabled:cursor-not-allowed" 
+                                  onClick={() => updateAddOnQty(addon, currentQty + 1)}
+                                  disabled={currentQty >= 5}
+                                >+</button>
                               </div>
                             </div>
                           );
@@ -218,9 +254,9 @@ const POS = () => {
                 </>
               )}
             </div>
-            <div className="flex gap-3 px-6 py-4 bg-gray-50 border-t border-gray-100">
-              <button className="flex-[1] py-3 bg-white border border-gray-300 rounded-xl text-sm font-bold text-gray-600 uppercase tracking-wider hover:bg-gray-50 transition-colors" onClick={closeOptions}>Cancel</button>
-              <button className="flex-[2] py-3 bg-gray-900 border border-transparent rounded-xl text-sm font-bold text-white uppercase tracking-wider hover:bg-black hover:shadow-md transition-all" onClick={handleAddWithOptions}>
+            <div className="flex gap-3 px-6 py-4 bg-gray-50 border-t border-gray-200">
+              <button className="flex-[1] py-3.5 bg-white border border-gray-300 rounded-xl text-sm md:text-base font-bold text-gray-700 uppercase tracking-wider hover:bg-gray-100 transition-colors cursor-pointer" onClick={closeOptions}>Cancel</button>
+              <button className="flex-[2] py-3.5 bg-gray-900 border border-transparent rounded-xl text-sm md:text-base font-bold text-white uppercase tracking-wider hover:bg-black hover:shadow-md transition-all cursor-pointer" onClick={handleAddWithOptions}>
                 {(() => {
                   let displayPrice = parseFloat(selectedProduct.price);
                   if (["COFFEE", "FRAPPE", "MILK TEA", "SODA", "FRUIT DRINKS"].includes(selectedProduct.category?.toUpperCase())) {
@@ -255,29 +291,29 @@ const POS = () => {
         
         return (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) setRecipeProduct(null); }}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-[popIn_0.2s_ease-out]" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-[popIn_0.2s_ease-out]" onClick={e => e.stopPropagation()}>
             <div className="bg-gray-900 text-white px-6 py-4 flex justify-between items-center">
-              <h3 className="m-0 text-base font-semibold tracking-wide">Ingredients: {recipeProduct.name}</h3>
-              <button className="text-gray-400 hover:text-white transition-colors bg-transparent border-none text-xl leading-none cursor-pointer p-0" onClick={() => setRecipeProduct(null)}>✕</button>
+              <h3 className="m-0 text-lg md:text-xl font-bold tracking-wide">Ingredients: {recipeProduct.name}</h3>
+              <button className="text-gray-400 hover:text-white transition-colors bg-transparent border-none text-2xl leading-none cursor-pointer p-0" onClick={() => setRecipeProduct(null)}>✕</button>
             </div>
             <div className="p-6">
               {recipeLoading ? (
-                <div className="text-gray-500 italic text-center py-6">Loading recipe details...</div>
+                <div className="text-gray-500 italic text-center py-6 text-base">Loading recipe details...</div>
               ) : currentRecipe.length > 0 ? (
                 <div className="text-left">
-                  <p className="mb-4 text-sm text-gray-600 leading-relaxed font-medium">
+                  <p className="mb-4 text-base md:text-lg text-gray-700 leading-relaxed font-semibold">
                     This product is prepared using the following ingredients:
                   </p>
-                  <ul className="list-disc pl-5 space-y-2">
+                  <ul className="list-disc pl-5 space-y-2.5">
                     {currentRecipe.map((r, i) => {
                       const displayUnit = (r.recipe_unit || r.ingredients?.unit || '').toUpperCase();
                       const formattedQty = `${r.quantity_used} ${displayUnit}`;
                       const formattedStock = formatQuantity(r.ingredients?.stock_quantity, r.ingredients?.unit);
                         
                       return (
-                        <li key={i} className="text-sm text-gray-800">
+                        <li key={i} className="text-base md:text-lg text-gray-900">
                           <strong>{formattedQty}</strong> of <strong>{r.ingredients?.name}</strong>
-                          <span className={`ml-2 text-xs font-bold px-1.5 py-0.5 rounded ${ (r.ingredients?.stock_quantity || 0) < 10 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600' }`}>
+                          <span className={`ml-2 text-sm md:text-base font-bold px-2 py-0.5 rounded-md ${ (r.ingredients?.stock_quantity || 0) < 10 ? 'bg-red-50 text-red-600 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200' }`}>
                             ({formattedStock} in stock)
                           </span>
                         </li>
@@ -286,15 +322,15 @@ const POS = () => {
                   </ul>
                 </div>
               ) : (
-                <div className="p-6 text-center text-gray-500 font-medium">
+                <div className="p-6 text-center text-gray-500 font-medium text-base">
                   No recipe data found or this is a direct-stock item.
                 </div>
               )}
             </div>
-            <div className="flex gap-3 px-6 py-4 bg-gray-50 border-t border-gray-100">
-              <button className="flex-1 py-3 bg-white border border-gray-300 rounded-xl text-sm font-bold text-gray-600 uppercase tracking-wider hover:bg-gray-50 transition-colors" onClick={() => setRecipeProduct(null)}>Close</button>
+            <div className="flex gap-3 px-6 py-4 bg-gray-50 border-t border-gray-200">
+              <button className="flex-1 py-3.5 bg-white border border-gray-300 rounded-xl text-base font-bold text-gray-700 uppercase tracking-wider hover:bg-gray-100 transition-colors cursor-pointer" onClick={() => setRecipeProduct(null)}>Close</button>
               <button 
-                className="flex-1 py-3 bg-gray-900 border border-transparent rounded-xl text-sm font-bold text-white uppercase tracking-wider hover:bg-black hover:shadow-md transition-all disabled:bg-gray-300 disabled:text-gray-500 disabled:shadow-none disabled:cursor-not-allowed" 
+                className="flex-1 py-3.5 bg-gray-900 border border-transparent rounded-xl text-base font-bold text-white uppercase tracking-wider hover:bg-black hover:shadow-md transition-all cursor-pointer disabled:bg-gray-300 disabled:text-gray-500 disabled:shadow-none disabled:cursor-not-allowed" 
                 onClick={() => { openOptions(recipeProduct); setRecipeProduct(null); }}
                 disabled={isUnavailable}
               >

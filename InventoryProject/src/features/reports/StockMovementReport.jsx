@@ -181,9 +181,9 @@ const StockMovementReport = () => {
       <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-6 flex flex-col lg:flex-row justify-between gap-6">
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-3">
-            <span className="text-sm font-bold text-gray-700 uppercase tracking-wider">Period</span>
+            <span className="text-sm md:text-base font-bold text-gray-700 uppercase tracking-wider">Period</span>
             <select
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
+              className="px-4 py-2 border border-gray-300 rounded-lg text-sm md:text-base bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
               value={period}
               onChange={e => { setPeriod(e.target.value); setFetched(false); }}
             >
@@ -194,10 +194,10 @@ const StockMovementReport = () => {
           </div>
           {fetched && (
             <div className="flex items-center gap-3">
-              <span className="text-sm font-bold text-gray-700 uppercase tracking-wider">Search</span>
+              <span className="text-sm md:text-base font-bold text-gray-700 uppercase tracking-wider">Search</span>
               <input
                 type="text"
-                className="px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm w-48 lg:w-64"
+                className="px-4 py-2 border border-gray-300 rounded-lg text-sm md:text-base bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm w-48 lg:w-64"
                 placeholder="Filter by name or type..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
@@ -207,21 +207,21 @@ const StockMovementReport = () => {
         </div>
         <div className="flex flex-wrap gap-3">
           <button 
-            className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-gray-50 transition-colors disabled:opacity-50 shadow-sm" 
+            className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm md:text-base font-bold uppercase tracking-wider hover:bg-gray-50 transition-colors disabled:opacity-50 shadow-sm" 
             onClick={handleExport} 
             disabled={!fetched || loading}
           >
             Export CSV
           </button>
           <button 
-            className="px-5 py-2.5 bg-gray-900 text-white rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm" 
+            className="px-5 py-2.5 bg-gray-900 text-white rounded-lg text-sm md:text-base font-bold uppercase tracking-wider hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm" 
             onClick={fetchReport} 
             disabled={loading}
           >
             {loading ? 'Loading...' : fetched ? 'Refresh Data' : 'Generate Report'}
           </button>
           <button 
-            className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-gray-50 transition-colors disabled:opacity-50 shadow-sm" 
+            className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm md:text-base font-bold uppercase tracking-wider hover:bg-gray-50 transition-colors disabled:opacity-50 shadow-sm" 
             onClick={handlePrint} 
             disabled={!fetched}
           >
@@ -234,7 +234,7 @@ const StockMovementReport = () => {
         <div className="p-12 flex flex-col items-center justify-center text-gray-500 bg-white border border-gray-200 border-dashed rounded-xl h-64">
           <svg className="w-16 h-16 mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
           <div className="text-lg font-bold text-gray-900 mb-1">Ready to Generate</div>
-          <p className="m-0 text-sm">Select a period and click <strong className="text-gray-900">Generate Report</strong> to view stock movement for all trackable items.</p>
+          <p className="m-0 text-sm md:text-base">Select a period and click <strong className="text-gray-900">Generate Report</strong> to view stock movement for all trackable items.</p>
         </div>
       )}
 
@@ -250,37 +250,37 @@ const StockMovementReport = () => {
           {/* KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-t-4 border-t-blue-500">
-              <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Stock Receipts ({periodLabel})</div>
+              <div className="text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider mb-2">Stock Receipts ({periodLabel})</div>
               <div className="text-2xl font-extrabold text-gray-900 mb-1">{receipts.length}</div>
-              <div className="text-xs font-medium text-gray-400">restocking events</div>
+              <div className="text-sm md:text-base font-medium text-gray-400">restocking events</div>
             </div>
             <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-t-4 border-t-green-500">
-              <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Total Qty Received</div>
+              <div className="text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider mb-2">Total Qty Received</div>
               <div className="text-2xl font-extrabold text-gray-900 mb-1">{totalReceived.toFixed(2)}</div>
-              <div className="text-xs font-medium text-gray-400">units added to stock</div>
+              <div className="text-sm md:text-base font-medium text-gray-400">units added to stock</div>
             </div>
             <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-t-4 border-t-red-500">
-              <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Restock Needed / Out of Stock</div>
+              <div className="text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider mb-2">Restock Needed / Out of Stock</div>
               <div className="text-2xl font-extrabold text-gray-900 mb-1">{criticalCount}</div>
-              <div className="text-xs font-medium text-gray-400">need immediate attention</div>
+              <div className="text-sm md:text-base font-medium text-gray-400">need immediate attention</div>
             </div>
             <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-t-4 border-t-gray-900">
-              <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Tracked Items</div>
+              <div className="text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider mb-2">Tracked Items</div>
               <div className="text-2xl font-extrabold text-gray-900 mb-1">{rows.length}</div>
-              <div className="text-xs font-medium text-gray-400">ingredients & products</div>
+              <div className="text-sm md:text-base font-medium text-gray-400">ingredients & products</div>
             </div>
           </div>
 
           {/* View Toggle */}
           <div className="flex gap-2">
             <button
-              className={`px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-wider transition-colors ${activeView === 'receipts' ? 'bg-gray-900 text-white shadow-sm' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+              className={`px-4 py-2 rounded-lg text-sm md:text-base font-bold uppercase tracking-wider transition-colors ${activeView === 'receipts' ? 'bg-gray-900 text-white shadow-sm' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}
               onClick={() => setActiveView('receipts')}
             >
               Stock Received Log ({receipts.length})
             </button>
             <button
-              className={`px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-wider transition-colors ${activeView === 'snapshot' ? 'bg-gray-900 text-white shadow-sm' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+              className={`px-4 py-2 rounded-lg text-sm md:text-base font-bold uppercase tracking-wider transition-colors ${activeView === 'snapshot' ? 'bg-gray-900 text-white shadow-sm' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}
               onClick={() => setActiveView('snapshot')}
             >
               Current Inventory Snapshot
@@ -292,7 +292,7 @@ const StockMovementReport = () => {
             <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden">
               <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex justify-between items-baseline">
                 <h2 className="m-0 text-lg font-bold text-gray-900 tracking-tight">Stock Received Log — {periodLabel}</h2>
-                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                <span className="text-xs md:text-sm text-gray-400 font-bold uppercase tracking-wider">
                   includes ingredients & direct-track products
                 </span>
               </div>
@@ -302,33 +302,33 @@ const StockMovementReport = () => {
                     <table className="w-full text-left border-collapse whitespace-nowrap">
                       <thead>
                         <tr className="bg-gray-50 border-b border-gray-200">
-                          <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Date & Time</th>
-                          <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Type</th>
-                          <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Item Name</th>
-                          <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Qty Added</th>
-                          <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">New Total</th>
-                          <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">By</th>
+                          <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider">Date & Time</th>
+                          <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider">Type</th>
+                          <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider">Item Name</th>
+                          <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider text-right">Qty Added</th>
+                          <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider text-right">New Total</th>
+                          <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider">By</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
                         {filteredReceipts.map(r => (
                           <tr key={r.id} className="hover:bg-gray-50/50 transition-colors">
-                            <td className="px-6 py-4 text-xs font-medium font-mono text-gray-500">
+                            <td className="px-6 py-4 text-sm md:text-base font-medium font-mono text-gray-500">
                               {new Date(r.timestamp).toLocaleString('en-PH')}
                             </td>
                             <td className="px-6 py-4">
-                              <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-600 border border-gray-200">
+                              <span className="inline-flex px-2 py-0.5 rounded text-xs md:text-sm font-bold uppercase tracking-wider bg-gray-100 text-gray-600 border border-gray-200">
                                 {r.type}
                               </span>
                             </td>
-                            <td className="px-6 py-4 text-sm font-bold text-gray-900">{r.name}</td>
-                            <td className="px-6 py-4 text-sm font-bold font-mono text-green-700 text-right">
+                            <td className="px-6 py-4 text-sm md:text-base font-bold text-gray-900">{r.name}</td>
+                            <td className="px-6 py-4 text-sm md:text-base font-bold font-mono text-green-700 text-right">
                               +{r.quantityAdded} {r.unit}
                             </td>
-                            <td className="px-6 py-4 text-sm font-medium font-mono text-gray-900 text-right">
+                            <td className="px-6 py-4 text-sm md:text-base font-medium font-mono text-gray-900 text-right">
                               {r.newStock} {r.unit}
                             </td>
-                            <td className="px-6 py-4 text-xs font-medium text-gray-600">{r.recordedBy}</td>
+                            <td className="px-6 py-4 text-sm md:text-base font-medium text-gray-600">{r.recordedBy}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -353,12 +353,12 @@ const StockMovementReport = () => {
                     <table className="w-full text-left border-collapse whitespace-nowrap">
                       <thead>
                         <tr className="bg-gray-50 border-b border-gray-200">
-                          <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Type</th>
-                          <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Item Name</th>
-                          <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Current Stock</th>
-                          <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Low Alert</th>
-                          <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Unit</th>
-                          <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Status</th>
+                          <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider">Type</th>
+                          <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider">Item Name</th>
+                          <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider text-right">Current Stock</th>
+                          <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider text-right">Low Alert</th>
+                          <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider">Unit</th>
+                          <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider text-right">Status</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
@@ -371,20 +371,20 @@ const StockMovementReport = () => {
                           return (
                             <tr key={`${row.type}-${row.id}`} className="hover:bg-gray-50/50 transition-colors">
                               <td className="px-6 py-4">
-                                <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-600 border border-gray-200">
+                                <span className="inline-flex px-2 py-0.5 rounded text-xs md:text-sm font-bold uppercase tracking-wider bg-gray-100 text-gray-600 border border-gray-200">
                                   {row.type}
                                 </span>
                               </td>
-                              <td className="px-6 py-4 text-sm font-bold text-gray-900">{row.name}</td>
-                              <td className="px-6 py-4 text-sm font-bold font-mono text-gray-900 text-right">
+                              <td className="px-6 py-4 text-sm md:text-base font-bold text-gray-900">{row.name}</td>
+                              <td className="px-6 py-4 text-sm md:text-base font-bold font-mono text-gray-900 text-right">
                                 {row.currentStock}
                               </td>
-                              <td className="px-6 py-4 text-sm font-medium font-mono text-gray-400 text-right">
+                              <td className="px-6 py-4 text-sm md:text-base font-medium font-mono text-gray-400 text-right">
                                 {row.lowAlert}
                               </td>
-                              <td className="px-6 py-4 text-xs font-medium text-gray-500">{row.unit}</td>
+                              <td className="px-6 py-4 text-sm md:text-base font-medium text-gray-500">{row.unit}</td>
                               <td className="px-6 py-4 text-right">
-                                <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${badgeCls}`}>
+                                <span className={`inline-flex px-2.5 py-1 rounded-full text-xs md:text-sm font-bold uppercase tracking-wider border ${badgeCls}`}>
                                   {row.status}
                                 </span>
                               </td>

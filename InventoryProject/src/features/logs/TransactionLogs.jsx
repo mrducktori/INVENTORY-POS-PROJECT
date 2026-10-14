@@ -11,14 +11,9 @@ const getCategory = (action) => {
   if (!action) return { label: 'System', css: 'system' };
   const a = action.toUpperCase();
   if (a.startsWith('SALE'))                   return { label: 'Sale', css: 'sale' };
-  if (a.startsWith('PRODUCT_STOCK'))          return { label: 'Stock', css: 'stock' };
-  if (a.startsWith('PRODUCT'))                return { label: 'Product', css: 'product' };
-  if (a.startsWith('RAW_MATERIAL_STOCK'))     return { label: 'Stock', css: 'stock' };
-  if (a.startsWith('RAW_MATERIAL'))           return { label: 'Raw Material', css: 'raw-material' };
-  if (a === 'WASTAGE')                        return { label: 'Wastage', css: 'wastage' };
-  if (a.startsWith('USER'))                   return { label: 'User', css: 'user' };
-  if (a.startsWith('LOGIN') || a === 'LOGOUT' || a === 'LOGIN_FAILED') return { label: 'Auth', css: 'auth' };
-  if (a.startsWith('CATEGORY'))              return { label: 'Category', css: 'category' };
+  if (a.startsWith('PURCHASE_ORDER'))          return { label: 'Purchase Order', css: 'po' };
+  if (a.startsWith('PRODUCT_STOCK'))          return { label: 'Stock (Product)', css: 'stock' };
+  if (a.startsWith('RAW_MATERIAL_STOCK'))     return { label: 'Stock (Raw)', css: 'stock' };
   return { label: 'System', css: 'system' };
 };
 
@@ -78,6 +73,10 @@ const formatDescription = (action, rawDetails) => {
       return `Changed status of "${d.name}" to ${d.new_status}.`;
     case 'CATEGORY_SETTINGS_UPDATED':
       return `Updated category settings for ${d.category}.`;
+    case 'PURCHASE_ORDER_CREATED':
+      return `Created Purchase Order (PO #${(d.po_id || '').substring(0, 8).toUpperCase()}) — Total: ₱${d.total_amount || 0}.`;
+    case 'PURCHASE_ORDER_STATUS_UPDATED':
+      return `PO #${(d.po_id || '').substring(0, 8).toUpperCase()} status changed to ${d.new_status}.`;
     default:
       if (Object.keys(d).length === 0) return action.replace(/_/g, ' ');
       return Object.entries(d)
@@ -93,16 +92,9 @@ const ITEMS_PER_PAGE = 50;
 const CATEGORY_OPTIONS = [
   { value: '',                  label: 'All Transactions' },
   { value: 'SALE',              label: 'Sales' },
-  { value: 'PRODUCT',           label: 'Products' },
-  { value: 'RAW_MATERIAL',      label: 'Raw Materials' },
+  { value: 'PURCHASE_ORDER',    label: 'Purchase Orders' },
   { value: 'RAW_MATERIAL_STOCK', label: 'Stock Received (Raw)' },
   { value: 'PRODUCT_STOCK',     label: 'Stock Received (Product)' },
-  { value: 'WASTAGE',           label: 'Wastage' },
-  { value: 'USER',              label: 'Users / Staff' },
-  { value: 'LOGIN',             label: 'Logins' },
-  { value: 'LOGOUT',            label: 'Logouts' },
-  { value: 'LOGIN_FAILED',      label: 'Failed Logins' },
-  { value: 'CATEGORY',          label: 'Category Settings' },
 ];
 
 // ── Main Component ──────────────────────────────────────────
@@ -131,8 +123,17 @@ const TransactionLogs = () => {
           ...filters,
           end_date: filters.end_date ? filters.end_date + 'T23:59:59' : undefined
         };
-        const data = await getAuditLogs(adjustedFilters);
-        setLogs(data || []);
+        const response = await getAuditLogs(adjustedFilters);
+        // The audit API returns { data: [...], total, limit, offset }
+        const allLogs = response?.data || response || [];
+        
+        // Filter out everything except Sales and PO (Stock Received)
+        const txLogs = allLogs.filter(log => 
+          log.action?.toUpperCase().startsWith('SALE') || 
+          log.action?.toUpperCase().includes('STOCK_RECEIVED')
+        );
+        
+        setLogs(txLogs);
       } catch (error) {
         console.error('Failed to fetch transaction logs:', error);
       } finally {
@@ -209,8 +210,8 @@ const TransactionLogs = () => {
   // ── Stats ──
   const totalTransactions = processedLogs.length;
   const saleCount = processedLogs.filter(l => l.action?.toUpperCase().startsWith('SALE')).length;
-  const stockCount = processedLogs.filter(l => l.action?.toUpperCase().includes('STOCK_RECEIVED')).length;
-  const wastageCount = processedLogs.filter(l => l.action?.toUpperCase() === 'WASTAGE').length;
+  const rawStockCount = processedLogs.filter(l => l.action?.toUpperCase().startsWith('RAW_MATERIAL_STOCK_RECEIVED')).length;
+  const productStockCount = processedLogs.filter(l => l.action?.toUpperCase().startsWith('PRODUCT_STOCK_RECEIVED')).length;
 
   return (
     <div className="p-4 md:p-8 flex-1 bg-gray-50 overflow-y-auto w-full">
@@ -218,9 +219,9 @@ const TransactionLogs = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="m-0 text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">Transaction Logs</h1>
-          <p className="m-0 mt-1 text-sm text-gray-500 font-medium">Owner-level view of all system transactions and activity.</p>
+          <p className="m-0 mt-1 text-sm md:text-base text-gray-500 font-medium">Owner-level view of all system transactions and activity.</p>
         </div>
-        <div className="bg-amber-100 text-amber-800 px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-wider flex items-center gap-2 shadow-sm border border-amber-200">
+        <div className="bg-amber-100 text-amber-800 px-4 py-2 rounded-lg text-sm md:text-base font-bold uppercase tracking-wider flex items-center gap-2 shadow-sm border border-amber-200">
           <span>🔒</span> Owner Access Only
         </div>
       </div>
@@ -229,51 +230,51 @@ const TransactionLogs = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <div className="bg-white border border-gray-200 p-5 rounded-xl shadow-sm flex flex-col justify-center">
           <div className="text-2xl font-extrabold text-gray-900">{totalTransactions}</div>
-          <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mt-1">Total Records</div>
+          <div className="text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider mt-1">Total Records</div>
         </div>
         <div className="bg-blue-50 border border-blue-100 p-5 rounded-xl shadow-sm flex flex-col justify-center">
           <div className="text-2xl font-extrabold text-blue-700">{saleCount}</div>
-          <div className="text-xs font-bold text-blue-600 uppercase tracking-wider mt-1">Sales Transactions</div>
+          <div className="text-sm md:text-base font-bold text-blue-600 uppercase tracking-wider mt-1">Sales Transactions</div>
         </div>
         <div className="bg-green-50 border border-green-100 p-5 rounded-xl shadow-sm flex flex-col justify-center">
-          <div className="text-2xl font-extrabold text-green-700">{stockCount}</div>
-          <div className="text-xs font-bold text-green-600 uppercase tracking-wider mt-1">Stock Received</div>
+          <div className="text-2xl font-extrabold text-green-700">{rawStockCount}</div>
+          <div className="text-sm md:text-base font-bold text-green-600 uppercase tracking-wider mt-1">Raw Stock (PO)</div>
         </div>
-        <div className="bg-red-50 border border-red-100 p-5 rounded-xl shadow-sm flex flex-col justify-center">
-          <div className="text-2xl font-extrabold text-red-700">{wastageCount}</div>
-          <div className="text-xs font-bold text-red-600 uppercase tracking-wider mt-1">Wastage Reports</div>
+        <div className="bg-purple-50 border border-purple-100 p-5 rounded-xl shadow-sm flex flex-col justify-center">
+          <div className="text-2xl font-extrabold text-purple-700">{productStockCount}</div>
+          <div className="text-sm md:text-base font-bold text-purple-600 uppercase tracking-wider mt-1">Product Stock</div>
         </div>
       </div>
 
       {/* Filters */}
       <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-5 mb-8 grid grid-cols-1 md:grid-cols-4 gap-4">
         <div>
-          <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Start Date</label>
+          <label className="block text-sm md:text-base font-bold text-gray-600 uppercase tracking-wider mb-2">Start Date</label>
           <input
             type="date"
             name="start_date"
             value={filters.start_date}
             onChange={handleFilterChange}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm md:text-base bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
           />
         </div>
         <div>
-          <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">End Date</label>
+          <label className="block text-sm md:text-base font-bold text-gray-600 uppercase tracking-wider mb-2">End Date</label>
           <input
             type="date"
             name="end_date"
             value={filters.end_date}
             onChange={handleFilterChange}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm md:text-base bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
           />
         </div>
         <div>
-          <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Transaction Type</label>
+          <label className="block text-sm md:text-base font-bold text-gray-600 uppercase tracking-wider mb-2">Transaction Type</label>
           <select
             name="action"
             value={filters.action}
             onChange={handleFilterChange}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm md:text-base bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
           >
             {CATEGORY_OPTIONS.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -281,13 +282,13 @@ const TransactionLogs = () => {
           </select>
         </div>
         <div>
-          <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Search</label>
+          <label className="block text-sm md:text-base font-bold text-gray-600 uppercase tracking-wider mb-2">Search</label>
           <input
             type="text"
             placeholder="Search by user, action, or details..."
             value={searchTerm}
             onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm md:text-base bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
           />
         </div>
       </div>
@@ -298,17 +299,17 @@ const TransactionLogs = () => {
           <table className="w-full text-left border-collapse whitespace-nowrap">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('created_at')}>
+                <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('created_at')}>
                   Timestamp {sortConfig.key === 'created_at' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('staff')}>
+                <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('staff')}>
                   Operator {sortConfig.key === 'staff' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Category</th>
-                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-center cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('action')}>
+                <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider text-center">Category</th>
+                <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider text-center cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('action')}>
                   Action {sortConfig.key === 'action' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Details</th>
+                <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider">Details</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -324,29 +325,29 @@ const TransactionLogs = () => {
                   const userRole = log.users?.role?.toLowerCase() || 'staff';
                   return (
                     <tr key={log.id} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-6 py-4 text-sm font-medium text-gray-600">
+                      <td className="px-6 py-4 text-sm md:text-base font-medium text-gray-600">
                         {new Date(log.created_at).toLocaleString()}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col items-start">
-                          <span className="text-sm font-bold text-gray-900">{log.users?.name || 'System'}</span>
+                          <span className="text-sm md:text-base font-bold text-gray-900">{log.users?.name || 'System'}</span>
                           <span className={`inline-flex mt-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${userRole === 'owner' ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-gray-100 text-gray-600 border-gray-200'} border`}>
                             {log.users?.role || 'SYS'}
                           </span>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-center">
-                        <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                        <span className="inline-flex px-2.5 py-1 rounded-full text-sm md:text-base font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
                           {cat.label}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-center">
-                        <span className="inline-flex px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-700 border border-gray-200">
+                        <span className="inline-flex px-2.5 py-1 rounded-md text-xs md:text-sm font-bold uppercase tracking-wider bg-gray-100 text-gray-700 border border-gray-200">
                           {log.action}
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <p className="m-0 text-sm font-medium text-gray-800 whitespace-normal">
+                        <p className="m-0 text-sm md:text-base font-medium text-gray-800 whitespace-normal">
                           {formatDescription(log.action, log.details)}
                         </p>
                       </td>
@@ -357,7 +358,7 @@ const TransactionLogs = () => {
                 <tr>
                   <td colSpan="5" className="p-12 text-center text-gray-400 bg-gray-50/50">
                     <svg className="w-12 h-12 mb-3 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                    <div className="text-sm font-medium">No transaction records found</div>
+                    <div className="text-sm md:text-base font-medium">No transaction records found</div>
                   </td>
                 </tr>
               )}
@@ -368,19 +369,19 @@ const TransactionLogs = () => {
         {/* Pagination */}
         {processedLogs.length > ITEMS_PER_PAGE && (
           <div className="px-6 py-4 border-t border-gray-100 bg-white flex items-center justify-between">
-            <div className="text-sm font-medium text-gray-500">
+            <div className="text-sm md:text-base font-medium text-gray-500">
               Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, processedLogs.length)} of {processedLogs.length} records
             </div>
             <div className="flex gap-2">
               <button
-                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-bold text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-4 py-2 border border-gray-300 rounded-lg text-sm md:text-base font-bold text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
               >
                 ← Previous
               </button>
               <button
-                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-bold text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-4 py-2 border border-gray-300 rounded-lg text-sm md:text-base font-bold text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
               >

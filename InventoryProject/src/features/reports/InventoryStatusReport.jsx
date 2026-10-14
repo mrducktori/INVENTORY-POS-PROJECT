@@ -175,19 +175,19 @@ const InventoryStatusReport = () => {
       <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-6 flex flex-col lg:flex-row justify-between gap-6">
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-3">
-            <span className="text-sm font-bold text-gray-700 uppercase tracking-wider">Search</span>
+            <span className="text-sm md:text-base font-bold text-gray-700 uppercase tracking-wider">Search</span>
             <input
               type="text"
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm w-48 lg:w-64"
+              className="px-4 py-2 border border-gray-300 rounded-lg text-sm md:text-base bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm w-48 lg:w-64"
               placeholder="Filter ingredients..."
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-sm font-bold text-gray-700 uppercase tracking-wider">Status Filter</span>
+            <span className="text-sm md:text-base font-bold text-gray-700 uppercase tracking-wider">Status Filter</span>
             <select 
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
+              className="px-4 py-2 border border-gray-300 rounded-lg text-sm md:text-base bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
               value={statusFilter} 
               onChange={e => setStatusFilter(e.target.value)}
             >
@@ -201,21 +201,21 @@ const InventoryStatusReport = () => {
         </div>
         <div className="flex flex-wrap gap-3">
           <button 
-            className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-gray-50 transition-colors disabled:opacity-50 shadow-sm" 
+            className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm md:text-base font-bold uppercase tracking-wider hover:bg-gray-50 transition-colors disabled:opacity-50 shadow-sm" 
             onClick={handleExport} 
             disabled={!fetched || loading}
           >
             Export CSV
           </button>
           <button 
-            className="px-5 py-2.5 bg-gray-900 text-white rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm" 
+            className="px-5 py-2.5 bg-gray-900 text-white rounded-lg text-sm md:text-base font-bold uppercase tracking-wider hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm" 
             onClick={fetchReport} 
             disabled={loading}
           >
             {loading ? 'Loading...' : fetched ? 'Refresh Data' : 'Generate Report'}
           </button>
           <button 
-            className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-gray-50 transition-colors disabled:opacity-50 shadow-sm" 
+            className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm md:text-base font-bold uppercase tracking-wider hover:bg-gray-50 transition-colors disabled:opacity-50 shadow-sm" 
             onClick={handlePrint} 
             disabled={!fetched}
           >
@@ -228,7 +228,7 @@ const InventoryStatusReport = () => {
         <div className="p-12 flex flex-col items-center justify-center text-gray-500 bg-white border border-gray-200 border-dashed rounded-xl h-64">
           <svg className="w-16 h-16 mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
           <div className="text-lg font-bold text-gray-900 mb-1">Ready to Generate</div>
-          <p className="m-0 text-sm">Click <strong className="text-gray-900">Generate Report</strong> to load current inventory data.</p>
+          <p className="m-0 text-sm md:text-base">Click <strong className="text-gray-900">Generate Report</strong> to load current inventory data.</p>
         </div>
       )}
 
@@ -241,57 +241,43 @@ const InventoryStatusReport = () => {
 
       {fetched && !loading && (
         <div className="flex flex-col gap-6 animate-[fadeIn_0.3s_ease-out]">
-          {/* KPI Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-t-4 border-t-gray-900">
-              <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Total Ingredients</div>
-              <div className="text-2xl font-extrabold text-gray-900 mb-1">{stats.total}</div>
-              <div className="text-xs font-medium text-gray-400">active items tracked</div>
-            </div>
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-t-4 border-t-green-500">
-              <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">In Stock</div>
-              <div className="text-2xl font-extrabold text-gray-900 mb-1">{stats.healthy}</div>
-              <div className="text-xs font-medium text-gray-400">above safe threshold</div>
-            </div>
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-t-4 border-t-orange-500">
-              <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Low / Restock Needed</div>
-              <div className="text-2xl font-extrabold text-gray-900 mb-1">{stats.warning + stats.critical}</div>
-              <div className="text-xs font-medium text-gray-400">need attention</div>
-            </div>
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-t-4 border-t-red-600">
-              <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Out of Stock</div>
-              <div className="text-2xl font-extrabold text-gray-900 mb-1">{stats.out}</div>
-              <div className="text-xs font-medium text-gray-400">immediate restock needed</div>
-            </div>
-          </div>
-
-          {/* Health Overview Bar */}
-          {stats.total > 0 && (
-            <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden">
-              <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex justify-between items-baseline">
-                <h2 className="m-0 text-lg font-bold text-gray-900 tracking-tight">Stock Health Overview</h2>
-                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
-                  In Stock &middot; Low Stock &middot; Restock Needed &middot; Out
-                </span>
+          {/* KPI Cards & Health Bar Combined */}
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-gray-100">
+              <div className="p-5 border-t-4 border-t-gray-900">
+                <div className="text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider mb-2">Total Ingredients</div>
+                <div className="text-2xl font-extrabold text-gray-900 mb-1">{stats.total}</div>
+                <div className="text-sm md:text-base font-medium text-gray-400">active items tracked</div>
               </div>
-              <div className="p-6">
-                <div className="flex justify-between mb-4">
-                  {[
-                    { label: 'In Stock', val: stats.healthy, color: 'text-green-700' },
-                    { label: 'Low Stock', val: stats.warning, color: 'text-orange-600' },
-                    { label: 'Restock Needed', val: stats.critical, color: 'text-red-700' },
-                    { label: 'Out of Stock', val: stats.out, color: 'text-black' },
-                  ].map(s => (
-                    <div key={s.label} className="text-center">
-                      <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">{s.label}</div>
-                      <div className={`text-xl font-bold font-mono ${s.color}`}>{s.val}</div>
-                    </div>
-                  ))}
+              <div className="p-5 border-t-4 border-t-green-500">
+                <div className="text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider mb-2">In Stock</div>
+                <div className="text-2xl font-extrabold text-green-700 mb-1">{stats.healthy}</div>
+                <div className="text-sm md:text-base font-medium text-gray-400">above safe threshold</div>
+              </div>
+              <div className="p-5 border-t-4 border-t-orange-500">
+                <div className="text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider mb-2">Low / Restock</div>
+                <div className="flex items-baseline gap-2 mb-1">
+                  <div className="text-2xl font-extrabold text-orange-600">{stats.warning + stats.critical}</div>
+                  <div className="text-xs font-bold text-gray-400">({stats.warning} low, {stats.critical} urgent)</div>
+                </div>
+                <div className="text-sm md:text-base font-medium text-gray-400">need attention</div>
+              </div>
+              <div className="p-5 border-t-4 border-t-red-600">
+                <div className="text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider mb-2">Out of Stock</div>
+                <div className="text-2xl font-extrabold text-red-700 mb-1">{stats.out}</div>
+                <div className="text-sm md:text-base font-medium text-gray-400">immediate restock needed</div>
+              </div>
+            </div>
+            
+            {stats.total > 0 && (
+              <div className="p-5 bg-gray-50/50 border-t border-gray-100">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Stock Health Distribution</span>
                 </div>
                 <HealthBar stats={stats} />
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Priority Attention List */}
           {priorityList.length > 0 && (
@@ -307,12 +293,12 @@ const InventoryStatusReport = () => {
                   <table className="w-full text-left border-collapse whitespace-nowrap">
                     <thead>
                       <tr className="bg-white border-b border-gray-100">
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Ingredient</th>
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Current Stock</th>
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Alert Level</th>
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Unit</th>
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Level</th>
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Status</th>
+                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider">Ingredient</th>
+                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider">Current Stock</th>
+                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider">Alert Level</th>
+                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider">Unit</th>
+                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider">Level</th>
+                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider text-right">Status</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -321,10 +307,10 @@ const InventoryStatusReport = () => {
                         const pct = getStockPct(ing.stock_quantity, ing.low_stock_alert);
                         return (
                           <tr key={ing.id} className="hover:bg-red-50/30 transition-colors">
-                            <td className="px-6 py-4 text-sm font-bold text-gray-900">{ing.name}</td>
-                            <td className="px-6 py-4 text-sm font-bold font-mono text-gray-900">{ing.stock_quantity}</td>
-                            <td className="px-6 py-4 text-sm font-medium font-mono text-gray-400">{ing.low_stock_alert}</td>
-                            <td className="px-6 py-4 text-xs font-medium text-gray-500">{ing.unit}</td>
+                            <td className="px-6 py-4 text-sm md:text-base font-bold text-gray-900">{ing.name}</td>
+                            <td className="px-6 py-4 text-sm md:text-base font-bold font-mono text-gray-900">{ing.stock_quantity}</td>
+                            <td className="px-6 py-4 text-sm md:text-base font-medium font-mono text-gray-400">{ing.low_stock_alert}</td>
+                            <td className="px-6 py-4 text-sm md:text-base font-medium text-gray-500">{ing.unit}</td>
                             <td className="px-6 py-4 min-w-[120px]">
                               <div className="flex items-center gap-3">
                                 <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -333,15 +319,11 @@ const InventoryStatusReport = () => {
                                     backgroundColor: s === 'out' || s === 'critical' ? '#dc2626' : '#ea580c'
                                   }} />
                                 </div>
-                                <span className="text-xs font-bold text-gray-600 w-10 text-right">{pct}%</span>
+                                <span className="text-sm md:text-base font-bold text-gray-600 w-10 text-right">{pct}%</span>
                               </div>
                             </td>
                             <td className="px-6 py-4 text-right">
-                              <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
-                                s === 'out' ? 'bg-black text-white border-black' :
-                                s === 'critical' ? 'bg-red-50 text-red-700 border-red-200' :
-                                'bg-orange-50 text-orange-700 border-orange-200'
-                              }`}>
+                              <span className={`inline-flex px-2.5 py-1 rounded-full text-xs md:text-sm font-bold uppercase tracking-wider border ${ s === 'out' ? 'bg-black text-white border-black' : s === 'critical' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-orange-50 text-orange-700 border-orange-200' }`}>
                                 {getStatusLabel(s)}
                               </span>
                             </td>
@@ -366,12 +348,12 @@ const InventoryStatusReport = () => {
                   <table className="w-full text-left border-collapse whitespace-nowrap">
                     <thead>
                       <tr className="bg-gray-50 border-b border-gray-200">
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-900" onClick={() => handleSort('name')}>Ingredient{arrow('name')}</th>
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-900" onClick={() => handleSort('stock_quantity')}>Current Stock{arrow('stock_quantity')}</th>
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-900" onClick={() => handleSort('low_stock_alert')}>Alert Level{arrow('low_stock_alert')}</th>
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Unit</th>
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider min-w-[140px]">Level</th>
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-900 text-right" onClick={() => handleSort('stock_quantity')}>Status{arrow('stock_quantity')}</th>
+                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-900" onClick={() => handleSort('name')}>Ingredient{arrow('name')}</th>
+                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-900" onClick={() => handleSort('stock_quantity')}>Current Stock{arrow('stock_quantity')}</th>
+                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-900" onClick={() => handleSort('low_stock_alert')}>Alert Level{arrow('low_stock_alert')}</th>
+                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider">Unit</th>
+                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider min-w-[140px]">Level</th>
+                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-900 text-right" onClick={() => handleSort('stock_quantity')}>Status{arrow('stock_quantity')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -380,10 +362,10 @@ const InventoryStatusReport = () => {
                         const pct = getStockPct(ing.stock_quantity, ing.low_stock_alert);
                         return (
                           <tr key={ing.id} className="hover:bg-gray-50/50 transition-colors">
-                            <td className="px-6 py-4 text-sm font-bold text-gray-900">{ing.name}</td>
-                            <td className="px-6 py-4 text-sm font-bold font-mono text-gray-900">{ing.stock_quantity}</td>
-                            <td className="px-6 py-4 text-sm font-medium font-mono text-gray-400">{ing.low_stock_alert}</td>
-                            <td className="px-6 py-4 text-xs font-medium text-gray-500">{ing.unit}</td>
+                            <td className="px-6 py-4 text-sm md:text-base font-bold text-gray-900">{ing.name}</td>
+                            <td className="px-6 py-4 text-sm md:text-base font-bold font-mono text-gray-900">{ing.stock_quantity}</td>
+                            <td className="px-6 py-4 text-sm md:text-base font-medium font-mono text-gray-400">{ing.low_stock_alert}</td>
+                            <td className="px-6 py-4 text-sm md:text-base font-medium text-gray-500">{ing.unit}</td>
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-3">
                                 <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -392,16 +374,11 @@ const InventoryStatusReport = () => {
                                     backgroundColor: s === 'out' || s === 'critical' ? '#dc2626' : s === 'warning' ? '#ea580c' : '#15803d'
                                   }} />
                                 </div>
-                                <span className="text-xs font-bold text-gray-600 w-10 text-right">{pct}%</span>
+                                <span className="text-sm md:text-base font-bold text-gray-600 w-10 text-right">{pct}%</span>
                               </div>
                             </td>
                             <td className="px-6 py-4 text-right">
-                              <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
-                                s === 'out' ? 'bg-black text-white border-black' :
-                                s === 'critical' ? 'bg-red-50 text-red-700 border-red-200' :
-                                s === 'warning' ? 'bg-orange-50 text-orange-700 border-orange-200' :
-                                'bg-green-50 text-green-700 border-green-200'
-                              }`}>
+                              <span className={`inline-flex px-2.5 py-1 rounded-full text-xs md:text-sm font-bold uppercase tracking-wider border ${ s === 'out' ? 'bg-black text-white border-black' : s === 'critical' ? 'bg-red-50 text-red-700 border-red-200' : s === 'warning' ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-green-50 text-green-700 border-green-200' }`}>
                                 {getStatusLabel(s)}
                               </span>
                             </td>

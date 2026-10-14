@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 // ---------------------------------------------------------------------------
 // TopSalesGrid
-// Renders each sales category as a card with a ranked product list inside.
-// Accepts a sorting function from the parent hook via props — no logic here.
+// Displays sales volume categorized by drink / food group,
+// complete with category tabs, true compact/open accordion toggles,
+// adaptive grid widths, and enlarged item badges.
 // ---------------------------------------------------------------------------
 
 const TopSalesGrid = ({
@@ -18,59 +19,268 @@ const TopSalesGrid = ({
   const categoryEntries = Object.entries(topProductsByCategory || {});
   const isEmpty = categoryEntries.length === 0;
 
+  // Tab selection: 'ALL' or specific category name
+  const [activeCategoryTab, setActiveCategoryTab] = useState('ALL');
+
+  // Compaction state per category (true = compacted/collapsed, false = open)
+  const [compactedMap, setCompactedMap] = useState({});
+
+  const toggleCategoryCompact = (category) => {
+    setCompactedMap(prev => ({
+      ...prev,
+      [category]: !prev[category]
+    }));
+  };
+
+  const areAllCompacted = categoryEntries.length > 0 && categoryEntries.every(([cat]) => !!compactedMap[cat]);
+
+  const toggleAllCompacted = () => {
+    const nextState = !areAllCompacted;
+    const updated = {};
+    categoryEntries.forEach(([cat]) => {
+      updated[cat] = nextState;
+    });
+    setCompactedMap(updated);
+  };
+
+  const displayedCategories = activeCategoryTab === 'ALL'
+    ? categoryEntries
+    : categoryEntries.filter(([cat]) => cat === activeCategoryTab);
+
+  // Dynamic grid columns so 3 categories fill all 3 columns evenly without an empty gap
+  const getGridColsClass = () => {
+    if (activeCategoryTab !== 'ALL') return 'grid-cols-1';
+    const count = displayedCategories.length;
+    if (count === 1) return 'grid-cols-1';
+    if (count === 2) return 'grid-cols-1 md:grid-cols-2';
+    if (count === 3) return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3';
+    return 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4';
+  };
+
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm col-span-1">
-      <div className="flex justify-between items-center flex-wrap gap-3 mb-6 border-b border-gray-100 pb-4">
-        <div className="flex items-center gap-4">
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-800 m-0">Top Sales by Category</h3>
-          <div className="flex bg-gray-100 rounded-md p-1">
+    <div className="bg-white border border-gray-200/90 rounded-2xl p-6 md:p-8 shadow-xs">
+      {/* Header & Controls */}
+      <div className="flex justify-between items-center flex-wrap gap-4 mb-5 pb-4 border-b border-gray-100">
+        <div>
+          <h3 className="text-xl font-extrabold text-zinc-900 m-0">
+            Top Sales by Category
+          </h3>
+          <p className="text-sm text-zinc-500 font-medium mt-1 mb-0">
+            Categorized sales rankings with tab filters and compactable views.
+          </p>
+        </div>
+
+        <div className="flex items-center flex-wrap gap-3">
+          {/* Compact / Open All toggle */}
+          {categoryEntries.length > 0 && (
+            <button
+              type="button"
+              onClick={toggleAllCompacted}
+              className="px-3.5 py-2 rounded-xl border border-zinc-200 hover:bg-zinc-100 text-xs md:text-sm font-bold text-zinc-700 cursor-pointer transition-colors flex items-center gap-1.5 shadow-2xs"
+              title={areAllCompacted ? 'Expand all categories' : 'Collapse all categories'}
+            >
+              <span>{areAllCompacted ? '▼' : '▲'}</span>
+              <span>{areAllCompacted ? 'Open All' : 'Compact All'}</span>
+            </button>
+          )}
+
+          {/* Segmented Period Switcher */}
+          <div className="flex bg-zinc-100 p-1 rounded-xl border border-zinc-200">
             <button 
+              type="button"
               onClick={() => onPeriodChange('day')}
-              className={`px-3 py-1 text-xs font-medium border-none rounded cursor-pointer transition-colors ${period === 'day' ? 'bg-white text-gray-900 shadow-sm' : 'bg-transparent text-gray-500 hover:text-gray-700'}`}
+              className={`px-4 py-1.5 text-xs md:text-sm font-bold rounded-lg cursor-pointer transition-all ${
+                period === 'day' 
+                  ? 'bg-white text-zinc-900 shadow-xs' 
+                  : 'text-zinc-600 hover:text-zinc-900'
+              }`}
             >
               Today
             </button>
             <button 
+              type="button"
               onClick={() => onPeriodChange('week')}
-              className={`px-3 py-1 text-xs font-medium border-none rounded cursor-pointer transition-colors ${period === 'week' ? 'bg-white text-gray-900 shadow-sm' : 'bg-transparent text-gray-500 hover:text-gray-700'}`}
+              className={`px-4 py-1.5 text-xs md:text-sm font-bold rounded-lg cursor-pointer transition-all ${
+                period === 'week' 
+                  ? 'bg-white text-zinc-900 shadow-xs' 
+                  : 'text-zinc-600 hover:text-zinc-900'
+              }`}
             >
-              Week
+              Past 7 Days
             </button>
           </div>
+
+          {/* Sort order toggle */}
+          <button
+            type="button"
+            className="px-3.5 py-2 rounded-xl border border-zinc-200 hover:bg-zinc-50 text-xs md:text-sm font-bold text-zinc-700 cursor-pointer transition-colors"
+            onClick={onToggleSort}
+          >
+            {sortAsc ? 'Lowest First ↑' : 'Highest First ↓'}
+          </button>
         </div>
-        <button
-          className="bg-white border border-gray-300 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 cursor-pointer transition-colors hover:bg-gray-50 hover:text-gray-900"
-          onClick={onToggleSort}
-        >
-          Sort: {sortAsc ? 'Lowest First ↑' : 'Highest First ↓'}
-        </button>
       </div>
 
-      <div className="min-h-[300px] flex flex-col items-start w-full">
+      {/* Category Tabs Bar */}
+      {!isEmpty && (
+        <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-5 border-b border-zinc-100 scrollbar-none">
+          <button
+            type="button"
+            onClick={() => setActiveCategoryTab('ALL')}
+            className={`px-4 py-2 rounded-xl text-sm font-extrabold transition-all cursor-pointer whitespace-nowrap ${
+              activeCategoryTab === 'ALL'
+                ? 'bg-zinc-900 text-white shadow-xs'
+                : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700'
+            }`}
+          >
+            All Categories ({categoryEntries.length})
+          </button>
+
+          {categoryEntries.map(([category, products]) => (
+            <button
+              key={category}
+              type="button"
+              onClick={() => setActiveCategoryTab(category)}
+              className={`px-4 py-2 rounded-xl text-sm font-extrabold transition-all cursor-pointer whitespace-nowrap ${
+                activeCategoryTab === category
+                  ? 'bg-zinc-900 text-white shadow-xs'
+                  : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700'
+              }`}
+            >
+              {category} ({products.length})
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Content Area */}
+      <div className="w-full">
         {loading ? (
-          <div className="text-gray-500 italic flex justify-center items-center w-full h-full min-h-[300px]">Loading categorized products...</div>
+          <div className="py-16 flex flex-col items-center justify-center gap-3">
+            <div className="w-8 h-8 border-3 border-zinc-300 border-t-zinc-900 rounded-full animate-spin" />
+            <span className="text-sm text-zinc-500 font-medium">Loading category sales...</span>
+          </div>
+        ) : isEmpty ? (
+          <div className="py-16 px-6 rounded-xl bg-zinc-50 border border-dashed border-zinc-200 flex flex-col items-center justify-center text-center">
+            <h4 className="text-base font-bold text-zinc-800 m-0 mb-1">
+              No Sales Recorded for This Window
+            </h4>
+            <p className="text-sm text-zinc-500 max-w-md m-0">
+              Orders rung up at the register will automatically compile and rank here.
+            </p>
+          </div>
         ) : (
-          <div className="columns-1 sm:columns-2 lg:columns-3 gap-6 w-full">
-            {isEmpty ? (
-              <div className="p-6 text-gray-500 text-center w-full">
-                No sales data available.
-              </div>
-            ) : (
-              categoryEntries.map(([category, products]) => (
-                <div key={category} className="bg-gray-50/50 border border-gray-100 rounded-lg p-5 mb-6 break-inside-avoid">
-                  <h4 className="m-0 mb-4 text-xs font-semibold uppercase tracking-widest border-b border-gray-200 pb-2 text-gray-900">{category}</h4>
-                  <ul className="list-none p-0 m-0">
-                    {getSortedProducts(products).map((product, index) => (
-                      <li key={product.name} className="flex items-center gap-3 py-2 border-b border-dashed border-gray-200 text-sm last:border-b-0">
-                        <span className="font-bold text-gray-400 text-xs min-w-[24px] shrink-0">#{index + 1}</span>
-                        <span className="flex-1 text-gray-700 font-medium whitespace-nowrap overflow-hidden text-ellipsis">{product.name}</span>
-                        <span className="font-semibold text-gray-900 text-xs bg-white border border-gray-200 px-2 py-1 rounded-md shrink-0 whitespace-nowrap shadow-sm">{product.value} sold</span>
-                      </li>
-                    ))}
-                  </ul>
+          <div className={`grid gap-6 items-start ${getGridColsClass()}`}>
+            {displayedCategories.map(([category, products]) => {
+              const isCompacted = !!compactedMap[category];
+              const sorted = getSortedProducts(products);
+              const maxUnits = Math.max(...sorted.map((p) => p.value || 1), 1);
+              const totalCategorySold = sorted.reduce((sum, p) => sum + (p.value || 0), 0);
+
+              return (
+                <div 
+                  key={category} 
+                  className={`bg-zinc-50/80 border border-zinc-200/90 rounded-2xl p-5 md:p-6 flex flex-col justify-between shadow-xs hover:border-zinc-300 transition-all ${
+                    isCompacted ? 'bg-zinc-50/40' : ''
+                  }`}
+                >
+                  {/* Category Header with Compacting & Enlarged Items Indicator */}
+                  <div 
+                    onClick={() => toggleCategoryCompact(category)}
+                    className={`flex items-center justify-between cursor-pointer select-none group transition-all ${
+                      isCompacted ? 'pb-0 mb-0' : 'pb-4 mb-4 border-b border-zinc-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-base md:text-lg font-black uppercase tracking-wide text-zinc-900 group-hover:text-black">
+                        {category}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleCategoryCompact(category);
+                        }}
+                        className={`text-xs font-bold px-2 py-0.5 rounded-md border transition-colors cursor-pointer flex items-center gap-1 ${
+                          isCompacted 
+                            ? 'bg-zinc-900 text-white border-zinc-900 hover:bg-black' 
+                            : 'bg-zinc-200/80 text-zinc-700 border-zinc-300 hover:bg-zinc-300'
+                        }`}
+                      >
+                        <span>{isCompacted ? '▼' : '▲'}</span>
+                        <span>{isCompacted ? 'Open' : 'Compact'}</span>
+                      </button>
+                    </div>
+
+                    {/* ENLARGED, HIGH-VISIBILITY ITEMS INDICATOR */}
+                    <span className="text-sm md:text-m font-black px-3.5 py-1.5 rounded-xl bg-zinc-900 text-white tracking-wide shadow-2xs">
+                      {products.length} {products.length === 1 ? 'Item' : 'Items'}
+                    </span>
+                  </div>
+
+                  {/* Body: Compact Summary vs Full List */}
+                  {isCompacted ? (
+                    /* COMPACTED / COLLAPSED STATE */
+                    <div 
+                      onClick={() => toggleCategoryCompact(category)}
+                      className="mt-3 py-2.5 px-3.5 rounded-xl bg-zinc-100/90 hover:bg-zinc-200/80 transition-colors cursor-pointer flex items-center justify-between text-xs md:text-sm"
+                    >
+                      <span className="font-semibold text-zinc-600">
+                        Total Units: <strong className="text-zinc-900 font-black">{totalCategorySold} sold</strong>
+                      </span>
+                      <span className="font-bold text-zinc-800 flex items-center gap-1">
+                        Click to view items <span>▼</span>
+                      </span>
+                    </div>
+                  ) : (
+                    /* EXPANDED / OPEN STATE: List of Products */
+                    <ul className="list-none p-0 m-0 space-y-4">
+                      {sorted.map((product, index) => {
+                        const sharePercent = Math.max(Math.round(((product.value || 0) / maxUnits) * 100), 6);
+
+                        return (
+                          <li 
+                            key={product.name} 
+                            className="flex flex-col gap-1.5"
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <span className={`w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold shrink-0 ${
+                                  index === 0 
+                                    ? 'bg-zinc-900 text-white' 
+                                    : index === 1 
+                                    ? 'bg-zinc-300 text-zinc-900' 
+                                    : 'bg-zinc-200/80 text-zinc-600'
+                                }`}>
+                                  {index + 1}
+                                </span>
+                                <span className="font-bold text-sm md:text-base text-zinc-800 truncate" title={product.name}>
+                                  {product.name}
+                                </span>
+                              </div>
+                              <span className="tabular-nums shrink-0 text-right whitespace-nowrap">
+                                <span className="text-base md:text-lg font-black text-zinc-900 mr-1.5">{product.value}</span>
+                                <span className="text-sm md:text-base font-extrabold text-zinc-700">sold</span>
+                              </span>
+                            </div>
+
+                            {/* Relative share bar */}
+                            <div className="w-full bg-zinc-200/70 h-1.5 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full rounded-full transition-all duration-300 ${
+                                  index === 0 ? 'bg-zinc-800' : 'bg-zinc-500'
+                                }`}
+                                style={{ width: `${sharePercent}%` }}
+                              />
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
                 </div>
-              ))
-            )}
+              );
+            })}
           </div>
         )}
       </div>

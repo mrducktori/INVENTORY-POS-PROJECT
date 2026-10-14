@@ -11,6 +11,7 @@ import ExpandedLowStock from './components/ExpandedLowStock';
 import ExpandedTrendChart from './components/ExpandedTrendChart';
 import QuickActions from './components/QuickActions';
 import PredictiveInsights from './components/PredictiveInsights';
+import NotificationInbox from './components/NotificationInbox';
 
 const DashboardOverview = ({ onNavigate }) => {
   const user = getCurrentUser();
@@ -35,14 +36,51 @@ const DashboardOverview = ({ onNavigate }) => {
     setTopSalesPeriod,
   } = useDashboardStats();
 
+  const todayFormatted = new Intl.DateTimeFormat('en-PH', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'Asia/Manila'
+  }).format(new Date());
+
   return (
-    <div className="p-6 md:p-10 max-w-[1400px] mx-auto min-h-full">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 tracking-tight mb-1 mt-0">Dashboard Overview</h1>
-        <p className="text-sm text-gray-500 m-0">
-          Welcome back, {user?.name || user?.username || 'User'}. Real-time
-          analytics for your business.
-        </p>
+    <div className="w-full px-6 lg:px-10 py-6 min-h-full space-y-6">
+      {/* Header section with operational status */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-4 border-b border-gray-200">
+        <div>
+          <div className="flex items-center gap-3 mb-2">
+            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-semibold bg-zinc-900 text-white">
+              <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+              Live Shift
+            </span>
+            <span className="text-sm font-medium text-zinc-600">
+              {todayFormatted}
+            </span>
+          </div>
+          <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-900 tracking-tight m-0">
+            Operations & Performance
+          </h1>
+          <p className="text-base text-zinc-600 mt-1 mb-0">
+            Welcome back, <span className="font-bold text-zinc-900">{user?.name || user?.username || 'Staff'}</span>
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <NotificationInbox 
+            onNavigate={onNavigate} 
+            lowStockItems={stats?.lowStockItemsDetails || []} 
+          />
+
+          {user?.role === 'Staff' && (
+            <button
+              onClick={() => onNavigate('POS')}
+              className="px-5 py-2.5 bg-zinc-900 hover:bg-black text-white text-sm font-bold rounded-xl shadow-sm hover:shadow transition-all cursor-pointer"
+            >
+              Open POS Register →
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Total Revenue + Mini Sparkline */}
@@ -84,8 +122,8 @@ const DashboardOverview = ({ onNavigate }) => {
       {/* Predictive Analytics Section */}
       <PredictiveInsights />
 
-      {/* BI Grid: Now primarily for Sales Analytics */}
-      <div className="grid grid-cols-1 gap-8 mt-8">
+      {/* BI Grid: Sales Analytics */}
+      <div>
         <TopSalesGrid
           loading={loading}
           topProductsByCategory={stats?.topProductsByCategory}

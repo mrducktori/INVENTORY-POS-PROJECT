@@ -7,38 +7,42 @@ const LowStockAlerts = ({ loading, lowStockDetails, onExpand }) => {
 
   return (
     <div
-      className="bg-white border border-[#e0e0e0] border-t-4 border-t-black rounded shadow-[0_2px_4px_rgba(0,0,0,0.05)] col-span-1 lg:col-span-2 p-5 cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_4px_12px_rgba(0,0,0,0.1)] hover:border-black hover:border-t-black"
+      className="bg-white border border-gray-200/90 rounded-2xl p-6 shadow-xs cursor-pointer transition-all duration-200 hover:border-zinc-400 hover:shadow-md"
       onClick={onExpand}
     >
-      <div className="mb-5 border-b border-[#f0f0f0] pb-2.5">
-        <h3 className="text-sm font-bold uppercase tracking-[0.5px] text-black m-0">Low Stock</h3>
+      <div className="flex justify-between items-center mb-4 pb-3 border-b border-gray-100">
+        <h3 className="text-base font-bold text-zinc-900 m-0">
+          Low Stock Overview
+        </h3>
+        <span className="text-sm text-zinc-500 font-medium">Click to inspect</span>
       </div>
 
-      <div className="flex items-center justify-center min-h-[120px] p-4">
+      <div className="flex items-center justify-center min-h-[120px]">
         {loading ? (
-          <div className="text-[#666] italic">Checking...</div>
+          <div className="text-sm text-zinc-400">Checking inventory...</div>
         ) : (
           <div className="w-full">
-            <ul className="list-none p-0 my-[15px] mx-0 text-left">
+            <ul className="list-none p-0 m-0 space-y-3">
               {alerts.length > 0 ? (
                 alerts.map((item) => (
-                  <li key={item.name} className="flex justify-between items-center py-2.5 border-b border-[#f9f9f9] text-[13px] last:border-b-0">
-                    <span className="font-bold">{item.name}</span>
-                    <span className="text-[#c62828] font-bold">{formatQuantity(item.stock, item.unit)}</span>
+                  <li key={item.name} className="flex justify-between items-center py-2 text-sm">
+                    <span className="font-bold text-zinc-900">{item.name}</span>
+                    <span className="text-rose-800 tabular-nums font-bold bg-rose-100 px-3 py-1 rounded-md text-sm">
+                      {formatQuantity(item.stock, item.unit)}
+                    </span>
                   </li>
                 ))
               ) : (
-                <li className="text-center text-[#999] py-8 text-xs uppercase font-semibold">
-                  Stock levels healthy.
+                <li className="text-center text-zinc-600 py-6 text-sm font-medium">
+                  ✓ Stock levels healthy.
                 </li>
               )}
             </ul>
             {hasMore && (
-              <div className="text-center text-black font-bold text-[11px] uppercase mt-3">
+              <div className="text-center text-zinc-700 font-bold text-sm uppercase mt-3">
                 + {lowStockDetails.length - 5} more items...
               </div>
             )}
-            {alerts.length > 0 && <div className="text-center text-[10px] text-[#888] mt-1 uppercase tracking-[0.5px]">Click to expand all</div>}
           </div>
         )}
       </div>

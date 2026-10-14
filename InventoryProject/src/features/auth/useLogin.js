@@ -39,6 +39,7 @@ export const useLogin = () => {
   const [form, setForm]         = useState({ username: '', password: '' });
   const [user, setUser]         = useState(getCurrentUser());
   const [error, setError]       = useState('');
+  const [loading, setLoading]   = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [isMenuZoomed, setIsMenuZoomed] = useState(false);
   const [countdown, setCountdown] = useState(0);
@@ -89,6 +90,11 @@ export const useLogin = () => {
     if (secs > 0) { setCountdown(secs); return; }
 
     setError('');
+    setLoading(true);
+    
+    // Artificial delay so login doesn't feel instantly abrupt
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
     try {
       const data = await loginUser(username, form.password);
       clearRecord(username);
@@ -117,11 +123,13 @@ export const useLogin = () => {
         setAttemptsLeft(remaining);
         setError(err.message || 'Invalid username or password');
       }
+    } finally {
+      setLoading(false);
     }
   };
 
   return {
-    form, user, error, formOpen, isMenuZoomed,
+    form, user, error, loading, formOpen, isMenuZoomed,
     isLocked, countdown, attemptsLeft,
     toggleModal, toggleZoom, handleChange, handleSubmit
   };

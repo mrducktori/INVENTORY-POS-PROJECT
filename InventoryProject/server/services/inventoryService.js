@@ -59,10 +59,17 @@ export const createIngredient = async ({ name, unit, stock_quantity, low_stock_a
 
 // FIX #2: stock_quantity is intentionally excluded — stock must only be changed
 // through receiveStock() (add) or the POS/wastage flow (subtract).
-export const updateIngredient = async (id, { name, unit, low_stock_alert, image_url }) => {
+export const updateIngredient = async (id, { name, unit, low_stock_alert, image_url, purchase_unit, conversion_factor, cost_per_purchase_unit }) => {
+  const updatePayload = { name, unit, low_stock_alert, image_url };
+  
+  // Include PO defaults if provided
+  if (purchase_unit !== undefined) updatePayload.purchase_unit = purchase_unit;
+  if (conversion_factor !== undefined) updatePayload.conversion_factor = conversion_factor;
+  if (cost_per_purchase_unit !== undefined) updatePayload.cost_per_purchase_unit = cost_per_purchase_unit;
+  
   const { data, error } = await supabase
     .from("ingredients")
-    .update({ name, unit, low_stock_alert, image_url })
+    .update(updatePayload)
     .eq("id", id)
     .select()
     .single();

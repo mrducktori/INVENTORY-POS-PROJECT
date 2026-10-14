@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import cors from 'cors';
 import fs from 'fs';
+import helmet from 'helmet';
 
 import authRoutes from './routes/auth.js';
 import posRoutes from './routes/pos.js';
@@ -20,6 +21,7 @@ import categorySettingsRoutes from './routes/categorySettings.js';
 import purchasingRoutes from './routes/purchasing.js';
 import cmsRoutes from './routes/cms.js';
 import { requireAuth } from './middleware/authMiddleware.js';
+import { generalLimiter, authLimiter } from './middleware/rateLimiter.js';
 
 const app = express();
 // Use PORT from environment (cPanel sets this) or fall back to 5000 for local dev
@@ -31,30 +33,45 @@ const __dirname = path.dirname(__filename);
 
 const allowedOrigins = [
   'http://localhost:5173',       // Vite dev server
+  'http://127.0.0.1:5173',       // Vite dev server (IP)
   'http://localhost:4173',       // Vite preview
+  'http://127.0.0.1:4173',       // Vite preview (IP)
   'http://localhost:5000',       // Local production
+  'http://127.0.0.1:5000',       // Local production (IP)
   'https://cofteacafe.space',    // Production domain
   'https://www.cofteacafe.space',// Production www
 ];
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (same-origin, curl, mobile apps)
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
+    // For now, to prevent any CORS blocking or server crashes, 
+    // dynamically allow the requesting origin.
+    // In strict production, you can lock this back down to allowedOrigins.
+    callback(null, true);
   },
   credentials: true
 }));
 
-app.use(express.json());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "data:", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "https://*.supabase.co"],
+      connectSrc: ["'self'", "https://*.supabase.co"],
+    }
+  }
+}));
+
+app.use(express.json({ limit: '1mb' }));
 
 // ==========================================
 // PUBLIC ROUTES — No authentication required
 // ==========================================
-app.use('/api/auth', authRoutes);
+app.use('/api', generalLimiter);
+app.use('/api/auth', authLimiter, authRoutes);
 
 // ==========================================
 // PROTECTED ROUTES — FIX #5: All routes below require a valid, active user session.
@@ -74,6 +91,17 @@ app.use('/api/analytics', requireAuth, analyticsRoutes);
 app.use('/api/categories/settings', requireAuth, categorySettingsRoutes);
 app.use('/api/purchasing', requireAuth, purchasingRoutes);
 app.use('/api/cms', cmsRoutes);
+
+// ==========================================
+// ERROR HANDLER — Prevent leaking sensitive info
+// ==========================================
+app.use((err, req, res, next) => {
+  console.error('[Error]', err);
+  const isDev = process.env.NODE_ENV !== 'production';
+  res.status(err.status || 500).json({
+    error: isDev ? err.message : 'An unexpected internal error occurred'
+  });
+});
 
 // ==========================================
 // STATIC FILES — Serve the React frontend build

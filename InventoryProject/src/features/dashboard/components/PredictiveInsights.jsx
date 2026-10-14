@@ -26,70 +26,142 @@ const PredictiveInsights = () => {
   }, []);
 
   return (
-    <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-6 mt-8">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Demand Forecast Card */}
-      <div className="text-left p-[18px] bg-white border border-[#e0e0e0] rounded-[4px] shadow-[0_2px_4px_rgba(0,0,0,0.02)]">
-        <div className="flex justify-between items-center mb-4 pb-2 border-b border-[#f0f0f0]">
-          <div className="text-[11px] font-bold uppercase tracking-[0.5px] text-[#333]">Demand Forecast & Growth</div>
-          <span className="text-[9px] bg-black text-white px-2 py-0.5 rounded-[2px] uppercase font-bold tracking-[0.5px]">AI Predicted</span>
-        </div>
-        
-        <div className="flex flex-col gap-3">
-          {loading ? (
-            <div className="text-[#666] italic">Calculating...</div>
-          ) : multiForecast.length > 0 ? (
-            multiForecast.slice(0, 3).map(f => (
-              <div key={f.id} className="py-2 border-b border-[#f9f9f9] last:border-b-0">
-                <div className="flex justify-between text-[13px] mb-1">
-                  <span className="font-semibold text-black">{f.name}</span>
-                  <span className="font-bold font-mono text-black">{f.predictedNext7Days} units</span>
-                </div>
-                <div className="flex gap-3 text-[10px] text-[#777] uppercase tracking-[0.2px]">
-                  <span>Growth: <strong className={`font-bold ${parseFloat(f.growthRate) >= 0 ? 'text-[#2e7d32]' : 'text-[#c62828]'}`}>{f.growthRate}%</strong></span>
-                  <span>Confidence: <strong className="font-bold text-[#333]">{f.confidence}%</strong></span>
-                  <span>Risk: <strong className={`font-bold ${f.stockoutRisk === 'Low' ? 'text-[#2e7d32]' : 'text-[#c62828]'}`}>{f.stockoutRisk}</strong></span>
-                </div>
+      <div className="bg-white border border-gray-200 rounded-2xl p-6 md:p-8 shadow-xs flex flex-col justify-between">
+        <div>
+          <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-100">
+            <h3 className="text-lg font-bold text-zinc-900 m-0">
+              7-Day Demand Forecast
+            </h3>
+            <span className="text-sm font-semibold text-zinc-500">
+              Projected Units
+            </span>
+          </div>
+          
+          <div className="flex flex-col divide-y divide-gray-100">
+            {loading ? (
+              <div className="py-8 space-y-4">
+                <div className="h-5 bg-zinc-100 rounded animate-pulse w-3/4" />
+                <div className="h-5 bg-zinc-100 rounded animate-pulse w-1/2" />
+                <div className="h-5 bg-zinc-100 rounded animate-pulse w-2/3" />
               </div>
-            ))
-          ) : (
-            <div className="text-center text-[#999] py-5 text-[11px] uppercase tracking-[0.5px]">No forecast available.</div>
-          )}
+            ) : multiForecast.length > 0 ? (
+              multiForecast.slice(0, 3).map((f) => {
+                const growthVal = parseFloat(f.growthRate) || 0;
+                const isHighRisk = f.stockoutRisk === 'High';
+
+                return (
+                  <div key={f.id} className="py-4 first:pt-0 last:pb-0">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="font-bold text-base text-zinc-900">{f.name}</span>
+                      <span className="tabular-nums text-sm font-bold text-zinc-900 bg-zinc-100 px-3 py-1 rounded-md">
+                        {f.predictedNext7Days} units
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-3 text-sm text-zinc-600">
+                      <span className="font-medium">
+                        Trend:
+                        <span className={`ml-1 font-bold ${growthVal >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                          {growthVal >= 0 ? `+${growthVal}%` : `${growthVal}%`}
+                        </span>
+                      </span>
+
+                      <span>•</span>
+
+                      <span>
+                        {f.confidence}% confidence
+                      </span>
+
+                      <span>•</span>
+
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${
+                          isHighRisk
+                            ? 'bg-rose-100 text-rose-800'
+                            : 'bg-emerald-100 text-emerald-800'
+                        }`}
+                      >
+                        {f.stockoutRisk || 'Low'} Risk
+                      </span>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="text-center text-zinc-500 py-10 text-sm font-medium">
+                No active demand projections yet.
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Stock Depletion Card */}
-      <div className="text-left p-[18px] bg-white border border-[#e0e0e0] border-t-4 border-t-[#c62828] rounded-[4px] shadow-[0_2px_4px_rgba(0,0,0,0.02)]">
-        <div className="flex justify-between items-center mb-4 pb-2 border-b border-[#f0f0f0]">
-          <div className="text-[11px] font-bold uppercase tracking-[0.5px] text-[#333]">Predictive Stock Depletion</div>
-          <span className="text-[9px] text-[#888] uppercase font-semibold">30-day usage base</span>
-        </div>
+      {/* Stock Depletion Velocity Card */}
+      <div className="bg-white border border-gray-200 rounded-2xl p-6 md:p-8 shadow-xs flex flex-col justify-between">
+        <div>
+          <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-100">
+            <h3 className="text-lg font-bold text-zinc-900 m-0">
+              Stock Depletion Timeline
+            </h3>
+            <span className="text-sm font-semibold text-zinc-500">
+              Runout Estimate
+            </span>
+          </div>
 
-        <div className="flex flex-col gap-3">
-          {loading ? (
-            <div className="text-[#666] italic">Analyzing...</div>
-          ) : depletionData.length > 0 ? (
-            depletionData.slice(0, 4).map(item => (
-              <div key={item.id}>
-                <div className="flex justify-between text-[13px] mb-1">
-                  <span className="font-semibold text-black">{item.name}</span>
-                  <span className={`font-bold text-[11px] uppercase ${item.daysRemaining < 3 ? 'text-[#c62828]' : 'text-[#777]'}`}>
-                    {item.daysRemaining ? `${item.daysRemaining} days left` : 'Stable'}
-                  </span>
-                </div>
-                <div className="w-full bg-[#eee] h-1 rounded-none overflow-hidden">
-                  <div 
-                    className="h-full transition-all duration-300 ease-out"
-                    style={{ 
-                      width: `${item.depletionPercentage}%`,
-                      background: item.depletionPercentage > 80 ? '#c62828' : item.depletionPercentage > 50 ? '#f57f17' : '#2e7d32'
-                    }}
-                  ></div>
-                </div>
+          <div className="flex flex-col gap-5">
+            {loading ? (
+              <div className="py-8 space-y-4">
+                <div className="h-5 bg-zinc-100 rounded animate-pulse w-3/4" />
+                <div className="h-5 bg-zinc-100 rounded animate-pulse w-1/2" />
+                <div className="h-5 bg-zinc-100 rounded animate-pulse w-2/3" />
               </div>
-            ))
-          ) : (
-            <div className="text-center text-[#999] py-5 text-[11px] uppercase tracking-[0.5px]">No depletion data available.</div>
-          )}
+            ) : depletionData.length > 0 ? (
+              depletionData.slice(0, 4).map((item) => {
+                const days = item.daysRemaining;
+                const isCritical = days !== null && days <= 3;
+                const isWarning = days !== null && days > 3 && days <= 7;
+
+                return (
+                  <div key={item.id} className="space-y-2">
+                    <div className="flex justify-between items-center text-sm md:text-base">
+                      <span className="font-bold text-zinc-900">{item.name}</span>
+                      {isCritical ? (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs md:text-sm font-bold bg-rose-100 text-rose-800">
+                          {days} days left
+                        </span>
+                      ) : isWarning ? (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs md:text-sm font-bold bg-amber-100 text-amber-800">
+                          {days} days left
+                        </span>
+                      ) : (
+                        <span className="text-zinc-600 font-semibold text-sm">
+                          {days ? `${days}d in stock` : 'Stable Stock'}
+                        </span>
+                      )}
+                    </div>
+                    <div className="w-full bg-zinc-100 h-3 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full rounded-full transition-all duration-300 ease-out ${
+                          item.depletionPercentage > 80
+                            ? 'bg-rose-600'
+                            : item.depletionPercentage > 50
+                            ? 'bg-amber-500'
+                            : 'bg-zinc-800'
+                        }`}
+                        style={{ width: `${Math.min(item.depletionPercentage || 0, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="text-center text-zinc-500 py-10 text-sm font-medium">
+                No depletion warnings for current stock.
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

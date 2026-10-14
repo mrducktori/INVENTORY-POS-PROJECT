@@ -8,6 +8,7 @@ const ManageRawMaterials = () => {
   const {
     viewMode, setViewMode,
     ingredients, loading, message, setMessage,
+    isProcessing, processingId,
     searchTerm, setSearchTerm,
     statusFilter, setStatusFilter,
     confirmConfig, setConfirmConfig,
@@ -66,7 +67,7 @@ const ManageRawMaterials = () => {
 
       {/* ---- ADD VIEW ---- */}
       {viewMode === 'ADD' && (
-        <div className="flex flex-col lg:flex-row gap-6">
+        <div className="flex flex-col lg:flex-row items-start gap-6">
           <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden flex-1 max-w-xl">
             <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50">
               <h2 className="m-0 text-lg font-bold text-gray-900 tracking-tight">Add New Raw Material</h2>
@@ -193,16 +194,21 @@ const ManageRawMaterials = () => {
                           <td className="px-6 py-4 text-right">
                             <div className="flex gap-2 justify-end">
                               <button
-                                className="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-bold uppercase tracking-wider rounded hover:bg-gray-50 transition-colors"
+                                disabled={isProcessing}
+                                className="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-bold uppercase tracking-wider rounded hover:bg-gray-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                                 onClick={() => handleSetModify(i)}
                               >
                                 Edit
                               </button>
                               <button
-                                className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded transition-colors ${i.is_archived ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'}`}
+                                disabled={isProcessing}
+                                className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1.5 ${i.is_archived ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'}`}
                                 onClick={() => handleArchiveToggle(i.id, i.is_archived)}
                               >
-                                {i.is_archived ? 'Restore' : 'Archive'}
+                                {processingId === i.id && (
+                                  <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                )}
+                                {processingId === i.id ? 'Please wait...' : i.is_archived ? 'Restore' : 'Archive'}
                               </button>
                             </div>
                           </td>
@@ -245,8 +251,7 @@ const ManageRawMaterials = () => {
                 {filteredList.filter(i => !i.is_archived).map(i => (
                   <div
                     key={i.id}
-                    className="relative bg-white border border-gray-200 rounded-xl overflow-hidden flex flex-col transition-all duration-200 shadow-sm hover:shadow-md hover:-translate-y-1 cursor-pointer"
-                    onClick={() => handleSetModify(i)}
+                    className="relative bg-white border border-gray-200 rounded-xl overflow-hidden flex flex-col transition-all duration-200 shadow-sm hover:shadow-md hover:-translate-y-1"
                   >
                     <div className="flex-1 p-5 pb-4 flex flex-col items-start">
                       <h3 className="m-0 text-base font-bold text-gray-900 leading-tight mb-2">{i.name}</h3>
@@ -264,7 +269,7 @@ const ManageRawMaterials = () => {
                       <span className="text-sm font-extrabold text-gray-900">
                         {formatQuantity(i.stock_quantity, i.unit)}
                       </span>
-                      <button className="text-xs font-bold text-gray-800 hover:text-black bg-gray-100 hover:bg-gray-150 px-3 py-1.5 rounded transition-colors uppercase tracking-wider">Edit</button>
+                      <button className="text-xs font-bold text-gray-800 hover:text-black bg-gray-100 hover:bg-gray-150 px-3 py-1.5 rounded transition-colors uppercase tracking-wider cursor-pointer" onClick={() => handleSetModify(i)}>Edit</button>
                     </div>
                   </div>
                 ))}
@@ -284,28 +289,28 @@ const ManageRawMaterials = () => {
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) setSelectedIngredient(null); }}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-[popIn_0.2s_ease-out] flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="bg-gray-900 text-white px-6 py-4 flex justify-between items-center">
-              <h2 className="m-0 text-base font-semibold tracking-wide">Edit: {selectedIngredient.name}</h2>
-              <button className="text-gray-400 hover:text-white transition-colors bg-transparent border-none text-xl leading-none cursor-pointer p-0" onClick={() => setSelectedIngredient(null)}>✕</button>
+              <h2 className="m-0 text-lg md:text-xl font-bold tracking-wide">Edit: {selectedIngredient.name}</h2>
+              <button className="text-gray-400 hover:text-white transition-colors bg-transparent border-none text-2xl leading-none cursor-pointer p-0" onClick={() => setSelectedIngredient(null)}>✕</button>
             </div>
             <div className="p-6">
               <form id="edit-material-form" onSubmit={handleUpdateIngredient} className="flex flex-col gap-5">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Ingredient Name</label>
+                  <label className="text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider">Ingredient Name</label>
                   <input
                     type="text"
                     value={editName}
                     onChange={e => setEditName(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium focus:outline-none focus:bg-white focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors"
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-sm md:text-base font-semibold focus:outline-none focus:bg-white focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors"
                     required
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Base Unit</label>
+                  <label className="text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider">Base Unit</label>
                   <select
                     value={editUnit}
                     onChange={e => setEditUnit(e.target.value)}
                     required
-                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium focus:outline-none focus:bg-white focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors cursor-pointer"
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-sm md:text-base font-semibold focus:outline-none focus:bg-white focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors cursor-pointer"
                   >
                     <option value="" disabled>Select Unit</option>
                     {UNIT_CHOICES.map(u => <option key={u} value={u}>{u}</option>)}
@@ -313,38 +318,84 @@ const ManageRawMaterials = () => {
                 </div>
                 <div className="flex flex-col sm:flex-row gap-5">
                   <div className="flex flex-col gap-1.5 flex-[1.5]">
-                    <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider flex items-center gap-1">
-                      Current Stock <span className="text-[10px] font-normal text-gray-400 normal-case">(read-only)</span>
+                    <label className="text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
+                      Current Stock <span className="text-xs font-medium text-gray-500 normal-case">(read-only)</span>
                     </label>
                     <input
                       type="number"
                       step="0.01"
                       value={editQuantity}
                       readOnly
-                      className="w-full px-4 py-2.5 bg-gray-100 border border-gray-200 rounded-lg text-sm text-gray-500 cursor-not-allowed"
+                      className="w-full px-4 py-2.5 bg-gray-100 border border-gray-300 rounded-lg text-sm md:text-base font-semibold text-gray-600 cursor-not-allowed"
                     />
-                    <p className="m-0 text-xs text-gray-500 mt-1">
-                      To update stock, use the <strong className="text-gray-700">Update Stock</strong> module.
+                    <p className="m-0 text-xs md:text-sm text-gray-600 mt-1">
+                      To update stock, use the <strong className="text-gray-900">Update Stock</strong> module.
                     </p>
                   </div>
                   <div className="flex flex-col gap-1.5 flex-1">
-                    <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Low Alert Level</label>
+                    <label className="text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider">Low Alert Level</label>
                     <input
                       type="number"
                       step="0.01"
                       min="0"
                       value={editAlert}
                       onChange={e => setEditAlert(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-colors"
+                      className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm md:text-base font-semibold focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-colors"
                       required
                     />
                   </div>
                 </div>
+
+                  {/* PO Defaults Section */}
+                  <div className="pt-4 border-t border-gray-200">
+                    <h4 className="m-0 text-sm font-extrabold text-gray-900 uppercase tracking-wider mb-2 flex items-center gap-2">
+                      <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                      Purchase Order Defaults
+                    </h4>
+                    <p className="text-xs md:text-sm text-gray-600 mb-4 font-medium">These values auto-fill when creating a PO for this ingredient, regardless of supplier.</p>
+                    <div className="flex flex-col sm:flex-row gap-4">
+                      <div className="flex flex-col gap-1.5 flex-1">
+                        <label className="text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider">Purchase Unit</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Bag, Box, Sack"
+                          value={editPurchaseUnit}
+                          onChange={e => setEditPurchaseUnit(e.target.value)}
+                          className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm md:text-base font-semibold focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5 flex-1">
+                        <label className="text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider">Conversion Factor</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0.01"
+                          placeholder="e.g. 500"
+                          value={editConversionFactor}
+                          onChange={e => setEditConversionFactor(e.target.value)}
+                          className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm md:text-base font-semibold focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors"
+                        />
+                        <p className="m-0 text-xs font-semibold text-gray-600 mt-0.5">1 {editPurchaseUnit || 'Unit'} = {editConversionFactor || 1} {editUnit || 'units'}</p>
+                      </div>
+                      <div className="flex flex-col gap-1.5 flex-1">
+                        <label className="text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider">Cost / {editPurchaseUnit || 'Unit'}</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="₱0.00"
+                          value={editCost}
+                          onChange={e => setEditCost(e.target.value)}
+                          className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm md:text-base font-semibold focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors"
+                        />
+                      </div>
+                    </div>
+                  </div>
               </form>
             </div>
-            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
-              <button className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-gray-100 transition-colors" onClick={() => setSelectedIngredient(null)}>Cancel</button>
-              <button type="submit" form="edit-material-form" className="px-5 py-2.5 bg-gray-900 text-white rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-black hover:shadow-lg transition-all hover:-translate-y-0.5">Save Changes</button>
+            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end gap-3">
+              <button className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm md:text-base font-bold uppercase tracking-wider hover:bg-gray-100 transition-colors" onClick={() => setSelectedIngredient(null)}>Cancel</button>
+              <button type="submit" form="edit-material-form" className="px-5 py-2.5 bg-gray-900 text-white rounded-lg text-sm md:text-base font-bold uppercase tracking-wider hover:bg-black hover:shadow-lg transition-all hover:-translate-y-0.5">Save Changes</button>
             </div>
           </div>
         </div>
@@ -354,6 +405,10 @@ const ManageRawMaterials = () => {
         isOpen={confirmConfig.isOpen}
         title={confirmConfig.title}
         message={confirmConfig.message}
+        confirmText={confirmConfig.confirmText}
+        confirmColor={confirmConfig.confirmColor}
+        cancelText={confirmConfig.cancelText}
+        isLoading={isProcessing}
         onConfirm={confirmConfig.onConfirm}
         onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
       />

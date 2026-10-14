@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { supabase } from '../../../config/supabaseClient';
 import { getAllProducts, createProduct, updateProduct, archiveProduct, restoreProduct, receiveProductStock } from '../../../api/productsApi';
 import { checkDuplicateOrSimilar } from '../../../utils/productUtils';
 import { getRecipesByProduct, createRecipe, deleteRecipe } from '../../../api/recipesApi';
@@ -8,16 +9,20 @@ export const useManageProducts = () => {
   const [viewMode, setViewMode] = useState('ADD'); 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL'); 
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingId, setProcessingId] = useState(null);
 
   const [formData, setFormData] = useState({ 
     name: '', 
     category: '', 
     price: '',
+    image_url: '',
     track_stock: false,
     low_stock_threshold: 5
   });
@@ -29,6 +34,7 @@ export const useManageProducts = () => {
   const [editPrice, setEditPrice] = useState('');
   const [editName, setEditName] = useState('');
   const [editCategory, setEditCategory] = useState('');
+  const [editImageUrl, setEditImageUrl] = useState('');
   const [editTrackStock, setEditTrackStock] = useState(false);
   const [editStockQty, setEditStockQty] = useState(0);
   const [editThreshold, setEditThreshold] = useState(5);
@@ -64,6 +70,7 @@ export const useManageProducts = () => {
           setEditPrice(prod.price);
           setEditName(prod.name);
           setEditCategory(prod.category);
+          setEditImageUrl(prod.image_url || '');
           setEditTrackStock(prod.track_stock || false);
           setEditStockQty(prod.stock_quantity || 0);
           setEditThreshold(prod.low_stock_threshold || 5);
@@ -79,6 +86,40 @@ export const useManageProducts = () => {
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData({ ...formData, [name]: type === 'checkbox' ? checked : value });
+  };
+
+  const handleImageUpload = async (e, isEdit = false) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+      setUploading(true);
+      const fileExt = file.name.split('.').pop();
+      const fileName = `product-${Date.now()}-${Math.random()}.${fileExt}`;
+      const filePath = `public/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('cms-images')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from('cms-images')
+        .getPublicUrl(filePath);
+
+      if (isEdit) {
+        setEditImageUrl(data.publicUrl);
+      } else {
+        setFormData(prev => ({ ...prev, image_url: data.publicUrl }));
+      }
+    } catch (err) {
+      console.error(err);
+      setMessage('Error uploading image.');
+      setTimeout(() => setMessage(''), 3000);
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleReceiveProductStock = async (productId, qty) => {
@@ -144,6 +185,7 @@ export const useManageProducts = () => {
         name: newName,
         category: formData.category,
         price: parseFloat(formData.price),
+        image_url: formData.image_url,
         track_stock: formData.track_stock,
         stock_quantity: 0,
         low_stock_threshold: parseFloat(formData.low_stock_threshold) || 0,
@@ -154,6 +196,7 @@ export const useManageProducts = () => {
         name: '', 
         category: '', 
         price: '', 
+        image_url: '',
         track_stock: false, 
         low_stock_threshold: 5 
       });
@@ -176,27 +219,52 @@ export const useManageProducts = () => {
     }
   };
 
-  const handleArchiveToggle = async (id, isArchived) => {
-    try {
-      if (isArchived) {
-        await restoreProduct(id);
-      } else {
-        await archiveProduct(id);
+  const handleArchiveToggle = (id, isArchived) => {
+    if (isProcessing) return;
+    const product = products.find(p => p.id === id);
+    const prodName = product ? `"${product.name}"` : 'this product';
+
+    setConfirmConfig({
+      isOpen: true,
+      title: isArchived ? 'Restore Product?' : 'Archive Product?',
+      message: isArchived
+        ? `Are you sure you want to restore ${prodName}? It will become active and available again on the POS register and online menus.`
+        : `Are you sure you want to archive ${prodName}? It will be hidden from the POS register and menus, but historical sales records will remain preserved.`,
+      confirmText: isArchived ? 'Yes, Restore' : 'Yes, Archive',
+      confirmColor: isArchived ? 'success' : 'danger',
+      onConfirm: async () => {
+        if (isProcessing) return;
+        setIsProcessing(true);
+        setProcessingId(id);
+        try {
+          if (isArchived) {
+            await restoreProduct(id);
+            setMessage(`Product ${prodName} restored successfully.`);
+          } else {
+            await archiveProduct(id);
+            setMessage(`Product ${prodName} archived.`);
+          }
+          setTimeout(() => setMessage(''), 3000);
+          await fetchProducts();
+        } catch (err) {
+          console.error('Archiving error:', err);
+          setMessage('Error updating product status: ' + (err.message || 'Please try again.'));
+          setTimeout(() => setMessage(''), 4000);
+        } finally {
+          setIsProcessing(false);
+          setProcessingId(null);
+          setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+        }
       }
-      fetchProducts();
-    } catch (err) {
-      console.error('Archiving error:', err);
-      setMessage('Error updating product status');
-      setTimeout(() => setMessage(''), 3000);
-    }
+    });
   };
 
   const handleSetRecipe = async (product) => {
-    setViewMode('MODIFY');
     setSelectedProduct(product);
     setEditPrice(product.price);
     setEditName(product.name);
     setEditCategory(product.category);
+    setEditImageUrl(product.image_url || '');
     setEditTrackStock(product.track_stock || false);
     setEditStockQty(product.stock_quantity || 0);
     setEditThreshold(product.low_stock_threshold || 5);
@@ -225,6 +293,7 @@ export const useManageProducts = () => {
               name: updatedName,
               category: editCategory,
               price: parseFloat(editPrice),
+              image_url: editImageUrl,
               track_stock: editTrackStock,
               stock_quantity: parseFloat(editStockQty),
               low_stock_threshold: parseFloat(editThreshold),
@@ -353,12 +422,13 @@ export const useManageProducts = () => {
 
   return {
     viewMode, setViewMode,
-    products, loading, message, setMessage,
+    products, loading, uploading, message, setMessage,
+    isProcessing, processingId,
     searchTerm, setSearchTerm,
     statusFilter, setStatusFilter,
     categoryFilter, setCategoryFilter,
     confirmConfig, setConfirmConfig,
-    formData, setFormData, handleInputChange,
+    formData, setFormData, handleInputChange, handleImageUpload,
     selectedProduct, setSelectedProduct,
     recipe, allIngredients,
     newRecipeItem, setNewRecipeItem,
@@ -367,6 +437,7 @@ export const useManageProducts = () => {
     editPrice, setEditPrice,
     editName, setEditName,
     editCategory, setEditCategory,
+    editImageUrl, setEditImageUrl,
     editTrackStock, setEditTrackStock,
     editStockQty, setEditStockQty,
     editThreshold, setEditThreshold,

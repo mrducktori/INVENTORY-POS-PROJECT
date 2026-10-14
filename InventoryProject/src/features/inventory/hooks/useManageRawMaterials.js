@@ -10,6 +10,8 @@ export const useManageRawMaterials = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingId, setProcessingId] = useState(null);
 
   const [formData, setFormData] = useState({ name: '', unit: '', low_stock_alert: '' });
 
@@ -18,6 +20,9 @@ export const useManageRawMaterials = () => {
   const [editUnit, setEditUnit] = useState('');
   const [editAlert, setEditAlert] = useState('');
   const [editQuantity, setEditQuantity] = useState('');
+  const [editPurchaseUnit, setEditPurchaseUnit] = useState('Unit');
+  const [editConversionFactor, setEditConversionFactor] = useState(1);
+  const [editCost, setEditCost] = useState(0);
 
   const UNIT_CHOICES = ['KG', 'G', 'L', 'ML', 'PCS', 'PACK', 'BOTTLE', 'CAN'];
 
@@ -112,19 +117,44 @@ export const useManageRawMaterials = () => {
     }
   };
 
-  const handleArchiveToggle = async (id, isArchived) => {
-    try {
-      if (isArchived) {
-        await restoreIngredient(id);
-      } else {
-        await archiveIngredient(id);
+  const handleArchiveToggle = (id, isArchived) => {
+    if (isProcessing) return;
+    const ingredient = ingredients.find(i => i.id === id);
+    const ingName = ingredient ? `"${ingredient.name}"` : 'this raw material';
+
+    setConfirmConfig({
+      isOpen: true,
+      title: isArchived ? 'Restore Raw Material?' : 'Archive Raw Material?',
+      message: isArchived
+        ? `Are you sure you want to restore ${ingName}? It will become available again for inventory tracking and recipe deductions.`
+        : `Are you sure you want to archive ${ingName}? It will be hidden from active inventory tracking, but purchase order records and history will be preserved.`,
+      confirmText: isArchived ? 'Yes, Restore' : 'Yes, Archive',
+      confirmColor: isArchived ? 'success' : 'danger',
+      onConfirm: async () => {
+        if (isProcessing) return;
+        setIsProcessing(true);
+        setProcessingId(id);
+        try {
+          if (isArchived) {
+            await restoreIngredient(id);
+            setMessage(`Raw material ${ingName} restored successfully.`);
+          } else {
+            await archiveIngredient(id);
+            setMessage(`Raw material ${ingName} archived.`);
+          }
+          setTimeout(() => setMessage(''), 3000);
+          await fetchIngredients();
+        } catch (err) {
+          console.error('Archiving error:', err);
+          setMessage('Error updating ingredient status: ' + (err.message || 'Please try again.'));
+          setTimeout(() => setMessage(''), 4000);
+        } finally {
+          setIsProcessing(false);
+          setProcessingId(null);
+          setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+        }
       }
-      fetchIngredients();
-    } catch (err) {
-      console.error('Archiving error:', err);
-      setMessage('Error updating ingredient status');
-      setTimeout(() => setMessage(''), 3000);
-    }
+    });
   };
 
   const handleUpdateIngredient = async (e) => {
@@ -151,7 +181,10 @@ export const useManageRawMaterials = () => {
               name: updatedName,
               unit: updatedUnit,
               low_stock_alert: parseFloat(editAlert) || 0,
-              stock_quantity: parseFloat(editQuantity) || 0
+              stock_quantity: parseFloat(editQuantity) || 0,
+              purchase_unit: editPurchaseUnit || 'Unit',
+              conversion_factor: parseFloat(editConversionFactor) || 1,
+              cost_per_purchase_unit: parseFloat(editCost) || 0
             });
             setMessage('Ingredient details updated successfully!');
             fetchIngredients();
@@ -197,11 +230,15 @@ export const useManageRawMaterials = () => {
     setEditUnit(ingredient.unit);
     setEditAlert(ingredient.low_stock_alert);
     setEditQuantity(ingredient.stock_quantity);
+    setEditPurchaseUnit(ingredient.purchase_unit || 'Unit');
+    setEditConversionFactor(ingredient.conversion_factor || 1);
+    setEditCost(ingredient.cost_per_purchase_unit || 0);
   };
 
   return {
     viewMode, setViewMode,
     ingredients, loading, message, setMessage,
+    isProcessing, processingId,
     searchTerm, setSearchTerm,
     statusFilter, setStatusFilter,
     confirmConfig, setConfirmConfig,
@@ -211,6 +248,9 @@ export const useManageRawMaterials = () => {
     editUnit, setEditUnit,
     editAlert, setEditAlert,
     editQuantity, setEditQuantity,
+    editPurchaseUnit, setEditPurchaseUnit,
+    editConversionFactor, setEditConversionFactor,
+    editCost, setEditCost,
     UNIT_CHOICES,
     handleAddIngredient,
     handleArchiveToggle,

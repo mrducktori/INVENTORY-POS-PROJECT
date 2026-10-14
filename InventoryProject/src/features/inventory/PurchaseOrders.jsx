@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { getPurchaseOrders, updatePurchaseOrderStatus } from '../../api/purchasingApi';
+import { getPurchaseOrders, updatePurchaseOrderStatus, respondToSupplierProposal } from '../../api/purchasingApi';
 import PurchaseOrderForm from './PurchaseOrderForm';
 import ReceivePOModal from './components/ReceivePOModal';
+
+import ConfirmModal from '../../components/shared/ConfirmModal';
+import { supabase } from '../../config/supabaseClient';
+import { formatDisplayDateTime, formatDisplayDate } from '../../utils/dateUtils';
 
 const PurchaseOrders = () => {
   const [orders, setOrders] = useState([]);
@@ -9,12 +13,15 @@ const PurchaseOrders = () => {
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [receivingPO, setReceivingPO] = useState(null);
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, id: null, newStatus: null });
+  const [tabFilter, setTabFilter] = useState('ALL'); // 'ALL' | 'PROPOSALS' | 'DELIVERING' | 'COMPLETED'
+  const [processingProposalId, setProcessingProposalId] = useState(null);
 
   const fetchOrders = async () => {
     try {
-      setLoading(true);
+      if (orders.length === 0) setLoading(true);
       const data = await getPurchaseOrders();
-      setOrders(data);
+      setOrders(data || []);
     } catch (err) {
       console.error(err);
       setError('Failed to load purchase orders.');
@@ -25,17 +32,70 @@ const PurchaseOrders = () => {
 
   useEffect(() => {
     fetchOrders();
+
+    const channel = supabase
+      .channel('purchase_orders_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'purchase_orders' },
+        () => fetchOrders()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'purchase_order_items' },
+        () => fetchOrders()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleReceiveSubmit = async (id, newStatus, items_received) => {
     try {
       await updatePurchaseOrderStatus(id, newStatus, items_received);
       setReceivingPO(null);
-      fetchOrders(); // Refresh the list
+      fetchOrders();
     } catch (err) {
       console.error(err);
       setError('Failed to update status.');
       setTimeout(() => setError(''), 3000);
+    }
+  };
+
+  const handleStatusAction = async (id, newStatus) => {
+    if (newStatus === 'Cancelled') {
+      setConfirmModal({ isOpen: true, id, newStatus });
+      return;
+    }
+    executeStatusAction(id, newStatus);
+  };
+
+  const executeStatusAction = async (id, newStatus) => {
+    try {
+      await updatePurchaseOrderStatus(id, newStatus, []);
+      fetchOrders();
+    } catch (err) {
+      console.error(err);
+      setError('Failed to update status.');
+      setTimeout(() => setError(''), 3000);
+    } finally {
+      setConfirmModal({ isOpen: false, id: null, newStatus: null });
+    }
+  };
+
+  const handleProposalDecision = async (poId, itemId, decision, splitIntoBackorder = true) => {
+    try {
+      setProcessingProposalId(itemId);
+      await respondToSupplierProposal(poId, itemId, decision, splitIntoBackorder);
+      await fetchOrders();
+    } catch (err) {
+      console.error(err);
+      setError('Failed to respond to proposal: ' + err.message);
+      setTimeout(() => setError(''), 4000);
+    } finally {
+      setProcessingProposalId(null);
     }
   };
 
@@ -51,6 +111,19 @@ const PurchaseOrders = () => {
     else setExpandedRow(id);
   };
 
+  // Counts
+  const proposalsCount = orders.filter(o => o.has_proposals || o.status === 'Proposal Pending' || o.status === 'Partially Accepted').length;
+  const deliveringCount = orders.filter(o => ['To Be Delivered', 'Delivering', 'Partial'].includes(o.status)).length;
+  const completedCount = orders.filter(o => o.status === 'Received').length;
+
+  // Filtered orders
+  const filteredOrders = orders.filter(po => {
+    if (tabFilter === 'PROPOSALS') return po.has_proposals || po.status === 'Proposal Pending' || po.status === 'Partially Accepted';
+    if (tabFilter === 'DELIVERING') return ['To Be Delivered', 'Delivering', 'Partial'].includes(po.status);
+    if (tabFilter === 'COMPLETED') return po.status === 'Received';
+    return true;
+  });
+
   return (
     <div className="p-4 md:p-8 flex-1 bg-gray-50 overflow-y-auto w-full">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
@@ -64,11 +137,58 @@ const PurchaseOrders = () => {
         <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <h2 className="m-0 text-lg font-bold text-gray-900 tracking-tight">Current Orders</h2>
           <button 
-            className="px-5 py-2.5 bg-gray-900 text-white rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-gray-800 transition-colors shadow-sm whitespace-nowrap"
+            className="px-5 py-2.5 bg-gray-900 text-white rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-gray-800 transition-colors shadow-sm whitespace-nowrap cursor-pointer"
             onClick={() => setShowModal(true)}
           >
             + Create Purchase Order
           </button>
+        </div>
+
+        {/* Tab Filter Navigation Bar */}
+        <div className="px-6 py-3.5 border-b border-gray-200 bg-white flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+            <button
+              onClick={() => setTabFilter('ALL')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                tabFilter === 'ALL'
+                  ? 'bg-zinc-900 text-white shadow-xs'
+                  : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+              }`}
+            >
+              All Orders ({orders.length})
+            </button>
+            <button
+              onClick={() => setTabFilter('PROPOSALS')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                tabFilter === 'PROPOSALS'
+                  ? 'bg-amber-600 text-white shadow-xs'
+                  : 'bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100'
+              }`}
+            >
+              <span>Supplier Proposals ({proposalsCount})</span>
+              {proposalsCount > 0 && <span className="w-2 h-2 rounded-full bg-amber-400"></span>}
+            </button>
+            <button
+              onClick={() => setTabFilter('DELIVERING')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                tabFilter === 'DELIVERING'
+                  ? 'bg-zinc-900 text-white shadow-xs'
+                  : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+              }`}
+            >
+              In Transit / Delivering ({deliveringCount})
+            </button>
+            <button
+              onClick={() => setTabFilter('COMPLETED')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                tabFilter === 'COMPLETED'
+                  ? 'bg-zinc-900 text-white shadow-xs'
+                  : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+              }`}
+            >
+              Completed ({completedCount})
+            </button>
+          </div>
         </div>
         
         <div className="p-0">
@@ -91,45 +211,80 @@ const PurchaseOrders = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {orders.length === 0 ? (
+                  {filteredOrders.length === 0 ? (
                     <tr>
-                      <td colSpan="7" className="px-6 py-8 text-center text-sm font-medium text-gray-400 italic">No purchase orders found.</td>
+                      <td colSpan="7" className="p-8 text-center text-gray-400 font-medium">
+                        {tabFilter === 'PROPOSALS'
+                          ? 'No purchase orders with supplier proposals or rescheduled items at the moment.'
+                          : 'No purchase orders found in this section.'}
+                      </td>
                     </tr>
                   ) : (
-                    orders.map((po) => (
+                    filteredOrders.map(po => (
                       <React.Fragment key={po.id}>
-                        <tr className="hover:bg-gray-50/50 transition-colors">
-                          <td className="px-6 py-4 text-sm font-mono font-bold text-gray-900">{po.id.substring(0, 8).toUpperCase()}</td>
-                          <td className="px-6 py-4 text-sm font-bold text-gray-900">{po.suppliers?.name || 'Unknown Supplier'}</td>
-                          <td className="px-6 py-4 text-sm font-medium text-gray-600">{po.expected_date ? new Date(po.expected_date).toLocaleDateString() : 'N/A'}</td>
-                          <td className="px-6 py-4">
-                            <button 
-                              className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-xs font-bold transition-colors border border-gray-200 flex items-center gap-1"
-                              onClick={() => toggleRow(po.id)}
-                            >
-                              {po.purchase_order_items?.length || 0} Items
-                              <svg className={`w-3 h-3 transition-transform ${expandedRow === po.id ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                            </button>
+                        <tr 
+                          className={`hover:bg-gray-50/80 transition-colors cursor-pointer ${expandedRow === po.id ? 'bg-gray-50/50' : ''}`}
+                          onClick={() => toggleRow(po.id)}
+                        >
+                          <td className="px-6 py-4 font-bold text-gray-900 text-sm">
+                            <div className="flex items-center gap-2">
+                              <span className={`text-[10px] transition-transform ${expandedRow === po.id ? 'rotate-90' : ''}`}>▶</span>
+                              <span>PO #{po.id.substring(0, 8).toUpperCase()}</span>
+                              {po.has_proposals && (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-300">
+                                  Proposals ({po.pending_proposals_count || 'Review'})
+                                </span>
+                              )}
+                            </div>
                           </td>
-                          <td className="px-6 py-4 text-sm font-extrabold text-gray-900 text-right">₱{Number(po.total_amount).toFixed(2)}</td>
+                          <td className="px-6 py-4 text-sm font-semibold text-gray-800">{po.suppliers?.name || 'Unknown'}</td>
+                          <td className="px-6 py-4 text-sm font-medium text-gray-600">{formatDisplayDate(po.expected_date)}</td>
+                          <td className="px-6 py-4 text-sm font-medium text-gray-600">
+                            {po.purchase_order_items ? `${po.purchase_order_items.length} ingredients` : '0 items'}
+                          </td>
+                          <td className="px-6 py-4 text-sm font-bold text-gray-900 text-right">₱{Number(po.total_amount).toFixed(2)}</td>
                           <td className="px-6 py-4">
-                            <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                              po.status === 'Pending' ? 'bg-yellow-50 text-yellow-700 border border-yellow-200' :
-                              po.status === 'Partial' ? 'bg-orange-50 text-orange-700 border border-orange-200' :
-                              po.status === 'Received' ? 'bg-green-50 text-green-700 border border-green-200' :
-                              'bg-gray-100 text-gray-600 border border-gray-200'
-                            }`}>
+                            <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider
+                              ${po.status === 'Pending' ? 'bg-yellow-50 text-yellow-700 border border-yellow-200' :
+                                po.status === 'Proposal Pending' ? 'bg-amber-100 text-amber-800 border border-amber-300 font-extrabold' :
+                                po.status === 'Partially Accepted' ? 'bg-sky-50 text-sky-700 border border-sky-200' :
+                                po.status === 'Accepted' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                                po.status === 'To Be Delivered' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' :
+                                po.status === 'Delivering' ? 'bg-purple-50 text-purple-700 border border-purple-200' :
+                                po.status === 'Partial' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                                po.status === 'Received' ? 'bg-green-50 text-green-700 border border-green-200' :
+                                po.status === 'Cancelled' ? 'bg-red-50 text-red-700 border border-red-200' :
+                                'bg-gray-100 text-gray-700 border border-gray-200'
+                              }`}>
                               {po.status}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-right">
-                            {(po.status === 'Pending' || po.status === 'Partial') && (
-                              <button 
-                                className="px-3 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 rounded text-xs font-bold uppercase tracking-wider transition-colors border border-green-200 whitespace-nowrap"
-                                onClick={() => setReceivingPO(po)}
-                              >
-                                {po.status === 'Partial' ? 'Receive More' : 'Mark Received'}
-                              </button>
+                          <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                            {po.status !== 'Received' && po.status !== 'Cancelled' && (
+                              <div className="flex justify-end gap-2">
+                                {['Accepted', 'To Be Delivered', 'Delivering', 'Partial'].includes(po.status) && (
+                                  <button 
+                                    className="px-3 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 rounded text-xs font-bold uppercase tracking-wider transition-colors border border-green-200 whitespace-nowrap cursor-pointer"
+                                    onClick={() => setReceivingPO(po)}
+                                  >
+                                    Receive Stock
+                                  </button>
+                                )}
+                                {po.status === 'Postponed' && (
+                                  <button 
+                                    className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded text-xs font-bold uppercase tracking-wider transition-colors border border-blue-200 whitespace-nowrap cursor-pointer"
+                                    onClick={() => handleStatusAction(po.id, 'To Be Delivered')}
+                                  >
+                                    Accept Date
+                                  </button>
+                                )}
+                                <button 
+                                  className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded text-xs font-bold uppercase tracking-wider transition-colors border border-red-200 whitespace-nowrap cursor-pointer"
+                                  onClick={() => handleStatusAction(po.id, 'Cancelled')}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
                             )}
                           </td>
                         </tr>
@@ -137,12 +292,23 @@ const PurchaseOrders = () => {
                           <tr className="bg-gray-50/80">
                             <td colSpan="7" className="p-0">
                               <div className="px-8 py-6 border-b border-gray-200">
-                                <h4 className="m-0 mb-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Order Items</h4>
+                                <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                                  <h4 className="m-0 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                    Order Items & Supplier Responses
+                                  </h4>
+                                  {po.has_proposals && (
+                                    <span className="text-xs font-bold text-amber-800 bg-amber-100 border border-amber-200 px-3 py-1 rounded-full">
+                                      Review supplier proposed delivery dates below
+                                    </span>
+                                  )}
+                                </div>
+                                
                                 <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
                                   <table className="w-full text-left border-collapse whitespace-nowrap">
                                     <thead>
                                       <tr className="bg-gray-50 border-b border-gray-100">
                                         <th className="px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider">Ingredient</th>
+                                        <th className="px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider">Supplier Status</th>
                                         <th className="px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Ordered</th>
                                         <th className="px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Received</th>
                                         <th className="px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Unit Price</th>
@@ -150,15 +316,155 @@ const PurchaseOrders = () => {
                                       </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-100">
-                                      {po.purchase_order_items?.map(item => (
-                                        <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
-                                          <td className="px-4 py-3 text-sm font-bold text-gray-900">{item.ingredients?.name || 'Unknown'}</td>
-                                          <td className="px-4 py-3 text-sm font-medium text-gray-600 text-right">{item.quantity} {item.purchase_unit}</td>
-                                          <td className="px-4 py-3 text-sm font-medium text-green-600 text-right">{item.quantity_received || 0} {item.purchase_unit}</td>
-                                          <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">₱{Number(item.unit_price).toFixed(2)}</td>
-                                          <td className="px-4 py-3 text-sm font-bold text-gray-900 text-right">₱{Number(item.subtotal).toFixed(2)}</td>
-                                        </tr>
-                                      ))}
+                                      {po.purchase_order_items?.map(item => {
+                                        const orderedTotal = Number(item.quantity) * Number(item.unit_price);
+                                        const receivedTotal = Number(item.quantity_received || 0) * Number(item.unit_price);
+                                        const balance = orderedTotal - receivedTotal;
+                                        const resp = item.supplier_response;
+                                        const dec = item.shop_decision;
+
+                                        return (
+                                          <React.Fragment key={item.id}>
+                                            <tr className="hover:bg-gray-50/50 transition-colors">
+                                              <td className="px-4 py-3 text-base font-bold text-gray-900">
+                                                {item.ingredients?.name || 'Unknown'}
+                                              </td>
+                                              
+                                              {/* Supplier Availability Status */}
+                                              <td className="px-4 py-3">
+                                                {resp ? (
+                                                  <div className="flex flex-col gap-1">
+                                                    {resp.status === 'AVAILABLE' && (
+                                                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                                        ✓ Available
+                                                      </span>
+                                                    )}
+                                                    {resp.status === 'PROPOSED_DATE' && (
+                                                      <div className="flex flex-col gap-1 max-w-sm">
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                                                          ⏳ Proposed Delivery: {formatDisplayDate(resp.proposed_date)}
+                                                        </span>
+                                                        {resp.reason && (
+                                                          <span className="text-xs text-zinc-600 font-medium whitespace-normal">
+                                                            Reason: {resp.reason}
+                                                          </span>
+                                                        )}
+                                                        
+                                                        {/* Decision Action Buttons */}
+                                                        {!dec && (
+                                                          <div className="flex items-center gap-2 mt-1">
+                                                            <button
+                                                              type="button"
+                                                              disabled={processingProposalId === item.id}
+                                                              onClick={() => handleProposalDecision(po.id, item.id, 'ACCEPTED', true)}
+                                                              className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-bold cursor-pointer transition-colors shadow-2xs"
+                                                            >
+                                                              {processingProposalId === item.id ? 'Saving...' : '✓ Accept Date (Backorder)'}
+                                                            </button>
+                                                            <button
+                                                              type="button"
+                                                              disabled={processingProposalId === item.id}
+                                                              onClick={() => handleProposalDecision(po.id, item.id, 'DECLINED', false)}
+                                                              className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded text-xs font-bold cursor-pointer transition-colors"
+                                                            >
+                                                              ✕ Decline
+                                                            </button>
+                                                          </div>
+                                                        )}
+
+                                                        {dec && (
+                                                          <div className="mt-1">
+                                                            <span className={`inline-flex px-2 py-0.5 rounded text-[11px] font-black uppercase tracking-wider ${
+                                                              dec.decision === 'ACCEPTED'
+                                                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                                                : 'bg-rose-100 text-rose-800 border border-rose-200'
+                                                            }`}>
+                                                              Shop: {dec.decision === 'ACCEPTED' ? '✓ Accepted (Backorder Created)' : '✕ Declined'}
+                                                            </span>
+                                                          </div>
+                                                        )}
+                                                      </div>
+                                                    )}
+                                                    {resp.status === 'UNAVAILABLE' && (
+                                                      <div className="flex flex-col gap-0.5 max-w-sm">
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                                                          ✕ Unavailable
+                                                        </span>
+                                                        {resp.reason && (
+                                                          <span className="text-xs text-zinc-600 font-medium whitespace-normal">
+                                                            Reason: {resp.reason}
+                                                          </span>
+                                                        )}
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                ) : (
+                                                  <span className="text-xs text-zinc-400 font-medium italic">
+                                                    Pending supplier response
+                                                  </span>
+                                                )}
+                                              </td>
+
+                                              <td className="px-4 py-3 text-base font-medium text-gray-600 text-right">{item.quantity} - {item.purchase_unit}</td>
+                                              <td className="px-4 py-3 text-right">
+                                                <div className="flex flex-col items-end gap-1">
+                                                  <div className="text-base font-bold text-gray-900">
+                                                    Total: {item.quantity_received || 0} / {item.quantity} {item.purchase_unit}
+                                                  </div>
+                                                </div>
+                                              </td>
+                                              <td className="px-4 py-3 text-base font-medium text-gray-900 text-right">₱{Number(item.unit_price).toFixed(2)}</td>
+                                              <td className="px-4 py-3 text-right">
+                                                <div className="flex flex-col items-end">
+                                                  <span className="text-base font-bold text-gray-900">₱{orderedTotal.toFixed(2)}</span>
+                                                  {item.quantity_received > 0 && (
+                                                    <span className="text-sm font-bold text-green-600 mt-1 border-t border-gray-200 pt-1">Bal: ₱{balance.toFixed(2)}</span>
+                                                  )}
+                                                </div>
+                                              </td>
+                                            </tr>
+
+                                            {/* Direct Table Rows for Each Received Batch (Received 1, Received 2, etc.) */}
+                                            {(() => {
+                                              const receiptList = (item.receipt_history && item.receipt_history.length > 0)
+                                                ? item.receipt_history
+                                                : (item.quantity_received > 0 && po.received_at)
+                                                  ? [{ date: po.received_at, quantity: item.quantity_received }]
+                                                  : [];
+
+                                              if (receiptList.length === 0) return null;
+
+                                              return receiptList.map((rh, idx) => {
+                                                const batchValue = Number(rh.quantity) * Number(item.unit_price);
+                                                return (
+                                                  <tr
+                                                    key={`${item.id}-rh-${idx}`}
+                                                    className="bg-zinc-50/80 hover:bg-zinc-100/70 border-t border-dashed border-zinc-200 transition-colors"
+                                                  >
+                                                    <td className="px-4 py-2.5 pl-8" colSpan="2">
+                                                      <div className="flex items-center gap-2">
+                                                        <span className="text-zinc-400 font-bold select-none">↳</span>
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-white text-zinc-800 border border-zinc-200 shadow-2xs">
+                                                          Received {idx + 1}
+                                                        </span>
+                                                      </div>
+                                                    </td>
+                                                    <td className="px-4 py-2.5 text-xs md:text-sm font-semibold text-zinc-600 text-right" colSpan="2">
+                                                      {formatDisplayDateTime(rh.date)}
+                                                    </td>
+                                                    <td className="px-4 py-2.5 text-sm md:text-base font-bold text-emerald-700 text-right">
+                                                      +{rh.quantity} - {item.purchase_unit}
+                                                    </td>
+                                                    <td className="px-4 py-2.5 text-sm md:text-base font-bold text-zinc-900 text-right">
+                                                      ₱{batchValue.toFixed(2)}
+                                                    </td>
+                                                  </tr>
+                                                );
+                                              });
+                                            })()}
+                                          </React.Fragment>
+                                        );
+                                      })}
                                     </tbody>
                                   </table>
                                 </div>
@@ -190,6 +496,13 @@ const PurchaseOrders = () => {
           onSubmit={handleReceiveSubmit}
         />
       )}
+
+      <ConfirmModal 
+        isOpen={confirmModal.isOpen}
+        message="Are you sure you want to cancel this purchase order? This action cannot be undone."
+        onConfirm={() => executeStatusAction(confirmModal.id, confirmModal.newStatus)}
+        onCancel={() => setConfirmModal({ isOpen: false, id: null, newStatus: null })}
+      />
     </div>
   );
 };
