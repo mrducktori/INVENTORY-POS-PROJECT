@@ -2,6 +2,8 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import cors from 'cors';
+import fs from 'fs';
+
 import authRoutes from './routes/auth.js';
 import posRoutes from './routes/pos.js';
 import inventoryRoutes from './routes/inventory.js';
@@ -16,6 +18,7 @@ import productsRoutes from './routes/products.js';
 import analyticsRoutes from './routes/analytics.js';
 import categorySettingsRoutes from './routes/categorySettings.js';
 import purchasingRoutes from './routes/purchasing.js';
+import cmsRoutes from './routes/cms.js';
 import { requireAuth } from './middleware/authMiddleware.js';
 
 const app = express();
@@ -26,7 +29,6 @@ const PORT = process.env.PORT || 5000;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Allowed origins: local dev + production domain
 const allowedOrigins = [
   'http://localhost:5173',       // Vite dev server
   'http://localhost:4173',       // Vite preview
@@ -71,16 +73,19 @@ app.use('/api/products', requireAuth, productsRoutes);
 app.use('/api/analytics', requireAuth, analyticsRoutes);
 app.use('/api/categories/settings', requireAuth, categorySettingsRoutes);
 app.use('/api/purchasing', requireAuth, purchasingRoutes);
+app.use('/api/cms', cmsRoutes);
 
 // ==========================================
 // STATIC FILES — Serve the React frontend build
-// In production on cPanel, the dist/ folder sits one level up from server/
 // ==========================================
-const distPath = path.resolve(__dirname, '../dist');
+let distPath = path.resolve(__dirname, '../dist'); // Local dev: InventoryProject/dist
+if (!fs.existsSync(distPath)) {
+  distPath = path.resolve(__dirname, 'dist'); // cPanel: nodeapp/dist
+}
 app.use(express.static(distPath));
 
 // Catch-all: return index.html for any non-API route so React Router works
-app.get('*', (req, res) => {
+app.get(/.*/, (req, res) => {
   res.sendFile(path.join(distPath, 'index.html'));
 });
 

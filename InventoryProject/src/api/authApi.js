@@ -10,7 +10,7 @@ import { apiCall } from "./client.js";
  * so the UI can show a proper countdown without inspecting raw HTTP responses.
  */
 export async function loginUser(username, password) {
-  const response = await fetch("http://localhost:5000/api/auth/login", {
+  const response = await fetch("/api/auth/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, password })

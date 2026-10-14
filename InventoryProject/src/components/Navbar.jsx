@@ -40,7 +40,8 @@ const MENU_CONFIG = {
         { label: 'Raw Material Stock', value: 'RawMaterialTracker' },
         { label: 'Product Stock', value: 'ProductStockTracker' },
         { label: 'Material Inventory', value: 'ManageRawMaterials' },
-        { label: 'Update Stock', value: 'StockReceived' },
+
+        { label: 'Manage Suppliers', value: 'ManageSuppliers' },
         { label: 'Purchase Orders', value: 'PurchaseOrders' },
       ]
     },
@@ -58,6 +59,12 @@ const MENU_CONFIG = {
       label: 'Staff & Security',
       submenu: [
         { label: 'Access Control', value: 'AccountManager' },
+      ]
+    },
+    {
+      label: 'Website Management',
+      submenu: [
+        { label: 'Public Landing Page', value: 'CMSDashboard' },
       ]
     },
   ],
@@ -77,7 +84,8 @@ const MENU_CONFIG = {
         { label: 'Raw Material Stock', value: 'RawMaterialTracker' },
         { label: 'Product Stock', value: 'ProductStockTracker' },
         { label: 'Material Inventory', value: 'ManageRawMaterials' },
-        { label: 'Update Stock', value: 'StockReceived' },
+
+        { label: 'Manage Suppliers', value: 'ManageSuppliers' },
         { label: 'Purchase Orders', value: 'PurchaseOrders' },
       ]
     },
@@ -96,6 +104,12 @@ const MENU_CONFIG = {
       label: 'Staff & Security',
       submenu: [
         { label: 'Access Control', value: 'AccountManager' },
+      ]
+    },
+    {
+      label: 'Website Management',
+      submenu: [
+        { label: 'Public Landing Page', value: 'CMSDashboard' },
       ]
     },
   ],

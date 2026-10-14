@@ -9,12 +9,13 @@ import Products from '../inventory/Products';
 import ManageProducts from '../inventory/ManageProducts';
 
 // Inventory Stock
-import StockReceived from '../inventory/StockReceived';
+
 import RawMaterialTracker from '../inventory/RawMaterialTracker';
 import ManageRawMaterials from '../inventory/ManageRawMaterials';
 import LowStockAlerts from '../inventory/LowStockAlerts';
 import ProductStockTracker from '../inventory/ProductStockTracker';
 import PurchaseOrders from '../inventory/PurchaseOrders';
+import ManageSuppliers from '../inventory/ManageSuppliers';
 
 // Logs & Reports
 import AuditLogs from '../logs/AuditLogs';
@@ -34,6 +35,9 @@ import DemandForecasting from '../analytics/DemandForecasting';
 // Reports Module
 import Reports from '../reports/Reports';
 
+// Content Management
+import CMSDashboard from '../cms/CMSDashboard';
+
 const Dashboard = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const [activeTab, setActiveTab] = useState(user.role === 'Staff' ? 'POS' : 'Dashboard');
@@ -46,7 +50,7 @@ const Dashboard = () => {
     if (user.role === 'Admin' || user.role === 'Owner') return true;
     
     // Staff restricted tabs
-    const staffAllowed = ['POS', 'Products', 'RawMaterialTracker', 'ProductStockTracker', 'StockReceived', 'ReportWastage'];
+    const staffAllowed = ['POS', 'Products', 'RawMaterialTracker', 'ProductStockTracker', 'ReportWastage'];
     return staffAllowed.includes(tab);
   };
 
@@ -69,9 +73,10 @@ const Dashboard = () => {
       case 'RawMaterialTracker': return <RawMaterialTracker />;
       case 'ProductStockTracker': return <ProductStockTracker />;
       case 'ManageRawMaterials': return <ManageRawMaterials />;
-      case 'StockReceived':     return <StockReceived />;
+
       case 'LowStockAlerts':    return <LowStockAlerts />;
       case 'PurchaseOrders':    return <PurchaseOrders />;
+      case 'ManageSuppliers':   return <ManageSuppliers />;
 
       // Logs & Reports
       case 'AuditLogs':         return <AuditLogs />;
@@ -88,6 +93,8 @@ const Dashboard = () => {
       // Reports Module
       case 'Reports':           return <Reports />;
 
+      // Content Management
+      case 'CMSDashboard':      return <CMSDashboard />;
 
       default:
         return (

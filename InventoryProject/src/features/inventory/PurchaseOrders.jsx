@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { getPurchaseOrders, updatePurchaseOrderStatus } from '../../api/purchasingApi';
 import PurchaseOrderForm from './PurchaseOrderForm';
+import ReceivePOModal from './components/ReceivePOModal';
 
 const PurchaseOrders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [receivingPO, setReceivingPO] = useState(null);
 
   const fetchOrders = async () => {
     try {
@@ -25,13 +27,15 @@ const PurchaseOrders = () => {
     fetchOrders();
   }, []);
 
-  const handleStatusUpdate = async (id, newStatus) => {
+  const handleReceiveSubmit = async (id, newStatus, items_received) => {
     try {
-      await updatePurchaseOrderStatus(id, newStatus);
+      await updatePurchaseOrderStatus(id, newStatus, items_received);
+      setReceivingPO(null);
       fetchOrders(); // Refresh the list
     } catch (err) {
       console.error(err);
-      alert('Failed to update status.');
+      setError('Failed to update status.');
+      setTimeout(() => setError(''), 3000);
     }
   };
 
@@ -111,6 +115,7 @@ const PurchaseOrders = () => {
                           <td className="px-6 py-4">
                             <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                               po.status === 'Pending' ? 'bg-yellow-50 text-yellow-700 border border-yellow-200' :
+                              po.status === 'Partial' ? 'bg-orange-50 text-orange-700 border border-orange-200' :
                               po.status === 'Received' ? 'bg-green-50 text-green-700 border border-green-200' :
                               'bg-gray-100 text-gray-600 border border-gray-200'
                             }`}>
@@ -118,12 +123,12 @@ const PurchaseOrders = () => {
                             </span>
                           </td>
                           <td className="px-6 py-4 text-right">
-                            {po.status === 'Pending' && (
+                            {(po.status === 'Pending' || po.status === 'Partial') && (
                               <button 
                                 className="px-3 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 rounded text-xs font-bold uppercase tracking-wider transition-colors border border-green-200 whitespace-nowrap"
-                                onClick={() => handleStatusUpdate(po.id, 'Received')}
+                                onClick={() => setReceivingPO(po)}
                               >
-                                Mark Received
+                                {po.status === 'Partial' ? 'Receive More' : 'Mark Received'}
                               </button>
                             )}
                           </td>
@@ -138,7 +143,8 @@ const PurchaseOrders = () => {
                                     <thead>
                                       <tr className="bg-gray-50 border-b border-gray-100">
                                         <th className="px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider">Ingredient</th>
-                                        <th className="px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Qty</th>
+                                        <th className="px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Ordered</th>
+                                        <th className="px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Received</th>
                                         <th className="px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Unit Price</th>
                                         <th className="px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Subtotal</th>
                                       </tr>
@@ -147,7 +153,8 @@ const PurchaseOrders = () => {
                                       {po.purchase_order_items?.map(item => (
                                         <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
                                           <td className="px-4 py-3 text-sm font-bold text-gray-900">{item.ingredients?.name || 'Unknown'}</td>
-                                          <td className="px-4 py-3 text-sm font-medium text-gray-600 text-right">{item.quantity} {item.ingredients?.unit}</td>
+                                          <td className="px-4 py-3 text-sm font-medium text-gray-600 text-right">{item.quantity} {item.purchase_unit}</td>
+                                          <td className="px-4 py-3 text-sm font-medium text-green-600 text-right">{item.quantity_received || 0} {item.purchase_unit}</td>
                                           <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">₱{Number(item.unit_price).toFixed(2)}</td>
                                           <td className="px-4 py-3 text-sm font-bold text-gray-900 text-right">₱{Number(item.subtotal).toFixed(2)}</td>
                                         </tr>
@@ -173,6 +180,14 @@ const PurchaseOrders = () => {
         <PurchaseOrderForm 
           onClose={() => setShowModal(false)} 
           onSuccess={handleCreateSuccess} 
+        />
+      )}
+      
+      {receivingPO && (
+        <ReceivePOModal 
+          po={receivingPO} 
+          onClose={() => setReceivingPO(null)}
+          onSubmit={handleReceiveSubmit}
         />
       )}
     </div>

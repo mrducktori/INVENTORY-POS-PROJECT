@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createClient } from '@supabase/supabase-js';
+import ws from 'ws';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,4 +27,11 @@ if (!supabaseUrl || !supabaseKey) {
   throw new Error("Missing Supabase URL or Key in environment variables.");
 }
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    persistSession: false // Recommended for backend servers
+  },
+  realtime: {
+    transport: ws // Fixes the Node 20 WebSocket error on cPanel
+  }
+});

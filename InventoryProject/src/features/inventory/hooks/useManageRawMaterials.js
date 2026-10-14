@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getIngredients, createIngredient, updateIngredient, archiveIngredient, restoreIngredient } from '../../../api/inventoryApi';
+import { checkDuplicateOrSimilar } from '../../../utils/productUtils';
 
 export const useManageRawMaterials = () => {
   const [viewMode, setViewMode] = useState('ADD');
@@ -41,7 +42,7 @@ export const useManageRawMaterials = () => {
     setFormData({ ...formData, [name]: value });
   };
 
-  const handleAddIngredient = async (e, forceCreate = false) => {
+  const handleAddIngredient = async (e, forceCreate = false, skipConfirm = false) => {
     if (e) e.preventDefault();
     const newName = formData.name.trim().toUpperCase();
     const newUnit = formData.unit.trim().toUpperCase();
@@ -51,13 +52,28 @@ export const useManageRawMaterials = () => {
       return;
     }
 
+    if (!skipConfirm) {
+      setConfirmConfig({
+        isOpen: true,
+        title: 'Confirm Add',
+        message: `Are you sure you want to add "${newName}" as a new raw material?`,
+        onConfirm: () => {
+          setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+          handleAddIngredient(null, forceCreate, true);
+        }
+      });
+      return;
+    }
+
     if (!forceCreate) {
-      const isDuplicate = ingredients.some(i => i.name.toUpperCase() === newName);
-      if (isDuplicate) {
+      const similarityMatch = checkDuplicateOrSimilar(formData.name, ingredients);
+      if (similarityMatch) {
         setConfirmConfig({
           isOpen: true,
-          title: 'Duplicate Detected',
-          message: `WARNING: An ingredient with the exact name "${formData.name.trim()}" already exists. Do you still want to add it?`,
+          title: similarityMatch.isExactMatch ? 'Duplicate Detected' : 'Similar Ingredient Detected',
+          message: similarityMatch.isExactMatch 
+            ? `WARNING: An ingredient with the exact name "${similarityMatch.matchName}" already exists. Do you still want to add it?`
+            : `WARNING: The ingredient "${similarityMatch.matchName}" sounds very similar to what you're adding. Are you sure you want to proceed?`,
           onConfirm: () => {
             setConfirmConfig(prev => ({ ...prev, isOpen: false }));
             handleAddIngredient(null, true);
@@ -106,7 +122,8 @@ export const useManageRawMaterials = () => {
       fetchIngredients();
     } catch (err) {
       console.error('Archiving error:', err);
-      alert('Error updating ingredient status');
+      setMessage('Error updating ingredient status');
+      setTimeout(() => setMessage(''), 3000);
     }
   };
 
@@ -122,36 +139,54 @@ export const useManageRawMaterials = () => {
         const updatedUnit = editUnit.trim().toUpperCase();
 
         if (!UNIT_CHOICES.includes(updatedUnit)) {
-          alert(`Error: Invalid unit. Must be one of: ${UNIT_CHOICES.join(', ')}`);
+          setMessage(`Error: Invalid unit. Must be one of: ${UNIT_CHOICES.join(', ')}`);
           setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+          setTimeout(() => setMessage(''), 3000);
           return;
         }
 
-        const isDuplicate = ingredients.some(i => i.name.toUpperCase() === updatedName && i.id !== selectedIngredient.id);
-        if (isDuplicate) {
-          const proceed = window.confirm(`WARNING: An ingredient with the name "${editName.trim()}" already exists. Do you still want to update to this name?`);
-          if (!proceed) {
+        const proceedWithUpdate = async () => {
+          try {
+            await updateIngredient(selectedIngredient.id, {
+              name: updatedName,
+              unit: updatedUnit,
+              low_stock_alert: parseFloat(editAlert) || 0,
+              stock_quantity: parseFloat(editQuantity) || 0
+            });
+            setMessage('Ingredient details updated successfully!');
+            fetchIngredients();
+            setViewMode('ADD');
+            setSelectedIngredient(null);
             setConfirmConfig(prev => ({ ...prev, isOpen: false }));
-            return;
+            setTimeout(() => setMessage(''), 3000);
+          } catch (err) {
+            if (err.message.includes('already exists')) {
+              setMessage('WARNING: ' + err.message);
+              setTimeout(() => setMessage(''), 3000);
+            } else {
+              setMessage('Error updating ingredient: ' + err.message);
+              setTimeout(() => setMessage(''), 3000);
+            }
+            setConfirmConfig(prev => ({ ...prev, isOpen: false }));
           }
+        };
+
+        const similarityMatch = checkDuplicateOrSimilar(editName, ingredients, selectedIngredient.id);
+        if (similarityMatch) {
+          const message = similarityMatch.isExactMatch 
+            ? `WARNING: An ingredient with the name "${similarityMatch.matchName}" already exists. Do you still want to update to this name?`
+            : `WARNING: The name sounds very similar to an existing ingredient "${similarityMatch.matchName}". Do you still want to update?`;
+          
+          setConfirmConfig({
+            isOpen: true,
+            title: similarityMatch.isExactMatch ? 'Duplicate Detected' : 'Similar Ingredient Detected',
+            message: message,
+            onConfirm: proceedWithUpdate
+          });
+          return;
         }
 
-        try {
-          await updateIngredient(selectedIngredient.id, {
-            name: updatedName,
-            unit: updatedUnit,
-            low_stock_alert: parseFloat(editAlert),
-            stock_quantity: parseFloat(editQuantity)
-          });
-          setMessage('Ingredient updated successfully!');
-          setSelectedIngredient(null);
-          fetchIngredients();
-          setConfirmConfig(prev => ({ ...prev, isOpen: false }));
-          setTimeout(() => setMessage(''), 3000);
-        } catch (err) {
-          setMessage('Error updating ingredient: ' + err.message);
-          setConfirmConfig(prev => ({ ...prev, isOpen: false }));
-        }
+        proceedWithUpdate();
       }
     });
   };

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import Dashboard from '../dashboard/Dashboard';
-import { useLogin } from './useLogin';
+import { useNavigate } from 'react-router-dom';
 import locPic from '../../assets/images/loc_pic.png';
 import PageLoader from './PageLoader/PageLoader';
 import { getProducts } from '../../api/posApi';
+import { getCmsContent } from '../../api/cmsApi';
 
 // Menu Assets
 import addonMenu from '../../assets/images/Addon_menu.png';
@@ -50,12 +50,11 @@ function MenuPanel() {
     if (activeCategory === 'ALL') {
       interval = setInterval(() => {
         setCycleIndex(prev => (prev + 1) % allMenuBoards.length);
-      }, 5000); // Cycle every 5 seconds
+      }, 5000);
     }
     return () => clearInterval(interval);
   }, [activeCategory, allMenuBoards.length]);
 
-  // Map categories to image(s)
   const getCategoryImages = (cat) => {
     const key = cat.toUpperCase();
     if (key === 'ALL') return [allMenuBoards[cycleIndex]];
@@ -66,7 +65,6 @@ function MenuPanel() {
     return single ? [single] : [amerikanoMenu];
   };
 
-  // Add ADDONS to the category list if not present
   const displayCategories = presentCategories.includes('ADDONS') 
     ? presentCategories 
     : [...presentCategories, 'ADDONS'];
@@ -88,12 +86,10 @@ function MenuPanel() {
         )}
       </div>
 
-      {/* Category Tabs */}
       <div className="flex gap-2 p-3 bg-white/5 border-b border-white/10 overflow-x-auto">
         {displayCategories.map(cat => (
           <button
             key={cat}
-            id={`menu-cat-${cat.replace(/\s+/g, '-').toLowerCase()}`}
             className={`px-4 py-1.5 text-xs font-semibold rounded-full uppercase tracking-wider border transition-all duration-300 cursor-pointer ${activeCategory === cat ? 'bg-white/20 text-white border-white/40 shadow-[0_0_10px_rgba(255,255,255,0.1)]' : 'bg-transparent text-gray-400 border-transparent hover:text-white hover:bg-white/10'}`}
             onClick={() => { setActiveCategory(cat); setCycleIndex(0); }}
           >
@@ -102,9 +98,8 @@ function MenuPanel() {
         ))}
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* Visual Menu Display */}
-        <div className="flex-[2] bg-white/5 relative flex justify-center items-center p-4">
+      <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+        <div className="flex-[2] bg-white/5 relative flex justify-center items-center p-4 min-h-[200px] md:min-h-0">
           {loading ? (
             <div className="flex flex-col items-center justify-center h-full text-gray-400">
               <div className="w-8 h-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin mb-2" />
@@ -129,8 +124,7 @@ function MenuPanel() {
           )}
         </div>
 
-        {/* Scrollable list remains compact at the right */}
-        <div className="flex-1 bg-black/20 overflow-y-auto border-l border-white/10">
+        <div className="w-full md:w-auto md:flex-1 bg-black/20 overflow-y-auto border-t md:border-t-0 md:border-l border-white/10 min-h-[150px]">
           <div className="sticky top-0 bg-black/60 backdrop-blur-md border-b border-white/10 p-2 px-3 text-[10px] font-bold text-gray-300 uppercase tracking-wider flex justify-between z-10">
             <span>All Items - {filtered.length} Items</span>
           </div>
@@ -143,9 +137,8 @@ function MenuPanel() {
         </div>
       </div>
 
-      {/* Image Modal */}
       {enlargedImage && (
-        <div className="fixed inset-0 z-50 bg-black/90 flex justify-center items-center p-8 cursor-pointer" onClick={() => setEnlargedImage(null)}>
+        <div className="fixed inset-0 z-50 bg-black/90 flex justify-center items-center p-8 cursor-pointer" onMouseDown={(e) => { if (e.target === e.currentTarget) setEnlargedImage(null); }}>
           <div className="relative max-w-full max-h-full" onClick={e => e.stopPropagation()}>
             <img src={enlargedImage} alt="Enlarged Menu" className="max-w-full max-h-[90vh] object-contain rounded-lg" />
             <button className="absolute -top-4 -right-4 w-8 h-8 rounded-full bg-black border-2 border-white text-white flex items-center justify-center font-bold cursor-pointer hover:bg-white hover:text-black transition-colors" onClick={() => setEnlargedImage(null)}>×</button>
@@ -156,62 +149,102 @@ function MenuPanel() {
   );
 }
 
-function Login() {
+function LandingPage() {
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [cmsData, setCmsData] = useState({
+    title: 'COF/TEA CAFÉ | ELWOOD BRANCH',
+    description: '',
+    image_url: locPic
+  });
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsInitialLoading(false);
-    }, 1500);
+    const fetchData = async () => {
+      try {
+        const data = await getCmsContent();
+        const hero = data?.find(d => d.section_key === 'landing_hero');
+        if (hero) {
+          setCmsData({
+            title: hero.title || cmsData.title,
+            description: hero.description || '',
+            image_url: hero.image_url || locPic
+          });
+        }
+      } catch (err) {
+        console.error("Failed to load CMS content:", err);
+      } finally {
+        setIsInitialLoading(false);
+      }
+    };
+    
+    // Fallback timer just in case API is slow/fails
+    const timer = setTimeout(() => setIsInitialLoading(false), 2000);
+    fetchData();
+    
     return () => clearTimeout(timer);
   }, []);
 
-  const {
-    form,
-    user,
-    error,
-    formOpen,
-    toggleModal,
-    handleChange,
-    handleSubmit,
-    isLocked,
-    countdown,
-    attemptsLeft
-  } = useLogin();
-
-  if (user) return <Dashboard />;
   if (isInitialLoading) return <PageLoader />;
 
-  const fmt = (s) => `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+  // Helper to format title to match the original premium sleek look
+  const formatTitle = (titleString) => {
+    if (!titleString) return null;
+    const parts = titleString.split('|');
+    const mainBrand = parts[0]?.trim() || '';
+    const location = parts[1]?.trim() || '';
+    
+    // Split mainBrand (e.g., "COF/TEA CAFE")
+    const words = mainBrand.split(' ');
+    const firstPart = words.length > 1 ? words.slice(0, -1).join(' ') : mainBrand;
+    const lastWord = words.length > 1 ? words[words.length - 1] : '';
+
+    return (
+      <>
+        {firstPart} {lastWord && <span className="text-gray-300 font-light">{lastWord}</span>}
+        {location && <span className="text-gray-500 font-medium text-[8px] md:text-xs tracking-[0.2em] ml-1 md:ml-2">| {location}</span>}
+      </>
+    );
+  };
 
   return (
-    <div className="w-full h-screen bg-cover bg-center bg-fixed font-sans" style={{ backgroundImage: `url(${locPic})` }}>
+    <div className="w-full h-screen bg-cover bg-center bg-fixed font-sans" style={{ backgroundImage: `url(${cmsData.image_url})` }}>
       <div className="w-full h-full bg-black/60 backdrop-blur-[2px] flex flex-col">
         {/* Header */}
-        <header className="flex justify-between items-center px-10 h-16 bg-black/30 border-b border-white/10 shrink-0">
-          <div className="flex items-center gap-2">
-            <h1 className="text-white text-2xl font-black tracking-widest m-0 flex items-baseline gap-2">
-              COF/TEA <span className="text-gray-300 font-light">CAFÉ</span> <span className="text-gray-500 font-medium text-xs tracking-[0.2em] ml-2">| ELWOOD BRANCH</span>
+        <header className="flex justify-between items-center px-4 md:px-10 h-16 bg-black/30 border-b border-white/10 shrink-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-white text-lg md:text-2xl font-black tracking-widest m-0 flex items-baseline gap-1 md:gap-2">
+              {formatTitle(cmsData.title)}
             </h1>
           </div>
+          {/* Discreet Login Trigger: using a subtle icon with low opacity instead of text */}
           <button 
-            className="bg-transparent border border-white/20 text-white text-xs px-4 py-2 uppercase tracking-wider font-semibold rounded transition-colors hover:bg-white hover:text-black cursor-pointer" 
-            onClick={toggleModal}
+            onClick={() => navigate('/login')}
+            className="bg-transparent border-none text-white/30 hover:text-white/80 transition-colors cursor-pointer p-2 flex items-center justify-center rounded-full"
+            title="Sign In"
           >
-            Staff Login
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
           </button>
         </header>
 
         {/* Main Content */}
-        <div className="flex-1 flex justify-center items-center p-8 overflow-hidden">
+        <div className="flex-1 flex flex-col justify-center items-center p-4 md:p-8 overflow-hidden">
+          {cmsData.description && (
+            <div className="mb-4 md:mb-6 max-w-2xl text-center hidden md:block">
+              <p className="text-white/90 text-sm md:text-lg font-medium drop-shadow-md whitespace-pre-wrap">
+                {cmsData.description}
+              </p>
+            </div>
+          )}
           <div className="w-full max-w-[900px] h-full max-h-[600px] shadow-2xl">
             <MenuPanel />
           </div>
         </div>
 
         {/* Footer */}
-        <footer className="px-10 py-5 bg-black/40 border-t border-white/10 flex justify-between items-center text-xs text-gray-400 shrink-0">
-          <div className="text-gray-400">
+        <footer className="px-4 md:px-10 py-4 md:py-5 bg-black/40 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4 md:gap-0 text-[10px] md:text-xs text-gray-400 shrink-0">
+          <div className="text-gray-400 text-center md:text-left">
             &copy; 2026 Cof/tea Cafe. All rights reserved.
           </div>
           <div className="flex items-center gap-6">
@@ -233,91 +266,8 @@ function Login() {
           </div>
         </footer>
       </div>
-
-      {/* Login Modal */}
-      {formOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div className="bg-[#121212] border border-[#2a2a2a] rounded-xl p-8 w-[90%] max-w-[400px] shadow-2xl text-white">
-            <form onSubmit={handleSubmit}>
-              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer mb-6 hover:text-white transition-colors inline-block m-0" onClick={toggleModal}>
-                ← Back
-              </h3>
-              
-              <div className="mb-8">
-                <div className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-2">Staff Authentication</div>
-                <h2 className="text-2xl font-bold m-0 mb-1">Welcome back</h2>
-                <p className="text-sm text-gray-400 m-0">Sign in to access the POS dashboard</p>
-              </div>
-
-              {/* Lockout Banner */}
-              {isLocked && (
-                <div className="flex gap-3 bg-[#332200] border border-[#ffaa00] text-[#ffaa00] p-4 rounded-lg mb-6">
-                  <span className="flex items-center justify-center pt-0.5">
-                    <svg className="w-5 h-5 text-[#ffaa00]" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-                  </span>
-                  <div>
-                    <strong className="block text-sm mb-1 text-white">Account Temporarily Locked</strong>
-                    <p className="text-xs m-0 text-white/80">Too many failed attempts. Please wait:</p>
-                    <div className="font-mono text-sm font-bold mt-1">{fmt(countdown)}</div>
-                  </div>
-                </div>
-              )}
-
-              {/* Error / Attempts Warning */}
-              {!isLocked && error && (
-                <div className="flex gap-3 bg-[#330000] border border-[#ff3333] text-[#ff3333] p-4 rounded-lg mb-6">
-                  <span className="flex items-center justify-center pt-0.5">
-                    <svg className="w-5 h-5 text-[#ff3333]" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                  </span>
-                  <div>
-                    <strong className="block text-sm mb-1 text-white">Authentication Failed</strong>
-                    <p className="text-xs m-0 text-white/80">
-                      {error}
-                      {attemptsLeft > 0 && attemptsLeft < 3 && (
-                        <span className="ml-1 text-[#ff8888]">({attemptsLeft} attempt{attemptsLeft !== 1 ? 's' : ''} left)</span>
-                      )}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              <div className="mb-5">
-                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Username</label>
-                <input type="text" name="username"
-                  value={form.username}
-                  onChange={handleChange}
-                  disabled={isLocked}
-                  placeholder="Enter username"
-                  required
-                  className="w-full bg-[#1a1a1a] border border-[#333] text-white p-3 rounded-lg text-sm focus:outline-none focus:border-white transition-colors disabled:opacity-50"
-                />
-              </div>
-              
-              <div className="mb-6">
-                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Password</label>
-                <input type="password" name="password"
-                  value={form.password}
-                  onChange={handleChange}
-                  disabled={isLocked}
-                  placeholder="Enter password"
-                  required
-                  className="w-full bg-[#1a1a1a] border border-[#333] text-white p-3 rounded-lg text-sm focus:outline-none focus:border-white transition-colors disabled:opacity-50"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={isLocked}
-                className="w-full bg-white text-black font-bold uppercase tracking-widest text-xs py-3.5 rounded-lg border-none hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isLocked ? `Locked (${fmt(countdown)})` : 'Sign In'}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
-export default Login;
+export default LandingPage;

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getAllProducts, createProduct, updateProduct, archiveProduct, restoreProduct, receiveProductStock } from '../../../api/productsApi';
+import { checkDuplicateOrSimilar } from '../../../utils/productUtils';
 import { getRecipesByProduct, createRecipe, deleteRecipe } from '../../../api/recipesApi';
 import { getIngredients } from '../../../api/inventoryApi';
 
@@ -102,18 +103,33 @@ export const useManageProducts = () => {
     });
   };
 
-  const handleAddProduct = async (e, forceCreate = false) => {
+  const handleAddProduct = async (e, forceCreate = false, skipConfirm = false) => {
     if (e) e.preventDefault();
     const newName = formData.name.trim().toUpperCase();
 
+    if (!skipConfirm) {
+      setConfirmConfig({
+        isOpen: true,
+        title: 'Confirm Add',
+        message: `Are you sure you want to add "${newName}" as a new product?`,
+        onConfirm: () => {
+          setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+          handleAddProduct(null, forceCreate, true);
+        }
+      });
+      return;
+    }
+
     // Frontend strict match check
     if (!forceCreate) {
-      const isDuplicate = products.some(p => p.name.toUpperCase() === newName);
-      if (isDuplicate) {
+      const similarityMatch = checkDuplicateOrSimilar(formData.name, products);
+      if (similarityMatch) {
         setConfirmConfig({
           isOpen: true,
-          title: 'Duplicate Detected',
-          message: `WARNING: A product with the exact name "${formData.name.trim()}" already exists. Do you still want to add it?`,
+          title: similarityMatch.isExactMatch ? 'Duplicate Detected' : 'Similar Product Detected',
+          message: similarityMatch.isExactMatch 
+            ? `WARNING: A product with the exact name "${similarityMatch.matchName}" already exists. Do you still want to add it?`
+            : `WARNING: The product "${similarityMatch.matchName}" sounds very similar to what you're adding. Are you sure you want to proceed?`,
           onConfirm: () => {
             setConfirmConfig(prev => ({ ...prev, isOpen: false }));
             handleAddProduct(null, true);
@@ -170,7 +186,8 @@ export const useManageProducts = () => {
       fetchProducts();
     } catch (err) {
       console.error('Archiving error:', err);
-      alert('Error updating product status');
+      setMessage('Error updating product status');
+      setTimeout(() => setMessage(''), 3000);
     }
   };
 
@@ -202,37 +219,52 @@ export const useManageProducts = () => {
       message: `Are you sure you want to save changes to "${selectedProduct.name}"?`,
       onConfirm: async () => {
         const updatedName = editName.trim().toUpperCase();
-        const isDuplicate = products.some(p => p.name.toUpperCase() === updatedName && p.id !== selectedProduct.id);
-        if (isDuplicate) {
-          const proceed = window.confirm(`WARNING: A product with the name "${editName.trim()}" already exists. Do you still want to update to this name?`);
-          if (!proceed) {
+        const proceedWithUpdate = async () => {
+          try {
+            await updateProduct(selectedProduct.id, {
+              name: updatedName,
+              category: editCategory,
+              price: parseFloat(editPrice),
+              track_stock: editTrackStock,
+              stock_quantity: parseFloat(editStockQty),
+              low_stock_threshold: parseFloat(editThreshold),
+              sizes: editSizes,
+              add_ons: editAddOns
+            });
+            setMessage('Product details updated successfully!');
+            fetchProducts();
+            setViewMode('ADD');
+            setSelectedProduct(null);
             setConfirmConfig(prev => ({ ...prev, isOpen: false }));
-            return;
+            setTimeout(() => setMessage(''), 3000);
+          } catch (err) {
+            if (err.message.includes('already exists')) {
+              setMessage('WARNING: ' + err.message);
+              setTimeout(() => setMessage(''), 3000);
+            } else {
+              setMessage('Error updating product: ' + err.message);
+              setTimeout(() => setMessage(''), 3000);
+            }
+            setConfirmConfig(prev => ({ ...prev, isOpen: false }));
           }
+        };
+
+        const similarityMatch = checkDuplicateOrSimilar(editName, products, selectedProduct.id);
+        if (similarityMatch) {
+          const message = similarityMatch.isExactMatch 
+            ? `WARNING: A product with the name "${similarityMatch.matchName}" already exists. Do you still want to update to this name?`
+            : `WARNING: The name sounds very similar to an existing product "${similarityMatch.matchName}". Do you still want to update?`;
+          
+          setConfirmConfig({
+            isOpen: true,
+            title: similarityMatch.isExactMatch ? 'Duplicate Detected' : 'Similar Product Detected',
+            message: message,
+            onConfirm: proceedWithUpdate
+          });
+          return;
         }
 
-        try {
-          await updateProduct(selectedProduct.id, {
-            name: updatedName,
-            category: editCategory,
-            price: parseFloat(editPrice),
-            track_stock: editTrackStock,
-            stock_quantity: parseFloat(editStockQty),
-            low_stock_threshold: parseFloat(editThreshold),
-            sizes: editSizes,
-            add_ons: editAddOns
-          });
-          setMessage('Product details updated successfully!');
-          fetchProducts();
-          setConfirmConfig(prev => ({ ...prev, isOpen: false }));
-          setTimeout(() => setMessage(''), 3000);
-        } catch (err) {
-          if (err.message.includes('already exists')) {
-            alert('WARNING: ' + err.message);
-          }
-          setMessage('Error updating product: ' + err.message);
-          setConfirmConfig(prev => ({ ...prev, isOpen: false }));
-        }
+        proceedWithUpdate();
       }
     });
   };

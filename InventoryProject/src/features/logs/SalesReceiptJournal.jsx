@@ -55,7 +55,7 @@ const ExpandableReceiptRow = ({ sale }) => {
         </td>
         <td className="px-6 py-4 text-sm font-medium text-gray-600">{new Date(sale.created_at).toLocaleString()}</td>
         <td className="px-6 py-4">
-          <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
+          <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-bold bg-gray-50 text-gray-700 border border-gray-200">
             {sale.users?.name || 'System'}
           </span>
         </td>

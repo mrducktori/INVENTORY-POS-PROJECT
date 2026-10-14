@@ -17,6 +17,9 @@ const ManageRawMaterials = () => {
     editUnit, setEditUnit,
     editAlert, setEditAlert,
     editQuantity,
+    editPurchaseUnit, setEditPurchaseUnit,
+    editConversionFactor, setEditConversionFactor,
+    editCost, setEditCost,
     UNIT_CHOICES,
     handleAddIngredient,
     handleArchiveToggle,
@@ -261,7 +264,7 @@ const ManageRawMaterials = () => {
                       <span className="text-sm font-extrabold text-gray-900">
                         {formatQuantity(i.stock_quantity, i.unit)}
                       </span>
-                      <button className="text-xs font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded transition-colors uppercase tracking-wider">Edit</button>
+                      <button className="text-xs font-bold text-gray-800 hover:text-black bg-gray-100 hover:bg-gray-150 px-3 py-1.5 rounded transition-colors uppercase tracking-wider">Edit</button>
                     </div>
                   </div>
                 ))}
@@ -278,7 +281,7 @@ const ManageRawMaterials = () => {
 
       {/* ---- Edit Modal ---- */}
       {selectedIngredient && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setSelectedIngredient(null)}>
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) setSelectedIngredient(null); }}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-[popIn_0.2s_ease-out] flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="bg-gray-900 text-white px-6 py-4 flex justify-between items-center">
               <h2 className="m-0 text-base font-semibold tracking-wide">Edit: {selectedIngredient.name}</h2>

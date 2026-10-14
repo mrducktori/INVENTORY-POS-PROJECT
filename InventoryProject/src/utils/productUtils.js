@@ -63,3 +63,45 @@ export const convertToBaseUnit = (quantity, recipeUnit, stockUnit) => {
   console.warn(`convertToBaseUnit: no path from "${from}" → "${to}". Using raw value.`);
   return qty;
 };
+
+export const normalizeName = (name) => {
+  if (!name) return "";
+  return name.toLowerCase()
+    .replace(/&/g, 'and')
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+export const checkDuplicateOrSimilar = (newName, existingItems, excludeId = null) => {
+  const normNew = normalizeName(newName);
+  if (!normNew) return null;
+  
+  const newWords = normNew.split(' ');
+
+  for (const item of existingItems) {
+    if (excludeId && item.id === excludeId) continue;
+
+    const normExisting = normalizeName(item.name);
+    
+    if (normNew === normExisting) {
+      return { isExactMatch: true, matchName: item.name };
+    }
+    
+    // Substring or subset word matches
+    if (normNew.length > 3 && normExisting.length > 3 && (normNew.includes(normExisting) || normExisting.includes(normNew))) {
+      return { isExactMatch: false, matchName: item.name };
+    }
+    
+    const existingWords = normExisting.split(' ');
+    
+    const newContainsAllExisting = existingWords.length > 0 && existingWords.every(w => newWords.includes(w));
+    const existingContainsAllNew = newWords.length > 0 && newWords.every(w => existingWords.includes(w));
+    
+    if (newContainsAllExisting || existingContainsAllNew) {
+      return { isExactMatch: false, matchName: item.name };
+    }
+  }
+  
+  return null;
+};

@@ -54,9 +54,11 @@ const CategorySettingsModal = ({ onClose, allIngredients }) => {
       fetchSettings(); // refresh
     } catch (err) {
       if (err.message.includes('already exists')) {
-        alert('WARNING: ' + err.message);
+        setMessage('WARNING: ' + err.message);
+      } else {
+        setMessage('Error saving: ' + err.message);
       }
-      setMessage('Error saving: ' + err.message);
+      setTimeout(() => setMessage(''), 5000);
     } finally {
       setLoading(false);
     }
@@ -87,11 +89,11 @@ const CategorySettingsModal = ({ onClose, allIngredients }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 overflow-y-auto" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 overflow-y-auto" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden animate-[popIn_0.2s_ease-out] flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
-        <div className="bg-indigo-600 text-white px-6 py-4 flex justify-between items-center shrink-0">
+        <div className="bg-gray-900 text-white px-6 py-4 flex justify-between items-center shrink-0">
           <h2 className="m-0 text-base font-semibold tracking-wide">Global Category Settings</h2>
-          <button className="text-indigo-200 hover:text-white transition-colors bg-transparent border-none text-xl leading-none cursor-pointer p-0" onClick={onClose}>✕</button>
+          <button className="text-gray-200 hover:text-white transition-colors bg-transparent border-none text-xl leading-none cursor-pointer p-0" onClick={onClose}>✕</button>
         </div>
         <div className="p-6 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200">
           {message && <div className={`p-4 mb-6 rounded-xl text-sm font-semibold flex items-center shadow-sm ${message.includes('saved') ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>{message}</div>}
@@ -208,7 +210,7 @@ const CategorySettingsModal = ({ onClose, allIngredients }) => {
           </div>
           
           <div className="mt-8 flex justify-end">
-            <button className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-indigo-700 hover:shadow-lg transition-all hover:-translate-y-0.5 disabled:bg-indigo-400 disabled:hover:translate-y-0" onClick={handleSave} disabled={loading}>
+            <button className="px-6 py-2.5 bg-gray-600 text-white rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-black hover:shadow-lg transition-all hover:-translate-y-0.5 disabled:bg-gray-400 disabled:hover:translate-y-0" onClick={handleSave} disabled={loading}>
               {loading ? 'Saving...' : 'Save Settings for ' + selectedCategory}
             </button>
           </div>

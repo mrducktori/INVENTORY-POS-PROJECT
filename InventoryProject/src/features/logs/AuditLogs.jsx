@@ -278,7 +278,7 @@ const AuditLogs = () => {
                       {new Date(log.created_at).toLocaleString()}
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">{log.users?.name || 'System'}</span>
+                      <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-bold bg-gray-50 text-gray-700 border border-gray-200">{log.users?.name || 'System'}</span>
                     </td>
                     <td className="px-6 py-4 text-center">
                       <span className="inline-flex px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-700 border border-gray-200">

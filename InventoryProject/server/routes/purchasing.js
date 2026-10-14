@@ -6,6 +6,7 @@ const router = express.Router();
 // Suppliers
 router.get("/suppliers", purchasingController.getSuppliers);
 router.post("/suppliers", purchasingController.createSupplier);
+router.put("/suppliers/:id", purchasingController.updateSupplier);
 
 // Purchase Orders
 router.get("/", purchasingController.getPurchaseOrders);

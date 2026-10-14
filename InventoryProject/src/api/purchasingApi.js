@@ -14,6 +14,13 @@ export async function createSupplier(supplierData) {
   });
 }
 
+export async function updateSupplier(id, supplierData) {
+  return apiCall(`/purchasing/suppliers/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(supplierData)
+  });
+}
+
 // === Purchase Orders ===
 export async function getPurchaseOrders() {
   return apiCall("/purchasing", {
@@ -28,9 +35,9 @@ export async function createPurchaseOrder(poData) {
   });
 }
 
-export async function updatePurchaseOrderStatus(id, status) {
+export async function updatePurchaseOrderStatus(id, status, items_received = []) {
   return apiCall(`/purchasing/${id}/status`, {
     method: "PUT",
-    body: JSON.stringify({ status })
+    body: JSON.stringify({ status, items_received })
   });
 }

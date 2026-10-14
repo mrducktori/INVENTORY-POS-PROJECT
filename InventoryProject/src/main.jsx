@@ -1,7 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
-import App from './features/auth/Login.jsx'
+import App from './App.jsx'
 
 // Global button double-click preventer (500ms cooldown)
 document.addEventListener('click', (e) => {

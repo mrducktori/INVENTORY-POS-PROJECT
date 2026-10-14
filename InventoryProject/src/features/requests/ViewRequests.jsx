@@ -6,6 +6,7 @@ const ViewRequests = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState('PENDING');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     fetchRequests();
@@ -27,8 +28,10 @@ const ViewRequests = () => {
     try {
       await updateRequestStatus(id, newStatus);
       fetchRequests();
+      setError('');
     } catch (err) {
-      alert('Error updating status: ' + err.message);
+      setError('Error updating status: ' + err.message);
+      setTimeout(() => setError(''), 3000);
     }
   };
 
@@ -40,6 +43,8 @@ const ViewRequests = () => {
           <p className="m-0 mt-1 text-sm text-gray-500 font-medium">Review and approve staff requests for products and modifications.</p>
         </div>
       </div>
+
+      {error && <div className="mb-6 p-4 bg-red-50 text-red-800 border border-red-200 rounded-xl text-sm font-bold">{error}</div>}
 
       <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden w-full mb-8">
         <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">

@@ -156,7 +156,7 @@ const POS = () => {
 
       {/* Options Modal */}
       {showOptions && selectedProduct && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={closeOptions}>
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) closeOptions(); }}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-[popIn_0.2s_ease-out]" onClick={e => e.stopPropagation()}>
             <div className="bg-gray-900 text-white px-6 py-4 flex justify-between items-center">
               <h3 className="m-0 text-base font-semibold tracking-wide">{editingCartItemId ? 'Edit:' : 'Customize:'} {selectedProduct.name}</h3>
@@ -248,8 +248,13 @@ const POS = () => {
       )}
 
       {/* Ingredients Info Modal */}
-      {recipeProduct && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setRecipeProduct(null)}>
+      {recipeProduct && (() => {
+        const treatsAsDirect = recipeProduct.track_stock || recipeProduct.has_recipe === false;
+        const isDirectOut = treatsAsDirect && recipeProduct.stock_quantity <= 0;
+        const isUnavailable = recipeProduct.is_available === false || isDirectOut;
+        
+        return (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) setRecipeProduct(null); }}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-[popIn_0.2s_ease-out]" onClick={e => e.stopPropagation()}>
             <div className="bg-gray-900 text-white px-6 py-4 flex justify-between items-center">
               <h3 className="m-0 text-base font-semibold tracking-wide">Ingredients: {recipeProduct.name}</h3>
@@ -288,13 +293,18 @@ const POS = () => {
             </div>
             <div className="flex gap-3 px-6 py-4 bg-gray-50 border-t border-gray-100">
               <button className="flex-1 py-3 bg-white border border-gray-300 rounded-xl text-sm font-bold text-gray-600 uppercase tracking-wider hover:bg-gray-50 transition-colors" onClick={() => setRecipeProduct(null)}>Close</button>
-              <button className="flex-1 py-3 bg-gray-900 border border-transparent rounded-xl text-sm font-bold text-white uppercase tracking-wider hover:bg-black hover:shadow-md transition-all" onClick={() => { openOptions(recipeProduct); setRecipeProduct(null); }}>
-                + Customize
+              <button 
+                className="flex-1 py-3 bg-gray-900 border border-transparent rounded-xl text-sm font-bold text-white uppercase tracking-wider hover:bg-black hover:shadow-md transition-all disabled:bg-gray-300 disabled:text-gray-500 disabled:shadow-none disabled:cursor-not-allowed" 
+                onClick={() => { openOptions(recipeProduct); setRecipeProduct(null); }}
+                disabled={isUnavailable}
+              >
+                {isUnavailable ? 'Unavailable' : '+ Add to Order'}
               </button>
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
       {/* Payment Modal */}
       {showPaymentModal && paymentOrder && (
         <PaymentModal 

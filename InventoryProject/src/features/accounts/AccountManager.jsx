@@ -75,7 +75,8 @@ const AccountManager = () => {
       await updateUserStatus(id, newStatus);
       fetchUsers();
     } catch (err) {
-      alert('Error updating user status: ' + err.message);
+      setMessage('Error updating user status: ' + err.message);
+      setTimeout(() => setMessage(''), 3000);
     }
   };
 

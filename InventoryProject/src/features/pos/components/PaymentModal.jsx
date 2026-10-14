@@ -1,62 +1,68 @@
 import React, { useState } from 'react';
+import SharedConfirmModal from '../../../components/shared/ConfirmModal';
 
 const PaymentModal = ({ order, onConfirm, onClose }) => {
   const [method, setMethod] = useState('CASH');
   const [amountReceived, setAmountReceived] = useState('');
   const [reference, setReference] = useState('');
-  const [submitting, setSubmitting] = useState(false); // prevents double-click
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
 
   const received = parseFloat(amountReceived) || 0;
   const change = (method === 'CASH' && received >= order.total) ? received - order.total : 0;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
 
     if (method === 'CASH') {
       const received = parseFloat(amountReceived);
       if (isNaN(received) || received < order.total) {
-        alert("Amount received must be greater than or equal to total.");
+        setError("Amount received must be greater than or equal to total.");
         return;
       }
     }
 
     if (method === 'GCASH' && !reference.trim()) {
-      alert("Please enter GCash transaction reference.");
+      setError("Please enter GCash transaction reference.");
       return;
     }
 
-    if (!window.confirm("Are you sure you want to complete this payment?")) {
-      return;
-    }
-
-    // Lock the button immediately
-    setSubmitting(true);
-    try {
-      await onConfirm({
-        method,
-        amountReceived: method === 'CASH' ? parseFloat(amountReceived) : order.total,
-        change: method === 'CASH' ? change : 0,
-        reference: method === 'GCASH' ? reference : ''
-      });
-      // On success the modal will be closed by the parent — no need to re-enable
-    } catch (err) {
-      // On failure re-enable so staff can try again
-      setSubmitting(false);
-      alert("Payment failed: " + (err.message || "Please try again."));
-    }
+    setConfirmConfig({
+      isOpen: true,
+      title: 'Confirm Payment',
+      message: 'Are you sure you want to complete this payment?',
+      onConfirm: async () => {
+        setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+        setSubmitting(true);
+        try {
+          await onConfirm({
+            method,
+            amountReceived: method === 'CASH' ? parseFloat(amountReceived) : order.total,
+            change: method === 'CASH' ? change : 0,
+            reference: method === 'GCASH' ? reference : ''
+          });
+        } catch (err) {
+          setSubmitting(false);
+          setError("Payment failed: " + (err.message || "Please try again."));
+        }
+      }
+    });
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={submitting ? undefined : onClose}>
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget && !submitting) onClose(); }}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-[popIn_0.2s_ease-out]" onClick={e => e.stopPropagation()}>
         <div className="bg-gray-900 text-white px-6 py-4 flex justify-between items-center">
-          <h3 className="m-0 text-base font-semibold tracking-wide">Payment: Order #{order.id}</h3>
-          <button className="text-gray-400 hover:text-white transition-colors bg-transparent border-none text-xl leading-none cursor-pointer p-0 disabled:opacity-50" onClick={submitting ? undefined : onClose} disabled={submitting}>✕</button>
+          <h2 className="m-0 text-lg font-semibold tracking-wide">Complete Payment</h2>
+          <button className="text-gray-400 hover:text-white transition-colors bg-transparent border-none text-xl leading-none cursor-pointer p-0" onClick={onClose} disabled={submitting}>✕</button>
         </div>
         
         <form onSubmit={handleSubmit}>
-          <div className="p-6">
-            <div className="bg-gray-50 border border-gray-100 rounded-xl p-6 text-center mb-6">
+          <div className="p-6 overflow-y-auto">
+            {error && <div className="mb-4 p-3 bg-red-50 text-red-800 border border-red-200 rounded-lg text-sm font-bold shadow-sm">{error}</div>}
+            <div className="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-100 flex flex-col gap-1 items-center justify-center">
               <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Total Amount Due</span>
               <h1 className="m-0 text-4xl font-extrabold text-gray-900 tracking-tight">₱{order.total.toFixed(2)}</h1>
             </div>
@@ -146,6 +152,13 @@ const PaymentModal = ({ order, onConfirm, onClose }) => {
           </div>
         </form>
       </div>
+      <SharedConfirmModal
+        isOpen={confirmConfig.isOpen}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        onConfirm={confirmConfig.onConfirm}
+        onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 };

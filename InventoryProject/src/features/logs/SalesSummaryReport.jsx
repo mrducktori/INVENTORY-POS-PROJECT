@@ -156,7 +156,7 @@ const SalesSummaryReport = () => {
                             <div className="flex items-center gap-3 w-full max-w-[200px]">
                               <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
                                 <div 
-                                  className="h-full bg-indigo-500 rounded-full" 
+                                  className="h-full bg-gray-500 rounded-full" 
                                   style={{ width: `${(staff.total_sales / summary.total_sales) * 100}%` }} 
                                 />
                               </div>

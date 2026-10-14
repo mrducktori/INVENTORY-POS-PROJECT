@@ -129,7 +129,7 @@ const Products = () => {
       </div>
 
       {selectedProduct && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setSelectedProduct(null)}>
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) setSelectedProduct(null); }}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-[popIn_0.2s_ease-out] flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="bg-gray-900 text-white px-6 py-4 flex justify-between items-center">
               <h2 className="m-0 text-base font-semibold tracking-wide">Recipe: {selectedProduct.name}</h2>
