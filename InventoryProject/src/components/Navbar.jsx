@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { logoutUser, getCurrentUser } from '../api/authApi';
 import { useNotifications } from '../features/dashboard/useNotifications';
+import { getCmsContent } from '../api/cmsApi';
+import NotificationInbox from '../features/dashboard/components/NotificationInbox';
 
 const MENU_CONFIG = {
   Staff: [
@@ -153,6 +155,29 @@ const Navbar = ({ activeTab, onTabChange }) => {
   const [userRole] = useState(() => getCurrentUser()?.role || null);
   const [expanded, setExpanded] = useState(null);
   const { unreadCount } = useNotifications();
+  const [brandInfo, setBrandInfo] = useState({
+    name: 'CofTea Cafe',
+    logo: ''
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+    getCmsContent()
+      .then((data) => {
+        if (!isMounted || !Array.isArray(data)) return;
+        const brand = data.find((d) => d.section_key === 'brand_logo');
+        if (brand) {
+          setBrandInfo({
+            name: brand.title || 'CofTea Cafe',
+            logo: brand.image_url || ''
+          });
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleLogout = async () => {
     await logoutUser();
@@ -183,14 +208,31 @@ const Navbar = ({ activeTab, onTabChange }) => {
   return (
     <nav className="w-68 bg-zinc-950 text-white flex flex-col border-r border-zinc-800 shrink-0 h-full overflow-hidden select-none">
       {/* Brand header */}
-      <div className="p-5 border-b border-zinc-800 bg-black">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-white text-zinc-900 flex items-center justify-center font-extrabold text-sm">
-            C
+      <div className="p-4 border-b border-zinc-800 bg-black">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 overflow-hidden">
+            {brandInfo.logo ? (
+              <img 
+                src={brandInfo.logo} 
+                alt="Logo" 
+                className="w-8 h-8 rounded-lg object-contain bg-white/10 p-0.5 border border-white/10 shrink-0" 
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-lg bg-white text-zinc-900 flex items-center justify-center font-extrabold text-sm shrink-0">
+                C
+              </div>
+            )}
+            <span className="text-sm font-extrabold text-white tracking-wide truncate">
+              {brandInfo.name}
+            </span>
           </div>
-          <span className="text-base font-extrabold text-white tracking-wide">CofTea Cafe</span>
+
+          <NotificationInbox 
+            onNavigate={selectMenuItem} 
+            variant="navbar" 
+          />
         </div>
-        <div className="text-xs uppercase tracking-wider text-zinc-400 font-semibold mt-1">
+        <div className="text-[11px] uppercase tracking-wider text-zinc-400 font-semibold mt-1.5 pl-0.5">
           {userRole ? `${userRole} Portal` : 'Staff Console'}
         </div>
       </div>

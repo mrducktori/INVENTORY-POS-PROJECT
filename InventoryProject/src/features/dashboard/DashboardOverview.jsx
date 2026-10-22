@@ -69,7 +69,7 @@ const DashboardOverview = ({ onNavigate }) => {
         <div className="flex items-center gap-3">
           <NotificationInbox 
             onNavigate={onNavigate} 
-            lowStockItems={stats?.lowStockItemsDetails || []} 
+            lowStockItems={stats?.lowStockDetails || stats?.lowStockItemsDetails || []} 
           />
 
           {user?.role === 'Staff' && (

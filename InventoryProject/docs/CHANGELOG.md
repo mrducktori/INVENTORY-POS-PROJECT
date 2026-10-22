@@ -2,6 +2,62 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Ingredient Depletion & Restock Forecasting Hub with One-Click Purchase Orders — 2026-10-19]
+- **Predictive Ingredient Burn & Depletion Forecasting Engine (`server/routes/analytics.js`):**
+  - Added new `GET /api/analytics/ingredient-forecast` endpoint that cross-references completed 30-day POS sales orders with product bill-of-materials (`recipes`).
+  - Implements unit conversion to base metrics (`g`, `ml`, `pcs`), weighted burn velocity (70% recent 14-day velocity + 30% monthly baseline), runout day estimates (`days_remaining`), and depletion date calendar forecasting.
+  - Automatically calculates restock deficits targeting a safe 14-day operational buffer, converting raw requirements into supplier purchase units (`purchase_unit` and `conversion_factor`), preferred supplier mapping (`supplier_ingredients`), and estimated restock capital needed.
+- **Frontend Demand & Depletion Forecasting Hub (`DemandForecasting.jsx`, `analyticsApi.js`):**
+  - Upgraded the Forecasting module with dual-tab architecture:
+    - **Tab 1: Raw Materials Restock (Default)**: Displays summary KPI cards (Critical Depletion count, Low Stock count, Total Restock Capital Required, Monitored Materials), urgency status filters (All, Critical, Low Stock, Healthy), search bar, and depletion table with stock level health, burn rate, runout predictions, and restock recommendations.
+    - **Tab 2: Product Sales Demand**: Preserves 7-day predicted item velocity, weekly growth rates, confidence meters, and risk scoring.
+  - **One-Click Restock Purchase Order Creation**:
+    - Users can click `+ Order` on any individual ingredient or select multiple ingredients and click `🛒 Create PO (Batch)` to open an automated procurement modal.
+    - Pre-fills supplier assignment, estimated delivery date (3 days forward), purchase units, editable quantities, unit costs, and computes total PO amounts.
+    - Directly executes `createPurchaseOrder()` via `src/api/purchasingApi.js` (`POST /api/purchasing`), creates purchase orders in Supabase, triggers toast feedback, and auto-refreshes forecasting metrics.
+- **Database Schema Migration (`add_receipt_history_to_po_items.sql`):**
+  - Created migration script in `docs/database/add_receipt_history_to_po_items.sql` and updated `docs/database_updates.sql` adding `receipt_history JSONB DEFAULT '[]'::jsonb` to `purchase_order_items`.
+  - Retained all existing `receipt_history` column selection, partial-receive updates, and fallback handling in `purchasingService.js`.
+  - Running this SQL migration in Supabase permanently satisfies the database schema requirement and stops Postgres error `42703`.
+
+## [Collapsible Menu Board, CMS Brand Logo Manager & Notification Fixes — 2026-10-19]
+- **Landing Page Collapsible Menu Board (`LandingPage.jsx`):**
+  - Updated the walk-in Menu Board to expand directly in-place from the central card (default is **Closed**).
+  - Expanded the collapsed Menu Board button to full container width (`max-w-[960px] w-full`), matching the exact width and top bar aesthetic (`BROWSE OUR / Menu Board` with `Open Menu ▾`) of the expanded board.
+  - Made the brand logo in the landing pad header significantly larger (`w-14 h-14 sm:w-18 sm:h-18 md:w-22 md:h-22`) with glowing drop-shadow and border framing.
+  - Resolved menu board loading issue caused by HTTP 429 rate-limiting:
+    - Updated `generalLimiter` in `server/middleware/rateLimiter.js` to 2,000 requests per 15 minutes and configured automatic `skip` for public menu browsing (`/pos/products`) and CMS reads (`/cms`).
+    - Lifted products state to `LandingPage.jsx` so products are pre-fetched on initial load, eliminating toggle latency and redundant network requests.
+    - Added comprehensive loading, error message with "Tap to Retry", and empty state displays to `MenuPanel`.
+  - Added a dedicated **Promotions Showcase with Multi-Promo Carousel & Lightbox (`promo_section`):**
+    - **Multiple Promos Support**: Enabled Admin/Owner to manage multiple promotional deals via CMS Dashboard, each with custom title, caption/terms, and independent banner image upload to Supabase Storage.
+    - **Interactive Slider**: Automatically rotates every 5.5s (pausing on hover), with smooth manual Next/Prev chevron navigation and indicator dots.
+    - **Click-to-Expand Lightbox**: Clicking on any promo picture opens a high-definition fullscreen modal (`PromoLightbox`) with keyboard shortcuts (Escape, Left/Right arrows), dark backdrop blur, and close controls.
+    - Preserves existing single-promo data gracefully through robust JSON and fallback parsing.
+    - Automatically closes / hides when the Menu Board is expanded, maximizing screen space for viewing products.
+  - **Phone-Friendly & Mobile Optimized:**
+    - Full viewport adaptation using `min-h-[100dvh]` to avoid mobile address bar clipping.
+    - Added vertical scroll safety on mobile (`overflow-y-auto`) when closed and contained scrolling when open.
+    - Responsive 2-column mobile product grid with compact card padding and legible size chips.
+    - Horizontal scroll-friendly category filters and smooth touch momentum scrolling (`-webkit-overflow-scrolling: touch`).
+- **Brand Logo Content Manager & Navbar Integration (`CMSDashboard.jsx`, `Navbar.jsx`, `LandingPage.jsx`):**
+  - Added a dedicated `brand_logo` section in CMS Dashboard (`Content Management`) enabling Admin/Owner to configure brand title, subtitle/tagline, and upload a custom logo image (PNG/JPG/SVG) stored in Supabase Storage (`cms-images`).
+  - Integrated the CMS brand logo into the public landing page header and hero showcase.
+  - Connected the CMS brand logo to the authenticated Dashboard sidebar navigation (`Navbar.jsx`), displaying the custom uploaded logo with graceful fallback to the default initial badge.
+- **Notification Inbox & Real-Time Sync Fixes (`useNotifications.js`, `NotificationInbox.jsx`, `DashboardOverview.jsx`, `server/routes/dashboard.js`):**
+  - Fixed property name mismatch (`lowStockItemsDetails` vs `lowStockDetails`) so low-stock and out-of-stock items reliably populate the Notification Inbox.
+  - Updated `server/routes/dashboard.js` to return both `lowStockDetails` and `lowStockItemsDetails` for robust backwards-compatibility.
+  - Enhanced `useNotifications.js` to automatically fetch low stock items if not supplied by the parent, synchronizing unread counts between Navbar and the Inbox drawer.
+  - Added Supabase real-time listeners for `ingredients` and `products` table updates in addition to `purchase_orders`.
+  - Added `variant="navbar"` trigger to `NotificationInbox.jsx` and added a notification bell in `Navbar.jsx`, enabling users to inspect notifications from any dashboard tab.
+
+
+## [Fix Unused Variable Lint Errors in LandingPage — 2026-10-15]
+- **Landing Page Cleanup (`LandingPage.jsx`):**
+  - Removed unused `isHovering` state and its associated mouse/touch event listeners.
+  - Removed unused `navigate` hook and `useNavigate` import from `react-router-dom`.
+  - Verified with `npx eslint src/features/auth/LandingPage.jsx` (exited 0 with no errors).
+
 ## [Fix White Screen Render Crash & Realtime Collision — 2026-10-10]
 - **Supabase Realtime Channel Collision (`useNotifications.js`):**
   - Resolved `cannot add postgres_changes callbacks for realtime after subscribe()` error when multiple components mount `useNotifications` by assigning unique timestamped channel IDs per hook instance.

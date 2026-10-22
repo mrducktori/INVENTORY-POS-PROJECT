@@ -158,6 +158,7 @@ router.get('/stats', async (req, res) => {
       activeProducts: productCount || 0,
       lowStockItems: lowStockCount,
       lowStockDetails: lowStockItemsDetails,
+      lowStockItemsDetails: lowStockItemsDetails,
       avgTransactionValue: avgTransaction,
       salesTrend,
       topProducts,

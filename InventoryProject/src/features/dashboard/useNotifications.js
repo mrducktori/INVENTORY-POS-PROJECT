@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { getPurchaseOrders } from '../../api/purchasingApi';
+import { getDashboardStats } from '../../api/dashboardApi';
 import { supabase } from '../../config/supabaseClient';
 import { formatDisplayDate } from '../../utils/dateUtils';
 import { formatQuantity } from '../../utils/productUtils';
@@ -32,6 +33,9 @@ export const getRelativeTimeString = (timestamp) => {
 
 export const useNotifications = (lowStockItems = []) => {
   const [orders, setOrders] = useState([]);
+  const [internalLowStock, setInternalLowStock] = useState(() => 
+    Array.isArray(lowStockItems) && lowStockItems.length > 0 ? lowStockItems : []
+  );
   const [loading, setLoading] = useState(true);
 
   // Local read & dismissed state
@@ -84,10 +88,32 @@ export const useNotifications = (lowStockItems = []) => {
     }
   }, []);
 
+  // Fetch low stock items automatically if not supplied by parent
+  const fetchLowStock = useCallback(async () => {
+    try {
+      const stats = await getDashboardStats('day');
+      const details = stats?.lowStockDetails || stats?.lowStockItemsDetails;
+      if (Array.isArray(details)) {
+        setInternalLowStock(details);
+      }
+    } catch {
+      // Graceful fallback
+    }
+  }, []);
+
+  // Sync external lowStockItems if provided
+  useEffect(() => {
+    if (Array.isArray(lowStockItems) && lowStockItems.length > 0) {
+      setInternalLowStock(lowStockItems);
+    } else {
+      fetchLowStock();
+    }
+  }, [lowStockItems, fetchLowStock]);
+
   useEffect(() => {
     fetchPOs();
 
-    const channelName = `dashboard_inbox_po_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const channelName = `dashboard_inbox_sync_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const channel = supabase
       .channel(channelName)
       .on(
@@ -97,12 +123,26 @@ export const useNotifications = (lowStockItems = []) => {
           fetchPOs();
         }
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'ingredients' },
+        () => {
+          fetchLowStock();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'products' },
+        () => {
+          fetchLowStock();
+        }
+      )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchPOs]);
+  }, [fetchPOs, fetchLowStock]);
 
   // Build unified notification list
   const allNotifications = useMemo(() => {
@@ -111,8 +151,9 @@ export const useNotifications = (lowStockItems = []) => {
     const readSet = new Set(readIds);
 
     // 1. Process Low Stock & Out of Stock Items
-    if (Array.isArray(lowStockItems)) {
-      lowStockItems.forEach((item) => {
+    const stockItems = (Array.isArray(lowStockItems) && lowStockItems.length > 0) ? lowStockItems : internalLowStock;
+    if (Array.isArray(stockItems)) {
+      stockItems.forEach((item) => {
         const stockNum = parseFloat(item.stock);
         const isDepleted = isNaN(stockNum) || stockNum <= 0;
         const id = `stock_${item.name}_${isDepleted ? 'out' : 'low'}`;
@@ -324,7 +365,7 @@ export const useNotifications = (lowStockItems = []) => {
       if (!b.isRead && b.badgeVariant === 'danger' && (a.isRead || a.badgeVariant !== 'danger')) return 1;
       return b.timestamp - a.timestamp;
     });
-  }, [lowStockItems, orders, readIds, dismissedIds]);
+  }, [lowStockItems, internalLowStock, orders, readIds, dismissedIds]);
 
   // Derived counts
   const unreadCount = useMemo(() => {

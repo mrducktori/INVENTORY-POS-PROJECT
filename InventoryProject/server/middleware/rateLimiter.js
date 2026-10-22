@@ -1,13 +1,18 @@
 import rateLimit from 'express-rate-limit';
 
-// General API rate limiter - 100 requests per 15 minutes
+// General API rate limiter - 2000 requests per 15 minutes
 export const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 2000,
   message: 'Too many requests from this IP, please try again later',
   standardHeaders: true,
   legacyHeaders: false,
-  skipSuccessfulRequests: false
+  skipSuccessfulRequests: false,
+  skip: (req) => {
+    // Never throttle public visual menu browsing or CMS content reads
+    const url = req.originalUrl || req.url || '';
+    return req.method === 'GET' && (url.includes('/pos/products') || url.includes('/cms'));
+  }
 });
 
 // Auth rate limiter - stricter limits for login attempts

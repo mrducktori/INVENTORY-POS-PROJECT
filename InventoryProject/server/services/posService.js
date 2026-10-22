@@ -3,26 +3,19 @@ import { convertToBaseUnit } from "../utils/unitUtils.js";
 import { logAudit } from "../utils/auditHelper.js";
 
 export const getProducts = async () => {
-  // 1. Fetch all active products
-  const { data: products, error: prodError } = await supabase
-    .from("products")
-    .select("*")
-    .eq("is_archived", false);
+  // 1. Fetch active products, recipes, and ingredients concurrently for maximum speed
+  const [
+    { data: products, error: prodError },
+    { data: recipes, error: recError },
+    { data: ingredients, error: ingError }
+  ] = await Promise.all([
+    supabase.from("products").select("*").eq("is_archived", false),
+    supabase.from("recipes").select("*"),
+    supabase.from("ingredients").select("*")
+  ]);
 
   if (prodError) throw prodError;
-
-  // 2. Fetch all recipes
-  const { data: recipes, error: recError } = await supabase
-    .from("recipes")
-    .select("*");
-    
   if (recError) throw recError;
-
-  // 3. Fetch all ingredients to check stock
-  const { data: ingredients, error: ingError } = await supabase
-    .from("ingredients")
-    .select("*");
-
   if (ingError) throw ingError;
 
   // Create lookup maps

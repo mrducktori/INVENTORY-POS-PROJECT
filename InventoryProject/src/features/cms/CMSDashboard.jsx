@@ -11,12 +11,18 @@ const CMSDashboard = () => {
   const [formData, setFormData] = useState({ title: '', description: '', image_url: '' });
   const [uploading, setUploading] = useState(false);
   
+  // State for multiple promos in promo_section
+  const [promoList, setPromoList] = useState([]);
+  const [uploadingPromoIdx, setUploadingPromoIdx] = useState(null);
+
   const fetchContent = async () => {
     try {
       setLoading(true);
       const data = await getCmsContent();
       
       const defaultSections = [
+        { section_key: 'brand_logo', title: 'CofTea Cafe', description: 'Elwood Branch', image_url: '' },
+        { section_key: 'promo_section', title: 'Featured Promotions', description: 'Ask our baristas about daily specials and seasonal drinks!', image_url: '' },
         { section_key: 'landing_hero', title: '', description: '', image_url: '' },
         { section_key: 'menu_section', title: '', description: '', image_url: '' },
         { section_key: 'location_info', title: 'Location', description: '2nd flr, 4JCayton Bldg, 144 L. Wood Rd, Taytay, 1920 Rizal', image_url: 'https://maps.app.goo.gl/3gUeunPoZJfubcFd8' },
@@ -42,6 +48,29 @@ const CMSDashboard = () => {
     fetchContent();
   }, []);
 
+  const parsePromos = (item) => {
+    if (!item) return [];
+    if (item.description) {
+      try {
+        const parsed = JSON.parse(item.description);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      } catch {
+        // legacy non-JSON description
+      }
+    }
+    if (item.image_url || item.title) {
+      return [{
+        id: 'promo_default',
+        title: item.title || 'Featured Promotion',
+        description: item.description || '',
+        image_url: item.image_url || ''
+      }];
+    }
+    return [];
+  };
+
   const handleEdit = (item) => {
     setEditing(item.section_key);
     setFormData({
@@ -49,11 +78,97 @@ const CMSDashboard = () => {
       description: item.description || '',
       image_url: item.image_url || ''
     });
+
+    if (item.section_key === 'promo_section') {
+      const list = parsePromos(item);
+      setPromoList(list.length > 0 ? list : [{ id: 'promo_' + Date.now(), title: '', description: '', image_url: '' }]);
+    }
   };
 
   const handleCancel = () => {
     setEditing(null);
     setFormData({ title: '', description: '', image_url: '' });
+    setPromoList([]);
+    setUploadingPromoIdx(null);
+  };
+
+  const handleAddPromoItem = () => {
+    setPromoList(prev => [
+      ...prev,
+      {
+        id: 'promo_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+        title: '',
+        description: '',
+        image_url: ''
+      }
+    ]);
+  };
+
+  const handleRemovePromoItem = (index) => {
+    setPromoList(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleUpdatePromoItem = (index, field, value) => {
+    setPromoList(prev => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: value };
+      return next;
+    });
+  };
+
+  const handlePromoItemImageUpload = async (index, file) => {
+    if (!file) return;
+    try {
+      setUploadingPromoIdx(index);
+      const fileExt = file.name.split('.').pop();
+      const fileName = `promo-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.${fileExt}`;
+      const filePath = `public/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('cms-images')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from('cms-images')
+        .getPublicUrl(filePath);
+
+      const newImageUrl = data.publicUrl;
+      setPromoList(prev => {
+        const next = [...prev];
+        next[index] = { ...next[index], image_url: newImageUrl };
+        return next;
+      });
+    } catch (err) {
+      console.error(err);
+      setError('Error uploading promo image. Ensure cms-images storage bucket exists and is public.');
+      setTimeout(() => setError(null), 5000);
+    } finally {
+      setUploadingPromoIdx(null);
+    }
+  };
+
+  const handleSavePromos = async () => {
+    try {
+      setUploading(true);
+      const cleaned = promoList.filter(p => p.title || p.description || p.image_url);
+      const firstImg = cleaned.find(p => p.image_url)?.image_url || '';
+      const payload = {
+        title: formData.title || 'Featured Promotions',
+        description: JSON.stringify(cleaned),
+        image_url: firstImg
+      };
+      await updateCmsContent('promo_section', payload);
+      setEditing(null);
+      fetchContent();
+    } catch (err) {
+      console.error(err);
+      setError('Failed to update promotions.');
+      setTimeout(() => setError(null), 5000);
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleImageUpload = async (e) => {
@@ -142,6 +257,22 @@ const CMSDashboard = () => {
           
           {content.map(item => {
             const schema = {
+              brand_logo: {
+                name: 'Brand Logo & Navigation Identity',
+                fields: [
+                  { key: 'title', label: 'Brand Name (e.g. CofTea Cafe)', type: 'text' },
+                  { key: 'description', label: 'Branch / Tagline (e.g. Elwood Branch)', type: 'text' },
+                  { key: 'image_url', label: 'Logo Image (PNG / SVG / JPG)', type: 'image' }
+                ]
+              },
+              promo_section: {
+                name: 'Promotions & Featured Deals Banner',
+                fields: [
+                  { key: 'title', label: 'Promo Title (e.g. Featured Promotions)', type: 'text' },
+                  { key: 'description', label: 'Promo Details / Caption', type: 'textarea' },
+                  { key: 'image_url', label: 'Promo Photo / Banner Image (JPG / PNG / WebP)', type: 'image' }
+                ]
+              },
               landing_hero: {
                 name: 'Landing Page Hero Section',
                 fields: [
@@ -186,6 +317,174 @@ const CMSDashboard = () => {
                 { key: 'image_url', label: 'Image', type: 'image' }
               ]
             };
+
+            if (item.section_key === 'promo_section') {
+              const promos = parsePromos(item);
+              return (
+                <div key={item.section_key} className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
+                  <div className="p-6">
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="inline-block px-2.5 py-1 bg-amber-100 text-amber-900 rounded-md text-xs font-bold uppercase tracking-wider">
+                            ★ Promotions & Deals Manager
+                          </span>
+                          <span className="text-xs text-gray-500 font-medium">
+                            ({promos.length} active {promos.length === 1 ? 'promo' : 'promos'})
+                          </span>
+                        </div>
+                        <h2 className="m-0 text-xl font-bold text-gray-900">{item.title || 'Featured Promotions'}</h2>
+                      </div>
+                      {editing !== item.section_key && (
+                        <button 
+                          className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm md:text-base font-bold uppercase tracking-wider hover:bg-gray-800 transition-colors shadow-sm"
+                          onClick={() => handleEdit(item)}
+                        >
+                          Manage Promos
+                        </button>
+                      )}
+                    </div>
+
+                    {editing === item.section_key ? (
+                      <div className="flex flex-col gap-6 mt-4 border-t border-gray-100 pt-5 animate-[popIn_0.2s_ease-out]">
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider">Section Heading</label>
+                          <input 
+                            type="text" 
+                            className="px-4 py-2 border border-gray-300 rounded-lg text-sm md:text-base focus:outline-none focus:ring-2 focus:ring-gray-900 max-w-md"
+                            value={formData.title}
+                            onChange={e => setFormData({ ...formData, title: e.target.value })}
+                            placeholder="e.g. Featured Promotions"
+                          />
+                        </div>
+
+                        <div className="flex flex-col gap-4">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-bold text-gray-800 uppercase tracking-wider">Active Promo Banners ({promoList.length})</span>
+                            <button
+                              type="button"
+                              onClick={handleAddPromoItem}
+                              className="px-3.5 py-1.5 bg-amber-400 hover:bg-amber-500 text-zinc-950 font-bold text-xs uppercase tracking-wider rounded-lg transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer"
+                            >
+                              <span>+ Add Another Promo</span>
+                            </button>
+                          </div>
+
+                          {promoList.map((promo, idx) => (
+                            <div key={promo.id || idx} className="p-4 sm:p-5 border border-gray-200 bg-gray-50/80 rounded-xl flex flex-col md:flex-row gap-5 relative">
+                              <div className="w-full md:w-56 shrink-0 flex flex-col gap-2">
+                                <span className="text-xs font-bold text-gray-700 uppercase">Promo Photo #{idx + 1}</span>
+                                <div className="w-full aspect-[16/9] bg-gray-200 rounded-lg overflow-hidden relative border border-gray-300 flex items-center justify-center">
+                                  {promo.image_url ? (
+                                    <img src={promo.image_url} alt="Promo" className="w-full h-full object-cover" />
+                                  ) : (
+                                    <span className="text-xs text-gray-400 font-medium">No photo uploaded</span>
+                                  )}
+                                  {uploadingPromoIdx === idx && (
+                                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-xs font-bold animate-pulse">
+                                      Uploading...
+                                    </div>
+                                  )}
+                                </div>
+                                <label className="cursor-pointer text-center px-3 py-1.5 bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 rounded-md text-xs font-bold uppercase transition-colors shadow-sm">
+                                  {promo.image_url ? 'Replace Photo' : 'Upload Photo'}
+                                  <input 
+                                    type="file" 
+                                    accept="image/*" 
+                                    className="hidden" 
+                                    onChange={(e) => e.target.files[0] && handlePromoItemImageUpload(idx, e.target.files[0])}
+                                  />
+                                </label>
+                              </div>
+
+                              <div className="flex-1 flex flex-col gap-3">
+                                <div className="flex justify-between items-start">
+                                  <div className="flex-1 mr-3">
+                                    <label className="text-xs font-bold text-gray-700 uppercase block mb-1">Promo Title</label>
+                                    <input 
+                                      type="text" 
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                                      value={promo.title || ''}
+                                      onChange={e => handleUpdatePromoItem(idx, 'title', e.target.value)}
+                                      placeholder="e.g. Buy 1 Take 1 Milk Tea"
+                                    />
+                                  </div>
+                                  {promoList.length > 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemovePromoItem(idx)}
+                                      className="text-red-500 hover:text-red-700 text-xs font-bold uppercase px-2.5 py-1 rounded hover:bg-red-50 transition-colors shrink-0 cursor-pointer"
+                                      title="Delete this promo"
+                                    >
+                                      ✕ Remove
+                                    </button>
+                                  )}
+                                </div>
+
+                                <div>
+                                  <label className="text-xs font-bold text-gray-700 uppercase block mb-1">Details / Caption / Terms</label>
+                                  <textarea 
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm min-h-[70px] resize-none focus:outline-none focus:ring-2 focus:ring-gray-900"
+                                    value={promo.description || ''}
+                                    onChange={e => handleUpdatePromoItem(idx, 'description', e.target.value)}
+                                    placeholder="e.g. Available every Monday from 2 PM to 5 PM."
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="flex justify-end gap-3 pt-3 border-t border-gray-200">
+                          <button 
+                            type="button" 
+                            className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-gray-50 cursor-pointer" 
+                            onClick={handleCancel}
+                          >
+                            Cancel
+                          </button>
+                          <button 
+                            type="button" 
+                            className="px-5 py-2 bg-gray-900 text-white rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-gray-800 shadow-sm cursor-pointer"
+                            onClick={handleSavePromos}
+                            disabled={uploading || uploadingPromoIdx !== null}
+                          >
+                            Save All Promos
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-3">
+                        {promos.length === 0 ? (
+                          <p className="text-sm text-gray-500 italic col-span-full">No active promos yet. Click "Manage Promos" to add promotions.</p>
+                        ) : (
+                          promos.map((p, i) => (
+                            <div key={p.id || i} className="border border-gray-200 rounded-xl overflow-hidden bg-gray-50 flex flex-col">
+                              {p.image_url ? (
+                                <div className="w-full aspect-[16/9] bg-gray-100 overflow-hidden">
+                                  <img src={p.image_url} alt={p.title} className="w-full h-full object-cover" />
+                                </div>
+                              ) : (
+                                <div className="w-full aspect-[16/9] bg-gray-200 flex items-center justify-center text-xs text-gray-400">
+                                  No Photo
+                                </div>
+                              )}
+                              <div className="p-3.5 flex-1 flex flex-col justify-between">
+                                <div>
+                                  <span className="text-[10px] font-bold text-amber-700 uppercase tracking-widest block mb-0.5">Promo #{i + 1}</span>
+                                  <h4 className="text-sm font-bold text-gray-900 m-0 line-clamp-1">{p.title || 'Untitled Promo'}</h4>
+                                  {p.description && <p className="text-xs text-gray-500 mt-1 line-clamp-2 m-0">{p.description}</p>}
+                                </div>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            }
 
             return (
             <div key={item.section_key} className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden flex flex-col md:flex-row">
