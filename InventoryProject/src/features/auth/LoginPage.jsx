@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Dashboard from '../dashboard/Dashboard';
 import { useLogin } from './useLogin';
-import locPic from '../../assets/images/loc_pic.png';
+import locPic from '../../assets/images/LOC_PIC.png';
 import PageLoader from './PageLoader/PageLoader';
 
 function LoginPage() {

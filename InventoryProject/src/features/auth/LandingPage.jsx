@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import locPic from '../../assets/images/loc_pic.png';
+import locPic from '../../assets/images/LOC_PIC.png';
 import PageLoader from './PageLoader/PageLoader';
 import { getProducts } from '../../api/posApi';
 import { getCmsContent } from '../../api/cmsApi';
