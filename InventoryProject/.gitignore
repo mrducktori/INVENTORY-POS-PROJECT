@@ -1,14 +1,16 @@
 # Logs
-logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-node_modules
-dist
-dist-ssr
+
+# Dependencies & builds (any depth, incl. server/)
+node_modules/
+dist/
+dist-ssr/
 *.local
 
 # Editor directories and files
@@ -16,12 +18,14 @@ dist-ssr
 !.vscode/extensions.json
 .idea
 .DS_Store
+Thumbs.db
+desktop.ini
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
-server.zip
+*.zip
 
 # Environment Variables
 .env
