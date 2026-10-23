@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../../config/supabaseClient';
 import { getAllProducts, createProduct, updateProduct, archiveProduct, restoreProduct, receiveProductStock } from '../../../api/productsApi';
 import { checkDuplicateOrSimilar } from '../../../utils/productUtils';
-import { getRecipesByProduct, createRecipe, deleteRecipe } from '../../../api/recipesApi';
+import { getRecipesByProduct, createRecipe, updateRecipe, deleteRecipe } from '../../../api/recipesApi';
 import { getIngredients } from '../../../api/inventoryApi';
 
 export const useManageProducts = () => {
@@ -385,39 +385,62 @@ export const useManageProducts = () => {
   };
 
   const handleAddRecipeItem = async (e) => {
-    if (e) e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     
     const qty = parseFloat(newRecipeItem.quantity);
+    if (!newRecipeItem.ingredient_id) {
+      setMessage('Please select an ingredient.');
+      setTimeout(() => setMessage(''), 3000);
+      return;
+    }
+    if (isNaN(qty) || qty <= 0) {
+      setMessage('Please enter a valid quantity greater than 0.');
+      setTimeout(() => setMessage(''), 3000);
+      return;
+    }
+
     const ingredient = allIngredients.find(i => i.id === newRecipeItem.ingredient_id);
     const unit = (newRecipeItem.input_unit || ingredient?.unit || '').toUpperCase();
 
-    setConfirmConfig({
-      isOpen: true,
-      title: 'Add to Recipe',
-      message: `Add ${qty} ${unit} of ${ingredient?.name} to this product's recipe?`,
-      onConfirm: async () => {
-        try {
-          // We now store the raw quantity and the specific unit chosen (ML, G, etc.)
-          // The backend (posService) will handle the conversion during sale deduction.
-          await createRecipe({
-            product_id: selectedProduct.id,
-            ingredient_id: newRecipeItem.ingredient_id,
-            quantity_used: qty,
-            recipe_unit: unit
-          });
+    try {
+      setIsProcessing(true);
+      await createRecipe({
+        product_id: selectedProduct.id,
+        ingredient_id: newRecipeItem.ingredient_id,
+        quantity_used: qty,
+        recipe_unit: unit
+      });
 
-          setMessage('Ingredient added to recipe!');
-          setNewRecipeItem({ ingredient_id: '', quantity: '', input_unit: '' });
-          const data = await getRecipesByProduct(selectedProduct.id);
-          setRecipe(data || []);
-          setConfirmConfig(prev => ({ ...prev, isOpen: false }));
-          setTimeout(() => setMessage(''), 2000);
-        } catch (err) {
-          setMessage('Error adding ingredient: ' + err.message);
-          setConfirmConfig(prev => ({ ...prev, isOpen: false }));
-        }
-      }
-    });
+      setMessage(`Added ${qty} ${unit} of ${ingredient?.name || 'ingredient'} to recipe!`);
+      setNewRecipeItem({ ingredient_id: '', quantity: '', input_unit: '' });
+      const data = await getRecipesByProduct(selectedProduct.id);
+      setRecipe(data || []);
+      setTimeout(() => setMessage(''), 2500);
+    } catch (err) {
+      setMessage('Error adding ingredient: ' + err.message);
+      setTimeout(() => setMessage(''), 3500);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleUpdateRecipeItem = async (recipeId, quantityUsed, recipeUnit) => {
+    try {
+      setIsProcessing(true);
+      await updateRecipe(recipeId, {
+        quantity_used: parseFloat(quantityUsed),
+        recipe_unit: recipeUnit
+      });
+      setMessage('Recipe ingredient updated successfully');
+      const data = await getRecipesByProduct(selectedProduct.id);
+      setRecipe(data || []);
+      setTimeout(() => setMessage(''), 2000);
+    } catch (err) {
+      setMessage('Error updating recipe ingredient: ' + err.message);
+      setTimeout(() => setMessage(''), 3500);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return {
@@ -451,6 +474,7 @@ export const useManageProducts = () => {
     handleSetRecipe,
     handleUpdateProduct,
     handleDeleteRecipeItem,
-    handleAddRecipeItem
+    handleAddRecipeItem,
+    handleUpdateRecipeItem
   };
 };

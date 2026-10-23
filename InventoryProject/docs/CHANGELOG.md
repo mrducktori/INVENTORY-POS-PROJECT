@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Streamlined Recipe Builder & Add-on Defaults Experience — 2026-10-23]
+- **Searchable Ingredient Combobox (`SearchableIngredientSelect.jsx`)**:
+  - Replaced clumsy, 50+ item native HTML `<select>` dropdowns with an instant search-as-you-type combobox.
+  - Added category filter pills (`All`, `Cups & Packaging`, `Syrups`, `Milks & Dairy`, `Tea & Coffee`, `Powders & Toppings`).
+  - Added full keyboard accessibility (`ArrowUp`, `ArrowDown`, `Enter` to select, `Escape` to close).
+  - Integrated auto-focus chaining (`autoFocusNextRef`) so selecting an ingredient immediately focuses the Quantity field for rapid data entry.
+- **Recipe Configuration Flow Upgrades (`ManageProducts.jsx`, `useManageProducts.js`)**:
+  - **Quick Select Chips**: Displays contextual suggested ingredients based on product category (e.g., Espresso, Milk, Fructose, Cups for Coffee) for one-click ingredient selection.
+  - **Instant Addition**: Eliminated the disruptive full-screen confirmation modal prompt when adding ingredients to a recipe draft.
+  - **Inline Quantity Editing**: Added in-place quantity editing directly inside the recipe table with save checkmark and cancel actions, eliminating the need to delete and recreate recipe rows.
+  - **Replaced Dropdowns**: Used `SearchableIngredientSelect` for recipe ingredients, product-specific cup materials, and product-specific add-on materials.
+- **Renamed Category Defaults to "Add-on Defaults" (`CategorySettingsModal.jsx`, `ManageProducts.jsx`)**:
+  - Renamed the header navigation button from "Category Defaults" to "Add-on Defaults".
+  - Renamed the modal title from "Global Category Settings" to "Add-on Defaults".
+  - Upgraded both Default Sizes cup material and Default Add-ons inventory material pickers with `SearchableIngredientSelect`.
+  - Updated helper tips to reference "Add-on Defaults".
+- **Strict Rule 16 Compliance**: Strictly zero Unicode emojis used; all action elements utilize clean, semantic SVG icons with minimal visual clutter.
+
 ## [Live Retail Data Seeding for Dashboard & Demand Forecasting — 2026-10-23]
 - **Realistic October 2026 Retail Seeding (`docs/database/seed_recent_dashboard_forecasting.js`)**:
   - Seeded 374 authentic retail transactions and 737 line items covering October 10 to October 23, 2026 without deleting or truncating any existing records.

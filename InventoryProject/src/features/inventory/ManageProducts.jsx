@@ -1,15 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useManageProducts } from './hooks/useManageProducts';
 import ConfirmModal from '../../components/shared/ConfirmModal';
 import { CATEGORIES, CATEGORIES_WITH_ALL } from '../../utils/constants';
 import { getCurrentUser } from '../../utils/authUtils';
 import CategorySettingsModal from './components/CategorySettingsModal';
-
-
+import SearchableIngredientSelect from '../../components/shared/SearchableIngredientSelect';
 
 const ManageProducts = () => {
   const user = getCurrentUser();
   const [showCategorySettings, setShowCategorySettings] = useState(false);
+  const [editingRecipeId, setEditingRecipeId] = useState(null);
+  const [editRecipeQty, setEditRecipeQty] = useState('');
+  const [editRecipeUnit, setEditRecipeUnit] = useState('');
+  const quantityInputRef = useRef(null);
 
   const {
     viewMode, setViewMode,
@@ -42,7 +45,8 @@ const ManageProducts = () => {
     handleSetRecipe,
     handleUpdateProduct,
     handleDeleteRecipeItem,
-    handleAddRecipeItem
+    handleAddRecipeItem,
+    handleUpdateRecipeItem
   } = useManageProducts();
 
   if (user?.role === 'Staff') {
@@ -80,7 +84,7 @@ const ManageProducts = () => {
             className="px-4 py-2.5 text-sm md:text-base font-bold uppercase tracking-wider rounded-lg text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all ml-auto md:ml-0 border border-gray-200 bg-white cursor-pointer"
             onClick={() => setShowCategorySettings(true)}
           >
-            Category Defaults
+            Add-on Defaults
           </button>
         </div>
       </div>
@@ -439,7 +443,7 @@ const ManageProducts = () => {
 
               <div className="mt-8 pt-8 border-t border-gray-200">
                 <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl mb-6 text-sm text-blue-800 leading-relaxed">
-                  <strong className="text-blue-900">Tip:</strong> You don't need to add anything here if you already set <strong>Category Defaults</strong>. 
+                  <strong className="text-blue-900">Tip:</strong> You don't need to add anything here if you already set <strong>Add-on Defaults</strong>. 
                   Sizes and Add-ons added below will <em>override or add to</em> the category settings just for this specific product. 
                   Leave them empty to simply inherit the defaults!
                 </div>
@@ -478,12 +482,17 @@ const ManageProducts = () => {
                     <div className="flex flex-col gap-3 p-4 bg-gray-50 rounded-lg border border-gray-100">
                       <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-gray-500" placeholder="Size Name (e.g., 16 oz)" value={newSize.name} onChange={e => setNewSize({...newSize, name: e.target.value})} />
                       <input type="number" className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-gray-500" placeholder="Price Increase (₱)" value={newSize.price_add} onChange={e => setNewSize({...newSize, price_add: e.target.value})} min="0" />
-                      <select className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:border-gray-500" value={newSize.ingredient_id} onChange={e => setNewSize({...newSize, ingredient_id: e.target.value})}>
-                        <option value="">- No Cup Material -</option>
-                        {allIngredients.map(ing => (
-                          <option key={ing.id} value={ing.id}>{ing.name}</option>
-                        ))}
-                      </select>
+                      
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">Cup Material (Optional)</label>
+                        <SearchableIngredientSelect
+                          ingredients={allIngredients}
+                          value={newSize.ingredient_id}
+                          onChange={(id) => setNewSize({...newSize, ingredient_id: id})}
+                          placeholder="Search cup material (e.g. 16 oz cups)..."
+                        />
+                      </div>
+
                       <button type="button" className="w-full py-2.5 bg-white border border-gray-300 text-gray-800 text md:text-sm font-bold uppercase tracking-wider rounded-lg hover:bg-gray-100 transition-colors mt-1 cursor-pointer" onClick={handleAddSize}>Add Size</button>
                     </div>
                   </div>
@@ -521,20 +530,27 @@ const ManageProducts = () => {
                     <div className="flex flex-col gap-3 p-4 bg-gray-50 rounded-lg border border-gray-100">
                       <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-gray-500" placeholder="Add-on Name (e.g., Pearl)" value={newAddOn.name} onChange={e => setNewAddOn({...newAddOn, name: e.target.value})} />
                       <input type="number" className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-gray-500" placeholder="Price (₱)" value={newAddOn.price} onChange={e => setNewAddOn({...newAddOn, price: e.target.value})} min="0" />
-                      <select className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:border-gray-500" value={newAddOn.ingredient_id} onChange={e => {
-                          const id = e.target.value;
-                          const ing = allIngredients.find(i => i.id === id);
-                          setNewAddOn({...newAddOn, ingredient_id: id, unit: (ing?.unit || '').toUpperCase()});
-                        }}>
-                        <option value="">- No Material -</option>
-                        {allIngredients.map(ing => (
-                          <option key={ing.id} value={ing.id}>{ing.name} ({ing.unit})</option>
-                        ))}
-                      </select>
+                      
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">Inventory Material Used (Optional)</label>
+                        <SearchableIngredientSelect
+                          ingredients={allIngredients}
+                          value={newAddOn.ingredient_id}
+                          onChange={(id, ing) => {
+                            setNewAddOn({
+                              ...newAddOn,
+                              ingredient_id: id,
+                              unit: (ing?.unit || '').toUpperCase()
+                            });
+                          }}
+                          placeholder="Search material used (e.g. Tapioca, Syrup)..."
+                        />
+                      </div>
+
                       {newAddOn.ingredient_id && (
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 items-center">
                           <input type="number" className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-gray-500" placeholder="Qty Used" value={newAddOn.quantity} onChange={e => setNewAddOn({...newAddOn, quantity: e.target.value})} min="0" />
-                          <span className="flex items-center justify-center px-4 bg-gray-200 rounded-md text font-bold text-gray-700">{newAddOn.unit}</span>
+                          <span className="flex items-center justify-center px-4 py-2 bg-gray-200 rounded-md text font-bold text-gray-700">{newAddOn.unit}</span>
                         </div>
                       )}
                       <button type="button" className="w-full py-2.5 bg-white border border-gray-300 text-gray-800 text md:text-sm font-bold uppercase tracking-wider rounded-lg hover:bg-gray-100 transition-colors mt-1 cursor-pointer" onClick={handleAddAddOn}>Add Add-on</button>
@@ -544,32 +560,129 @@ const ManageProducts = () => {
               </div>
               
               <div className="mt-8 pt-8 border-t border-gray-200">
-                <h3 className="m-0 text-xl font-extrabold text-gray-900 tracking-tight mb-4">Recipe Configuration</h3>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+                  <div>
+                    <h3 className="m-0 text-xl font-extrabold text-gray-900 tracking-tight">Recipe Configuration</h3>
+                    <p className="m-0 text-xs text-gray-500 font-medium mt-0.5">Ingredients automatically deducted from raw materials during POS checkout</p>
+                  </div>
+                  {recipe.length > 0 && (
+                    <span className="text-xs font-bold px-2.5 py-1 bg-gray-100 text-gray-700 rounded-full border border-gray-200 self-start sm:self-auto">
+                      {recipe.length} {recipe.length === 1 ? 'ingredient' : 'ingredients'} configured
+                    </span>
+                  )}
+                </div>
                 
                 {recipe.length > 0 ? (
-                  <div className="overflow-x-auto border border-gray-200 rounded-xl shadow-sm mb-6">
+                  <div className="overflow-x-auto border border-gray-200 rounded-xl shadow-xs mb-6">
                     <table className="w-full text-left border-collapse">
                       <thead>
                         <tr className="bg-gray-100/70 border-b border-gray-200">
-                          <th className="px-4 py-3 text md:text-sm font-bold text-gray-700 uppercase tracking-wider">Ingredient</th>
-                          <th className="px-4 py-3 text md:text-sm font-bold text-gray-700 uppercase tracking-wider">Qty Needed</th>
-                          <th className="px-4 py-3 text md:text-sm font-bold text-gray-700 uppercase tracking-wider text-right">Action</th>
+                          <th className="px-4 py-3 text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider">Ingredient</th>
+                          <th className="px-4 py-3 text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider">Qty Needed</th>
+                          <th className="px-4 py-3 text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider text-right">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
                         {recipe.map(r => {
                           const unitToUse = r.recipe_unit || r.ingredients?.unit;
-                          const formattedQty = `${r.quantity_used} ${unitToUse}`;
+                          const isEditing = editingRecipeId === r.id;
+
                           return (
-                            <tr key={r.id} className="hover:bg-gray-50/50">
-                              <td className="px-4 py-3 text-sm md:text-base font-bold text-gray-900">{r.ingredients?.name || r.ingredient_name}</td>
-                              <td className="px-4 py-3 text-sm md:text-base text-gray-800 bg-orange-50/50 font-bold">{formattedQty}</td>
+                            <tr key={r.id} className="hover:bg-gray-50/50 transition-colors">
+                              <td className="px-4 py-3 text-sm md:text-base font-bold text-gray-900">
+                                <div>{r.ingredients?.name || r.ingredient_name}</div>
+                                {r.ingredients?.current_stock !== undefined && (
+                                  <span className="text-xs font-normal text-gray-500">
+                                    Stock: {r.ingredients.current_stock} {r.ingredients.unit}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3">
+                                {isEditing ? (
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="number"
+                                      step="any"
+                                      min="0.001"
+                                      value={editRecipeQty}
+                                      onChange={(e) => setEditRecipeQty(e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                          e.preventDefault();
+                                          const qty = parseFloat(editRecipeQty);
+                                          if (!isNaN(qty) && qty > 0) {
+                                            handleUpdateRecipeItem(r.id, qty, editRecipeUnit);
+                                            setEditingRecipeId(null);
+                                          }
+                                        } else if (e.key === 'Escape') {
+                                          setEditingRecipeId(null);
+                                        }
+                                      }}
+                                      className="w-24 px-2.5 py-1.5 text-sm font-bold border border-gray-900 rounded-md bg-white focus:outline-none ring-1 ring-gray-900"
+                                      autoFocus
+                                    />
+                                    <span className="text-xs font-bold text-gray-700 px-2 py-1 bg-gray-100 rounded border border-gray-200">
+                                      {editRecipeUnit}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const qty = parseFloat(editRecipeQty);
+                                        if (!isNaN(qty) && qty > 0) {
+                                          handleUpdateRecipeItem(r.id, qty, editRecipeUnit);
+                                          setEditingRecipeId(null);
+                                        }
+                                      }}
+                                      className="p-1.5 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-md border border-emerald-300 transition-colors cursor-pointer"
+                                      title="Save quantity"
+                                    >
+                                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                      </svg>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingRecipeId(null)}
+                                      className="p-1.5 text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors cursor-pointer"
+                                      title="Cancel"
+                                    >
+                                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-2">
+                                    <span className="px-3 py-1 text-sm font-bold bg-amber-50 text-amber-900 border border-amber-200/60 rounded-lg">
+                                      {r.quantity_used} {unitToUse}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditingRecipeId(r.id);
+                                        setEditRecipeQty(String(r.quantity_used));
+                                        setEditRecipeUnit(unitToUse || '');
+                                      }}
+                                      className="p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors cursor-pointer"
+                                      title="Edit quantity"
+                                    >
+                                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                )}
+                              </td>
                               <td className="px-4 py-3 text-right">
                                 <button
-                                  className="w-8 h-8 rounded-full bg-white border border-gray-300 text-gray-600 hover:text-red-600 hover:border-red-300 hover:bg-red-50 transition-colors flex items-center justify-center text-lg font-bold ml-auto cursor-pointer"
+                                  type="button"
+                                  className="w-8 h-8 rounded-lg bg-white border border-gray-200 text-gray-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-colors inline-flex items-center justify-center text-sm font-bold cursor-pointer"
                                   onClick={() => handleDeleteRecipeItem(r.id)}
+                                  title="Remove from recipe"
                                 >
-                                  ×
+                                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
                                 </button>
                               </td>
                             </tr>
@@ -580,47 +693,98 @@ const ManageProducts = () => {
                   </div>
                 ) : (
                   <div className="p-8 flex flex-col items-center justify-center text-gray-500 bg-gray-50 border border-gray-200 border-dashed rounded-xl mb-6">
-                    <p className="m-0 text-sm md:text-base font-medium">No recipe configured for this product.</p>
+                    <p className="m-0 text-sm md:text-base font-medium">No recipe configured yet. Add ingredients below to track ingredient usage.</p>
                   </div>
                 )}
 
-                <div className="bg-gray-50 border border-gray-200 rounded-xl p-5">
-                  <h3 className="m-0 text md:text-sm font-bold text-gray-900 mb-4 uppercase tracking-wider">Add Ingredient to Recipe</h3>
-                  <form onSubmit={handleAddRecipeItem} className="flex flex-col sm:flex-row gap-4 items-end">
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 shadow-xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                    <h4 className="m-0 text-xs md:text-sm font-bold text-gray-900 uppercase tracking-wider">Add Ingredient to Recipe</h4>
+                    <span className="text-xs text-gray-500">Pick an ingredient, enter qty, then hit Enter</span>
+                  </div>
+
+                  {/* Quick-Add Suggestions based on category */}
+                  {(() => {
+                    const cat = (selectedProduct?.category || '').toUpperCase();
+                    let keywords = ['CUPS', 'FRUCTOSE', 'MILK', 'SYRUP'];
+                    if (cat.includes('COFFEE')) keywords = ['ESPRESSO', 'MILK', 'FRUCTOSE', 'CUPS', 'CARAMEL'];
+                    else if (cat.includes('MILK TEA')) keywords = ['TEA', 'CREAMER', 'FRUCTOSE', 'PEARL', 'CUPS'];
+                    else if (cat.includes('FRAPPE')) keywords = ['FRAPPE', 'MILK', 'FRUCTOSE', 'WHIP', 'CUPS'];
+                    else if (cat.includes('NON-COFFEE')) keywords = ['MILK', 'FRUCTOSE', 'MATCHA', 'CHOCOLATE', 'CUPS'];
+                    else if (cat.includes('PASTRY')) keywords = ['FLOUR', 'BUTTER', 'SUGAR', 'EGG'];
+
+                    const suggestions = allIngredients.filter(ing => {
+                      if (recipe.some(r => r.ingredient_id === ing.id)) return false;
+                      const name = (ing.name || '').toUpperCase();
+                      return keywords.some(kw => name.includes(kw));
+                    }).slice(0, 5);
+
+                    if (suggestions.length === 0) return null;
+
+                    return (
+                      <div className="flex items-center gap-1.5 flex-wrap mb-4 pb-3 border-b border-gray-200/70">
+                        <span className="text-xs font-bold text-gray-500 uppercase tracking-wider mr-1">Quick Select:</span>
+                        {suggestions.map(s => (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => {
+                              const baseUnit = (s.unit || '').toUpperCase();
+                              let preferredUnit = baseUnit;
+                              if (baseUnit === 'L') preferredUnit = 'ML';
+                              if (baseUnit === 'KG') preferredUnit = 'G';
+                              setNewRecipeItem({
+                                ...newRecipeItem,
+                                ingredient_id: s.id,
+                                input_unit: preferredUnit
+                              });
+                              setTimeout(() => {
+                                quantityInputRef.current?.focus();
+                                quantityInputRef.current?.select?.();
+                              }, 50);
+                            }}
+                            className="px-2.5 py-1 bg-white hover:bg-gray-100 text-gray-800 text-xs font-semibold rounded-lg border border-gray-300 transition-colors cursor-pointer shadow-2xs hover:border-gray-400"
+                          >
+                            + {s.name} ({s.unit})
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })()}
+
+                  <form onSubmit={handleAddRecipeItem} className="flex flex-col sm:flex-row gap-3 items-end">
                     <div className="flex flex-col gap-1.5 flex-[2] w-full">
-                      <label className="text md:text-sm font-bold text-gray-700">Select Ingredient</label>
-                      <select 
-                        className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm md:text-base font-medium focus:outline-none focus:border-gray-500 focus:ring-1 focus:ring-gray-500 cursor-pointer"
-                        value={newRecipeItem.ingredient_id} 
-                        onChange={e => {
-                          const id = e.target.value;
-                          const ing = allIngredients.find(i => i.id === id);
-                          setNewRecipeItem({ 
-                            ...newRecipeItem, 
+                      <label className="text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider">Select Ingredient</label>
+                      <SearchableIngredientSelect
+                        ingredients={allIngredients}
+                        value={newRecipeItem.ingredient_id}
+                        filterExcludedIds={recipe.map(r => r.ingredient_id)}
+                        autoFocusNextRef={quantityInputRef}
+                        onChange={(id, ing) => {
+                          const baseUnit = (ing?.unit || '').toUpperCase();
+                          let preferredUnit = baseUnit;
+                          if (baseUnit === 'L') preferredUnit = 'ML';
+                          if (baseUnit === 'KG') preferredUnit = 'G';
+                          setNewRecipeItem({
+                            ...newRecipeItem,
                             ingredient_id: id,
-                            input_unit: (ing?.unit || '').toUpperCase()
+                            input_unit: preferredUnit
                           });
                         }}
-                        required
-                      >
-                        <option value="">-- Choose Ingredient --</option>
-                        {allIngredients
-                          .filter(ing => !recipe.some(r => r.ingredient_id === ing.id))
-                          .map(ing => (
-                            <option key={ing.id} value={ing.id}>{ing.name} ({ing.unit})</option>
-                          ))
-                        }
-                      </select>
+                        placeholder="Search recipe ingredient (e.g. Syrup, Tea, Cups)..."
+                      />
                     </div>
-                    <div className="flex flex-col gap-1.5 flex-1 w-full">
-                      <label className="text md:text-sm font-bold text-gray-700">Quantity</label>
+
+                    <div className="flex flex-col gap-1.5 flex-1 w-full sm:w-auto">
+                      <label className="text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider">Quantity</label>
                       <div className="flex gap-2">
                         <input 
+                          ref={quantityInputRef}
                           type="number" 
                           step="any" 
-                          min="0" 
+                          min="0.001" 
                           placeholder="Qty" 
-                          className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm md:text-base font-semibold focus:outline-none focus:border-gray-500 focus:ring-1 focus:ring-gray-500"
+                          className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm md:text-base font-semibold focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors"
                           value={newRecipeItem.quantity}
                           onChange={e => setNewRecipeItem({ ...newRecipeItem, quantity: e.target.value })}
                           required 
@@ -633,32 +797,38 @@ const ManageProducts = () => {
                             return (
                               <select 
                                 className="w-20 px-2 py-2 bg-gray-100 border border-gray-300 rounded-lg text-sm font-bold text-gray-900 focus:outline-none cursor-pointer"
-                                value={newRecipeItem.input_unit || 'L'} 
+                                value={newRecipeItem.input_unit || 'ML'} 
                                 onChange={e => setNewRecipeItem({ ...newRecipeItem, input_unit: e.target.value })}
                               >
-                                <option value="L">L</option>
                                 <option value="ML">ML</option>
+                                <option value="L">L</option>
                               </select>
                             );
                           } else if (baseUnit === 'KG') {
                             return (
                               <select 
                                 className="w-20 px-2 py-2 bg-gray-100 border border-gray-300 rounded-lg text-sm font-bold text-gray-900 focus:outline-none cursor-pointer"
-                                value={newRecipeItem.input_unit || 'KG'} 
+                                value={newRecipeItem.input_unit || 'G'} 
                                 onChange={e => setNewRecipeItem({ ...newRecipeItem, input_unit: e.target.value })}
                               >
-                                <option value="KG">KG</option>
                                 <option value="G">G</option>
+                                <option value="KG">KG</option>
                               </select>
                             );
                           } else if (baseUnit) {
-                            return <span className="flex items-center justify-center px-3 bg-gray-100 border border-gray-300 rounded-lg text-sm font-bold text-gray-900">{baseUnit}</span>;
+                            return <span className="flex items-center justify-center px-3 bg-gray-100 border border-gray-300 rounded-lg text-sm font-bold text-gray-900 uppercase shrink-0">{baseUnit}</span>;
                           }
                           return null;
                         })()}
                       </div>
                     </div>
-                    <button type="submit" className="px-6 py-2.5 bg-gray-900 text-white rounded-lg text-sm md:text-base font-bold hover:bg-black transition-colors shadow-sm h-[42px] w-full sm:w-auto">Add</button>
+
+                    <button 
+                      type="submit" 
+                      className="px-6 py-2.5 bg-gray-900 text-white rounded-lg text-sm md:text-base font-bold hover:bg-black transition-colors shadow-sm h-[40px] w-full sm:w-auto cursor-pointer shrink-0"
+                    >
+                      Add to Recipe
+                    </button>
                   </form>
                 </div>
               </div>

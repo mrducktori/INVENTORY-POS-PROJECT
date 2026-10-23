@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CATEGORIES } from '../../../utils/constants';
 import { getCategorySettings, updateCategorySettings } from '../../../api/categorySettingsApi';
+import SearchableIngredientSelect from '../../../components/shared/SearchableIngredientSelect';
 
 const CategorySettingsModal = ({ onClose, allIngredients }) => {
   const [selectedCategory, setSelectedCategory] = useState(CATEGORIES[0]);
@@ -92,7 +93,10 @@ const CategorySettingsModal = ({ onClose, allIngredients }) => {
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 overflow-y-auto" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden animate-[popIn_0.2s_ease-out] flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
         <div className="bg-gray-900 text-white px-6 py-4 flex justify-between items-center shrink-0">
-          <h2 className="m-0 text-lg md:text-xl font-bold tracking-wide">Global Category Settings</h2>
+          <div>
+            <h2 className="m-0 text-lg md:text-xl font-bold tracking-wide">Add-on Defaults</h2>
+            <p className="m-0 text-xs text-gray-300 font-medium mt-0.5">Category-wide standard sizes and add-ons configuration</p>
+          </div>
           <button className="text-gray-200 hover:text-white transition-colors bg-transparent border-none text-2xl leading-none cursor-pointer p-0" onClick={onClose}>✕</button>
         </div>
         <div className="p-6 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200">
@@ -145,12 +149,17 @@ const CategorySettingsModal = ({ onClose, allIngredients }) => {
               <div className="flex flex-col gap-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
                 <input type="text" className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm md:text-base font-medium focus:outline-none focus:border-gray-900" placeholder="Size Name (e.g., 16 oz)" value={newSize.name} onChange={e => setNewSize({...newSize, name: e.target.value})} />
                 <input type="number" className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm md:text-base font-medium focus:outline-none focus:border-gray-900" placeholder="Price Increase (₱)" value={newSize.price_add} onChange={e => setNewSize({...newSize, price_add: e.target.value})} min="0" />
-                <select className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm md:text-base font-medium bg-white focus:outline-none focus:border-gray-900" value={newSize.ingredient_id} onChange={e => setNewSize({...newSize, ingredient_id: e.target.value})}>
-                  <option value="">- No Cup Material -</option>
-                  {allIngredients.map(ing => (
-                    <option key={ing.id} value={ing.id}>{ing.name}</option>
-                  ))}
-                </select>
+                
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">Cup Material (Optional)</label>
+                  <SearchableIngredientSelect
+                    ingredients={allIngredients}
+                    value={newSize.ingredient_id}
+                    onChange={(id) => setNewSize({ ...newSize, ingredient_id: id })}
+                    placeholder="Search cup material (e.g. 16 oz cups)..."
+                  />
+                </div>
+
                 <button type="button" className="w-full py-2.5 bg-white border border-gray-300 text-gray-800 text-sm md:text-base font-bold uppercase tracking-wider rounded-lg hover:bg-gray-100 transition-colors mt-1 cursor-pointer" onClick={handleAddSize}>Add Default Size</button>
               </div>
             </div>
@@ -188,20 +197,27 @@ const CategorySettingsModal = ({ onClose, allIngredients }) => {
               <div className="flex flex-col gap-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
                 <input type="text" className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm md:text-base font-medium focus:outline-none focus:border-gray-900" placeholder="Add-on Name (e.g., Pearl)" value={newAddOn.name} onChange={e => setNewAddOn({...newAddOn, name: e.target.value})} />
                 <input type="number" className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm md:text-base font-medium focus:outline-none focus:border-gray-900" placeholder="Price (₱)" value={newAddOn.price} onChange={e => setNewAddOn({...newAddOn, price: e.target.value})} min="0" />
-                <select className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm md:text-base font-medium bg-white focus:outline-none focus:border-gray-900" value={newAddOn.ingredient_id} onChange={e => {
-                    const id = e.target.value;
-                    const ing = allIngredients.find(i => i.id === id);
-                    setNewAddOn({...newAddOn, ingredient_id: id, unit: (ing?.unit || '').toUpperCase()});
-                  }}>
-                  <option value="">- No Material -</option>
-                  {allIngredients.map(ing => (
-                    <option key={ing.id} value={ing.id}>{ing.name} ({ing.unit})</option>
-                  ))}
-                </select>
+                
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">Inventory Material Used (Optional)</label>
+                  <SearchableIngredientSelect
+                    ingredients={allIngredients}
+                    value={newAddOn.ingredient_id}
+                    onChange={(id, ing) => {
+                      setNewAddOn({
+                        ...newAddOn,
+                        ingredient_id: id,
+                        unit: (ing?.unit || '').toUpperCase()
+                      });
+                    }}
+                    placeholder="Search material used (e.g. Tapioca, Syrup)..."
+                  />
+                </div>
+
                 {newAddOn.ingredient_id && (
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 items-center">
                     <input type="number" className="flex-1 px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm md:text-base font-medium focus:outline-none focus:border-gray-900" placeholder="Qty Used" value={newAddOn.quantity} onChange={e => setNewAddOn({...newAddOn, quantity: e.target.value})} min="0" />
-                    <span className="flex items-center justify-center px-4 bg-gray-200 rounded-lg text-sm font-bold text-gray-800">{newAddOn.unit}</span>
+                    <span className="flex items-center justify-center px-4 py-2.5 bg-gray-200 rounded-lg text-sm font-bold text-gray-800">{newAddOn.unit}</span>
                   </div>
                 )}
                 <button type="button" className="w-full py-2.5 bg-white border border-gray-300 text-gray-800 text-sm md:text-base font-bold uppercase tracking-wider rounded-lg hover:bg-gray-100 transition-colors mt-1 cursor-pointer" onClick={handleAddAddOn}>Add Default Add-on</button>
