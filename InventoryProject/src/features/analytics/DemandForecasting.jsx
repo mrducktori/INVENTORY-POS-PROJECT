@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getDemandForecast, getIngredientDepletionForecast } from '../../api/analyticsApi';
+import { getDemandForecast, getIngredientDepletionForecast, getAIForecast } from '../../api/analyticsApi';
 import { getSuppliers, createPurchaseOrder } from '../../api/purchasingApi';
 
 const DemandForecasting = () => {
@@ -26,6 +26,14 @@ const DemandForecasting = () => {
   const [productForecasts, setProductForecasts] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
 
+  // AI Stock Forecasting State (Adapted from classmate's AI_API_StockForecastingService)
+  const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [aiSelectedProduct, setAiSelectedProduct] = useState(null);
+  const [aiTargetYear, setAiTargetYear] = useState(() => new Date().getFullYear());
+  const [aiTargetMonth, setAiTargetMonth] = useState(() => new Date().getMonth() + 1);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResult, setAiResult] = useState(null);
+
   // Suppliers & PO Modal State
   const [suppliers, setSuppliers] = useState([]);
   const [poModalOpen, setPoModalOpen] = useState(false);
@@ -39,6 +47,7 @@ const DemandForecasting = () => {
   const [poNotes, setPoNotes] = useState('');
   const [submittingPO, setSubmittingPO] = useState(false);
   const [toast, setToast] = useState(null); // { type: 'success' | 'error', message: string }
+
 
   // Load initial data
   useEffect(() => {
@@ -94,6 +103,30 @@ const DemandForecasting = () => {
     setActiveTab(tab);
     if (tab === 'products' && productForecasts.length === 0) {
       fetchProductForecasts();
+    }
+  };
+
+  const handleOpenAiForecast = (product) => {
+    setAiSelectedProduct(product);
+    setAiResult(null);
+    setAiModalOpen(true);
+    runAiForecast(product.id, aiTargetYear, aiTargetMonth);
+  };
+
+  const runAiForecast = async (productId, year, month) => {
+    try {
+      setAiLoading(true);
+      const res = await getAIForecast({
+        productId,
+        year: parseInt(year, 10),
+        month: parseInt(month, 10)
+      });
+      setAiResult(res);
+    } catch (err) {
+      console.error('Failed to run AI forecast:', err);
+      showToast('error', 'AI Forecast Error: ' + (err.message || 'Server error'));
+    } finally {
+      setAiLoading(false);
     }
   };
 
@@ -761,11 +794,13 @@ const DemandForecasting = () => {
                       <tr className="bg-gray-50 border-b border-gray-200">
                         <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Product</th>
                         <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Category</th>
+                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">In-Stock</th>
                         <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Daily Avg</th>
                         <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">7-Day Forecast</th>
                         <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Growth</th>
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider min-w-[150px]">Confidence</th>
+                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider min-w-[140px]">Confidence</th>
                         <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Stockout Risk</th>
+                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">AI Forecasting</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -776,6 +811,9 @@ const DemandForecasting = () => {
                             <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-600 border border-gray-200">
                               {item.category}
                             </span>
+                          </td>
+                          <td className="px-6 py-4 text-sm font-bold font-mono text-zinc-900 text-right">
+                            {item.currentStock ?? 0}
                           </td>
                           <td className="px-6 py-4 text-sm font-bold font-mono text-gray-900 text-right">{item.avgDailySales}</td>
                           <td className="px-6 py-4 text-sm font-extrabold font-mono text-blue-700 text-right">{item.predictedNext7Days} units</td>
@@ -801,6 +839,17 @@ const DemandForecasting = () => {
                             }`}>
                               {item.stockoutRisk}
                             </span>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenAiForecast(item)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-950 hover:bg-black text-white text-xs font-bold transition-all shadow-xs hover:shadow cursor-pointer"
+                              title="Run AI monthly stock forecast with Philippine calendar, paydays, and weekend surge analysis"
+                            >
+                              <span>⚡</span>
+                              <span>AI Forecast</span>
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -982,6 +1031,222 @@ const DemandForecasting = () => {
                 ) : (
                   <span>Confirm & Generate PO</span>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI MONTHLY STOCK FORECAST MODAL (Adapted from classmate's AI_API_StockForecastingService) */}
+      {aiModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 w-full max-w-2xl overflow-hidden flex flex-col max-h-[92vh]">
+            {/* Header */}
+            <div className="px-6 py-4 bg-zinc-950 text-white flex items-center justify-between border-b border-zinc-800">
+              <div className="flex items-center gap-2.5">
+                <span className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-base">
+                  ⚡
+                </span>
+                <div>
+                  <h3 className="m-0 text-base sm:text-lg font-black tracking-tight">AI Stock & Demand Forecaster</h3>
+                  <p className="m-0 text-xs text-zinc-400">
+                    16-factor time-series intelligence (Philippine calendar, 15/30 paydays, weekend lifts)
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAiModalOpen(false)}
+                className="text-zinc-400 hover:text-white text-lg font-bold p-1 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Target Selectors Bar */}
+            <div className="p-5 bg-zinc-50 border-b border-zinc-200/80 flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 block">Product</span>
+                <span className="text-base font-extrabold text-zinc-900">{aiSelectedProduct?.name || 'Selected Item'}</span>
+              </div>
+
+              <div className="flex items-center gap-2.5">
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 block mb-1">Target Month</label>
+                  <select
+                    value={aiTargetMonth}
+                    onChange={(e) => setAiTargetMonth(parseInt(e.target.value, 10))}
+                    className="px-3 py-1.5 text-xs font-bold border border-zinc-300 rounded-xl bg-white text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black"
+                  >
+                    {[
+                      'January', 'February', 'March', 'April', 'May', 'June',
+                      'July', 'August', 'September', 'October', 'November', 'December'
+                    ].map((mName, idx) => (
+                      <option key={idx + 1} value={idx + 1}>{mName}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 block mb-1">Target Year</label>
+                  <select
+                    value={aiTargetYear}
+                    onChange={(e) => setAiTargetYear(parseInt(e.target.value, 10))}
+                    className="px-3 py-1.5 text-xs font-bold border border-zinc-300 rounded-xl bg-white text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black"
+                  >
+                    {[2025, 2026, 2027].map((yr) => (
+                      <option key={yr} value={yr}>{yr}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => runAiForecast(aiSelectedProduct?.id, aiTargetYear, aiTargetMonth)}
+                  disabled={aiLoading}
+                  className="mt-4 px-4 py-1.5 bg-zinc-900 hover:bg-black text-white text-xs font-bold rounded-xl transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+                >
+                  {aiLoading ? 'Forecasting...' : 'Re-Run'}
+                </button>
+              </div>
+            </div>
+
+            {/* Content Area */}
+            <div className="p-6 overflow-y-auto flex-1 space-y-5">
+              {aiLoading ? (
+                <div className="py-12 flex flex-col items-center justify-center text-center">
+                  <div className="w-10 h-10 border-4 border-zinc-200 border-t-zinc-950 rounded-full animate-spin mb-3"></div>
+                  <p className="text-sm font-bold text-zinc-800 m-0">Evaluating 16 Time-Series Factors...</p>
+                  <p className="text-xs text-zinc-400 m-0 mt-1 max-w-sm">
+                    Analyzing historical sales velocity, Philippine holidays, quincena payday spikes, and moving averages.
+                  </p>
+                </div>
+              ) : aiResult ? (
+                <>
+                  {/* Model Engine Tag */}
+                  <div className="flex items-center justify-between pb-1">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border bg-emerald-50 text-emerald-800 border-emerald-200">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      Engine: {aiResult.engine === 'gemini_ai' ? 'Google Gemini AI' : 'Deterministic Statistical Ensemble'}
+                    </span>
+                    <span className="text-xs font-bold text-zinc-500">
+                      Confidence Score: <span className="text-zinc-900 font-extrabold">{aiResult.confidenceScore || 85}%</span>
+                    </span>
+                  </div>
+
+                  {/* 3 Core Output Metrics (Matching Classmate DTO) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="bg-zinc-50 border border-zinc-200/80 rounded-2xl p-4 text-center">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-1">
+                        Predicted Units Sold
+                      </div>
+                      <div className="text-3xl font-black text-zinc-900 tabular-nums">
+                        {aiResult.predictedUnitsSold || 0}
+                      </div>
+                      <div className="text-[11px] text-zinc-400 mt-0.5">Total Month Forecast</div>
+                    </div>
+
+                    <div className="bg-zinc-50 border border-zinc-200/80 rounded-2xl p-4 text-center">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-1">
+                        Current On-Hand Stock
+                      </div>
+                      <div className="text-3xl font-black text-zinc-900 tabular-nums">
+                        {aiResult.currentStock || 0}
+                      </div>
+                      <div className="text-[11px] text-zinc-400 mt-0.5">Real-time inventory</div>
+                    </div>
+
+                    <div className={`border rounded-2xl p-4 text-center ${
+                      (aiResult.recommendedOrderQuantity || 0) > 0
+                        ? 'bg-amber-50/70 border-amber-200'
+                        : 'bg-emerald-50/70 border-emerald-200'
+                    }`}>
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-600 mb-1">
+                        Recommended Order
+                      </div>
+                      <div className="text-3xl font-black text-zinc-950 tabular-nums">
+                        {aiResult.recommendedOrderQuantity || 0}
+                      </div>
+                      <div className={`text-[11px] font-bold mt-0.5 ${
+                        (aiResult.recommendedOrderQuantity || 0) > 0 ? 'text-amber-700' : 'text-emerald-700'
+                      }`}>
+                        {(aiResult.recommendedOrderQuantity || 0) > 0 ? 'Order Needed' : 'Stock Sufficient'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Formula Explainer */}
+                  <div className="bg-zinc-100/70 rounded-xl p-3 text-xs text-zinc-600 font-mono text-center border border-zinc-200/70">
+                    Formula: <span className="font-bold">recommendedOrderQuantity</span> = max(0, predictedUnitsSold ({aiResult.predictedUnitsSold || 0}) - currentStock ({aiResult.currentStock || 0})) = <span className="font-extrabold text-zinc-950">{aiResult.recommendedOrderQuantity || 0} units</span>
+                  </div>
+
+                  {/* Calendar & Influencing Factors Grid */}
+                  <div className="space-y-2">
+                    <div className="text-xs font-extrabold uppercase tracking-wider text-zinc-700">
+                      Time-Series Influencing Factors
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                      <div className="p-3 bg-zinc-50 border border-zinc-200/80 rounded-xl text-center">
+                        <div className="text-[10px] font-bold text-zinc-400 uppercase">Weekend Lift</div>
+                        <div className="text-sm font-black text-zinc-900 mt-0.5">
+                          {aiResult.factors?.weekendMultiplier ? `${aiResult.factors.weekendMultiplier}x` : 'Active'}
+                        </div>
+                        <div className="text-[10px] text-zinc-500">Sat & Sun Surge</div>
+                      </div>
+
+                      <div className="p-3 bg-zinc-50 border border-zinc-200/80 rounded-xl text-center">
+                        <div className="text-[10px] font-bold text-zinc-400 uppercase">Payday Surge</div>
+                        <div className="text-sm font-black text-zinc-900 mt-0.5">
+                          {aiResult.factors?.paydayMultiplier ? `${aiResult.factors.paydayMultiplier}x` : 'Active'}
+                        </div>
+                        <div className="text-[10px] text-zinc-500">15th & 30th Peak</div>
+                      </div>
+
+                      <div className="p-3 bg-zinc-50 border border-zinc-200/80 rounded-xl text-center">
+                        <div className="text-[10px] font-bold text-zinc-400 uppercase">PH Holidays</div>
+                        <div className="text-sm font-black text-zinc-900 mt-0.5">
+                          {aiResult.factors?.holidaySurgeDays ?? 0} Days
+                        </div>
+                        <div className="text-[10px] text-zinc-500">+20% Demand Surge</div>
+                      </div>
+
+                      <div className="p-3 bg-zinc-50 border border-zinc-200/80 rounded-xl text-center">
+                        <div className="text-[10px] font-bold text-zinc-400 uppercase">Weekly Growth</div>
+                        <div className="text-sm font-black text-zinc-900 mt-0.5">
+                          {aiResult.factors?.unitsSoldGrowth7Days ? `${aiResult.factors.unitsSoldGrowth7Days}%` : '0.0%'}
+                        </div>
+                        <div className="text-[10px] text-zinc-500">Velocity Trend</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* AI Reasoning / Analytical Summary */}
+                  {aiResult.reasoning && (
+                    <div className="p-4 bg-zinc-50 border border-zinc-200 rounded-2xl">
+                      <div className="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-1 flex items-center gap-1.5">
+                        <span>💬</span> AI Analytical Synthesis
+                      </div>
+                      <p className="text-xs sm:text-sm text-zinc-700 font-medium m-0 leading-relaxed">
+                        {aiResult.reasoning}
+                      </p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="py-8 text-center text-sm text-zinc-400">
+                  Select month and click Re-Run to calculate AI forecast.
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 bg-zinc-50 border-t border-zinc-200 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setAiModalOpen(false)}
+                className="px-4 py-2 border border-zinc-300 rounded-xl text-xs font-bold text-zinc-700 hover:bg-zinc-100 transition-all cursor-pointer"
+              >
+                Close
               </button>
             </div>
           </div>

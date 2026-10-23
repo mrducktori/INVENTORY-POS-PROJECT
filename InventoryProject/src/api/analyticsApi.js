@@ -17,3 +17,16 @@ export const getDemandForecast = async () => {
 export const getIngredientDepletionForecast = async () => {
   return apiCall('/analytics/ingredient-forecast', { method: 'GET' });
 };
+
+/**
+ * Requests an AI-driven stock and demand forecast for a target product and month.
+ * Adapted from classmate's AI_API_StockForecastingService architecture.
+ * @param {Object} param0 - { productId, year, month }
+ */
+export const getAIForecast = async ({ productId, year, month }) => {
+  return apiCall('/analytics/ai-forecast', {
+    method: 'POST',
+    body: JSON.stringify({ productId, year, month })
+  });
+};
+

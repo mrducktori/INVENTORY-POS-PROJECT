@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [AI-Driven Stock Forecasting Hub & 16-Factor Time-Series Engine — 2026-10-23]
+- **Time-Series Feature Extraction Service (`server/services/aiForecastingService.js`):**
+  - Adapted the 16-factor feature engineering architecture from .NET C# to Node.js/Express.
+  - Implemented Philippine calendar intelligence: national regular/special non-working holidays and quincena paydays (15th and 30th salary rush).
+  - Engineered time-series lags and velocity indicators: $t-1$ previous day sales, $t-7$ same day last week, $t-30$ same day last month, rolling 7-day and 30-day moving averages, 7-day velocity growth rate, and 30-day monthly growth rate.
+  - Added dual-model execution: prompts Google Gemini AI (`gemini-1.5-flash`) via structured JSON when `GEMINI_API_KEY` is present, with automatic fallback to an intelligent deterministic statistical ensemble model so offline development and local environments never fail.
+- **Backend Analytics API (`server/routes/analytics.js`):**
+  - Added `POST /api/analytics/ai-forecast` endpoint accepting `{ productId, year, month }` matching `StockForecastRequestDTO`.
+  - Optimized database querying using indexed `product_id` lookup on `sale_items` to eliminate Postgres statement timeouts (`57014`).
+  - Enhanced multi-product `GET /api/analytics/demand-forecast` to integrate weekend, payday, and holiday cyclic multipliers.
+- **Frontend AI Stock Forecaster Hub (`DemandForecasting.jsx`, `analyticsApi.js`):**
+  - Added `getAIForecast` helper in `src/api/analyticsApi.js`.
+  - Added real-time on-hand stock and `⚡ AI Forecast` action buttons across all product rows in the Product Demand tab.
+  - Created interactive **AI Stock & Demand Forecaster Modal**:
+    - Target month and year picker with instant re-run capability.
+    - Model engine status (`Google Gemini AI` or `Deterministic Statistical Ensemble`) with confidence scores.
+    - 3 core KPIs: Predicted Monthly Units Sold, Current On-Hand Inventory, and Recommended Order Quantity (`max(0, predicted - stock)`).
+    - Transparent 4-factor breakdown: Weekend Lift, 15/30 Payday Surge, Philippine Holiday Surge (+20%), and Weekly Velocity Growth.
+    - AI Analytical Synthesis explanation.
+
+
 ## [Dashboard Revenue Overview Graph Redesign — 2026-10-23]
 - **Executive Revenue Overview Redesign (`RevenueSnapshot.jsx`):**
   - Replaced the cramped single black line sparkline with a full-width financial performance card.

@@ -242,106 +242,158 @@ router.get('/ingredient-forecast', async (req, res) => {
   }
 });
 
+import { forecastStockUsingAI, isPhilippineHoliday, isPhilippinePayday } from '../services/aiForecastingService.js';
+
+/**
+ * POST /api/analytics/ai-forecast
+ * Generates an AI-driven stock & demand forecast for a target product and month.
+ * Adapted from classmate's AI_API_StockForecastingService architecture.
+ * Request body: { productId, year, month }
+ */
+router.post('/ai-forecast', async (req, res) => {
+  try {
+    const { productId, year, month } = req.body;
+    if (!productId) {
+      return res.status(400).json({ error: 'productId is required' });
+    }
+
+    const forecast = await forecastStockUsingAI({ productId, year, month });
+    res.json(forecast);
+  } catch (err) {
+    console.error('AI Stock Forecasting Error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 /**
  * GET /api/analytics/demand-forecast
- * Computes detailed demand forecasts using actual sales data from the last 30 days.
+ * Computes detailed demand forecasts across active products with Philippine calendar intelligence.
  */
 router.get('/demand-forecast', async (req, res) => {
   try {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    // 1. Fetch sale items from the last 30 days
-    // Note: sale_items doesn't have created_at, so we join with the sales table
-    const { data: salesWithItems, error: salesError } = await supabase
-      .from('sales')
-      .select('created_at, sale_items(product_id, quantity, products(name, category))')
-      .gte('created_at', thirtyDaysAgo.toISOString());
+    // 1. Fetch sale items and products with current stock in parallel
+    const [
+      { data: salesWithItems, error: salesError },
+      { data: allProducts, error: prodError }
+    ] = await Promise.all([
+      supabase
+        .from('sales')
+        .select('created_at, sale_items(product_id, quantity, unit_price, products(name, category, price, stock_quantity))')
+        .gte('created_at', thirtyDaysAgo.toISOString()),
+      supabase
+        .from('products')
+        .select('id, name, category, price, stock_quantity')
+        .eq('is_archived', false)
+    ]);
 
     if (salesError) throw salesError;
+    if (prodError) throw prodError;
 
-    // Flatten the nested structure
-    const saleItems = (salesWithItems || []).flatMap(s => 
-      (s.sale_items || []).map(si => ({
-        ...si,
-        created_at: s.created_at
-      }))
-    );
-
-    // 2. Group by product and calculate metrics
-    const productStats = {};
-    
-    (saleItems || []).forEach(item => {
-      const pid = item.product_id;
-      if (!productStats[pid]) {
-        productStats[pid] = {
-          name: item.products?.name || 'Unknown',
-          category: item.products?.category || 'General',
-          totalQty: 0,
-          recentQty: 0, // last 14 days
-          priorQty: 0,  // 14-30 days ago
-        };
-      }
-      
-      const qty = parseFloat(item.quantity);
-      productStats[pid].totalQty += qty;
-      
-      const itemDate = new Date(item.created_at);
-      const fourteenDaysAgo = new Date();
-      fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
-      
-      if (itemDate >= fourteenDaysAgo) {
-        productStats[pid].recentQty += qty;
-      } else {
-        productStats[pid].priorQty += qty;
-      }
+    const productMap = {};
+    (allProducts || []).forEach(p => {
+      productMap[p.id] = {
+        id: p.id,
+        name: p.name,
+        category: p.category || 'General',
+        currentStock: parseFloat(p.stock_quantity) || 0,
+        price: parseFloat(p.price) || 0,
+        totalQty: 0,
+        recentQty: 0, // last 14 days
+        priorQty: 0,  // 14-30 days ago
+        weekendQty: 0,
+        paydayQty: 0
+      };
     });
 
-    // 3. Generate Forecasts
-    const forecasts = Object.keys(productStats).map(pid => {
-      const stats = productStats[pid];
+    const fourteenDaysAgo = new Date();
+    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+
+    (salesWithItems || []).forEach(s => {
+      const saleDate = new Date(s.created_at);
+      const isRecent = saleDate >= fourteenDaysAgo;
+      const dayOfWeek = saleDate.getDay();
+      const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+      const isPayday = isPhilippinePayday(saleDate);
+
+      (s.sale_items || []).forEach(si => {
+        const pid = si.product_id;
+        if (!productMap[pid]) {
+          productMap[pid] = {
+            id: pid,
+            name: si.products?.name || 'Unknown',
+            category: si.products?.category || 'General',
+            currentStock: parseFloat(si.products?.stock_quantity) || 0,
+            price: parseFloat(si.unit_price) || 0,
+            totalQty: 0,
+            recentQty: 0,
+            priorQty: 0,
+            weekendQty: 0,
+            paydayQty: 0
+          };
+        }
+
+        const qty = parseFloat(si.quantity) || 0;
+        productMap[pid].totalQty += qty;
+        if (isRecent) productMap[pid].recentQty += qty;
+        else productMap[pid].priorQty += qty;
+
+        if (isWeekend) productMap[pid].weekendQty += qty;
+        if (isPayday) productMap[pid].paydayQty += qty;
+      });
+    });
+
+    // 2. Generate Forecasts with Calendar Intelligence (Paydays, Weekends, Holidays)
+    const forecasts = Object.values(productMap).map(stats => {
       const avgDaily = stats.totalQty / 30;
-      
-      // Calculate growth trend (recent 14 days vs prior 14 days)
+
+      // Velocity growth: recent 14 days vs prior 16 days
       const recentDaily = stats.recentQty / 14;
       const priorDaily = stats.priorQty / 16;
-      
+
       let growthRate = 0;
       if (priorDaily > 0) {
         growthRate = ((recentDaily - priorDaily) / priorDaily) * 100;
       }
 
-      // Confidence score based on data volume (0 to 100)
+      // 7-day cyclical projection: count upcoming weekends, paydays, and holidays
+      let next7DaysPredicted = 0;
+      for (let i = 1; i <= 7; i++) {
+        const futureDate = new Date();
+        futureDate.setDate(futureDate.getDate() + i);
+        const dayOfWeek = futureDate.getDay();
+        const isWknd = (dayOfWeek === 0 || dayOfWeek === 6);
+        const isHol = isPhilippineHoliday(futureDate);
+        const isPay = isPhilippinePayday(futureDate);
+
+        let dayEst = avgDaily * (1 + Math.max(-0.4, Math.min(0.6, growthRate / 100)) * 0.5);
+        if (isWknd) dayEst *= 1.25;
+        if (isPay) dayEst *= 1.20;
+        if (isHol) dayEst *= 1.15;
+        next7DaysPredicted += dayEst;
+      }
+
+      const predictedNext7Days = Math.round(next7DaysPredicted);
+      const recommendedOrderQuantity = Math.max(0, predictedNext7Days - stats.currentStock);
       const confidence = Math.min(Math.round((stats.totalQty / 20) * 100), 95);
 
       return {
-        id: pid,
+        id: stats.id,
         name: stats.name,
         category: stats.category,
+        currentStock: stats.currentStock,
         avgDailySales: avgDaily.toFixed(1),
-        predictedNext7Days: Math.round(avgDaily * 7 * (1 + growthRate/100)),
+        predictedNext7Days,
+        recommendedOrderQuantity,
         growthRate: growthRate.toFixed(1),
-        confidence: Math.max(confidence, 65), // floor at 65%
-        stockoutRisk: growthRate > 10 ? 'High' : (growthRate > 0 ? 'Medium' : 'Low'),
-        seasonalImpact: Math.abs(growthRate) > 15 ? 'High' : 'Normal'
+        confidence: Math.max(confidence, 65),
+        stockoutRisk: stats.currentStock <= 0 ? 'Out of Stock' : (stats.currentStock < predictedNext7Days ? 'High' : (growthRate > 5 ? 'Medium' : 'Low')),
+        seasonalImpact: Math.abs(growthRate) > 15 ? 'High' : 'Normal',
+        weekendRatio: stats.totalQty > 0 ? ((stats.weekendQty / stats.totalQty) * 100).toFixed(0) : '0'
       };
     }).sort((a, b) => b.predictedNext7Days - a.predictedNext7Days);
-
-    // If no sales data, return top products with dummy but plausible data
-    if (forecasts.length === 0) {
-       const { data: topProducts } = await supabase.from('products').select('id, name, category').limit(5);
-       return res.json((topProducts || []).map(p => ({
-         id: p.id,
-         name: p.name,
-         category: p.category,
-         avgDailySales: "0.0",
-         predictedNext7Days: 0,
-         growthRate: "0.0",
-         confidence: 50,
-         stockoutRisk: 'Low',
-         seasonalImpact: 'Normal'
-       })));
-    }
 
     res.json(forecasts);
   } catch (err) {
@@ -351,3 +403,4 @@ router.get('/demand-forecast', async (req, res) => {
 });
 
 export default router;
+
