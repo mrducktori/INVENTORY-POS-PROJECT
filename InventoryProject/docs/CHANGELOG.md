@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Dashboard Revenue Overview Graph Redesign — 2026-10-23]
+- **Executive Revenue Overview Redesign (`RevenueSnapshot.jsx`):**
+  - Replaced the cramped single black line sparkline with a full-width financial performance card.
+  - **Dual View Modes**: Added interactive tab switcher allowing managers to toggle between **Spline Trend** (multi-stop emerald/teal luminous gradient area curve with glowing data nodes and halo rings) and **Daily Volume** (modern rounded bar chart).
+  - **KPI Performance Badges**: Added rolling 7-Day Total Revenue, Daily Average intake, dynamic 7-Day Peak Sales Day pill (`★ Peak Day (Sun): ₱X,XXX`), and comparative change badge (`▲ 18.5% vs 7-day avg`).
+  - **Custom Interactive Tooltip (`CustomRevenueTooltip`)**: Floating glassmorphic card displaying human-readable dates (`Fri, Oct 17`), centavo-accurate gross sales, and top 3 category revenue drivers.
+  - **Clean Axes & Gridlines**: Integrated peso-formatted Y-axis labels (`₱1k`, `₱2k`), abbreviated day names (`Mon`, `Tue`), subtle dashed grid lines, and adaptive 0-baseline domain handling.
+  - Retained "Breakdown by Category" action button to trigger the expanded category-level comparison modal.
+
+
 ## [Deployment Preparation & Environment Fixes — 2026-10-23]
 - **Fixed `.gitignore` across repository:** Added root `.gitignore` and updated `InventoryProject/.gitignore` to properly ignore `node_modules/`, `dist/`, `.env*` files, and `*.zip` artifacts.
 - **Untracked Sensitive & Build Files:** Removed tracked root `node_modules/`, `InventoryProject/.env`, `config.zip`, and `dist.zip` from git tracking while retaining local copies.
