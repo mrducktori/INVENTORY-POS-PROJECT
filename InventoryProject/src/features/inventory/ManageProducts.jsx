@@ -1,10 +1,11 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useManageProducts } from './hooks/useManageProducts';
 import ConfirmModal from '../../components/shared/ConfirmModal';
 import { CATEGORIES, CATEGORIES_WITH_ALL } from '../../utils/constants';
 import { getCurrentUser } from '../../utils/authUtils';
 import CategorySettingsModal from './components/CategorySettingsModal';
 import SearchableIngredientSelect from '../../components/shared/SearchableIngredientSelect';
+import Pagination from '../../components/shared/Pagination';
 
 const ManageProducts = () => {
   const user = getCurrentUser();
@@ -13,6 +14,13 @@ const ManageProducts = () => {
   const [editRecipeQty, setEditRecipeQty] = useState('');
   const [editRecipeUnit, setEditRecipeUnit] = useState('');
   const quantityInputRef = useRef(null);
+
+  // Sorting & Pagination States
+  const [sortField, setSortField] = useState('name'); // 'name' | 'price'
+  const [sortDirection, setSortDirection] = useState('asc'); // 'asc' | 'desc'
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [modifyCurrentPage, setModifyCurrentPage] = useState(1);
 
   const {
     viewMode, setViewMode,
@@ -53,12 +61,87 @@ const ManageProducts = () => {
     return <div className="p-6 flex-1 bg-gray-50"><h2 className="text-xl font-bold text-red-600">Access Denied</h2></div>;
   }
 
-  const filteredProductsList = products.filter(p => {
-    const matchSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchStatus = statusFilter === 'ALL' ? true : statusFilter === 'ACTIVE' ? !p.is_archived : p.is_archived;
-    const matchCat = categoryFilter === 'ALL' || p.category === categoryFilter;
-    return matchSearch && matchStatus && matchCat;
-  });
+  const filteredProductsList = useMemo(() => {
+    return products.filter(p => {
+      const matchSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchStatus = statusFilter === 'ALL' ? true : statusFilter === 'ACTIVE' ? !p.is_archived : p.is_archived;
+      const matchCat = categoryFilter === 'ALL' || p.category === categoryFilter;
+      return matchSearch && matchStatus && matchCat;
+    });
+  }, [products, searchTerm, statusFilter, categoryFilter]);
+
+  // Reset pagination on search or filter change
+  useEffect(() => {
+    setCurrentPage(1);
+    setModifyCurrentPage(1);
+  }, [searchTerm, statusFilter, categoryFilter]);
+
+  // Sort Handlers
+  const handlePriceSort = () => {
+    if (sortField !== 'price') {
+      setSortField('price');
+      setSortDirection('asc');
+    } else if (sortDirection === 'asc') {
+      setSortDirection('desc');
+    } else {
+      // Back to nothing: returns to alphabetical A-Z
+      setSortField('name');
+      setSortDirection('asc');
+    }
+    setCurrentPage(1);
+    setModifyCurrentPage(1);
+  };
+
+  const handleNameSort = () => {
+    if (sortField !== 'name') {
+      setSortField('name');
+      setSortDirection('asc');
+    } else if (sortDirection === 'asc') {
+      setSortDirection('desc');
+    } else {
+      setSortDirection('asc');
+    }
+    setCurrentPage(1);
+    setModifyCurrentPage(1);
+  };
+
+  // Sorted product list
+  const sortedProductsList = useMemo(() => {
+    const list = [...filteredProductsList];
+    if (sortField === 'price') {
+      if (sortDirection === 'asc') {
+        list.sort((a, b) => (parseFloat(a.price) || 0) - (parseFloat(b.price) || 0));
+      } else {
+        list.sort((a, b) => (parseFloat(b.price) || 0) - (parseFloat(a.price) || 0));
+      }
+    } else {
+      // Default / Alphabetical
+      if (sortDirection === 'desc') {
+        list.sort((a, b) => b.name.localeCompare(a.name));
+      } else {
+        list.sort((a, b) => a.name.localeCompare(b.name));
+      }
+    }
+    return list;
+  }, [filteredProductsList, sortField, sortDirection]);
+
+  // Paginated items for Table View (Add Product mode)
+  const totalPages = Math.max(1, Math.ceil(sortedProductsList.length / itemsPerPage));
+  const paginatedProductsList = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return sortedProductsList.slice(start, start + itemsPerPage);
+  }, [sortedProductsList, currentPage, itemsPerPage]);
+
+  // Paginated items for Modify Existing Grid mode
+  const activeModifyProducts = useMemo(() => {
+    return sortedProductsList.filter(p => !p.is_archived);
+  }, [sortedProductsList]);
+  const modifyItemsPerPage = 12;
+  const modifyTotalPages = Math.max(1, Math.ceil(activeModifyProducts.length / modifyItemsPerPage));
+  const paginatedModifyProducts = useMemo(() => {
+    const start = (modifyCurrentPage - 1) * modifyItemsPerPage;
+    return activeModifyProducts.slice(start, start + modifyItemsPerPage);
+  }, [activeModifyProducts, modifyCurrentPage, modifyItemsPerPage]);
 
   return (
     <div className="p-4 md:p-8 flex-1 bg-gray-50 overflow-y-auto w-full">
@@ -204,85 +287,146 @@ const ManageProducts = () => {
             <div className="p-0">
               {loading ? (
                 <div className="p-8 text-center text-gray-500 font-medium text-base">Loading products...</div>
-              ) : filteredProductsList.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-gray-100/70 border-b border-gray-200">
-                         <th className="px-4 py-3.5 text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider">Product Name</th>
-                         <th className="px-4 py-3.5 text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider hidden sm:table-cell">Category</th>
-                         <th className="px-4 py-3.5 text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider">Price</th>
-                         <th className="px-4 py-3.5 text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider">Stock</th>
-                         <th className="px-4 py-3.5 text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider hidden md:table-cell">Status</th>
-                         <th className="px-4 py-3.5 text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider text-right">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {filteredProductsList.map(p => (
-                        <tr key={p.id} className="hover:bg-gray-50/50 transition-colors">
-                          <td className="px-4 py-3.5 border-b border-gray-100">
-                            <div className="flex items-center gap-3">
-                              {p.image_url ? (
-                                <img src={p.image_url} alt={p.name} className="w-12 h-12 object-cover rounded-lg shadow-sm border border-gray-200 shrink-0 hidden sm:block" />
-                              ) : (
-                                <div className="w-12 h-12 bg-gray-100 rounded-lg hidden sm:flex items-center justify-center text-gray-400 border border-gray-200 shrink-0">
-                                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                                </div>
-                              )}
-                              <div className="flex flex-col min-w-0">
-                                <strong className={`text-sm md:text-base font-extrabold truncate ${p.is_archived ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{p.name}</strong>
-                                <span className="text-xs font-bold text-gray-500 uppercase sm:hidden">{p.category}</span>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3.5 hidden sm:table-cell"><span className="text-xs md:text-sm font-bold text-gray-600 uppercase tracking-wider truncate block max-w-[120px]">{p.category}</span></td>
-                          <td className="px-4 py-3.5 text-sm md:text-base font-extrabold text-gray-900 whitespace-nowrap">₱{parseFloat(p.price).toFixed(2)}</td>
-                          <td className="px-4 py-3.5 align-middle">
-                              {p.track_stock ? (
-                                <div className="flex flex-col gap-1">
-                                  <span className={`inline-flex w-max px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider whitespace-nowrap ${
-                                    p.stock_quantity <= 0 ? 'bg-red-50 text-red-700 border border-red-200' : 
-                                    p.stock_quantity <= p.low_stock_threshold ? 'bg-red-50 text-red-600 border border-red-100' : 
-                                    p.stock_quantity <= p.low_stock_threshold * 1.5 ? 'bg-orange-50 text-orange-600 border border-orange-100' : 'bg-green-50 text-green-700 border border-green-200'
-                                  }`}>
-                                    {p.stock_quantity} in stock
-                                  </span>
-                                  <span className="text-xs font-semibold text-gray-500">Restock via Supplier PO</span>
-                                </div>
-                              ) : (
-                                <span className="inline-flex px-2.5 py-1 bg-gray-100 text-gray-800 border border-gray-200 rounded-md text-xs font-bold uppercase tracking-wider whitespace-nowrap">Recipe based</span>
-                              )}
-                          </td>
-                          <td className="px-4 py-3.5 align-middle hidden md:table-cell">
-                             <span className={`inline-flex px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider whitespace-nowrap ${p.is_archived ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
-                               {p.is_archived ? 'ARCHIVED' : 'ACTIVE'}
-                             </span>
-                          </td>
-                          <td className="px-4 py-3.5 text-right align-middle">
-                            <div className="flex gap-2 justify-end">
-                              <button
-                                disabled={isProcessing}
-                                className="px-3.5 py-1.5 bg-white border border-gray-300 text-gray-800 text-xs md:text-sm font-bold uppercase tracking-wider rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                                onClick={() => handleSetRecipe(p)}
-                              >
-                                Edit
-                              </button>
-                              <button
-                                disabled={isProcessing}
-                                className={`px-3.5 py-1.5 text-xs md:text-sm font-bold uppercase tracking-wider rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1.5 ${p.is_archived ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'}`}
-                                onClick={() => handleArchiveToggle(p.id, p.is_archived)}
-                              >
-                                {processingId === p.id && (
-                                  <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                                )}
-                                {processingId === p.id ? 'Please wait...' : p.is_archived ? 'Restore' : 'Archive'}
-                              </button>
-                            </div>
-                          </td>
+              ) : sortedProductsList.length > 0 ? (
+                <div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-gray-100/70 border-b border-gray-200">
+                           <th 
+                             className="px-4 py-3.5 text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:text-gray-900 select-none group"
+                             onClick={handleNameSort}
+                             title="Click to sort alphabetically (A-Z, Z-A)"
+                           >
+                             <div className="flex items-center gap-1.5">
+                               <span>Product Name</span>
+                               {sortField === 'name' ? (
+                                 sortDirection === 'asc' ? (
+                                   <span className="p-0.5 bg-gray-900 text-white rounded" title="A to Z">
+                                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" /></svg>
+                                   </span>
+                                 ) : (
+                                   <span className="p-0.5 bg-gray-900 text-white rounded" title="Z to A">
+                                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                                   </span>
+                                 )
+                               ) : (
+                                 <svg className="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                                 </svg>
+                               )}
+                             </div>
+                           </th>
+                           <th className="px-4 py-3.5 text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider hidden sm:table-cell">Category</th>
+                           <th 
+                             className="px-4 py-3.5 text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:text-gray-900 select-none group"
+                             onClick={handlePriceSort}
+                             title="Click to sort by price (Low to High, High to Low, Default)"
+                           >
+                             <div className="flex items-center gap-1.5">
+                               <span>Price</span>
+                               {sortField === 'price' ? (
+                                 sortDirection === 'asc' ? (
+                                   <span className="p-0.5 bg-gray-900 text-white rounded" title="Price: Low to High">
+                                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" /></svg>
+                                   </span>
+                                 ) : (
+                                   <span className="p-0.5 bg-gray-900 text-white rounded" title="Price: High to Low">
+                                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                                   </span>
+                                 )
+                               ) : (
+                                 <svg className="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                                 </svg>
+                               )}
+                             </div>
+                           </th>
+                           <th className="px-4 py-3.5 text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider">Stock</th>
+                           <th className="px-4 py-3.5 text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider hidden md:table-cell">Status</th>
+                           <th className="px-4 py-3.5 text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider text-right">Action</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {paginatedProductsList.map(p => (
+                          <tr key={p.id} className="hover:bg-gray-50/50 transition-colors">
+                            <td className="px-4 py-3.5 border-b border-gray-100">
+                              <div className="flex items-center gap-3">
+                                {p.image_url ? (
+                                  <img src={p.image_url} alt={p.name} className="w-12 h-12 object-cover rounded-lg shadow-sm border border-gray-200 shrink-0 hidden sm:block" />
+                                ) : (
+                                  <div className="w-12 h-12 bg-gray-100 rounded-lg hidden sm:flex items-center justify-center text-gray-400 border border-gray-200 shrink-0">
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                  </div>
+                                )}
+                                <div className="flex flex-col min-w-0">
+                                  <strong className={`text-sm md:text-base font-extrabold truncate ${p.is_archived ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{p.name}</strong>
+                                  <span className="text-xs font-bold text-gray-500 uppercase sm:hidden">{p.category}</span>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3.5 hidden sm:table-cell"><span className="text-xs md:text-sm font-bold text-gray-600 uppercase tracking-wider truncate block max-w-[120px]">{p.category}</span></td>
+                            <td className="px-4 py-3.5 text-sm md:text-base font-extrabold text-gray-900 whitespace-nowrap">₱{parseFloat(p.price).toFixed(2)}</td>
+                            <td className="px-4 py-3.5 align-middle">
+                                {p.track_stock ? (
+                                  <div className="flex flex-col gap-1">
+                                    <span className={`inline-flex w-max px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider whitespace-nowrap ${
+                                      p.stock_quantity <= 0 ? 'bg-red-50 text-red-700 border border-red-200' : 
+                                      p.stock_quantity <= p.low_stock_threshold ? 'bg-red-50 text-red-600 border border-red-100' : 
+                                      p.stock_quantity <= p.low_stock_threshold * 1.5 ? 'bg-orange-50 text-orange-600 border border-orange-100' : 'bg-green-50 text-green-700 border border-green-200'
+                                    }`}>
+                                      {p.stock_quantity} in stock
+                                    </span>
+                                    <span className="text-xs font-semibold text-gray-500">Restock via Supplier PO</span>
+                                  </div>
+                                ) : (
+                                  <span className="inline-flex px-2.5 py-1 bg-gray-100 text-gray-800 border border-gray-200 rounded-md text-xs font-bold uppercase tracking-wider whitespace-nowrap">Recipe based</span>
+                                )}
+                            </td>
+                            <td className="px-4 py-3.5 align-middle hidden md:table-cell">
+                               <span className={`inline-flex px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider whitespace-nowrap ${p.is_archived ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
+                                 {p.is_archived ? 'ARCHIVED' : 'ACTIVE'}
+                               </span>
+                            </td>
+                            <td className="px-4 py-3.5 text-right align-middle">
+                              <div className="flex gap-2 justify-end">
+                                <button
+                                  disabled={isProcessing}
+                                  className="px-3.5 py-1.5 bg-white border border-gray-300 text-gray-800 text-xs md:text-sm font-bold uppercase tracking-wider rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                                  onClick={() => handleSetRecipe(p)}
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  disabled={isProcessing}
+                                  className={`px-3.5 py-1.5 text-xs md:text-sm font-bold uppercase tracking-wider rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1.5 ${p.is_archived ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'}`}
+                                  onClick={() => handleArchiveToggle(p.id, p.is_archived)}
+                                >
+                                  {processingId === p.id && (
+                                    <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                  )}
+                                  {processingId === p.id ? 'Please wait...' : p.is_archived ? 'Restore' : 'Archive'}
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  
+                  {/* Pagination Bar */}
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalItems={sortedProductsList.length}
+                    itemsPerPage={itemsPerPage}
+                    onPageChange={setCurrentPage}
+                    onItemsPerPageChange={(newSize) => {
+                      setItemsPerPage(newSize);
+                      setCurrentPage(1);
+                    }}
+                  />
                 </div>
               ) : (
                 <div className="p-12 flex flex-col items-center justify-center text-gray-400">
@@ -317,23 +461,33 @@ const ManageProducts = () => {
             </div>
           </div>
           <div className="p-6">
-            {filteredProductsList.filter(p => !p.is_archived).length > 0 ? (
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-6">
-                {filteredProductsList.filter(p => !p.is_archived).map(p => (
-                  <div 
-                    key={p.id} 
-                    className="relative bg-white border border-gray-200 rounded-xl overflow-hidden flex flex-col transition-all duration-200 shadow-sm hover:shadow-md hover:-translate-y-1" 
-                  >
-                    <div className="flex-1 p-5 pb-4 flex flex-col">
-                      <h3 className="m-0 text-base md:text-lg font-bold text-gray-900 leading-tight mb-1">{p.name}</h3>
-                      <span className="text-xs md:text-sm font-bold text-gray-500 uppercase tracking-wider">{p.category}</span>
+            {activeModifyProducts.length > 0 ? (
+              <div>
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-6 mb-6">
+                  {paginatedModifyProducts.map(p => (
+                    <div 
+                      key={p.id} 
+                      className="relative bg-white border border-gray-200 rounded-xl overflow-hidden flex flex-col transition-all duration-200 shadow-sm hover:shadow-md hover:-translate-y-1" 
+                    >
+                      <div className="flex-1 p-5 pb-4 flex flex-col">
+                        <h3 className="m-0 text-base md:text-lg font-bold text-gray-900 leading-tight mb-1">{p.name}</h3>
+                        <span className="text-xs md:text-sm font-bold text-gray-500 uppercase tracking-wider">{p.category}</span>
+                      </div>
+                      <div className="flex border-t border-gray-100 bg-gray-50/50 items-center justify-between px-5 py-3 mt-auto">
+                        <span className="text-base font-black text-gray-900">₱{parseFloat(p.price).toFixed(2)}</span>
+                        <button className="text-xs md:text-sm font-bold text-gray-900 hover:text-black bg-white border border-gray-300 hover:bg-gray-100 px-3.5 py-1.5 rounded-lg transition-colors uppercase tracking-wider cursor-pointer" onClick={() => handleSetRecipe(p)}>Edit</button>
+                      </div>
                     </div>
-                    <div className="flex border-t border-gray-100 bg-gray-50/50 items-center justify-between px-5 py-3 mt-auto">
-                      <span className="text-base font-black text-gray-900">₱{parseFloat(p.price).toFixed(2)}</span>
-                      <button className="text-xs md:text-sm font-bold text-gray-900 hover:text-black bg-white border border-gray-300 hover:bg-gray-100 px-3.5 py-1.5 rounded-lg transition-colors uppercase tracking-wider cursor-pointer" onClick={() => handleSetRecipe(p)}>Edit</button>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+
+                <Pagination
+                  currentPage={modifyCurrentPage}
+                  totalPages={modifyTotalPages}
+                  totalItems={activeModifyProducts.length}
+                  itemsPerPage={modifyItemsPerPage}
+                  onPageChange={setModifyCurrentPage}
+                />
               </div>
             ) : (
               <div className="p-12 flex flex-col items-center justify-center text-gray-400 bg-gray-50/50 rounded-lg border border-dashed border-gray-200">

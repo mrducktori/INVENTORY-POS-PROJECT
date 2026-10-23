@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Product List Pagination & 3-State Sorting — 2026-10-23]
+- **Reusable Pagination Component (`src/components/shared/Pagination.jsx`)**:
+  - Implemented pagination with item counts ("Showing 1 to 10 of 42 items"), previous/next controls, dynamic page numbers with ellipsis truncation, and selectable items-per-page (10, 20, 50).
+  - Pure SVG navigation icons adhering strictly to Rule 16 (no emojis).
+- **Manage Products (`ManageProducts.jsx`)**:
+  - **Paginated Table View**: Added pagination to the Product List table inside "Add Product" mode.
+  - **3-State Price Sorting**: Clicking the "Price" column header cycles: `asc` (Low to High) → `desc` (High to Low) → `none` (resets to default alphabetical A-Z).
+  - **Alphabetical Name Sorting**: Clicking "Product Name" toggles alphabetical sorting (A-Z / Z-A).
+  - **Paginated Modify Existing Grid**: Paginated the "Modify Existing" grid cards (12 per page) with page controls to prevent excessive vertical scrolling.
+- **Product Catalog (`Products.jsx`)**:
+  - **Table View Pagination & Sorting**: Integrated 3-state price sorting (`asc` → `desc` → `none`/alphabetical) and alphabetical name sorting with visual ascending/descending SVG indicators.
+  - **Grid Cards View Support**: Added toolbar sort dropdown (`Name: A to Z`, `Name: Z to A`, `Price: Low to High`, `Price: High to Low`) and full pagination across both table and card views.
+  - Reset pagination to page 1 automatically when search query, category filter, or sort order changes.
+
 ## [Streamlined Recipe Builder & Add-on Defaults Experience — 2026-10-23]
 - **Searchable Ingredient Combobox (`SearchableIngredientSelect.jsx`)**:
   - Replaced clumsy, 50+ item native HTML `<select>` dropdowns with an instant search-as-you-type combobox.

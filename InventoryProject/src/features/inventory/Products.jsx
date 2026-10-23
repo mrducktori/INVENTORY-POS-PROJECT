@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { getAllProducts } from '../../api/productsApi';
 import { getRecipesByProduct } from '../../api/recipesApi';
+import Pagination from '../../components/shared/Pagination';
 
 const Products = () => {
   const [products, setProducts] = useState([]);
@@ -12,9 +13,20 @@ const Products = () => {
   const [recipe, setRecipe] = useState(null);
   const [recipeLoading, setRecipeLoading] = useState(false);
 
+  // Sorting & Pagination States
+  const [sortField, setSortField] = useState('name'); // 'name' | 'price'
+  const [sortDirection, setSortDirection] = useState('asc'); // 'asc' | 'desc'
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
   useEffect(() => {
     fetchProducts();
   }, []);
+
+  // Reset page when filter or search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filter]);
 
   const fetchProducts = async () => {
     try {
@@ -44,13 +56,69 @@ const Products = () => {
 
   const categories = ['ALL', ...new Set(products.map(p => p.category).filter(Boolean))];
   
-  const filteredProducts = products.filter(p => {
-    const pCat = (p.category || "").toUpperCase();
-    const fCat = filter.toUpperCase();
-    const matchCat = filter === 'ALL' || pCat === fCat || (fCat === 'PASTRIES' && pCat === 'PASTRY') || (fCat === 'PASTRY' && pCat === 'PASTRIES');
-    const matchSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchCat && matchSearch && !p.is_archived;
-  });
+  const filteredProducts = useMemo(() => {
+    return products.filter(p => {
+      const pCat = (p.category || "").toUpperCase();
+      const fCat = filter.toUpperCase();
+      const matchCat = filter === 'ALL' || pCat === fCat || (fCat === 'PASTRIES' && pCat === 'PASTRY') || (fCat === 'PASTRY' && pCat === 'PASTRIES');
+      const matchSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchCat && matchSearch && !p.is_archived;
+    });
+  }, [products, filter, searchTerm]);
+
+  // Sorting handlers
+  const handlePriceSort = () => {
+    if (sortField !== 'price') {
+      setSortField('price');
+      setSortDirection('asc');
+    } else if (sortDirection === 'asc') {
+      setSortDirection('desc');
+    } else {
+      // Back to nothing: returns to alphabetical A-Z
+      setSortField('name');
+      setSortDirection('asc');
+    }
+    setCurrentPage(1);
+  };
+
+  const handleNameSort = () => {
+    if (sortField !== 'name') {
+      setSortField('name');
+      setSortDirection('asc');
+    } else if (sortDirection === 'asc') {
+      setSortDirection('desc');
+    } else {
+      setSortDirection('asc');
+    }
+    setCurrentPage(1);
+  };
+
+  // Sorted list
+  const sortedProducts = useMemo(() => {
+    const list = [...filteredProducts];
+    if (sortField === 'price') {
+      if (sortDirection === 'asc') {
+        list.sort((a, b) => (parseFloat(a.price) || 0) - (parseFloat(b.price) || 0));
+      } else {
+        list.sort((a, b) => (parseFloat(b.price) || 0) - (parseFloat(a.price) || 0));
+      }
+    } else {
+      // Default / Alphabetical
+      if (sortDirection === 'desc') {
+        list.sort((a, b) => b.name.localeCompare(a.name));
+      } else {
+        list.sort((a, b) => a.name.localeCompare(b.name));
+      }
+    }
+    return list;
+  }, [filteredProducts, sortField, sortDirection]);
+
+  // Paginated items
+  const totalPages = Math.max(1, Math.ceil(sortedProducts.length / itemsPerPage));
+  const paginatedProducts = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return sortedProducts.slice(start, start + itemsPerPage);
+  }, [sortedProducts, currentPage, itemsPerPage]);
 
   return (
     <div className="w-full px-6 lg:px-10 py-6 min-h-full space-y-6">
@@ -127,20 +195,36 @@ const Products = () => {
                 placeholder="Search products..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className="w-full sm:w-72 px-4 py-2.5 bg-white border border-zinc-300 rounded-xl text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all shadow-xs"
+                className="w-full sm:w-64 px-4 py-2.5 bg-white border border-zinc-300 rounded-xl text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all shadow-xs"
               />
             </div>
 
             <select 
               value={filter} 
               onChange={e => setFilter(e.target.value)}
-              className="w-full sm:w-52 px-4 py-2.5 bg-white border border-zinc-300 rounded-xl text-sm font-semibold text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all shadow-xs cursor-pointer"
+              className="w-full sm:w-48 px-4 py-2.5 bg-white border border-zinc-300 rounded-xl text-sm font-semibold text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all shadow-xs cursor-pointer"
             >
               {categories.map(c => (
                 <option key={c} value={c}>
                   {c === 'ALL' ? 'All Categories' : c}
                 </option>
               ))}
+            </select>
+
+            <select 
+              value={`${sortField}_${sortDirection}`}
+              onChange={e => {
+                const [f, d] = e.target.value.split('_');
+                setSortField(f);
+                setSortDirection(d);
+                setCurrentPage(1);
+              }}
+              className="w-full sm:w-48 px-4 py-2.5 bg-white border border-zinc-300 rounded-xl text-sm font-semibold text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all shadow-xs cursor-pointer"
+            >
+              <option value="name_asc">Name: A to Z</option>
+              <option value="name_desc">Name: Z to A</option>
+              <option value="price_asc">Price: Low to High</option>
+              <option value="price_desc">Price: High to Low</option>
             </select>
           </div>
         </div>
@@ -152,7 +236,7 @@ const Products = () => {
               <div className="w-8 h-8 border-3 border-zinc-300 border-t-zinc-900 rounded-full animate-spin" />
               <span className="text-sm font-medium text-zinc-500">Loading catalog...</span>
             </div>
-          ) : filteredProducts.length === 0 ? (
+          ) : sortedProducts.length === 0 ? (
             <div className="py-20 px-6 flex flex-col items-center justify-center text-center">
               <svg className="w-12 h-12 mb-3 text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -162,182 +246,252 @@ const Products = () => {
             </div>
           ) : viewMode === 'table' ? (
             /* ================= MODE 1: TABLE VIEW ================= */
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-zinc-50 border-b border-zinc-200">
-                    <th className="px-6 py-4 text-xs font-bold text-zinc-600 uppercase tracking-wider">
-                      Product
-                    </th>
-                    <th className="px-6 py-4 text-xs font-bold text-zinc-600 uppercase tracking-wider">
-                      Category
-                    </th>
-                    <th className="px-6 py-4 text-xs font-bold text-zinc-600 uppercase tracking-wider text-right">
-                      Price
-                    </th>
-                    <th className="px-6 py-4 text-xs font-bold text-zinc-600 uppercase tracking-wider text-center">
-                      Stock Status
-                    </th>
-                    <th className="px-6 py-4 text-xs font-bold text-zinc-600 uppercase tracking-wider text-right">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-200">
-                  {filteredProducts.map(product => (
-                    <tr key={product.id} className="hover:bg-zinc-50/70 transition-colors">
-                      {/* Product Name & Photo */}
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3.5">
-                          {product.image_url ? (
-                            <img
-                              src={product.image_url}
-                              alt={product.name}
-                              className="w-12 h-12 rounded-xl object-cover border border-zinc-200/90 shadow-2xs shrink-0 bg-zinc-100"
-                              loading="lazy"
-                            />
-                          ) : (
-                            <div className="w-12 h-12 rounded-xl bg-zinc-100 border border-zinc-200 flex items-center justify-center text-zinc-400 shrink-0">
-                              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                              </svg>
-                            </div>
-                          )}
-                          <div className="min-w-0">
-                            <span className="text-base font-extrabold text-zinc-900 block truncate">
-                              {product.name}
-                            </span>
-                            {product.description && (
-                              <span className="text-xs text-zinc-500 line-clamp-1">
-                                {product.description}
+            <div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-zinc-50 border-b border-zinc-200">
+                      <th 
+                        className="px-6 py-4 text-xs font-bold text-zinc-600 uppercase tracking-wider cursor-pointer hover:text-zinc-900 select-none group"
+                        onClick={handleNameSort}
+                        title="Click to sort alphabetically (A-Z, Z-A)"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span>Product</span>
+                          {sortField === 'name' ? (
+                            sortDirection === 'asc' ? (
+                              <span className="p-0.5 bg-zinc-900 text-white rounded" title="A to Z">
+                                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" /></svg>
                               </span>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Category */}
-                      <td className="px-6 py-4 text-sm font-semibold text-zinc-700 uppercase tracking-wide">
-                        {product.category}
-                      </td>
-
-                      {/* Price */}
-                      <td className="px-6 py-4 text-base font-black text-zinc-900 text-right tabular-nums">
-                        ₱{parseFloat(product.price).toFixed(2)}
-                      </td>
-
-                      {/* Stock Status */}
-                      <td className="px-6 py-4 text-center">
-                        {product.track_stock ? (
-                          <span className={`inline-flex px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${
-                            product.stock_quantity <= 0 
-                              ? 'bg-rose-50 text-rose-700 border-rose-200' 
-                              : product.stock_quantity <= product.low_stock_threshold 
-                              ? 'bg-amber-50 text-amber-700 border-amber-200' 
-                              : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                          }`}>
-                            {product.stock_quantity} in stock
-                          </span>
-                        ) : (
-                          <span className="inline-flex px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-zinc-100 text-zinc-600 border border-zinc-200">
-                            Recipe based
-                          </span>
-                        )}
-                      </td>
-
-                      {/* View Recipe Button */}
-                      <td className="px-6 py-4 text-right">
-                        <button 
-                          type="button"
-                          onClick={() => handleProductClick(product)}
-                          className="px-4 py-2 bg-zinc-900 hover:bg-black text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-2xs hover:shadow-xs"
-                        >
-                          View Recipe
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            /* ================= MODE 2: GRID / CARDS VIEW ================= */
-            <div className="p-6 md:p-8">
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredProducts.map(product => (
-                  <div
-                    key={product.id}
-                    className="bg-white border border-zinc-200/90 rounded-2xl overflow-hidden shadow-xs hover:border-zinc-400 hover:shadow-md transition-all flex flex-col justify-between group"
-                  >
-                    <div>
-                      {/* Product Card Image Banner */}
-                      <div className="relative h-48 w-full bg-zinc-100 overflow-hidden">
-                        {product.image_url ? (
-                          <img
-                            src={product.image_url}
-                            alt={product.name}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex flex-col items-center justify-center text-zinc-400">
-                            <svg className="w-10 h-10 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            ) : (
+                              <span className="p-0.5 bg-zinc-900 text-white rounded" title="Z to A">
+                                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                              </span>
+                            )
+                          ) : (
+                            <svg className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
                             </svg>
-                            <span className="text-xs font-semibold">No Image</span>
+                          )}
+                        </div>
+                      </th>
+                      <th className="px-6 py-4 text-xs font-bold text-zinc-600 uppercase tracking-wider">
+                        Category
+                      </th>
+                      <th 
+                        className="px-6 py-4 text-xs font-bold text-zinc-600 uppercase tracking-wider text-right cursor-pointer hover:text-zinc-900 select-none group"
+                        onClick={handlePriceSort}
+                        title="Click to sort by price (Low to High, High to Low, Default)"
+                      >
+                        <div className="flex items-center justify-end gap-1.5">
+                          <span>Price</span>
+                          {sortField === 'price' ? (
+                            sortDirection === 'asc' ? (
+                              <span className="p-0.5 bg-zinc-900 text-white rounded" title="Price: Low to High">
+                                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" /></svg>
+                              </span>
+                            ) : (
+                              <span className="p-0.5 bg-zinc-900 text-white rounded" title="Price: High to Low">
+                                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                              </span>
+                            )
+                          ) : (
+                            <svg className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                            </svg>
+                          )}
+                        </div>
+                      </th>
+                      <th className="px-6 py-4 text-xs font-bold text-zinc-600 uppercase tracking-wider text-center">
+                        Stock Status
+                      </th>
+                      <th className="px-6 py-4 text-xs font-bold text-zinc-600 uppercase tracking-wider text-right">
+                        Action
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-200">
+                    {paginatedProducts.map(product => (
+                      <tr key={product.id} className="hover:bg-zinc-50/70 transition-colors">
+                        {/* Product Name & Photo */}
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3.5">
+                            {product.image_url ? (
+                              <img
+                                src={product.image_url}
+                                alt={product.name}
+                                className="w-12 h-12 rounded-xl object-cover border border-zinc-200/90 shadow-2xs shrink-0 bg-zinc-100"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <div className="w-12 h-12 rounded-xl bg-zinc-100 border border-zinc-200 flex items-center justify-center text-zinc-400 shrink-0">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <span className="text-base font-extrabold text-zinc-900 block truncate">
+                                {product.name}
+                              </span>
+                              {product.description && (
+                                <span className="text-xs text-zinc-500 line-clamp-1">
+                                  {product.description}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                        )}
+                        </td>
 
-                        {/* Category Badge on top of image */}
-                        <span className="absolute top-3 left-3 px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider bg-black/75 text-white backdrop-blur-xs">
+                        {/* Category */}
+                        <td className="px-6 py-4 text-sm font-semibold text-zinc-700 uppercase tracking-wide">
                           {product.category}
-                        </span>
+                        </td>
 
-                        {/* Stock Tag on image */}
-                        <div className="absolute top-3 right-3">
+                        {/* Price */}
+                        <td className="px-6 py-4 text-base font-black text-zinc-900 text-right tabular-nums">
+                          ₱{parseFloat(product.price).toFixed(2)}
+                        </td>
+
+                        {/* Stock Status */}
+                        <td className="px-6 py-4 text-center">
                           {product.track_stock ? (
-                            <span className={`px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider backdrop-blur-xs shadow-xs ${
+                            <span className={`inline-flex px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${
                               product.stock_quantity <= 0 
-                                ? 'bg-rose-500 text-white' 
+                                ? 'bg-rose-50 text-rose-700 border-rose-200' 
                                 : product.stock_quantity <= product.low_stock_threshold 
-                                ? 'bg-amber-500 text-white' 
-                                : 'bg-emerald-600 text-white'
+                                ? 'bg-amber-50 text-amber-700 border-amber-200' 
+                                : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                             }`}>
                               {product.stock_quantity} in stock
                             </span>
                           ) : (
-                            <span className="px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider bg-zinc-900/80 text-white backdrop-blur-xs">
+                            <span className="inline-flex px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-zinc-100 text-zinc-600 border border-zinc-200">
                               Recipe based
                             </span>
                           )}
-                        </div>
-                      </div>
+                        </td>
 
-                      {/* Card Body */}
-                      <div className="p-5">
-                        <h3 className="text-base font-extrabold text-zinc-900 m-0 mb-1 line-clamp-1" title={product.name}>
-                          {product.name}
-                        </h3>
-
-                        <div className="text-xl font-black text-zinc-900 tabular-nums">
-                          ₱{parseFloat(product.price).toFixed(2)}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Card Footer Button */}
-                    <div className="p-5 pt-0">
-                      <button
-                        type="button"
-                        onClick={() => handleProductClick(product)}
-                        className="w-full py-2.5 px-4 bg-zinc-900 hover:bg-black text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-2xs hover:shadow-xs"
-                      >
-                        View Recipe
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                        {/* View Recipe Button */}
+                        <td className="px-6 py-4 text-right">
+                          <button 
+                            type="button"
+                            onClick={() => handleProductClick(product)}
+                            className="px-4 py-2 bg-zinc-900 hover:bg-black text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-2xs hover:shadow-xs"
+                          >
+                            View Recipe
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
+
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={sortedProducts.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPage}
+                onItemsPerPageChange={(newSize) => {
+                  setItemsPerPage(newSize);
+                  setCurrentPage(1);
+                }}
+              />
+            </div>
+          ) : (
+            /* ================= MODE 2: GRID / CARDS VIEW ================= */
+            <div>
+              <div className="p-6 md:p-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {paginatedProducts.map(product => (
+                    <div
+                      key={product.id}
+                      className="bg-white border border-zinc-200/90 rounded-2xl overflow-hidden shadow-xs hover:border-zinc-400 hover:shadow-md transition-all flex flex-col justify-between group"
+                    >
+                      <div>
+                        {/* Product Card Image Banner */}
+                        <div className="relative h-48 w-full bg-zinc-100 overflow-hidden">
+                          {product.image_url ? (
+                            <img
+                              src={product.image_url}
+                              alt={product.name}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex flex-col items-center justify-center text-zinc-400">
+                              <svg className="w-10 h-10 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                              <span className="text-xs font-semibold">No Image</span>
+                            </div>
+                          )}
+
+                          {/* Category Badge on top of image */}
+                          <span className="absolute top-3 left-3 px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider bg-black/75 text-white backdrop-blur-xs">
+                            {product.category}
+                          </span>
+
+                          {/* Stock Tag on image */}
+                          <div className="absolute top-3 right-3">
+                            {product.track_stock ? (
+                              <span className={`px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider backdrop-blur-xs shadow-xs ${
+                                product.stock_quantity <= 0 
+                                  ? 'bg-rose-500 text-white' 
+                                  : product.stock_quantity <= product.low_stock_threshold 
+                                  ? 'bg-amber-500 text-white' 
+                                  : 'bg-emerald-600 text-white'
+                              }`}>
+                                {product.stock_quantity} in stock
+                              </span>
+                            ) : (
+                              <span className="px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider bg-zinc-900/80 text-white backdrop-blur-xs">
+                                Recipe based
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Card Body */}
+                        <div className="p-5">
+                          <h3 className="text-base font-extrabold text-zinc-900 m-0 mb-1 line-clamp-1" title={product.name}>
+                            {product.name}
+                          </h3>
+
+                          <div className="text-xl font-black text-zinc-900 tabular-nums">
+                            ₱{parseFloat(product.price).toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Card Footer Button */}
+                      <div className="p-5 pt-0">
+                        <button
+                          type="button"
+                          onClick={() => handleProductClick(product)}
+                          className="w-full py-2.5 px-4 bg-zinc-900 hover:bg-black text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-2xs hover:shadow-xs"
+                        >
+                          View Recipe
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={sortedProducts.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPage}
+                onItemsPerPageChange={(newSize) => {
+                  setItemsPerPage(newSize);
+                  setCurrentPage(1);
+                }}
+              />
             </div>
           )}
         </div>
