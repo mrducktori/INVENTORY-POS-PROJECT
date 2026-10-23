@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { getPurchaseOrders } from '../../api/purchasingApi';
 import { getDashboardStats } from '../../api/dashboardApi';
 import { supabase } from '../../config/supabaseClient';
@@ -7,6 +7,7 @@ import { formatQuantity } from '../../utils/productUtils';
 
 const STORAGE_READ_KEY = 'coftea_inbox_read_v1';
 const STORAGE_DISMISSED_KEY = 'coftea_inbox_dismissed_v1';
+const EMPTY_LOW_STOCK = [];
 
 export const getRelativeTimeString = (timestamp) => {
   if (!timestamp) return 'Just now';
@@ -31,12 +32,16 @@ export const getRelativeTimeString = (timestamp) => {
   });
 };
 
-export const useNotifications = (lowStockItems = []) => {
+export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK) => {
   const [orders, setOrders] = useState([]);
   const [internalLowStock, setInternalLowStock] = useState(() => 
     Array.isArray(lowStockItems) && lowStockItems.length > 0 ? lowStockItems : []
   );
   const [loading, setLoading] = useState(true);
+
+  const lowStockFetchedRef = useRef(false);
+  const lastLowStockTimeRef = useRef(0);
+  const lastPoFetchTimeRef = useRef(0);
 
   // Local read & dismissed state
   const [readIds, setReadIds] = useState(() => {
@@ -76,8 +81,13 @@ export const useNotifications = (lowStockItems = []) => {
     }
   }, []);
 
-  // Fetch purchase orders
-  const fetchPOs = useCallback(async () => {
+  // Fetch purchase orders with throttling (min 15s between auto-fetches)
+  const fetchPOs = useCallback(async (force = false) => {
+    const now = Date.now();
+    if (!force && now - lastPoFetchTimeRef.current < 15000) {
+      return;
+    }
+    lastPoFetchTimeRef.current = now;
     try {
       const data = await getPurchaseOrders();
       setOrders(Array.isArray(data) ? data : []);
@@ -88,8 +98,13 @@ export const useNotifications = (lowStockItems = []) => {
     }
   }, []);
 
-  // Fetch low stock items automatically if not supplied by parent
-  const fetchLowStock = useCallback(async () => {
+  // Fetch low stock items automatically with throttling (min 30s between auto-fetches)
+  const fetchLowStock = useCallback(async (force = false) => {
+    const now = Date.now();
+    if (!force && now - lastLowStockTimeRef.current < 30000) {
+      return;
+    }
+    lastLowStockTimeRef.current = now;
     try {
       const stats = await getDashboardStats('day');
       const details = stats?.lowStockDetails || stats?.lowStockItemsDetails;
@@ -101,17 +116,19 @@ export const useNotifications = (lowStockItems = []) => {
     }
   }, []);
 
-  // Sync external lowStockItems if provided
+  // Sync external lowStockItems if provided, otherwise fetch once on mount
   useEffect(() => {
     if (Array.isArray(lowStockItems) && lowStockItems.length > 0) {
       setInternalLowStock(lowStockItems);
-    } else {
-      fetchLowStock();
+    } else if (!lowStockFetchedRef.current) {
+      lowStockFetchedRef.current = true;
+      fetchLowStock(true);
     }
-  }, [lowStockItems, fetchLowStock]);
+  }, [lowStockItems?.length, fetchLowStock]);
 
+  // Realtime subscription setup
   useEffect(() => {
-    fetchPOs();
+    fetchPOs(true);
 
     const channelName = `dashboard_inbox_sync_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const channel = supabase
@@ -120,21 +137,21 @@ export const useNotifications = (lowStockItems = []) => {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'purchase_orders' },
         () => {
-          fetchPOs();
+          fetchPOs(true);
         }
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'ingredients' },
         () => {
-          fetchLowStock();
+          fetchLowStock(true);
         }
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'products' },
         () => {
-          fetchLowStock();
+          fetchLowStock(true);
         }
       )
       .subscribe();

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { getAllProducts } from '../../api/productsApi';
 import { getRecipesByProduct } from '../../api/recipesApi';
 import Pagination from '../../components/shared/Pagination';
+import { TableSkeleton, CardGridSkeleton } from '../../components/shared/SkeletonLoader';
 
 const Products = () => {
   const [products, setProducts] = useState([]);
@@ -232,9 +233,12 @@ const Products = () => {
         {/* Content Area */}
         <div className="p-0">
           {loading ? (
-            <div className="py-20 flex flex-col items-center justify-center gap-3">
-              <div className="w-8 h-8 border-3 border-zinc-300 border-t-zinc-900 rounded-full animate-spin" />
-              <span className="text-sm font-medium text-zinc-500">Loading catalog...</span>
+            <div className="p-4 md:p-6">
+              {viewMode === 'table' ? (
+                <TableSkeleton rows={itemsPerPage} cols={5} />
+              ) : (
+                <CardGridSkeleton count={8} />
+              )}
             </div>
           ) : sortedProducts.length === 0 ? (
             <div className="py-20 px-6 flex flex-col items-center justify-center text-center">

@@ -4,6 +4,7 @@ import PurchaseOrderForm from './PurchaseOrderForm';
 import ReceivePOModal from './components/ReceivePOModal';
 
 import ConfirmModal from '../../components/shared/ConfirmModal';
+import { TableSkeleton } from '../../components/shared/SkeletonLoader';
 import { supabase } from '../../config/supabaseClient';
 import { formatDisplayDateTime, formatDisplayDate } from '../../utils/dateUtils';
 
@@ -195,7 +196,9 @@ const PurchaseOrders = () => {
           {error && <div className="m-4 p-4 bg-red-50 text-red-800 border border-red-200 rounded-xl text-sm font-bold">{error}</div>}
 
           {loading ? (
-            <div className="p-8 text-center text-gray-500 font-medium">Loading purchase orders...</div>
+            <div className="p-4 md:p-6">
+              <TableSkeleton rows={6} cols={7} />
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse whitespace-nowrap">

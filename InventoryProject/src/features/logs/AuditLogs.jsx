@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getAuditLogs } from '../../api/auditApi';
 import { getManilaDateOnly } from '../../utils/dateUtils';
+import { TableSkeleton } from '../../components/shared/SkeletonLoader';
 
 
 // Converts raw action + details into a human-readable sentence
@@ -246,32 +247,29 @@ const AuditLogs = () => {
         </div>
       </div>
 
-      <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden w-full">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse whitespace-nowrap">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none" onClick={() => handleSort('created_at')}>
-                  Timestamp {sortConfig.key === 'created_at' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                </th>
-                <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider text-center cursor-pointer hover:bg-gray-100 transition-colors select-none" onClick={() => handleSort('staff')}>
-                  Operator {sortConfig.key === 'staff' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                </th>
-                <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider text-center cursor-pointer hover:bg-gray-100 transition-colors select-none" onClick={() => handleSort('action_type')}>
-                  Action {sortConfig.key === 'action_type' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                </th>
-                <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider text-center">Entity</th>
-                <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider">Event Details</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {loading ? (
-                <tr>
-                  <td colSpan="5" className="p-8 text-center text-gray-500 font-medium bg-gray-50/50">
-                    <div>Synchronizing...</div>
-                  </td>
+      {loading ? (
+        <TableSkeleton rows={8} cols={5} />
+      ) : (
+        <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden w-full">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse whitespace-nowrap">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none" onClick={() => handleSort('created_at')}>
+                    Timestamp {sortConfig.key === 'created_at' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                  </th>
+                  <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider text-center cursor-pointer hover:bg-gray-100 transition-colors select-none" onClick={() => handleSort('staff')}>
+                    Operator {sortConfig.key === 'staff' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                  </th>
+                  <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider text-center cursor-pointer hover:bg-gray-100 transition-colors select-none" onClick={() => handleSort('action_type')}>
+                    Action {sortConfig.key === 'action_type' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                  </th>
+                  <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider text-center">Entity</th>
+                  <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider">Event Details</th>
                 </tr>
-              ) : sortedLogs.length > 0 ? (
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {sortedLogs.length > 0 ? (
                 sortedLogs.map(log => (
                   <tr key={log.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-6 py-4 text-sm md:text-base font-medium text-gray-600">
@@ -366,6 +364,7 @@ const AuditLogs = () => {
           </div>
         )}
       </div>
+      )}
     </div>
   );
 };

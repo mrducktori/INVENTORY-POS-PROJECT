@@ -6,6 +6,7 @@ import Cart from "./components/Cart";
 import OngoingOrders from "./components/OngoingOrders";
 import PaymentModal from "./components/PaymentModal";
 import ConfirmModal from "../../components/shared/ConfirmModal";
+import { CardGridSkeleton } from "../../components/shared/SkeletonLoader";
 import { usePOS } from "./usePOS";
 
 const POS = () => {
@@ -78,7 +79,9 @@ const POS = () => {
         <div className="flex-1 overflow-y-auto mt-6 scrollbar-thin scrollbar-thumb-gray-300 hover:scrollbar-thumb-gray-400 pb-20">
           <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-4 md:gap-6">
             {loading ? (
-              <div className="text-gray-500 italic col-span-full text-center py-10">Loading products...</div>
+              <div className="col-span-full">
+                <CardGridSkeleton count={8} />
+              </div>
             ) : filteredProducts.length > 0 ? (
               filteredProducts.map(product => (
                 <ProductCard

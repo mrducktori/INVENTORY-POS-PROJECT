@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getAuditLogs } from '../../api/auditApi';
 import { getCurrentUser } from '../../api/authApi';
 import { getManilaDateOnly } from '../../utils/dateUtils';
+import { TableSkeleton } from '../../components/shared/SkeletonLoader';
 
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -294,32 +295,29 @@ const TransactionLogs = () => {
       </div>
 
       {/* Table */}
-      <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden w-full">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse whitespace-nowrap">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('created_at')}>
-                  Timestamp {sortConfig.key === 'created_at' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                </th>
-                <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('staff')}>
-                  Operator {sortConfig.key === 'staff' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                </th>
-                <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider text-center">Category</th>
-                <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider text-center cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('action')}>
-                  Action {sortConfig.key === 'action' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                </th>
-                <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider">Details</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {loading ? (
-                <tr>
-                  <td colSpan="5" className="p-8 text-center text-gray-500 font-medium bg-gray-50/50">
-                    <div>Synchronizing transaction ledger...</div>
-                  </td>
+      {loading ? (
+        <TableSkeleton rows={8} cols={5} />
+      ) : (
+        <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden w-full">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse whitespace-nowrap">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('created_at')}>
+                    Timestamp {sortConfig.key === 'created_at' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                  </th>
+                  <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('staff')}>
+                    Operator {sortConfig.key === 'staff' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                  </th>
+                  <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider text-center">Category</th>
+                  <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider text-center cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('action')}>
+                    Action {sortConfig.key === 'action' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                  </th>
+                  <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider">Details</th>
                 </tr>
-              ) : paginatedLogs.length > 0 ? (
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {paginatedLogs.length > 0 ? (
                 paginatedLogs.map(log => {
                   const cat = getCategory(log.action);
                   const userRole = log.users?.role?.toLowerCase() || 'staff';
@@ -391,6 +389,7 @@ const TransactionLogs = () => {
           </div>
         )}
       </div>
+      )}
     </div>
   );
 };

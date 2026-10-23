@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Module Loading Performance Fix & Universal Skeleton Loading Suite — 2026-10-23]
+- **Root-Cause Analysis & Fix for Module Loading Lag**:
+  - **Identified Network Storm in `useNotifications.js`**: `Navbar.jsx` mounted on all dashboard pages invoked `useNotifications()` without parameters. The default argument `lowStockItems = []` instantiated a new empty array reference on every render, triggering an infinite `useEffect` loop that fired `/dashboard/stats?period=day` dozens of times per second (over 8,000+ un-throttled requests).
+  - **Fixed Rate Limiter Lockout**: The infinite network loop tripped Express `generalLimiter` (2,000 requests/15m), returning HTTP 429 Too Many Requests to `127.0.0.1` and blocking all data fetching across all other modules (POS, Products, Inventory, Sales, Purchasing).
+  - **Stabilized Notification Polling & Realtime Channels**: Added module-level constant `EMPTY_LOW_STOCK = []` to prevent re-render loops, throttled background fetches with cooldown timers (30s for stats, 15s for POs), and added explicit channel cleanup (`supabase.removeChannel`).
+  - **Dev Whitelist in `server/middleware/rateLimiter.js`**: Bypassed rate limiting for loopback addresses (`127.0.0.1`, `::1`, `localhost`) during local development and increased dev limits.
+- **Universal Skeleton Loading Suite (`SkeletonLoader.jsx`)**:
+  - Created a modular skeleton component suite adhering strictly to Rule 16 (clean SVG placeholders, subtle pulse shimmer, zero Unicode emojis):
+    - `TableSkeleton`: Configurable rows/cols with header bars, pulsing row items, badges, and avatars.
+    - `CardGridSkeleton`: Responsive card grid skeleton with thumbnail, tags, titles, prices, and button placeholders.
+    - `StatCardsSkeleton`: Metric card placeholders.
+    - `FullModuleSkeleton`: Full-screen skeleton layout fallback.
+- **Module Skeleton Integrations**:
+  - Replaced jarring blank screens, jumpy layouts, and plain "Loading..." text with sleek shimmer skeletons across:
+    - **POS (`POS.jsx`)**: Responsive card grid skeleton (`CardGridSkeleton`).
+    - **Product Catalog (`Products.jsx`)**: View-aware skeleton (table skeleton for table view, card skeleton for grid view).
+    - **Manage Products (`ManageProducts.jsx`)**: Table skeleton in Add mode, card skeleton in Modify mode.
+    - **Raw Material Tracker (`RawMaterialTracker.jsx`)**: Smooth 8-row table skeleton.
+    - **Product Stock Tracker (`ProductStockTracker.jsx`)**: Smooth 8-row table skeleton.
+    - **Purchase Orders (`PurchaseOrders.jsx`)**: Multi-column table skeleton with status badge placeholders.
+    - **Audit Logs (`AuditLogs.jsx`)**: Ledger table skeleton.
+    - **Transaction Logs (`TransactionLogs.jsx`)**: Multi-column ledger table skeleton.
+
 ## [Dashboard Predictive Insights: Declutter, Accurate Depletion & Forecasting Linkage — 2026-10-23]
 - **Direct Linkage to Demand Forecasting (`PredictiveInsights.jsx`, `DashboardOverview.jsx`)**:
   - Wired `onNavigate` prop from `Dashboard.jsx` through `DashboardOverview.jsx` to `PredictiveInsights.jsx`.

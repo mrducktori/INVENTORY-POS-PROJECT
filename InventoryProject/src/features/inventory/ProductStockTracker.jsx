@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getAllProducts } from '../../api/productsApi';
+import { TableSkeleton } from '../../components/shared/SkeletonLoader';
 
 const STATUS_GROUPS = [
   {
@@ -169,7 +170,9 @@ const ProductStockTracker = () => {
         </div>
         <div className="p-0">
           {loading ? (
-            <div className="p-8 text-center text-gray-500 font-medium">Loading...</div>
+            <div className="p-4 md:p-6">
+              <TableSkeleton rows={8} cols={6} />
+            </div>
           ) : groupedProducts.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse whitespace-nowrap">

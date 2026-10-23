@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getIngredients } from '../../api/inventoryApi';
 import { formatQuantity } from '../../utils/productUtils';
+import { TableSkeleton } from '../../components/shared/SkeletonLoader';
 
 const STATUS_GROUPS = [
   {
@@ -169,7 +170,9 @@ const RawMaterialTracker = () => {
         </div>
         <div className="p-0">
           {loading ? (
-            <div className="p-8 text-center text-gray-500 font-medium">Loading...</div>
+            <div className="p-4 md:p-6">
+              <TableSkeleton rows={8} cols={5} />
+            </div>
           ) : groupedIngredients.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse whitespace-nowrap">

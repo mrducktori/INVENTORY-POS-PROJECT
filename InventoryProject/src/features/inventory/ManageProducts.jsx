@@ -6,6 +6,7 @@ import { getCurrentUser } from '../../utils/authUtils';
 import CategorySettingsModal from './components/CategorySettingsModal';
 import SearchableIngredientSelect from '../../components/shared/SearchableIngredientSelect';
 import Pagination from '../../components/shared/Pagination';
+import { TableSkeleton, CardGridSkeleton } from '../../components/shared/SkeletonLoader';
 
 const ManageProducts = () => {
   const user = getCurrentUser();
@@ -286,7 +287,9 @@ const ManageProducts = () => {
             </div>
             <div className="p-0">
               {loading ? (
-                <div className="p-8 text-center text-gray-500 font-medium text-base">Loading products...</div>
+                <div className="p-4 md:p-6">
+                  <TableSkeleton rows={itemsPerPage} cols={6} />
+                </div>
               ) : sortedProductsList.length > 0 ? (
                 <div>
                   <div className="overflow-x-auto">
@@ -461,7 +464,9 @@ const ManageProducts = () => {
             </div>
           </div>
           <div className="p-6">
-            {activeModifyProducts.length > 0 ? (
+            {loading ? (
+              <CardGridSkeleton count={8} />
+            ) : activeModifyProducts.length > 0 ? (
               <div>
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-6 mb-6">
                   {paginatedModifyProducts.map(p => (

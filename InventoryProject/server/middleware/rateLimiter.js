@@ -1,14 +1,19 @@
 import rateLimit from 'express-rate-limit';
 
-// General API rate limiter - 2000 requests per 15 minutes
+// General API rate limiter - 5000 requests per 15 minutes
 export const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 2000,
+  max: 5000,
   message: 'Too many requests from this IP, please try again later',
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: false,
   skip: (req) => {
+    // Never throttle local development traffic
+    const ip = req.ip || req.connection?.remoteAddress || '';
+    if (ip === '127.0.0.1' || ip === '::1' || ip.includes('127.0.0.1') || process.env.NODE_ENV !== 'production') {
+      return true;
+    }
     // Never throttle public visual menu browsing or CMS content reads
     const url = req.originalUrl || req.url || '';
     return req.method === 'GET' && (url.includes('/pos/products') || url.includes('/cms'));
