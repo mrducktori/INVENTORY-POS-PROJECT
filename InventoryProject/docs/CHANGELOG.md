@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Demand Forecasting: Strict Rule 16 Unicode Emoji Elimination — 2026-10-23]
+- **Replaced All Unicode Emojis with Semantic Inline SVGs**:
+  - Eliminated raw emojis across [DemandForecasting.jsx](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/analytics/DemandForecasting.jsx):
+    - **KPI Summary Cards**: Replaced `🚨` (Critical), `⚠️` (Low Stock), and `📦` (Monitored Raw Materials) with clean, semantic inline SVG icons.
+    - **Filter Pill Buttons**: Replaced `🚨 Critical` and `⚠️ Low Stock` raw emojis with sharp, color-matched inline SVGs.
+    - **Search Bar**: Replaced `🔍` with an inline Lucide-style search SVG icon.
+    - **Toast Alerts**: Replaced `❌` and `✅` with inline SVG checkmark and alert icons.
+    - **Modal Controls**: Replaced raw `✕` characters with scalable SVG close and delete icons.
+- **Strict Rule 16 Compliance**: Verified 0 raw Unicode emojis remaining in `DemandForecasting.jsx`.
+
+
+
 ## [Overdue Purchase Orders: Restricted Action Buttons (Reschedule & Cancel Only) — 2026-10-23]
 - **Restricted Action Buttons on Overdue Orders**:
   - In [PurchaseOrders.jsx](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/inventory/PurchaseOrders.jsx), made `Receive Stock` and `Accept Date` unavailable on past due / overdue POs.

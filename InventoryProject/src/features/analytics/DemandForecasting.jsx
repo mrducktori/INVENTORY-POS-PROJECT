@@ -335,8 +335,11 @@ const DemandForecasting = () => {
       );
     }
     return (
-      <span className="inline-flex items-center gap-1 font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded text-xs">
-        ✓ {days} days
+      <span className="inline-flex items-center gap-1.5 font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded text-xs">
+        <svg className="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+        </svg>
+        <span>{days} days</span>
       </span>
     );
   };
@@ -348,9 +351,23 @@ const DemandForecasting = () => {
         <div className={`fixed top-5 right-5 z-50 flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-xl border text-sm font-semibold transition-all duration-300 animate-in fade-in slide-in-from-top-3 ${
           toast.type === 'error' ? 'bg-red-900 text-white border-red-700' : 'bg-gray-900 text-white border-gray-700'
         }`}>
-          <span>{toast.type === 'error' ? '❌' : '✅'}</span>
+          <span>
+            {toast.type === 'error' ? (
+              <svg className="w-4 h-4 text-rose-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+              </svg>
+            )}
+          </span>
           <span>{toast.message}</span>
-          <button onClick={() => setToast(null)} className="ml-2 text-gray-400 hover:text-white font-mono text-xs">✕</button>
+          <button onClick={() => setToast(null)} className="ml-2 text-gray-400 hover:text-white p-0.5 transition-colors">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
       )}
 
@@ -407,7 +424,11 @@ const DemandForecasting = () => {
             <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-5 border-l-4 border-l-red-600 flex flex-col justify-between">
               <div className="flex justify-between items-start">
                 <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Critical Depletion (&lt; 3 Days)</span>
-                <span className="p-1.5 bg-red-50 text-red-600 rounded-lg text-sm">🚨</span>
+                <span className="p-1.5 bg-red-50 text-red-600 rounded-lg flex items-center justify-center">
+                  <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </span>
               </div>
               <div className="mt-3">
                 <div className="text-3xl font-extrabold text-red-600 tracking-tight">
@@ -421,7 +442,11 @@ const DemandForecasting = () => {
             <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-5 border-l-4 border-l-amber-500 flex flex-col justify-between">
               <div className="flex justify-between items-start">
                 <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Low Stock (&lt; 7 Days)</span>
-                <span className="p-1.5 bg-amber-50 text-amber-600 rounded-lg text-sm">⚠️</span>
+                <span className="p-1.5 bg-amber-50 text-amber-600 rounded-lg flex items-center justify-center">
+                  <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </span>
               </div>
               <div className="mt-3">
                 <div className="text-3xl font-extrabold text-amber-700 tracking-tight">
@@ -435,7 +460,7 @@ const DemandForecasting = () => {
             <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-5 border-l-4 border-l-gray-900 flex flex-col justify-between">
               <div className="flex justify-between items-start">
                 <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Est. Restock Capital</span>
-                <span className="p-1.5 bg-gray-100 text-gray-900 rounded-lg text-sm">₱</span>
+                <span className="w-7 h-7 bg-gray-100 text-gray-900 rounded-lg flex items-center justify-center text-xs font-black">₱</span>
               </div>
               <div className="mt-3">
                 <div className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
@@ -449,7 +474,11 @@ const DemandForecasting = () => {
             <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-5 border-l-4 border-l-emerald-600 flex flex-col justify-between">
               <div className="flex justify-between items-start">
                 <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Monitored Raw Materials</span>
-                <span className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg text-sm">📦</span>
+                <span className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center">
+                  <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                  </svg>
+                </span>
               </div>
               <div className="mt-3">
                 <div className="text-3xl font-extrabold text-gray-900 tracking-tight">
@@ -468,7 +497,9 @@ const DemandForecasting = () => {
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1">
               <div className="relative flex-1 max-w-md">
                 <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                  🔍
+                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
                 </span>
                 <input
                   type="text"
@@ -507,33 +538,42 @@ const DemandForecasting = () => {
               </button>
               <button
                 onClick={() => setStatusFilter('CRITICAL')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider border transition-colors ${
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider border transition-colors ${
                   statusFilter === 'CRITICAL'
                     ? 'bg-red-600 text-white border-red-600'
                     : 'bg-white text-red-600 border-red-200 hover:bg-red-50'
                 }`}
               >
-                🚨 Critical ({ingredientData.summary.criticalCount})
+                <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <span>Critical ({ingredientData.summary.criticalCount})</span>
               </button>
               <button
                 onClick={() => setStatusFilter('LOW_STOCK')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider border transition-colors ${
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider border transition-colors ${
                   statusFilter === 'LOW_STOCK'
                     ? 'bg-amber-600 text-white border-amber-600'
                     : 'bg-white text-amber-700 border-amber-200 hover:bg-amber-50'
                 }`}
               >
-                ⚠️ Low Stock ({ingredientData.summary.lowStockCount})
+                <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>Low Stock ({ingredientData.summary.lowStockCount})</span>
               </button>
               <button
                 onClick={() => setStatusFilter('HEALTHY')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider border transition-colors ${
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider border transition-colors ${
                   statusFilter === 'HEALTHY'
                     ? 'bg-emerald-700 text-white border-emerald-700'
                     : 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50'
                 }`}
               >
-                Healthy ({ingredientData.summary.healthyCount})
+                <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                </svg>
+                <span>Healthy ({ingredientData.summary.healthyCount})</span>
               </button>
             </div>
 
@@ -886,9 +926,12 @@ const DemandForecasting = () => {
               </div>
               <button
                 onClick={() => setPoModalOpen(false)}
-                className="text-gray-400 hover:text-white text-xl font-bold p-1"
+                className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
+                title="Close"
               >
-                ✕
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
 
@@ -982,10 +1025,12 @@ const DemandForecasting = () => {
                             {poItems.length > 1 && (
                               <button
                                 onClick={() => handleRemovePoItem(idx)}
-                                className="text-red-500 hover:text-red-700 font-bold text-xs"
+                                className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 transition-colors"
                                 title="Remove item"
                               >
-                                ✕
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
                               </button>
                             )}
                           </td>
