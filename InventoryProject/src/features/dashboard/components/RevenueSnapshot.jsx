@@ -158,7 +158,15 @@ const RevenueSnapshot = ({ stats, loading, isTrendExpanded, onExpand }) => {
                 }`}
                 title="Today compared to the 7-day daily average"
               >
-                <span>{isPositiveVsAvg ? '▲' : '▼'}</span>
+                {isPositiveVsAvg ? (
+                  <svg className="w-3.5 h-3.5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="18 15 12 9 6 15" />
+                  </svg>
+                ) : (
+                  <svg className="w-3.5 h-3.5 text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                )}
                 <span>{Math.abs(diffVsAvg).toFixed(1)}%</span>
                 <span className="font-semibold text-zinc-500 text-[11px]">vs 7-day avg</span>
               </span>
@@ -192,8 +200,11 @@ const RevenueSnapshot = ({ stats, loading, isTrendExpanded, onExpand }) => {
 
           {peakDay && peakRevenue > 0 && (
             <div className="bg-amber-50/60 border border-amber-200/80 rounded-2xl px-3.5 py-2 min-w-[115px]">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-amber-700 flex items-center gap-1">
-                <span>★</span> Peak Day ({formatShortDay(peakDay.date)})
+              <div className="text-[10px] font-bold uppercase tracking-wider text-amber-700 flex items-center gap-1.5">
+                <svg className="w-3 h-3 text-amber-500 fill-amber-500 shrink-0" viewBox="0 0 24 24">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                </svg>
+                <span>Peak Day ({formatShortDay(peakDay.date)})</span>
               </div>
               <div className="text-base font-black text-amber-900 tabular-nums">
                 ₱{Number(peakDay.revenue || 0).toLocaleString('en-PH', { maximumFractionDigits: 0 })}
@@ -237,7 +248,10 @@ const RevenueSnapshot = ({ stats, loading, isTrendExpanded, onExpand }) => {
             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-zinc-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs hover:shadow cursor-pointer"
           >
             <span>Breakdown by Category</span>
-            <span className="text-sm">→</span>
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12" />
+              <polyline points="12 5 19 12 12 19" />
+            </svg>
           </button>
         )}
       </div>
@@ -357,7 +371,13 @@ const RevenueSnapshot = ({ stats, loading, isTrendExpanded, onExpand }) => {
           </>
         ) : (
           <div className="h-full flex flex-col items-center justify-center text-center p-6 bg-zinc-50/60 rounded-2xl border border-dashed border-zinc-200">
-            <span className="text-2xl mb-1">☕</span>
+            <div className="w-10 h-10 rounded-2xl bg-zinc-100 flex items-center justify-center text-zinc-400 mb-2 border border-zinc-200/80">
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="20" x2="18" y2="10" />
+                <line x1="12" y1="20" x2="12" y2="4" />
+                <line x1="6" y1="20" x2="6" y2="14" />
+              </svg>
+            </div>
             <p className="text-sm font-bold text-zinc-700 m-0">Awaiting Shift Transactions</p>
             <p className="text-xs text-zinc-400 m-0 mt-0.5">
               Sales trend visualization will compile dynamically as POS sales are completed.

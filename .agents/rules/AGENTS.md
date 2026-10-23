@@ -93,3 +93,12 @@ Before building anything, check `docs/PROJECT_REFERENCE.md` section 10 for known
 
 ## 15. Temporary and Seed Files
 Anything that is temporary—like seeding things to the database or `.sql` files created by the AI—should be placed in the `docs/` folder (or `docs/database/`). These files are NOT needed for the running system (the backend interacts with the database directly using `supabase-js`), but they serve as a historical reference of database schemas and migrations.
+
+## 16. No Emojis & No "AI Slop" — Clean, Human-Crafted UI
+- **Strictly NO Unicode emojis**: Never use raw emojis in UI buttons, tables, badges, headers, or cards (no ☕, ⚡, 💬, ★, 🛒, 🇵🇭, etc.). Always use clean, semantic inline SVG icons (Heroicons/Lucide style with consistent stroke and viewBox).
+- **Eliminate Clutter & "AI Slop"**:
+  - Avoid verbose, repetitive explanatory paragraphs, noisy helper text, and excessive badge decorations that make interfaces feel AI-generated.
+  - Keep modals, cards, and tables focused, breathing, and purposeful with generous whitespace and clear hierarchy.
+  - Do not print literal formulas or internal algorithmic steps (e.g., avoid "Evaluating 16 Time-Series Factors..." or "Formula: max(0, predicted - stock)"). Display clear, executive-grade metrics instead.
+  - Prioritize refined typography, subtle borders, and intentional minimalist aesthetics.
+

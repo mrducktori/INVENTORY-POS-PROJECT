@@ -320,15 +320,17 @@ const DemandForecasting = () => {
     }
     if (days <= 3) {
       return (
-        <span className="inline-flex items-center gap-1 font-extrabold text-red-700 bg-red-100/80 border border-red-300 px-2.5 py-1 rounded text-xs animate-pulse">
-          ⚡ {days} {days === 1 ? 'day' : 'days'}
+        <span className="inline-flex items-center gap-1.5 font-bold text-red-700 bg-red-50 border border-red-200 px-2.5 py-1 rounded-md text-xs">
+          <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse"></span>
+          <span>{days} {days === 1 ? 'day' : 'days'}</span>
         </span>
       );
     }
     if (days <= 7) {
       return (
-        <span className="inline-flex items-center gap-1 font-bold text-amber-700 bg-amber-50 border border-amber-300 px-2.5 py-1 rounded text-xs">
-          ⚠️ {days} days
+        <span className="inline-flex items-center gap-1.5 font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-md text-xs">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+          <span>{days} days</span>
         </span>
       );
     }
@@ -550,19 +552,26 @@ const DemandForecasting = () => {
               {selectedIngredientIds.length > 0 && (
                 <button
                   onClick={handleOpenBatchPO}
-                  className="px-4 py-2 bg-black text-white hover:bg-gray-800 rounded-lg text-xs font-bold uppercase tracking-wider shadow-sm flex items-center gap-1.5 transition-all"
+                  className="px-4 py-2 bg-black text-white hover:bg-gray-800 rounded-lg text-xs font-bold uppercase tracking-wider shadow-sm flex items-center gap-2 transition-all cursor-pointer"
                 >
-                  <span>🛒 Create PO ({selectedIngredientIds.length})</span>
+                  <svg className="w-3.5 h-3.5 text-zinc-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="9" cy="21" r="1" />
+                    <circle cx="20" cy="21" r="1" />
+                    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+                  </svg>
+                  <span>Create PO ({selectedIngredientIds.length})</span>
                 </button>
               )}
 
               <button
                 onClick={fetchIngredientForecast}
                 disabled={loadingIngredients}
-                className="p-2 border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors disabled:opacity-50"
+                className="p-2 border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
                 title="Refresh Depletion Calculations"
               >
-                🔄
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                </svg>
               </button>
             </div>
           </div>
@@ -844,11 +853,14 @@ const DemandForecasting = () => {
                             <button
                               type="button"
                               onClick={() => handleOpenAiForecast(item)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-950 hover:bg-black text-white text-xs font-bold transition-all shadow-xs hover:shadow cursor-pointer"
-                              title="Run AI monthly stock forecast with Philippine calendar, paydays, and weekend surge analysis"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-black text-white text-xs font-semibold transition-all shadow-xs cursor-pointer"
+                              title="Calculate monthly demand projection"
                             >
-                              <span>⚡</span>
-                              <span>AI Forecast</span>
+                              <svg className="w-3.5 h-3.5 text-zinc-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                                <polyline points="17 6 23 6 23 12" />
+                              </svg>
+                              <span>Forecast</span>
                             </button>
                           </td>
                         </tr>
@@ -1037,214 +1049,211 @@ const DemandForecasting = () => {
         </div>
       )}
 
-      {/* AI MONTHLY STOCK FORECAST MODAL (Adapted from classmate's AI_API_StockForecastingService) */}
+      {/* AI MONTHLY STOCK FORECAST MODAL */}
       {aiModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 w-full max-w-2xl overflow-hidden flex flex-col max-h-[92vh]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-2xl shadow-xl border border-zinc-200 w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]">
             {/* Header */}
             <div className="px-6 py-4 bg-zinc-950 text-white flex items-center justify-between border-b border-zinc-800">
-              <div className="flex items-center gap-2.5">
-                <span className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-base">
-                  ⚡
-                </span>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-300">
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                    <polyline points="17 6 23 6 23 12" />
+                  </svg>
+                </div>
                 <div>
-                  <h3 className="m-0 text-base sm:text-lg font-black tracking-tight">AI Stock & Demand Forecaster</h3>
+                  <h3 className="m-0 text-base font-bold text-white tracking-tight">Demand & Stock Forecast</h3>
                   <p className="m-0 text-xs text-zinc-400">
-                    16-factor time-series intelligence (Philippine calendar, 15/30 paydays, weekend lifts)
+                    Time-series projection and inventory reorder planning
                   </p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setAiModalOpen(false)}
-                className="text-zinc-400 hover:text-white text-lg font-bold p-1 cursor-pointer"
+                className="text-zinc-400 hover:text-white p-1 cursor-pointer transition-colors"
+                title="Close"
               >
-                ✕
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
               </button>
             </div>
 
             {/* Target Selectors Bar */}
-            <div className="p-5 bg-zinc-50 border-b border-zinc-200/80 flex flex-wrap items-center justify-between gap-4">
+            <div className="p-4 bg-zinc-50 border-b border-zinc-200/80 flex flex-wrap items-center justify-between gap-3">
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 block">Product</span>
-                <span className="text-base font-extrabold text-zinc-900">{aiSelectedProduct?.name || 'Selected Item'}</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block">Product</span>
+                <span className="text-sm font-bold text-zinc-900">{aiSelectedProduct?.name || 'Selected Item'}</span>
               </div>
 
-              <div className="flex items-center gap-2.5">
-                <div>
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 block mb-1">Target Month</label>
-                  <select
-                    value={aiTargetMonth}
-                    onChange={(e) => setAiTargetMonth(parseInt(e.target.value, 10))}
-                    className="px-3 py-1.5 text-xs font-bold border border-zinc-300 rounded-xl bg-white text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black"
-                  >
-                    {[
-                      'January', 'February', 'March', 'April', 'May', 'June',
-                      'July', 'August', 'September', 'October', 'November', 'December'
-                    ].map((mName, idx) => (
-                      <option key={idx + 1} value={idx + 1}>{mName}</option>
-                    ))}
-                  </select>
-                </div>
+              <div className="flex items-center gap-2">
+                <select
+                  value={aiTargetMonth}
+                  onChange={(e) => setAiTargetMonth(parseInt(e.target.value, 10))}
+                  className="px-2.5 py-1.5 text-xs font-semibold border border-zinc-300 rounded-lg bg-white text-zinc-900 focus:outline-none focus:ring-1 focus:ring-black"
+                >
+                  {[
+                    'January', 'February', 'March', 'April', 'May', 'June',
+                    'July', 'August', 'September', 'October', 'November', 'December'
+                  ].map((mName, idx) => (
+                    <option key={idx + 1} value={idx + 1}>{mName}</option>
+                  ))}
+                </select>
 
-                <div>
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 block mb-1">Target Year</label>
-                  <select
-                    value={aiTargetYear}
-                    onChange={(e) => setAiTargetYear(parseInt(e.target.value, 10))}
-                    className="px-3 py-1.5 text-xs font-bold border border-zinc-300 rounded-xl bg-white text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black"
-                  >
-                    {[2025, 2026, 2027].map((yr) => (
-                      <option key={yr} value={yr}>{yr}</option>
-                    ))}
-                  </select>
-                </div>
+                <select
+                  value={aiTargetYear}
+                  onChange={(e) => setAiTargetYear(parseInt(e.target.value, 10))}
+                  className="px-2.5 py-1.5 text-xs font-semibold border border-zinc-300 rounded-lg bg-white text-zinc-900 focus:outline-none focus:ring-1 focus:ring-black"
+                >
+                  {[2025, 2026, 2027].map((yr) => (
+                    <option key={yr} value={yr}>{yr}</option>
+                  ))}
+                </select>
 
                 <button
                   type="button"
                   onClick={() => runAiForecast(aiSelectedProduct?.id, aiTargetYear, aiTargetMonth)}
                   disabled={aiLoading}
-                  className="mt-4 px-4 py-1.5 bg-zinc-900 hover:bg-black text-white text-xs font-bold rounded-xl transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+                  className="px-3 py-1.5 bg-zinc-900 hover:bg-black text-white text-xs font-semibold rounded-lg transition-all shadow-xs disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
                 >
-                  {aiLoading ? 'Forecasting...' : 'Re-Run'}
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                  </svg>
+                  <span>{aiLoading ? 'Calculating...' : 'Recalculate'}</span>
                 </button>
               </div>
             </div>
 
             {/* Content Area */}
-            <div className="p-6 overflow-y-auto flex-1 space-y-5">
+            <div className="p-5 overflow-y-auto flex-1 space-y-4">
               {aiLoading ? (
-                <div className="py-12 flex flex-col items-center justify-center text-center">
-                  <div className="w-10 h-10 border-4 border-zinc-200 border-t-zinc-950 rounded-full animate-spin mb-3"></div>
-                  <p className="text-sm font-bold text-zinc-800 m-0">Evaluating 16 Time-Series Factors...</p>
-                  <p className="text-xs text-zinc-400 m-0 mt-1 max-w-sm">
-                    Analyzing historical sales velocity, Philippine holidays, quincena payday spikes, and moving averages.
-                  </p>
+                <div className="py-14 flex flex-col items-center justify-center text-center">
+                  <div className="w-7 h-7 border-2 border-zinc-200 border-t-zinc-900 rounded-full animate-spin mb-3"></div>
+                  <p className="text-xs font-semibold text-zinc-600 m-0">Generating monthly demand projection...</p>
                 </div>
               ) : aiResult ? (
                 <>
                   {/* Model Engine Tag */}
-                  <div className="flex items-center justify-between pb-1">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border bg-emerald-50 text-emerald-800 border-emerald-200">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                      Engine: {aiResult.engine === 'gemini_ai' ? 'Google Gemini AI' : 'Deterministic Statistical Ensemble'}
+                  <div className="flex items-center justify-between text-xs pb-1">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-medium text-zinc-700 bg-zinc-100 border border-zinc-200">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                      <span>{aiResult.engine === 'gemini_ai' ? 'Gemini AI Model' : 'Ensemble Time-Series Model'}</span>
                     </span>
-                    <span className="text-xs font-bold text-zinc-500">
-                      Confidence Score: <span className="text-zinc-900 font-extrabold">{aiResult.confidenceScore || 85}%</span>
+                    <span className="text-zinc-500 text-xs">
+                      Confidence: <span className="font-bold text-zinc-900">{aiResult.confidenceScore || 85}%</span>
                     </span>
                   </div>
 
-                  {/* 3 Core Output Metrics (Matching Classmate DTO) */}
+                  {/* 3 Core Output Metrics */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div className="bg-zinc-50 border border-zinc-200/80 rounded-2xl p-4 text-center">
-                      <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-1">
-                        Predicted Units Sold
+                    <div className="bg-zinc-50 border border-zinc-200/80 rounded-xl p-3.5 text-center">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1">
+                        Projected Demand
                       </div>
-                      <div className="text-3xl font-black text-zinc-900 tabular-nums">
+                      <div className="text-2xl font-black text-zinc-900 tabular-nums">
                         {aiResult.predictedUnitsSold || 0}
                       </div>
-                      <div className="text-[11px] text-zinc-400 mt-0.5">Total Month Forecast</div>
+                      <div className="text-[11px] text-zinc-400 mt-0.5">Units this month</div>
                     </div>
 
-                    <div className="bg-zinc-50 border border-zinc-200/80 rounded-2xl p-4 text-center">
-                      <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-1">
-                        Current On-Hand Stock
+                    <div className="bg-zinc-50 border border-zinc-200/80 rounded-xl p-3.5 text-center">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1">
+                        Current On-Hand
                       </div>
-                      <div className="text-3xl font-black text-zinc-900 tabular-nums">
+                      <div className="text-2xl font-black text-zinc-900 tabular-nums">
                         {aiResult.currentStock || 0}
                       </div>
-                      <div className="text-[11px] text-zinc-400 mt-0.5">Real-time inventory</div>
+                      <div className="text-[11px] text-zinc-400 mt-0.5">Available units</div>
                     </div>
 
-                    <div className={`border rounded-2xl p-4 text-center ${
+                    <div className={`border rounded-xl p-3.5 text-center ${
                       (aiResult.recommendedOrderQuantity || 0) > 0
-                        ? 'bg-amber-50/70 border-amber-200'
-                        : 'bg-emerald-50/70 border-emerald-200'
+                        ? 'bg-amber-50/60 border-amber-200'
+                        : 'bg-emerald-50/60 border-emerald-200'
                     }`}>
-                      <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-600 mb-1">
-                        Recommended Order
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-1">
+                        Suggested Reorder
                       </div>
-                      <div className="text-3xl font-black text-zinc-950 tabular-nums">
+                      <div className="text-2xl font-black text-zinc-950 tabular-nums">
                         {aiResult.recommendedOrderQuantity || 0}
                       </div>
-                      <div className={`text-[11px] font-bold mt-0.5 ${
+                      <div className={`text-[11px] font-semibold mt-0.5 ${
                         (aiResult.recommendedOrderQuantity || 0) > 0 ? 'text-amber-700' : 'text-emerald-700'
                       }`}>
-                        {(aiResult.recommendedOrderQuantity || 0) > 0 ? 'Order Needed' : 'Stock Sufficient'}
+                        {(aiResult.recommendedOrderQuantity || 0) > 0 ? 'Reorder Needed' : 'Stock Sufficient'}
                       </div>
                     </div>
                   </div>
 
-                  {/* Formula Explainer */}
-                  <div className="bg-zinc-100/70 rounded-xl p-3 text-xs text-zinc-600 font-mono text-center border border-zinc-200/70">
-                    Formula: <span className="font-bold">recommendedOrderQuantity</span> = max(0, predictedUnitsSold ({aiResult.predictedUnitsSold || 0}) - currentStock ({aiResult.currentStock || 0})) = <span className="font-extrabold text-zinc-950">{aiResult.recommendedOrderQuantity || 0} units</span>
-                  </div>
-
-                  {/* Calendar & Influencing Factors Grid */}
-                  <div className="space-y-2">
-                    <div className="text-xs font-extrabold uppercase tracking-wider text-zinc-700">
-                      Time-Series Influencing Factors
+                  {/* Calendar Influencing Factors */}
+                  <div>
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 mb-2">
+                      Demand Drivers
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                      <div className="p-3 bg-zinc-50 border border-zinc-200/80 rounded-xl text-center">
-                        <div className="text-[10px] font-bold text-zinc-400 uppercase">Weekend Lift</div>
-                        <div className="text-sm font-black text-zinc-900 mt-0.5">
-                          {aiResult.factors?.weekendMultiplier ? `${aiResult.factors.weekendMultiplier}x` : 'Active'}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      <div className="p-2.5 bg-zinc-50 border border-zinc-200/80 rounded-lg text-center">
+                        <div className="text-[10px] font-medium text-zinc-400 uppercase">Weekend Surge</div>
+                        <div className="text-sm font-bold text-zinc-900 mt-0.5">
+                          {aiResult.factors?.weekendMultiplier ? `${aiResult.factors.weekendMultiplier}x` : '1.0x'}
                         </div>
-                        <div className="text-[10px] text-zinc-500">Sat & Sun Surge</div>
                       </div>
 
-                      <div className="p-3 bg-zinc-50 border border-zinc-200/80 rounded-xl text-center">
-                        <div className="text-[10px] font-bold text-zinc-400 uppercase">Payday Surge</div>
-                        <div className="text-sm font-black text-zinc-900 mt-0.5">
-                          {aiResult.factors?.paydayMultiplier ? `${aiResult.factors.paydayMultiplier}x` : 'Active'}
+                      <div className="p-2.5 bg-zinc-50 border border-zinc-200/80 rounded-lg text-center">
+                        <div className="text-[10px] font-medium text-zinc-400 uppercase">Payday Lift</div>
+                        <div className="text-sm font-bold text-zinc-900 mt-0.5">
+                          {aiResult.factors?.paydayMultiplier ? `${aiResult.factors.paydayMultiplier}x` : '1.0x'}
                         </div>
-                        <div className="text-[10px] text-zinc-500">15th & 30th Peak</div>
                       </div>
 
-                      <div className="p-3 bg-zinc-50 border border-zinc-200/80 rounded-xl text-center">
-                        <div className="text-[10px] font-bold text-zinc-400 uppercase">PH Holidays</div>
-                        <div className="text-sm font-black text-zinc-900 mt-0.5">
-                          {aiResult.factors?.holidaySurgeDays ?? 0} Days
+                      <div className="p-2.5 bg-zinc-50 border border-zinc-200/80 rounded-lg text-center">
+                        <div className="text-[10px] font-medium text-zinc-400 uppercase">Holidays</div>
+                        <div className="text-sm font-bold text-zinc-900 mt-0.5">
+                          {aiResult.factors?.holidaySurgeDays ?? 0}
                         </div>
-                        <div className="text-[10px] text-zinc-500">+20% Demand Surge</div>
                       </div>
 
-                      <div className="p-3 bg-zinc-50 border border-zinc-200/80 rounded-xl text-center">
-                        <div className="text-[10px] font-bold text-zinc-400 uppercase">Weekly Growth</div>
-                        <div className="text-sm font-black text-zinc-900 mt-0.5">
+                      <div className="p-2.5 bg-zinc-50 border border-zinc-200/80 rounded-lg text-center">
+                        <div className="text-[10px] font-medium text-zinc-400 uppercase">Weekly Velocity</div>
+                        <div className="text-sm font-bold text-zinc-900 mt-0.5">
                           {aiResult.factors?.unitsSoldGrowth7Days ? `${aiResult.factors.unitsSoldGrowth7Days}%` : '0.0%'}
                         </div>
-                        <div className="text-[10px] text-zinc-500">Velocity Trend</div>
                       </div>
                     </div>
                   </div>
 
-                  {/* AI Reasoning / Analytical Summary */}
+                  {/* Analysis Summary */}
                   {aiResult.reasoning && (
-                    <div className="p-4 bg-zinc-50 border border-zinc-200 rounded-2xl">
-                      <div className="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-1 flex items-center gap-1.5">
-                        <span>💬</span> AI Analytical Synthesis
+                    <div className="p-3.5 bg-zinc-50 border border-zinc-200/80 rounded-xl">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-700 mb-1">
+                        <svg className="w-3.5 h-3.5 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10" />
+                          <line x1="12" y1="16" x2="12" y2="12" />
+                          <line x1="12" y1="8" x2="12.01" y2="8" />
+                        </svg>
+                        <span>Analysis Summary</span>
                       </div>
-                      <p className="text-xs sm:text-sm text-zinc-700 font-medium m-0 leading-relaxed">
+                      <p className="text-xs text-zinc-600 leading-relaxed m-0 font-normal">
                         {aiResult.reasoning}
                       </p>
                     </div>
                   )}
                 </>
               ) : (
-                <div className="py-8 text-center text-sm text-zinc-400">
-                  Select month and click Re-Run to calculate AI forecast.
+                <div className="py-8 text-center text-xs text-zinc-400">
+                  Select month and click Recalculate to generate forecast.
                 </div>
               )}
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 bg-zinc-50 border-t border-zinc-200 flex justify-end gap-3">
+            <div className="px-5 py-3 bg-zinc-50 border-t border-zinc-200 flex justify-end">
               <button
                 type="button"
                 onClick={() => setAiModalOpen(false)}
-                className="px-4 py-2 border border-zinc-300 rounded-xl text-xs font-bold text-zinc-700 hover:bg-zinc-100 transition-all cursor-pointer"
+                className="px-4 py-1.5 border border-zinc-300 rounded-lg text-xs font-semibold text-zinc-700 hover:bg-zinc-100 transition-colors cursor-pointer"
               >
                 Close
               </button>

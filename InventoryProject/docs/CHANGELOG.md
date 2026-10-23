@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Design Policy: Rule 16 Added — Strictly No Emojis & Anti-AI Slop Decluttering — 2026-10-23]
+- **Codified Rule 16 in `.agents/rules/AGENTS.md`**:
+  - Prohibits all raw Unicode emojis in UI buttons, tables, badges, headers, or cards. Requires crisp, semantic inline SVGs.
+  - Mandates eliminating verbose text clutter, noisy helper text, redundant badge spam, and literal formula explanations to ensure a clean, human-designed aesthetic.
+- **Removed Emojis Across Dashboard & Analytics UI**:
+  - Replaced emojis in [RevenueSnapshot.jsx](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/dashboard/components/RevenueSnapshot.jsx) (`★`, `☕`, `→`, `▲`/`▼`) with clean inline SVGs.
+  - Replaced emojis in [DemandForecasting.jsx](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/analytics/DemandForecasting.jsx) (`⚡`, `🛒`, `⚠️`, `🔄`, `💬`) with professional SVG icons.
+- **Redesigned & Decluttered Forecast Modal**:
+  - Removed internal formula boxes and noisy marketing copy.
+  - Redesigned with minimalist typography, calm spacing, and clear executive metrics.
+
+
 ## [AI-Driven Stock Forecasting Hub & 16-Factor Time-Series Engine — 2026-10-23]
 - **Time-Series Feature Extraction Service (`server/services/aiForecastingService.js`):**
   - Adapted the 16-factor feature engineering architecture from .NET C# to Node.js/Express.
