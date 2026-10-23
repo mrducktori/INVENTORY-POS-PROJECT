@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getSupplierOwnOrders, updateSupplierOrderStatus, submitSupplierItemResponses } from '../../api/purchasingApi';
 import { supabase } from '../../config/supabaseClient';
-import { formatDisplayDate } from '../../utils/dateUtils';
+import { formatDisplayDate, isDatePast, getDaysOverdue } from '../../utils/dateUtils';
 import SupplierReviewPOModal from './components/SupplierReviewPOModal';
 
 const SupplierPortal = () => {
@@ -110,7 +110,21 @@ const SupplierPortal = () => {
     setExpandedId(expandedId === id ? null : id);
   };
 
+  // Overdue detection
+  const isPOOverdue = (po) => {
+    if (!po) return false;
+    if (po.is_overdue !== undefined) return Boolean(po.is_overdue);
+    const isTerminal = ['Received', 'Cancelled', 'Declined', 'DECLINED'].includes(po.status);
+    return !isTerminal && isDatePast(po.expected_date);
+  };
+
+  const getPODaysOverdue = (po) => {
+    if (po?.days_overdue) return po.days_overdue;
+    return getDaysOverdue(po?.expected_date);
+  };
+
   // Counts
+  const overdueCount = orders.filter(isPOOverdue).length;
   const pendingCount = orders.filter(o => o.status === 'Pending').length;
   const proposalsCount = orders.filter(o => o.has_proposals || o.status === 'Proposal Pending' || o.status === 'Partially Accepted').length;
   const activeCount = orders.filter(o => ['Accepted', 'To Be Delivered', 'Delivering', 'Partial'].includes(o.status)).length;
@@ -118,6 +132,7 @@ const SupplierPortal = () => {
 
   // Filtered orders
   const filteredOrders = orders.filter(po => {
+    if (tabFilter === 'OVERDUE') return isPOOverdue(po);
     if (tabFilter === 'PENDING') return po.status === 'Pending';
     if (tabFilter === 'PROPOSALS') return po.has_proposals || po.status === 'Proposal Pending' || po.status === 'Partially Accepted';
     if (tabFilter === 'ACTIVE') return ['Accepted', 'To Be Delivered', 'Delivering', 'Partial'].includes(po.status);
@@ -142,7 +157,7 @@ const SupplierPortal = () => {
 
       {/* Summary Stats */}
       {!loading && orders.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
           <div 
             onClick={() => setTabFilter('ALL')}
             className={`p-5 rounded-xl border shadow-sm flex flex-col cursor-pointer transition-all ${
@@ -151,6 +166,19 @@ const SupplierPortal = () => {
           >
             <span className={`text-xs font-bold uppercase tracking-wider mb-1 ${tabFilter === 'ALL' ? 'text-zinc-400' : 'text-gray-500'}`}>Total Orders</span>
             <span className="text-2xl font-extrabold">{orders.length}</span>
+          </div>
+
+          <div 
+            onClick={() => setTabFilter('OVERDUE')}
+            className={`p-5 rounded-xl border shadow-sm flex flex-col cursor-pointer transition-all ${
+              tabFilter === 'OVERDUE' ? 'bg-rose-700 text-white border-rose-700 shadow-md' : overdueCount > 0 ? 'bg-rose-50 border-rose-200 text-rose-900 hover:border-rose-400' : 'bg-white border-gray-200 text-zinc-900 hover:border-zinc-400'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className={`text-xs font-bold uppercase tracking-wider mb-1 ${tabFilter === 'OVERDUE' ? 'text-rose-100' : overdueCount > 0 ? 'text-rose-700' : 'text-gray-500'}`}>Overdue</span>
+              {overdueCount > 0 && <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>}
+            </div>
+            <span className="text-2xl font-extrabold">{overdueCount}</span>
           </div>
 
           <div 
@@ -169,7 +197,7 @@ const SupplierPortal = () => {
               tabFilter === 'PROPOSALS' ? 'bg-amber-600 text-white border-amber-600 shadow-md' : 'bg-amber-50 border-amber-200 text-amber-900 hover:border-amber-400'
             }`}
           >
-            <span className={`text-xs font-bold uppercase tracking-wider mb-1 ${tabFilter === 'PROPOSALS' ? 'text-amber-100' : 'text-amber-700'}`}>Proposals & Rescheduled</span>
+            <span className={`text-xs font-bold uppercase tracking-wider mb-1 ${tabFilter === 'PROPOSALS' ? 'text-amber-100' : 'text-amber-700'}`}>Proposals</span>
             <span className="text-2xl font-extrabold">{proposalsCount}</span>
           </div>
 
@@ -199,6 +227,19 @@ const SupplierPortal = () => {
               }`}
             >
               All Orders ({orders.length})
+            </button>
+            <button
+              onClick={() => setTabFilter('OVERDUE')}
+              className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                tabFilter === 'OVERDUE'
+                  ? 'bg-rose-700 text-white shadow-xs'
+                  : overdueCount > 0
+                    ? 'bg-rose-50 text-rose-800 border border-rose-300 hover:bg-rose-100'
+                    : 'bg-white text-zinc-600 border border-gray-200 hover:bg-zinc-100'
+              }`}
+            >
+              <span>Overdue ({overdueCount})</span>
+              {overdueCount > 0 && <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>}
             </button>
             <button
               onClick={() => setTabFilter('PENDING')}
@@ -259,42 +300,79 @@ const SupplierPortal = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filteredOrders.map(po => (
-                  <React.Fragment key={po.id}>
-                    <tr className="hover:bg-gray-50/50 transition-colors cursor-pointer" onClick={() => toggleExpand(po.id)}>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <span className={`text-[10px] transition-transform ${expandedId === po.id ? 'rotate-180' : ''}`}>▼</span>
-                          <span className="text-sm font-bold text-gray-900">#{po.id.substring(0, 8).toUpperCase()}</span>
-                          {po.has_proposals && (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-300">
-                              Proposals
+                {filteredOrders.map(po => {
+                  const isOverdue = isPOOverdue(po);
+                  const daysOverdue = getPODaysOverdue(po);
+
+                  return (
+                    <React.Fragment key={po.id}>
+                      <tr className="hover:bg-gray-50/50 transition-colors cursor-pointer" onClick={() => toggleExpand(po.id)}>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[10px] transition-transform ${expandedId === po.id ? 'rotate-180' : ''}`}>▼</span>
+                            <span className="text-sm font-bold text-gray-900">#{po.id.substring(0, 8).toUpperCase()}</span>
+                            {po.has_proposals && (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-300">
+                                Proposals
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm font-medium">
+                          {isOverdue ? (
+                            <div className="flex flex-col">
+                              <span className="text-rose-700 font-bold flex items-center gap-1">
+                                <svg className="w-3.5 h-3.5 text-rose-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                {formatDisplayDate(po.expected_date)}
+                              </span>
+                              <span className="text-[11px] font-extrabold text-rose-600">
+                                {daysOverdue}d late
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-gray-600">{formatDisplayDate(po.expected_date)}</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-sm font-bold text-gray-900">₱{Number(po.total_amount).toFixed(2)}</td>
+                        <td className="px-6 py-4">
+                          {isOverdue ? (
+                            <div className="flex flex-col gap-1 items-start">
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-300">
+                                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
+                                Overdue ({daysOverdue}d late)
+                              </span>
+                              <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider">
+                                Stage: {po.status}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider
+                              ${po.status === 'Pending' ? 'bg-yellow-50 text-yellow-700 border border-yellow-200' :
+                                po.status === 'Proposal Pending' ? 'bg-amber-100 text-amber-800 border border-amber-300 font-extrabold' :
+                                po.status === 'Partially Accepted' ? 'bg-sky-50 text-sky-700 border border-sky-200' :
+                                po.status === 'Accepted' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                                po.status === 'To Be Delivered' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' :
+                                po.status === 'Delivering' ? 'bg-purple-50 text-purple-700 border border-purple-200' :
+                                (po.status === 'Declined' || po.status === 'DECLINED') ? 'bg-red-50 text-red-700 border border-red-200' :
+                                po.status === 'Received' ? 'bg-green-50 text-green-700 border border-green-200' :
+                                'bg-gray-100 text-gray-700 border border-gray-200'
+                              }`}>
+                              {po.status}
                             </span>
                           )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm font-medium text-gray-600">{formatDisplayDate(po.expected_date)}</td>
-                      <td className="px-6 py-4 text-sm font-bold text-gray-900">₱{Number(po.total_amount).toFixed(2)}</td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider
-                          ${po.status === 'Pending' ? 'bg-yellow-50 text-yellow-700 border border-yellow-200' :
-                            po.status === 'Proposal Pending' ? 'bg-amber-100 text-amber-800 border border-amber-300 font-extrabold' :
-                            po.status === 'Partially Accepted' ? 'bg-sky-50 text-sky-700 border border-sky-200' :
-                            po.status === 'Accepted' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
-                            po.status === 'To Be Delivered' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' :
-                            po.status === 'Delivering' ? 'bg-purple-50 text-purple-700 border border-purple-200' :
-                            (po.status === 'Declined' || po.status === 'DECLINED') ? 'bg-red-50 text-red-700 border border-red-200' :
-                            po.status === 'Received' ? 'bg-green-50 text-green-700 border border-green-200' :
-                            'bg-gray-100 text-gray-700 border border-gray-200'
-                          }`}>
-                          {po.status}
-                        </span>
-                        {(po.status === 'Declined' || po.status === 'DECLINED') && po.decline_reason && (
-                          <div className="mt-1 text-xs text-red-600 font-medium max-w-xs truncate" title={po.decline_reason}>
-                            Reason: {po.decline_reason}
-                          </div>
-                        )}
-                      </td>
+                          {(po.status === 'Declined' || po.status === 'DECLINED') && po.decline_reason && (
+                            <div className="mt-1 text-xs text-red-600 font-medium max-w-xs truncate" title={po.decline_reason}>
+                              Reason: {po.decline_reason}
+                            </div>
+                          )}
+                          {po.status === 'Cancelled' && po.cancellation_reason && (
+                            <div className="mt-1 text-xs text-rose-600 font-medium max-w-xs truncate" title={po.cancellation_reason}>
+                              Reason: {po.cancellation_reason}
+                            </div>
+                          )}
+                        </td>
                       <td className="px-6 py-4 text-right" onClick={e => e.stopPropagation()}>
                         {po.status === 'Pending' && (
                           <div className="flex justify-end gap-2">
@@ -505,7 +583,8 @@ const SupplierPortal = () => {
                       </tr>
                     )}
                   </React.Fragment>
-                ))}
+                );
+              })}
               </tbody>
             </table>
           </div>

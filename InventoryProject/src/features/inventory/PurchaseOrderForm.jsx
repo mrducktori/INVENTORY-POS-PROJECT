@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getSuppliers, createPurchaseOrder } from '../../api/purchasingApi';
 import { getIngredients } from '../../api/inventoryApi';
-import ConfirmModal from '../../components/shared/ConfirmModal';
+import { formatDisplayDate } from '../../utils/dateUtils';
 
 const PurchaseOrderForm = ({ onClose, onSuccess }) => {
   const [suppliers, setSuppliers] = useState([]);
@@ -11,7 +11,8 @@ const PurchaseOrderForm = ({ onClose, onSuccess }) => {
   const [error, setError] = useState('');
   const [sortOption, setSortOption] = useState('name_asc');
   const [searchQuery, setSearchQuery] = useState('');
-  const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+  const [reviewData, setReviewData] = useState(null);
+  const [reviewAcknowledged, setReviewAcknowledged] = useState(false);
 
   const [formData, setFormData] = useState({
     supplier_id: '',
@@ -112,7 +113,7 @@ const PurchaseOrderForm = ({ onClose, onSuccess }) => {
     }));
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     setError('');
 
@@ -121,39 +122,55 @@ const PurchaseOrderForm = ({ onClose, onSuccess }) => {
     // Filter out selected items
     const selectedItems = Object.entries(formData.items)
       .filter(([_, item]) => item.selected)
-      .map(([ingId, item]) => ({
-        ingredient_id: ingId,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        purchase_unit: item.purchase_unit,
-        conversion_factor: item.conversion_factor
-      }));
+      .map(([ingId, item]) => {
+        const fullIng = ingredients.find(i => i.id === ingId);
+        return {
+          ingredient_id: ingId,
+          name: fullIng?.name || 'Ingredient',
+          unit: fullIng?.unit || '',
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          purchase_unit: item.purchase_unit,
+          conversion_factor: item.conversion_factor,
+          subtotal: (item.quantity || 0) * (item.unit_price || 0)
+        };
+      });
 
     if (selectedItems.length === 0) return setError('Please check at least one ingredient.');
     if (selectedItems.some(i => i.quantity <= 0)) return setError('Quantity must be greater than 0.');
     if (selectedItems.some(i => !i.purchase_unit || i.conversion_factor <= 0)) return setError('Please provide valid purchase units and conversion factors.');
 
-    setConfirmConfig({
-      isOpen: true,
-      title: 'Confirm Purchase Order',
-      message: `Are you sure you want to create a purchase order for ${selectedSupplier?.name} with ${selectedItems.length} items?`,
-      onConfirm: async () => {
-        setConfirmConfig(prev => ({ ...prev, isOpen: false }));
-        try {
-          setSaving(true);
-          await createPurchaseOrder({
-            supplier_id: formData.supplier_id,
-            expected_date: formData.expected_date || null,
-            items: selectedItems
-          });
-          onSuccess();
-        } catch (err) {
-          console.error(err);
-          setError('Failed to create purchase order.');
-          setSaving(false);
-        }
-      }
+    setReviewAcknowledged(false);
+    setReviewData({
+      supplier: selectedSupplier,
+      expected_date: formData.expected_date,
+      items: selectedItems,
+      total: orderTotal
     });
+  };
+
+  const handleConfirmAndSend = async () => {
+    if (!reviewData || saving || !reviewAcknowledged) return;
+    try {
+      setSaving(true);
+      await createPurchaseOrder({
+        supplier_id: formData.supplier_id,
+        expected_date: formData.expected_date || null,
+        items: reviewData.items.map(i => ({
+          ingredient_id: i.ingredient_id,
+          quantity: i.quantity,
+          unit_price: i.unit_price,
+          purchase_unit: i.purchase_unit,
+          conversion_factor: i.conversion_factor
+        }))
+      });
+      onSuccess();
+    } catch (err) {
+      console.error(err);
+      setError('Failed to create purchase order: ' + (err.message || ''));
+      setSaving(false);
+      setReviewData(null);
+    }
   };
 
   const renderItemCard = (ing, isSelected) => (
@@ -401,13 +418,126 @@ const PurchaseOrderForm = ({ onClose, onSuccess }) => {
           </form>
         </div>
       </div>
-      <ConfirmModal
-        isOpen={confirmConfig.isOpen}
-        title={confirmConfig.title}
-        message={confirmConfig.message}
-        onConfirm={confirmConfig.onConfirm}
-        onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
-      />
+      {reviewData && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-[fadeIn_0.15s_ease-out]"
+          onMouseDown={(e) => { if (e.target === e.currentTarget && !saving) setReviewData(null); }}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border border-zinc-200 animate-[popIn_0.2s_ease-out]"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="bg-zinc-900 text-white px-6 py-4 flex justify-between items-center shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="m-0 text-base md:text-lg font-bold tracking-wide">Review & Confirm Purchase Order</h2>
+                  <p className="m-0 text-xs text-zinc-400 font-medium">Verify order details and supplier costs before submitting</p>
+                </div>
+              </div>
+              <button 
+                type="button"
+                className="text-zinc-400 hover:text-white transition-colors bg-transparent border-none text-xl leading-none cursor-pointer p-0" 
+                onClick={() => setReviewData(null)}
+                disabled={saving}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto flex-1 flex flex-col gap-4">
+              {/* Supplier & Delivery Summary */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-zinc-50 border border-zinc-200 rounded-xl p-4">
+                <div>
+                  <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider block">Supplier</span>
+                  <span className="text-sm font-extrabold text-zinc-900">{reviewData.supplier?.name}</span>
+                  {reviewData.supplier?.contact_person && (
+                    <span className="text-xs text-zinc-600 block mt-0.5">Contact: {reviewData.supplier.contact_person}</span>
+                  )}
+                </div>
+                <div>
+                  <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider block">Expected Delivery Date</span>
+                  {reviewData.expected_date ? (
+                    <span className="text-sm font-bold text-zinc-900">{formatDisplayDate(reviewData.expected_date)}</span>
+                  ) : (
+                    <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 inline-block mt-0.5">
+                      No target date set (open delivery)
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Itemized Line Items Table */}
+              <div className="border border-zinc-200 rounded-xl overflow-hidden bg-white shadow-2xs">
+                <div className="px-4 py-2.5 bg-zinc-50 border-b border-zinc-200 flex justify-between items-center text-xs font-bold text-zinc-600 uppercase tracking-wider">
+                  <span>Ordered Items ({reviewData.items.length})</span>
+                  <span>Total Value: ₱{reviewData.total.toFixed(2)}</span>
+                </div>
+                <div className="max-h-60 overflow-y-auto divide-y divide-zinc-100">
+                  {reviewData.items.map((item, idx) => (
+                    <div key={idx} className="p-3.5 flex items-center justify-between text-xs md:text-sm">
+                      <div>
+                        <div className="font-bold text-zinc-900">{item.name}</div>
+                        <div className="text-xs text-zinc-500 font-medium">
+                          {item.quantity} {item.purchase_unit} • ₱{Number(item.unit_price).toFixed(2)} / {item.purchase_unit}
+                          {item.conversion_factor > 1 && ` (Yields ${(item.quantity * item.conversion_factor).toLocaleString()} ${item.unit})`}
+                        </div>
+                      </div>
+                      <div className="font-bold text-zinc-900 text-sm">
+                        ₱{item.subtotal.toFixed(2)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="p-4 bg-zinc-50 border-t border-zinc-200 flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-zinc-600">Total Expenditure</span>
+                  <span className="text-lg font-black text-zinc-900">₱{reviewData.total.toFixed(2)}</span>
+                </div>
+              </div>
+
+              {/* Friction Safeguard Checkbox */}
+              <label className="flex items-start gap-2.5 p-3 rounded-xl bg-zinc-100/70 border border-zinc-200 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={reviewAcknowledged}
+                  onChange={(e) => setReviewAcknowledged(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 rounded text-zinc-900 focus:ring-zinc-900 cursor-pointer"
+                />
+                <span className="text-xs font-semibold text-zinc-700 leading-snug">
+                  I have verified the ordered quantities, purchase units, and supplier costs, and authorize submitting this purchase order.
+                </span>
+              </label>
+            </div>
+
+            <div className="px-6 py-4 border-t border-zinc-100 bg-zinc-50 flex justify-between items-center gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => setReviewData(null)}
+                disabled={saving}
+                className="px-4 py-2.5 bg-white border border-zinc-300 text-zinc-700 hover:bg-zinc-100 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+              >
+                ← Back to Edit
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmAndSend}
+                disabled={!reviewAcknowledged || saving}
+                className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-xs ${
+                  reviewAcknowledged && !saving
+                    ? 'bg-zinc-900 hover:bg-black text-white cursor-pointer'
+                    : 'bg-zinc-200 text-zinc-400 cursor-not-allowed border border-zinc-300'
+                }`}
+              >
+                {saving ? 'Creating Order...' : 'Confirm & Place Purchase Order'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

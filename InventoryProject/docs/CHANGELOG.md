@@ -2,6 +2,40 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Overdue Purchase Order Lifecycle & Process Friction Safeguards — 2026-10-23]
+- **Overdue Purchase Order Status & Operational Flexibility**:
+  - **Dynamic Overdue Detection**:
+    - Backend (`server/services/purchasingService.js`) dynamically flags non-terminal orders (`status` not in Received, Cancelled, Declined) whose `expected_date` is earlier than the current Manila date (`expected_date < today`), assigning `is_overdue = true` and calculating exact `days_overdue`.
+    - Frontend (`src/utils/dateUtils.js`) provides `isDatePast()` and `getDaysOverdue()` to dynamically format overdue days late (e.g. `8 days late`).
+  - **Visual Overdue Badges & Alert Styling**:
+    - Table rows in both `PurchaseOrders.jsx` and `SupplierPortal.jsx` render pulsing soft-rose badges: `Overdue (Xd late)` with underlying operational stage indicator (e.g. `Stage: Delivering` or `Stage: Accepted`).
+    - Date column displays prominent red alert clock icon and exact days overdue.
+  - **Dedicated Overdue Filter Tab**:
+    - Added dedicated `Overdue (count)` tab filter in the PO management toolbar in both `PurchaseOrders.jsx` and `SupplierPortal.jsx`.
+  - **Operational Flexibility for Overdue Orders**:
+    - Store managers and suppliers can take all standard lifecycle actions on overdue orders: **Receive Stock**, **Reschedule Delivery Date**, or **Cancel Order**.
+- **Process Friction & Safeguards on Purchase Orders**:
+  - **High-Friction Order Cancellation (`CancelPOModal.jsx`)**:
+    - Replaced one-click confirmation with an explicit risk review modal.
+    - Displays PO reference, supplier name, monetary value, and line item count alongside an irreversible action warning.
+    - Enforces mandatory cancellation reason dropdown (e.g. Supplier Unresponsive, Defective/Damaged Goods, Duplicate Order, Pricing Discrepancy) with optional detail notes.
+    - Requires an explicit acknowledgment checkbox ("I confirm that I want to void and permanently cancel this purchase order") before the cancel button is enabled.
+    - Backend (`purchasingController.js`) enforces non-empty `cancellation_reason` and logs `PURCHASE_ORDER_CANCELLED` audit events.
+  - **Delivery Date Rescheduling Workflow (`ReschedulePOModal.jsx`)**:
+    - Allows managers and suppliers to set an extended expected delivery date with date picker validation (`min={today}`).
+    - Records reschedule reason and history in audit logs and updates the PO delivery schedule, automatically clearing overdue status once rescheduled to the future.
+  - **2-Step Verification on Receiving Stock (`ReceivePOModal.jsx`)**:
+    - Added a review step between entering received quantities and committing inventory updates to prevent mistaken receiving clicks.
+    - Step 2 calculates and previews the exact inventory impact (e.g. `+5 Bags (5,000 g) added to Coffee Beans`) and flags partial vs. full completion before final commitment.
+  - **Pre-Submission Order Review Verification (`PurchaseOrderForm.jsx`)**:
+    - Added a comprehensive Order Review & Verification modal before placing orders.
+    - Displays complete itemized breakdown, purchase units, conversion rates, and total order expenditure with required confirmation acknowledgment.
+- **Vite Parser Syntax Fix**:
+  - Corrected nested JSX map closure in `SupplierPortal.jsx` and `PurchaseOrders.jsx` resolving Vite transform parse error on line 586.
+- **Strict Rule 16 Compliance**:
+  - All icons rendered as clean, semantic inline SVGs; strictly zero Unicode emojis across all modals and badges.
+
+
 ## [Module Loading Performance Fix & Universal Skeleton Loading Suite — 2026-10-23]
 - **Root-Cause Analysis & Fix for Module Loading Lag**:
   - **Identified Network Storm in `useNotifications.js`**: `Navbar.jsx` mounted on all dashboard pages invoked `useNotifications()` without parameters. The default argument `lowStockItems = []` instantiated a new empty array reference on every render, triggering an infinite `useEffect` loop that fired `/dashboard/stats?period=day` dozens of times per second (over 8,000+ un-throttled requests).

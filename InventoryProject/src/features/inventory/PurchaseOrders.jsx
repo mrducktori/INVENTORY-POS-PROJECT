@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { getPurchaseOrders, updatePurchaseOrderStatus, respondToSupplierProposal } from '../../api/purchasingApi';
+import { getPurchaseOrders, updatePurchaseOrderStatus, respondToSupplierProposal, reschedulePurchaseOrder } from '../../api/purchasingApi';
 import PurchaseOrderForm from './PurchaseOrderForm';
 import ReceivePOModal from './components/ReceivePOModal';
+import CancelPOModal from './components/CancelPOModal';
+import ReschedulePOModal from './components/ReschedulePOModal';
 
-import ConfirmModal from '../../components/shared/ConfirmModal';
 import { TableSkeleton } from '../../components/shared/SkeletonLoader';
 import { supabase } from '../../config/supabaseClient';
-import { formatDisplayDateTime, formatDisplayDate } from '../../utils/dateUtils';
+import { formatDisplayDateTime, formatDisplayDate, isDatePast, getDaysOverdue } from '../../utils/dateUtils';
 
 const PurchaseOrders = () => {
   const [orders, setOrders] = useState([]);
@@ -14,8 +15,10 @@ const PurchaseOrders = () => {
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [receivingPO, setReceivingPO] = useState(null);
-  const [confirmModal, setConfirmModal] = useState({ isOpen: false, id: null, newStatus: null });
-  const [tabFilter, setTabFilter] = useState('ALL'); // 'ALL' | 'PROPOSALS' | 'DELIVERING' | 'COMPLETED'
+  const [cancellingPO, setCancellingPO] = useState(null);
+  const [reschedulingPO, setReschedulingPO] = useState(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [tabFilter, setTabFilter] = useState('ALL'); // 'ALL' | 'OVERDUE' | 'PROPOSALS' | 'DELIVERING' | 'COMPLETED'
   const [processingProposalId, setProcessingProposalId] = useState(null);
 
   const fetchOrders = async () => {
@@ -65,24 +68,33 @@ const PurchaseOrders = () => {
     }
   };
 
-  const handleStatusAction = async (id, newStatus) => {
-    if (newStatus === 'Cancelled') {
-      setConfirmModal({ isOpen: true, id, newStatus });
-      return;
-    }
-    executeStatusAction(id, newStatus);
-  };
-
-  const executeStatusAction = async (id, newStatus) => {
+  const handleCancelConfirm = async (id, reason) => {
     try {
-      await updatePurchaseOrderStatus(id, newStatus, []);
+      setActionLoading(true);
+      await updatePurchaseOrderStatus(id, 'Cancelled', [], null, reason);
+      setCancellingPO(null);
       fetchOrders();
     } catch (err) {
       console.error(err);
-      setError('Failed to update status.');
-      setTimeout(() => setError(''), 3000);
+      setError('Failed to cancel order: ' + (err.message || ''));
+      setTimeout(() => setError(''), 4000);
     } finally {
-      setConfirmModal({ isOpen: false, id: null, newStatus: null });
+      setActionLoading(false);
+    }
+  };
+
+  const handleRescheduleConfirm = async (id, newDate, reason) => {
+    try {
+      setActionLoading(true);
+      await reschedulePurchaseOrder(id, newDate, reason);
+      setReschedulingPO(null);
+      fetchOrders();
+    } catch (err) {
+      console.error(err);
+      setError('Failed to reschedule delivery date: ' + (err.message || ''));
+      setTimeout(() => setError(''), 4000);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -112,13 +124,28 @@ const PurchaseOrders = () => {
     else setExpandedRow(id);
   };
 
+  // Overdue detection helper
+  const isPOOverdue = (po) => {
+    if (!po) return false;
+    if (po.is_overdue !== undefined) return Boolean(po.is_overdue);
+    const isTerminal = ['Received', 'Cancelled', 'Declined', 'DECLINED'].includes(po.status);
+    return !isTerminal && isDatePast(po.expected_date);
+  };
+
+  const getPODaysOverdue = (po) => {
+    if (po?.days_overdue) return po.days_overdue;
+    return getDaysOverdue(po?.expected_date);
+  };
+
   // Counts
+  const overdueCount = orders.filter(isPOOverdue).length;
   const proposalsCount = orders.filter(o => o.has_proposals || o.status === 'Proposal Pending' || o.status === 'Partially Accepted').length;
   const deliveringCount = orders.filter(o => ['To Be Delivered', 'Delivering', 'Partial'].includes(o.status)).length;
   const completedCount = orders.filter(o => o.status === 'Received').length;
 
   // Filtered orders
   const filteredOrders = orders.filter(po => {
+    if (tabFilter === 'OVERDUE') return isPOOverdue(po);
     if (tabFilter === 'PROPOSALS') return po.has_proposals || po.status === 'Proposal Pending' || po.status === 'Partially Accepted';
     if (tabFilter === 'DELIVERING') return ['To Be Delivered', 'Delivering', 'Partial'].includes(po.status);
     if (tabFilter === 'COMPLETED') return po.status === 'Received';
@@ -157,6 +184,19 @@ const PurchaseOrders = () => {
               }`}
             >
               All Orders ({orders.length})
+            </button>
+            <button
+              onClick={() => setTabFilter('OVERDUE')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                tabFilter === 'OVERDUE'
+                  ? 'bg-rose-700 text-white shadow-xs'
+                  : overdueCount > 0
+                    ? 'bg-rose-50 text-rose-800 border border-rose-300 hover:bg-rose-100'
+                    : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+              }`}
+            >
+              <span>Overdue ({overdueCount})</span>
+              {overdueCount > 0 && <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>}
             </button>
             <button
               onClick={() => setTabFilter('PROPOSALS')}
@@ -223,81 +263,128 @@ const PurchaseOrders = () => {
                       </td>
                     </tr>
                   ) : (
-                    filteredOrders.map(po => (
-                      <React.Fragment key={po.id}>
-                        <tr 
-                          className={`hover:bg-gray-50/80 transition-colors cursor-pointer ${expandedRow === po.id ? 'bg-gray-50/50' : ''}`}
-                          onClick={() => toggleRow(po.id)}
-                        >
-                          <td className="px-6 py-4 font-bold text-gray-900 text-sm">
-                            <div className="flex items-center gap-2">
-                              <span className={`text-[10px] transition-transform ${expandedRow === po.id ? 'rotate-90' : ''}`}>▶</span>
-                              <span>PO #{po.id.substring(0, 8).toUpperCase()}</span>
-                              {po.has_proposals && (
-                                <span className="px-2 py-0.5 rounded text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-300">
-                                  Proposals ({po.pending_proposals_count || 'Review'})
+                    filteredOrders.map(po => {
+                      const isOverdue = isPOOverdue(po);
+                      const daysOverdue = getPODaysOverdue(po);
+
+                      return (
+                        <React.Fragment key={po.id}>
+                          <tr 
+                            className={`hover:bg-gray-50/80 transition-colors cursor-pointer ${expandedRow === po.id ? 'bg-gray-50/50' : ''}`}
+                            onClick={() => toggleRow(po.id)}
+                          >
+                            <td className="px-6 py-4 font-bold text-gray-900 text-sm">
+                              <div className="flex items-center gap-2">
+                                <span className={`text-[10px] transition-transform ${expandedRow === po.id ? 'rotate-90' : ''}`}>▶</span>
+                                <span>PO #{po.id.substring(0, 8).toUpperCase()}</span>
+                                {po.has_proposals && (
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-300">
+                                    Proposals ({po.pending_proposals_count || 'Review'})
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-sm font-semibold text-gray-800">{po.suppliers?.name || 'Unknown'}</td>
+                            <td className="px-6 py-4 text-sm font-medium">
+                              {isOverdue ? (
+                                <div className="flex flex-col">
+                                  <span className="text-rose-700 font-bold flex items-center gap-1">
+                                    <svg className="w-3.5 h-3.5 text-rose-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    {formatDisplayDate(po.expected_date)}
+                                  </span>
+                                  <span className="text-[11px] font-extrabold text-rose-600">
+                                    {daysOverdue} day{daysOverdue === 1 ? '' : 's'} late
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-gray-600 font-medium">{formatDisplayDate(po.expected_date)}</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 text-sm font-medium text-gray-600">
+                              {po.purchase_order_items ? `${po.purchase_order_items.length} ingredients` : '0 items'}
+                            </td>
+                            <td className="px-6 py-4 text-sm font-bold text-gray-900 text-right">₱{Number(po.total_amount).toFixed(2)}</td>
+                            <td className="px-6 py-4">
+                              {isOverdue ? (
+                                <div className="flex flex-col gap-1 items-start">
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-300 shadow-2xs">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
+                                    Overdue ({daysOverdue}d late)
+                                  </span>
+                                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
+                                    Stage: {po.status}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider
+                                  ${po.status === 'Pending' ? 'bg-yellow-50 text-yellow-700 border border-yellow-200' :
+                                    po.status === 'Proposal Pending' ? 'bg-amber-100 text-amber-800 border border-amber-300 font-extrabold' :
+                                    po.status === 'Partially Accepted' ? 'bg-sky-50 text-sky-700 border border-sky-200' :
+                                    po.status === 'Accepted' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                                    po.status === 'To Be Delivered' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' :
+                                    po.status === 'Delivering' ? 'bg-purple-50 text-purple-700 border border-purple-200' :
+                                    po.status === 'Partial' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                                    (po.status === 'Declined' || po.status === 'DECLINED') ? 'bg-red-50 text-red-700 border border-red-200 font-extrabold' :
+                                    po.status === 'Received' ? 'bg-green-50 text-green-700 border border-green-200' :
+                                    po.status === 'Cancelled' ? 'bg-red-50 text-red-700 border border-red-200' :
+                                    'bg-gray-100 text-gray-700 border border-gray-200'
+                                  }`}>
+                                  {po.status}
                                 </span>
                               )}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-sm font-semibold text-gray-800">{po.suppliers?.name || 'Unknown'}</td>
-                          <td className="px-6 py-4 text-sm font-medium text-gray-600">{formatDisplayDate(po.expected_date)}</td>
-                          <td className="px-6 py-4 text-sm font-medium text-gray-600">
-                            {po.purchase_order_items ? `${po.purchase_order_items.length} ingredients` : '0 items'}
-                          </td>
-                          <td className="px-6 py-4 text-sm font-bold text-gray-900 text-right">₱{Number(po.total_amount).toFixed(2)}</td>
-                          <td className="px-6 py-4">
-                            <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider
-                              ${po.status === 'Pending' ? 'bg-yellow-50 text-yellow-700 border border-yellow-200' :
-                                po.status === 'Proposal Pending' ? 'bg-amber-100 text-amber-800 border border-amber-300 font-extrabold' :
-                                po.status === 'Partially Accepted' ? 'bg-sky-50 text-sky-700 border border-sky-200' :
-                                po.status === 'Accepted' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
-                                po.status === 'To Be Delivered' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' :
-                                po.status === 'Delivering' ? 'bg-purple-50 text-purple-700 border border-purple-200' :
-                                po.status === 'Partial' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
-                                (po.status === 'Declined' || po.status === 'DECLINED') ? 'bg-red-50 text-red-700 border border-red-200 font-extrabold' :
-                                po.status === 'Received' ? 'bg-green-50 text-green-700 border border-green-200' :
-                                po.status === 'Cancelled' ? 'bg-red-50 text-red-700 border border-red-200' :
-                                'bg-gray-100 text-gray-700 border border-gray-200'
-                              }`}>
-                              {po.status}
-                            </span>
-                            {(po.status === 'Declined' || po.status === 'DECLINED') && po.decline_reason && (
-                              <div className="mt-1 text-xs text-red-600 font-medium max-w-xs truncate" title={po.decline_reason}>
-                                Reason: {po.decline_reason}
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
-                            {po.status !== 'Received' && po.status !== 'Cancelled' && po.status !== 'Declined' && po.status !== 'DECLINED' && (
-                              <div className="flex justify-end gap-2">
-                                {['Accepted', 'To Be Delivered', 'Delivering', 'Partial'].includes(po.status) && (
+                              {(po.status === 'Declined' || po.status === 'DECLINED') && po.decline_reason && (
+                                <div className="mt-1 text-xs text-red-600 font-medium max-w-xs truncate" title={po.decline_reason}>
+                                  Reason: {po.decline_reason}
+                                </div>
+                              )}
+                              {po.status === 'Cancelled' && po.cancellation_reason && (
+                                <div className="mt-1 text-xs text-rose-600 font-medium max-w-xs truncate" title={po.cancellation_reason}>
+                                  Reason: {po.cancellation_reason}
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                              {po.status !== 'Received' && po.status !== 'Cancelled' && po.status !== 'Declined' && po.status !== 'DECLINED' && (
+                                <div className="flex justify-end gap-1.5 flex-wrap">
+                                  {(['Accepted', 'To Be Delivered', 'Delivering', 'Partial'].includes(po.status) || isOverdue) && (
+                                    <button 
+                                      className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors border border-emerald-300 whitespace-nowrap cursor-pointer"
+                                      onClick={() => setReceivingPO(po)}
+                                    >
+                                      Receive Stock
+                                    </button>
+                                  )}
                                   <button 
-                                    className="px-3 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 rounded text-xs font-bold uppercase tracking-wider transition-colors border border-green-200 whitespace-nowrap cursor-pointer"
-                                    onClick={() => setReceivingPO(po)}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors whitespace-nowrap cursor-pointer ${
+                                      isOverdue
+                                        ? 'bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300'
+                                        : 'bg-zinc-50 hover:bg-zinc-100 text-zinc-700 border border-zinc-200'
+                                    }`}
+                                    onClick={() => setReschedulingPO(po)}
                                   >
-                                    Receive Stock
+                                    Reschedule
                                   </button>
-                                )}
-                                {po.status === 'Postponed' && (
+                                  {po.status === 'Postponed' && (
+                                    <button 
+                                      className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors border border-blue-200 whitespace-nowrap cursor-pointer"
+                                      onClick={() => updatePurchaseOrderStatus(po.id, 'To Be Delivered')}
+                                    >
+                                      Accept Date
+                                    </button>
+                                  )}
                                   <button 
-                                    className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded text-xs font-bold uppercase tracking-wider transition-colors border border-blue-200 whitespace-nowrap cursor-pointer"
-                                    onClick={() => handleStatusAction(po.id, 'To Be Delivered')}
+                                    className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors border border-rose-200 whitespace-nowrap cursor-pointer"
+                                    onClick={() => setCancellingPO(po)}
                                   >
-                                    Accept Date
+                                    Cancel
                                   </button>
-                                )}
-                                <button 
-                                  className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded text-xs font-bold uppercase tracking-wider transition-colors border border-red-200 whitespace-nowrap cursor-pointer"
-                                  onClick={() => handleStatusAction(po.id, 'Cancelled')}
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            )}
-                          </td>
-                        </tr>
-                        {expandedRow === po.id && (
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                          {expandedRow === po.id && (
                           <tr className="bg-gray-50/80">
                             <td colSpan="7" className="p-0">
                               <div className="px-8 py-6 border-b border-gray-200">
@@ -309,6 +396,30 @@ const PurchaseOrders = () => {
                                     <div>
                                       <div className="text-xs font-bold uppercase tracking-wider text-red-700">Decline Reason Provided by Supplier</div>
                                       <div className="text-sm font-medium mt-0.5 text-red-900">{po.decline_reason}</div>
+                                    </div>
+                                  </div>
+                                )}
+                                {(po.status === 'Cancelled' || po.status === 'CANCELLED') && po.cancellation_reason && (
+                                  <div className="mb-4 p-4 bg-zinc-100 border border-zinc-300 rounded-xl flex items-start gap-3 text-zinc-900">
+                                    <svg className="w-5 h-5 text-zinc-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <div>
+                                      <div className="text-xs font-bold uppercase tracking-wider text-zinc-600">Cancellation Reason Recorded</div>
+                                      <div className="text-sm font-semibold mt-0.5 text-zinc-900">{po.cancellation_reason}</div>
+                                    </div>
+                                  </div>
+                                )}
+                                {po.reschedule_history && po.reschedule_history.length > 0 && (
+                                  <div className="mb-4 p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900">
+                                    <div className="font-bold uppercase tracking-wider text-amber-800 mb-1">Delivery Reschedule History</div>
+                                    <div className="space-y-1">
+                                      {po.reschedule_history.map((rh, idx) => (
+                                        <div key={idx} className="flex items-center gap-2">
+                                          <span className="font-semibold text-zinc-700">• Moved to {formatDisplayDate(rh.new_expected_date)}</span>
+                                          {rh.reason && <span className="text-zinc-500 italic">({rh.reason})</span>}
+                                        </div>
+                                      ))}
                                     </div>
                                   </div>
                                 )}
@@ -493,8 +604,9 @@ const PurchaseOrders = () => {
                           </tr>
                         )}
                       </React.Fragment>
-                    ))
-                  )}
+                    );
+                  })
+                )}
                 </tbody>
               </table>
             </div>
@@ -517,12 +629,23 @@ const PurchaseOrders = () => {
         />
       )}
 
-      <ConfirmModal 
-        isOpen={confirmModal.isOpen}
-        message="Are you sure you want to cancel this purchase order? This action cannot be undone."
-        onConfirm={() => executeStatusAction(confirmModal.id, confirmModal.newStatus)}
-        onCancel={() => setConfirmModal({ isOpen: false, id: null, newStatus: null })}
-      />
+      {cancellingPO && (
+        <CancelPOModal 
+          po={cancellingPO}
+          onClose={() => setCancellingPO(null)}
+          onConfirm={handleCancelConfirm}
+          loading={actionLoading}
+        />
+      )}
+
+      {reschedulingPO && (
+        <ReschedulePOModal 
+          po={reschedulingPO}
+          onClose={() => setReschedulingPO(null)}
+          onSubmit={handleRescheduleConfirm}
+          loading={actionLoading}
+        />
+      )}
     </div>
   );
 };

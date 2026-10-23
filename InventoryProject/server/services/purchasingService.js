@@ -1,5 +1,6 @@
 import { supabase } from "../config/supabaseClient.js";
 import { logAudit } from "../utils/auditHelper.js";
+import { getManilaDateOnly } from "../utils/dateUtils.js";
 
 // === Suppliers ===
 export const getSuppliers = async () => {
@@ -128,41 +129,95 @@ const enrichPOsWithReceiptHistory = async (pos) => {
   return pos;
 };
 
-// Helper to enrich POs with decline reasons (from DB column or audit logs)
-const enrichPOsWithDeclineReasons = async (pos) => {
+// Helper to enrich POs with decline reasons, cancellation reasons, and overdue metrics
+const enrichPOsWithMetadata = async (pos) => {
   if (!pos || pos.length === 0) return pos;
 
+  const todayManila = getManilaDateOnly();
+
   try {
-    const { data: declineLogs } = await supabase
+    const { data: logs } = await supabase
       .from('audit_logs')
-      .select('created_at, details')
-      .in('action', ['SUPPLIER_PO_DECLINED', 'PURCHASE_ORDER_STATUS_UPDATED'])
+      .select('created_at, details, action')
+      .in('action', [
+        'SUPPLIER_PO_DECLINED', 
+        'PURCHASE_ORDER_STATUS_UPDATED', 
+        'PURCHASE_ORDER_CANCELLED', 
+        'PURCHASE_ORDER_RESCHEDULED'
+      ])
       .order('created_at', { ascending: false });
 
     const declineMap = {};
-    if (declineLogs) {
-      for (const log of declineLogs) {
+    const cancellationMap = {};
+    const rescheduleMap = {};
+
+    if (logs) {
+      for (const log of logs) {
         try {
           const d = typeof log.details === 'string' ? JSON.parse(log.details) : log.details;
           const poId = d?.po_id;
-          const reason = d?.decline_reason || d?.declineReason;
-          if (poId && reason && !declineMap[poId]) {
-            declineMap[poId] = reason;
+          if (!poId) continue;
+
+          // Decline reason
+          const decReason = d?.decline_reason || d?.declineReason;
+          if (decReason && !declineMap[poId]) {
+            declineMap[poId] = decReason;
+          }
+
+          // Cancellation reason
+          const canReason = d?.cancellation_reason || d?.cancellationReason || (log.action === 'PURCHASE_ORDER_CANCELLED' ? d?.reason : null);
+          if (canReason && !cancellationMap[poId]) {
+            cancellationMap[poId] = canReason;
+          }
+
+          // Reschedule history
+          if (log.action === 'PURCHASE_ORDER_RESCHEDULED' || (d?.expected_date && d?.reschedule_reason)) {
+            if (!rescheduleMap[poId]) rescheduleMap[poId] = [];
+            rescheduleMap[poId].push({
+              date: log.created_at,
+              new_expected_date: d.expected_date,
+              reason: d.reschedule_reason || d.reason || null
+            });
           }
         } catch (e) {}
       }
     }
 
     for (const po of pos) {
+      // 1. Decline reasons
       if (!po.decline_reason && declineMap[po.id]) {
         po.decline_reason = declineMap[po.id];
       }
       if (po.decline_reason) {
         po.declineReason = po.decline_reason;
       }
+
+      // 2. Cancellation reasons
+      if (!po.cancellation_reason && cancellationMap[po.id]) {
+        po.cancellation_reason = cancellationMap[po.id];
+      }
+      if (po.cancellation_reason) {
+        po.cancellationReason = po.cancellation_reason;
+      }
+
+      // 3. Reschedule history
+      if (rescheduleMap[po.id]) {
+        po.reschedule_history = rescheduleMap[po.id];
+      }
+
+      // 4. Overdue detection
+      const isTerminal = ['Received', 'Cancelled', 'Declined', 'DECLINED'].includes(po.status);
+      const isOverdue = !isTerminal && Boolean(po.expected_date && po.expected_date < todayManila);
+      let daysOverdue = 0;
+      if (isOverdue) {
+        const diffMs = new Date(todayManila + 'T00:00:00') - new Date(po.expected_date + 'T00:00:00');
+        daysOverdue = Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24)));
+      }
+      po.is_overdue = isOverdue;
+      po.days_overdue = daysOverdue;
     }
   } catch (err) {
-    console.error('Error enriching POs with decline reasons:', err);
+    console.error('Error enriching POs with metadata from audit logs:', err);
   }
 
   return pos;
@@ -302,7 +357,7 @@ export const getPurchaseOrders = async () => {
 
   const withReceipts = await enrichPOsWithReceiptHistory(data);
   const withProposals = await enrichPOsWithSupplierProposals(withReceipts);
-  return await enrichPOsWithDeclineReasons(withProposals);
+  return await enrichPOsWithMetadata(withProposals);
 };
 
 // Get purchase orders for a specific supplier (Supplier Portal)
@@ -361,7 +416,7 @@ export const getPurchaseOrdersBySupplier = async (supplierId) => {
 
   const withReceipts = await enrichPOsWithReceiptHistory(data);
   const withProposals = await enrichPOsWithSupplierProposals(withReceipts);
-  return await enrichPOsWithDeclineReasons(withProposals);
+  return await enrichPOsWithMetadata(withProposals);
 };
 
 export const createPurchaseOrder = async (poData) => {
@@ -400,16 +455,24 @@ export const createPurchaseOrder = async (poData) => {
   return po;
 };
 
-export const updatePurchaseOrderStatus = async (id, status, items_received = [], expected_date = null, decline_reason = null) => {
-  const updates = { status };
-  if (status === 'Received' || status === 'Partial') {
-    updates.received_at = new Date().toISOString();
+export const updatePurchaseOrderStatus = async (id, status = null, items_received = [], expected_date = null, reason = null) => {
+  const updates = {};
+  if (status) {
+    updates.status = status;
+    if (status === 'Received' || status === 'Partial') {
+      updates.received_at = new Date().toISOString();
+    }
   }
   if (expected_date) {
     updates.expected_date = expected_date;
   }
-  if (decline_reason) {
-    updates.decline_reason = decline_reason;
+  if (reason) {
+    const sUpper = (status || '').toUpperCase();
+    if (sUpper === 'DECLINED') {
+      updates.decline_reason = reason;
+    } else if (sUpper === 'CANCELLED') {
+      updates.cancellation_reason = reason;
+    }
   }
 
   let data = null;
@@ -420,9 +483,10 @@ export const updatePurchaseOrderStatus = async (id, status, items_received = [],
     .select()
     .single();
 
-  if (result.error && (result.error.code === '42703' || result.error.message?.includes('decline_reason'))) {
-    // Column doesn't exist yet in the database, fall back without decline_reason column
+  if (result.error && (result.error.code === '42703' || result.error.message?.includes('decline_reason') || result.error.message?.includes('cancellation_reason'))) {
+    // If decline_reason or cancellation_reason column doesn't exist yet, retry without custom columns
     delete updates.decline_reason;
+    delete updates.cancellation_reason;
     const fallback = await supabase
       .from("purchase_orders")
       .update(updates)
@@ -431,9 +495,15 @@ export const updatePurchaseOrderStatus = async (id, status, items_received = [],
       .single();
     if (fallback.error) throw fallback.error;
     data = fallback.data;
-    if (decline_reason) {
-      data.decline_reason = decline_reason;
-      data.declineReason = decline_reason;
+    if (reason) {
+      const sUpper = (status || '').toUpperCase();
+      if (sUpper === 'DECLINED') {
+        data.decline_reason = reason;
+        data.declineReason = reason;
+      } else if (sUpper === 'CANCELLED') {
+        data.cancellation_reason = reason;
+        data.cancellationReason = reason;
+      }
     }
   } else if (result.error) {
     throw result.error;

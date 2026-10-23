@@ -35,15 +35,29 @@ export async function createPurchaseOrder(poData) {
   });
 }
 
-export async function updatePurchaseOrderStatus(id, status, items_received = [], expected_date = null, declineReason = null) {
+export async function updatePurchaseOrderStatus(id, status, items_received = [], expected_date = null, reason = null) {
   return apiCall(`/purchasing/purchase-orders/${id}`, {
     method: "PATCH",
     body: JSON.stringify({ 
       status, 
       items_received, 
       expected_date, 
-      declineReason, 
-      decline_reason: declineReason 
+      reason,
+      declineReason: reason, 
+      decline_reason: reason,
+      cancellationReason: reason,
+      cancellation_reason: reason
+    })
+  });
+}
+
+export async function reschedulePurchaseOrder(id, newExpectedDate, reason = null) {
+  return apiCall(`/purchasing/purchase-orders/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      expected_date: newExpectedDate,
+      reschedule_reason: reason,
+      reason
     })
   });
 }

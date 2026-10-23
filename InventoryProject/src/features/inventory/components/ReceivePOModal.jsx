@@ -5,10 +5,11 @@ const ReceivePOModal = ({ po, onClose, onSubmit }) => {
   const [items, setItems] = useState(
     po.purchase_order_items.map(item => ({
       ...item,
-      received_now: 1
+      received_now: Math.max(1, (item.quantity || 1) - (item.quantity_received || 0))
     }))
   );
   const [saving, setSaving] = useState(false);
+  const [isReviewStep, setIsReviewStep] = useState(false);
 
   const handleQuantityChange = (id, val) => {
     setItems(prev => prev.map(item => item.id === id ? { ...item, received_now: parseInt(val) || 0 } : item));
@@ -18,107 +19,222 @@ const ReceivePOModal = ({ po, onClose, onSubmit }) => {
     setItems(prev => prev.map(item => item.id === id ? { ...item, received_now: fullQuantity } : item));
   };
 
-  const handleSubmit = async (e) => {
+  // Determine items to receive
+  const itemsToSubmit = items
+    .filter(item => item.received_now > 0)
+    .map(item => ({ ...item, quantity_received_now: item.received_now }));
+
+  const isComplete = items.every(item => item.is_received || (item.quantity_received + (item.received_now || 0)) >= item.quantity);
+  const newStatus = isComplete ? 'Received' : 'Partial';
+
+  const handleProceedToReview = (e) => {
     e.preventDefault();
-    setSaving(true);
-    
-    // Determine status: Complete if all received, Partial if any are less
-    const isComplete = items.every(item => item.is_received || (item.quantity_received + item.received_now) >= item.quantity);
-    const newStatus = isComplete ? 'Received' : 'Partial';
-
-    // Only submit items that are newly checked to be received
-    const itemsToSubmit = items
-      .filter(item => item.received_now > 0)
-      .map(item => ({ ...item, quantity_received_now: item.received_now }));
-
-    await onSubmit(po.id, newStatus, itemsToSubmit);
-    setSaving(false);
+    if (itemsToSubmit.length === 0) return;
+    setIsReviewStep(true);
   };
 
+  const handleFinalSubmit = async () => {
+    setSaving(true);
+    try {
+      await onSubmit(po.id, newStatus, itemsToSubmit);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const poRef = po.id ? po.id.substring(0, 8).toUpperCase() : '';
+
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget && !saving) onClose(); }}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col animate-[popIn_0.2s_ease-out]" onClick={e => e.stopPropagation()}>
-        <div className="bg-gray-900 text-white px-6 py-4 flex justify-between items-center shrink-0">
-          <h2 className="m-0 text-lg md:text-xl font-bold tracking-wide">Receive PO #{po.id.substring(0, 8).toUpperCase()}</h2>
-          <button className="text-gray-400 hover:text-white transition-colors bg-transparent border-none text-2xl leading-none cursor-pointer p-0" onClick={onClose}>✕</button>
+        {/* Header */}
+        <div className="bg-zinc-900 text-white px-6 py-4 flex justify-between items-center shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="m-0 text-base md:text-lg font-bold tracking-wide">
+                Receive Stock • PO #{poRef}
+              </h2>
+              <p className="m-0 text-xs text-zinc-400 font-medium">
+                {isReviewStep ? 'Step 2 of 2: Verify stock additions' : 'Step 1 of 2: Enter received quantities'}
+              </p>
+            </div>
+          </div>
+          <button className="text-zinc-400 hover:text-white transition-colors bg-transparent border-none text-xl leading-none cursor-pointer p-0" onClick={onClose} disabled={saving}>✕</button>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden min-h-0">
-          <div className="p-6 overflow-y-auto flex-1 flex flex-col gap-4">
-            <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl text-sm md:text-base text-blue-900 font-medium">
-              Please verify the received quantities. If any quantities are less than ordered, the PO will be marked as <strong>Partial</strong>.
-            </div>
+        {/* Form Body */}
+        {!isReviewStep ? (
+          <form onSubmit={handleProceedToReview} className="flex flex-col overflow-hidden min-h-0 flex-1">
+            <div className="p-6 overflow-y-auto flex-1 flex flex-col gap-4">
+              <div className="bg-zinc-50 border border-zinc-200 p-4 rounded-xl text-xs md:text-sm text-zinc-700 font-medium flex items-center justify-between">
+                <span>Verify quantities delivered by <strong>{po.suppliers?.name || 'the supplier'}</strong>. Items less than ordered will mark the order as <strong>Partial</strong>.</span>
+              </div>
 
-            <div className="flex flex-col gap-3 mt-2">
-              {items.map(item => (
-                <div key={item.id} className={`flex flex-col md:flex-row md:items-center gap-4 p-4 border border-gray-200 rounded-xl ${item.is_received ? 'bg-green-50/50' : 'bg-gray-50'}`}>
-                  <div className="flex-1">
-                    <div className="text-base md:text-lg font-black text-gray-900">{item.ingredients?.name}</div>
-                    <div className="text-sm md:text-base font-bold text-gray-700 mt-0.5">Ordered: {item.quantity} {item.purchase_unit}</div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {item.is_received || item.quantity_received >= item.quantity ? (
-                      <div className="flex flex-col gap-1 items-end">
-                        <div className="flex items-center gap-2 px-4 py-2 text-sm md:text-base font-bold text-green-700 bg-green-100 rounded-lg">
-                          <span className="text-lg leading-none">✓</span> Fully Received
+              <div className="flex flex-col gap-3">
+                {items.map(item => {
+                  const maxRemaining = Math.max(0, item.quantity - (item.quantity_received || 0));
+                  const isFullyReceivedAlready = item.is_received || item.quantity_received >= item.quantity;
+
+                  return (
+                    <div key={item.id} className={`flex flex-col md:flex-row md:items-center gap-4 p-4 border rounded-xl transition-all ${isFullyReceivedAlready ? 'bg-zinc-50 border-zinc-200 opacity-70' : 'bg-white border-zinc-200 hover:border-zinc-300 shadow-2xs'}`}>
+                      <div className="flex-1">
+                        <div className="text-sm md:text-base font-bold text-zinc-900">{item.ingredients?.name}</div>
+                        <div className="text-xs font-semibold text-zinc-500 mt-0.5">
+                          Ordered: {item.quantity} {item.purchase_unit} • Previously Received: {item.quantity_received || 0}
                         </div>
-                        {po.received_at && (
-                          <span className="text-xs md:text-sm text-gray-600 font-semibold tracking-tight">Received: {formatDisplayDateTime(po.received_at)}</span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {isFullyReceivedAlready ? (
+                          <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg">
+                            <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                            </svg>
+                            Fully Received
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center border border-zinc-300 rounded-lg overflow-hidden bg-white shadow-xs focus-within:ring-2 focus-within:ring-zinc-900 focus-within:border-transparent transition-all">
+                              <input
+                                type="number"
+                                min="0"
+                                max={maxRemaining}
+                                step="1"
+                                className="w-20 px-3 py-2 text-sm md:text-base font-bold text-zinc-900 text-center border-none focus:outline-none"
+                                value={item.received_now === 0 ? '' : item.received_now}
+                                onChange={(e) => handleQuantityChange(item.id, e.target.value)}
+                                placeholder="0"
+                              />
+                              <div className="px-3 py-2 bg-zinc-50 border-l border-zinc-200 text-xs md:text-sm font-semibold text-zinc-700">
+                                {item.purchase_unit}
+                              </div>
+                              <button
+                                type="button"
+                                className="px-3 py-2 bg-zinc-100 hover:bg-zinc-200 border-l border-zinc-200 text-xs font-bold text-zinc-700 transition-colors uppercase tracking-wider cursor-pointer"
+                                onClick={() => setMaxQuantity(item.id, maxRemaining)}
+                              >
+                                Max
+                              </button>
+                            </div>
+                          </div>
                         )}
                       </div>
-                    ) : (
-                      <div className="flex flex-col gap-1.5 items-end">
-                        <div className="text-sm md:text-base text-gray-800 font-bold flex flex-col gap-1 items-end">
-                          <span>Received So Far: {item.quantity_received} / {item.quantity}</span>
-                          {item.receipt_history && item.receipt_history.length > 0 ? (
-                            <div className="flex flex-col gap-1 mt-1 border-t border-gray-200 pt-1">
-                              {item.receipt_history.map((rh, idx) => (
-                                <span key={idx} className="text-xs md:text-sm text-gray-600 font-semibold">
-                                  + {rh.quantity} on {formatDisplayDateTime(rh.date)}
-                                </span>
-                              ))}
-                            </div>
-                          ) : (
-                            item.quantity_received > 0 && po.received_at && (
-                              <span className="text-xs md:text-sm text-gray-600 font-semibold">Last received: {formatDisplayDateTime(po.received_at)}</span>
-                            )
-                          )}
-                        </div>
-                        <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden bg-white shadow-sm focus-within:ring-2 focus-within:ring-gray-900 focus-within:border-transparent transition-all">
-                          <input
-                            type="number"
-                            min="0"
-                            max={item.quantity - item.quantity_received}
-                            step="1"
-                            className="w-24 px-3 py-2 text-base md:text-lg font-black text-gray-900 text-center border-none focus:outline-none"
-                            value={item.received_now === 0 ? '' : item.received_now}
-                            onChange={(e) => handleQuantityChange(item.id, e.target.value)}
-                            placeholder="Qty"
-                          />
-                          <div className="px-3.5 py-2 bg-gray-50 border-l border-gray-200 text-sm md:text-base font-bold text-gray-800">
-                            {item.purchase_unit}
-                          </div>
-                          <button
-                            type="button"
-                            className="px-3.5 py-2 bg-gray-100 hover:bg-gray-200 border-l border-gray-200 text-xs md:text-sm font-bold text-gray-800 transition-colors uppercase tracking-wider cursor-pointer"
-                            onClick={() => setMaxQuantity(item.id, item.quantity - item.quantity_received)}
-                          >
-                            Max
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            
+            <div className="px-6 py-4 border-t border-zinc-100 bg-zinc-50 flex justify-end gap-3 shrink-0">
+              <button type="button" className="px-5 py-2.5 bg-white border border-zinc-300 text-zinc-700 rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-zinc-100 transition-colors cursor-pointer" onClick={onClose} disabled={saving}>Cancel</button>
+              <button 
+                type="submit" 
+                disabled={itemsToSubmit.length === 0}
+                className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-xs ${
+                  itemsToSubmit.length > 0 
+                    ? 'bg-zinc-900 hover:bg-black text-white cursor-pointer' 
+                    : 'bg-zinc-200 text-zinc-400 cursor-not-allowed border border-zinc-300'
+                }`}
+              >
+                Review Receipt ({itemsToSubmit.length} items) →
+              </button>
+            </div>
+          </form>
+        ) : (
+          /* Step 2: Friction Review & Impact Summary */
+          <div className="flex flex-col overflow-hidden min-h-0 flex-1">
+            <div className="p-6 overflow-y-auto flex-1 flex flex-col gap-4">
+              {/* Status Outcome Banner */}
+              <div className={`p-4 rounded-xl border flex items-start gap-3 ${
+                newStatus === 'Received'
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                  : 'bg-amber-50 border-amber-200 text-amber-900'
+              }`}>
+                <div className="mt-0.5 shrink-0">
+                  {newStatus === 'Received' ? (
+                    <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  )}
+                </div>
+                <div>
+                  <div className="text-xs font-bold uppercase tracking-wider">
+                    {newStatus === 'Received' ? 'Full Order Completion' : 'Partial Delivery Discrepancy'}
+                  </div>
+                  <div className="text-xs md:text-sm font-medium mt-0.5">
+                    {newStatus === 'Received'
+                      ? 'All ordered quantities will be marked fully received and order status updated to Received.'
+                      : 'Some items have remaining unreceived quantities. Order status will be set to Partial until remaining stock is delivered.'}
                   </div>
                 </div>
-              ))}
+              </div>
+
+              {/* Inventory Stock Additions Breakdown */}
+              <div className="bg-zinc-50 border border-zinc-200 rounded-xl overflow-hidden">
+                <div className="px-4 py-3 border-b border-zinc-200 text-xs font-bold text-zinc-600 uppercase tracking-wider">
+                  Live Stock Additions
+                </div>
+                <div className="divide-y divide-zinc-200">
+                  {itemsToSubmit.map(item => {
+                    const conv = Number(item.conversion_factor || 1);
+                    const baseUnits = Number(item.quantity_received_now) * conv;
+                    const remainingAfter = item.quantity - (item.quantity_received + item.quantity_received_now);
+
+                    return (
+                      <div key={item.id} className="p-3.5 flex items-center justify-between text-xs md:text-sm">
+                        <div>
+                          <div className="font-bold text-zinc-900">{item.ingredients?.name}</div>
+                          <div className="text-zinc-500 font-medium">
+                            Receiving: {item.quantity_received_now} {item.purchase_unit}
+                            {conv > 1 && ` (+${baseUnits.toLocaleString()} ${item.ingredients?.unit || 'base units'})`}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-black text-emerald-800 bg-emerald-100 border border-emerald-300">
+                            +{item.quantity_received_now} {item.purchase_unit}
+                          </span>
+                          {remainingAfter > 0 && (
+                            <div className="text-[11px] text-amber-700 font-semibold mt-0.5">
+                              {remainingAfter} {item.purchase_unit} pending
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-zinc-100 bg-zinc-50 flex justify-between items-center gap-3 shrink-0">
+              <button 
+                type="button" 
+                className="px-4 py-2.5 bg-white border border-zinc-300 text-zinc-700 rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-zinc-100 transition-colors cursor-pointer" 
+                onClick={() => setIsReviewStep(false)}
+                disabled={saving}
+              >
+                ← Back to Edit
+              </button>
+              <button 
+                type="button" 
+                onClick={handleFinalSubmit}
+                disabled={saving}
+                className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-colors shadow-xs cursor-pointer"
+              >
+                {saving ? 'Committing Stock...' : 'Verify & Add to Inventory Stock'}
+              </button>
             </div>
           </div>
-          
-          <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3 shrink-0">
-            <button type="button" className="px-6 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm md:text-base font-bold uppercase tracking-wider hover:bg-gray-100 transition-colors cursor-pointer" onClick={onClose} disabled={saving}>Cancel</button>
-            <button type="submit" className="px-6 py-2.5 bg-gray-900 text-white border-none rounded-lg text-sm md:text-base font-bold uppercase tracking-wider hover:bg-black transition-colors shadow-sm cursor-pointer" disabled={saving}>{saving ? 'Processing...' : 'Confirm Receipt'}</button>
-          </div>
-        </form>
+        )}
       </div>
     </div>
   );

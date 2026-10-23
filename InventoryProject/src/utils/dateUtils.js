@@ -84,3 +84,25 @@ export const formatDisplayDateTime = (dateStr) => {
   });
 };
 
+/**
+ * Checks if a YYYY-MM-DD or ISO date string is strictly before Manila today
+ */
+export const isDatePast = (dateStr) => {
+  if (!dateStr) return false;
+  const today = getManilaDateOnly();
+  const dOnly = String(dateStr).split('T')[0];
+  return dOnly < today;
+};
+
+/**
+ * Computes how many calendar days overdue a date is relative to Manila today
+ */
+export const getDaysOverdue = (dateStr) => {
+  if (!dateStr || !isDatePast(dateStr)) return 0;
+  const today = getManilaDateOnly();
+  const dOnly = String(dateStr).split('T')[0];
+  const diffMs = new Date(today + 'T00:00:00') - new Date(dOnly + 'T00:00:00');
+  return Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24)));
+};
+
+

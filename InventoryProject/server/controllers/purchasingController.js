@@ -77,7 +77,7 @@ export const updatePurchaseOrderStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status, items_received, user_id, expected_date } = req.body;
-    const rawReason = req.body.declineReason || req.body.decline_reason || req.body.reason;
+    const rawReason = req.body.declineReason || req.body.decline_reason || req.body.cancellationReason || req.body.cancellation_reason || req.body.reason || req.body.reschedule_reason;
 
     const statusUpper = (status || '').toUpperCase();
     if (statusUpper === 'DECLINED') {
@@ -88,16 +88,35 @@ export const updatePurchaseOrderStatus = async (req, res) => {
       }
     }
 
-    const declineReason = rawReason && typeof rawReason === 'string' ? rawReason.trim() : null;
+    if (statusUpper === 'CANCELLED') {
+      if (!rawReason || typeof rawReason !== 'string' || !rawReason.trim()) {
+        return res.status(400).json({ 
+          error: 'A cancellation reason string is required when status is CANCELLED.' 
+        });
+      }
+    }
+
+    const reason = rawReason && typeof rawReason === 'string' ? rawReason.trim() : null;
     const authUserId = req.user?.id || user_id || null;
     
-    const data = await purchasingService.updatePurchaseOrderStatus(id, status, items_received, expected_date, declineReason);
+    const data = await purchasingService.updatePurchaseOrderStatus(id, status, items_received, expected_date, reason);
     
-    // Log the overall PO status change
-    await logAudit(statusUpper === 'DECLINED' ? 'SUPPLIER_PO_DECLINED' : 'PURCHASE_ORDER_STATUS_UPDATED', authUserId, {
+    // Determine the audit action
+    let auditAction = 'PURCHASE_ORDER_STATUS_UPDATED';
+    if (statusUpper === 'DECLINED') auditAction = 'SUPPLIER_PO_DECLINED';
+    else if (statusUpper === 'CANCELLED') auditAction = 'PURCHASE_ORDER_CANCELLED';
+    else if (expected_date && !status) auditAction = 'PURCHASE_ORDER_RESCHEDULED';
+
+    await logAudit(auditAction, authUserId, {
       po_id: data.id,
-      new_status: status,
-      ...(declineReason ? { decline_reason: declineReason, declineReason } : {})
+      new_status: status || data.status,
+      ...(expected_date ? { expected_date } : {}),
+      ...(reason ? { 
+        reason, 
+        decline_reason: reason, 
+        cancellation_reason: reason,
+        reschedule_reason: reason 
+      } : {})
     });
 
     // Log individual stock receipts for each received item so they show in
