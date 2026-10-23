@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import PageLoader from './PageLoader/PageLoader';
 import { getProducts } from '../../api/posApi';
-import { getCmsContent } from '../../api/cmsApi';
+import { getCmsMap } from '../../api/cmsApi';
 
 const DEFAULT_HERO_IMAGE = 'https://zngerymqycuxpxdmfftj.supabase.co/storage/v1/object/public/cms-images/public/landing_hero-0.8481000269201046.jpg';
 
@@ -491,15 +491,15 @@ function LandingPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const data = await getCmsContent();
-        if (data && data.length > 0) {
-          const brand = data.find(d => d.section_key === 'brand_logo');
-          const promo = data.find(d => d.section_key === 'promo_section');
-          const hero = data.find(d => d.section_key === 'landing_hero');
-          const menu = data.find(d => d.section_key === 'menu_section');
-          const location = data.find(d => d.section_key === 'location_info');
-          const footer = data.find(d => d.section_key === 'footer_info');
-          const social = data.find(d => d.section_key === 'social_links');
+        const map = await getCmsMap();
+        if (map && Object.keys(map).length > 0) {
+          const brand = map.brand_logo;
+          const promo = map.promo_section;
+          const hero = map.landing_hero;
+          const menu = map.menu_section;
+          const location = map.location_info;
+          const footer = map.footer_info;
+          const social = map.social_links;
 
           const parsedPromosList = parsePromos(promo);
 

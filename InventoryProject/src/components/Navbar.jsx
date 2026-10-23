@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { logoutUser, getCurrentUser } from '../api/authApi';
 import { useNotifications } from '../features/dashboard/useNotifications';
-import { getCmsContent } from '../api/cmsApi';
+import { getCmsMap } from '../api/cmsApi';
 import NotificationInbox from '../features/dashboard/components/NotificationInbox';
 
 const MENU_CONFIG = {
@@ -162,10 +162,10 @@ const Navbar = ({ activeTab, onTabChange }) => {
 
   useEffect(() => {
     let isMounted = true;
-    getCmsContent()
-      .then((data) => {
-        if (!isMounted || !Array.isArray(data)) return;
-        const brand = data.find((d) => d.section_key === 'brand_logo');
+    getCmsMap()
+      .then((map) => {
+        if (!isMounted || !map) return;
+        const brand = map.brand_logo;
         if (brand) {
           setBrandInfo({
             name: brand.title || 'CofTea Cafe',

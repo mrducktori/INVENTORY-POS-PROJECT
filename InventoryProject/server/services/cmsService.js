@@ -8,6 +8,16 @@ export const getCmsContent = async () => {
   return data;
 };
 
+export const getCmsSection = async (section_key) => {
+  const { data, error } = await supabase
+    .from("cms_content")
+    .select("*")
+    .eq("section_key", section_key)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+};
+
 export const updateCmsContent = async (section_key, updates) => {
   const { data, error } = await supabase
     .from("cms_content")

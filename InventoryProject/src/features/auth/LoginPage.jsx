@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Dashboard from '../dashboard/Dashboard';
 import { useLogin } from './useLogin';
 import PageLoader from './PageLoader/PageLoader';
-import { getCmsContent } from '../../api/cmsApi';
+import { getCmsImage } from '../../api/cmsApi';
 
 const DEFAULT_HERO_IMAGE = 'https://zngerymqycuxpxdmfftj.supabase.co/storage/v1/object/public/cms-images/public/landing_hero-0.8481000269201046.jpg';
 
@@ -20,12 +20,7 @@ function LoginPage() {
       sessionStorage.removeItem('session_expired_msg');
     }
 
-    getCmsContent()
-      .then(data => {
-        const hero = data?.find(d => d.section_key === 'landing_hero');
-        if (hero?.image_url) setBgImage(hero.image_url);
-      })
-      .catch(() => {});
+    getCmsImage('landing_hero', DEFAULT_HERO_IMAGE).then(setBgImage);
 
     const timer = setTimeout(() => {
       setIsInitialLoading(false);

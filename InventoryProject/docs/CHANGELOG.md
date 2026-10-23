@@ -11,6 +11,11 @@ All notable changes to this project will be documented in this file.
 - **Switched Landing and Login Pages to Database CMS Image:** Removed reliance on local image assets (`loc_pic.png`) in `LandingPage.jsx` and `LoginPage.jsx`. Both pages now fetch and render the official `landing_hero` background image directly from Supabase CMS (`cms-images`).
 - **Resilient API Client Parsing:** Updated `src/api/client.js` to safely inspect response text before parsing JSON, preventing white screens and unexpected end-of-JSON errors when the backend is offline or proxying.
 - **Restored Local `.env`:** Recreated local `InventoryProject/.env` and `InventoryProject/server/.env` so the Express server and Vite frontend have access to Supabase credentials during local development.
+- **Secure & High-Performance CMS Image Architecture:**
+  - Upgraded `src/api/cmsApi.js` with in-memory caching (`getCmsMap`, `getCmsImage`) with 3-minute TTL and immediate invalidation on update. Components (`Navbar`, `LandingPage`, `LoginPage`) now share cached CMS data without firing duplicate requests.
+  - Added safe URL validation (`isValidImageUrl`) to prevent XSS injection via malicious image protocols.
+  - Added `GET /api/cms/:section_key` for single-section retrieval with regex validation (`/^[a-z0-9_]{2,50}$/`).
+  - Enforced `requireRole('Admin', 'Owner')` on `PUT /api/cms/:section_key` (Rule 10) and updated audit logging to use authenticated `req.user.id` (Rule 9).
 
 ## [Ingredient Depletion & Restock Forecasting Hub with One-Click Purchase Orders — 2026-10-19]
 - **Predictive Ingredient Burn & Depletion Forecasting Engine (`server/routes/analytics.js`):**

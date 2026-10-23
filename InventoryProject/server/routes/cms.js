@@ -1,10 +1,11 @@
 import express from "express";
 import * as cmsController from "../controllers/cmsController.js";
-import { requireAuth } from "../middleware/authMiddleware.js";
+import { requireAuth, requireRole } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
 router.get("/", cmsController.getCmsContent);
-router.put("/:section_key", requireAuth, cmsController.updateCmsContent);
+router.get("/:section_key", cmsController.getCmsSection);
+router.put("/:section_key", requireAuth, requireRole("Admin", "Owner"), cmsController.updateCmsContent);
 
 export default router;
