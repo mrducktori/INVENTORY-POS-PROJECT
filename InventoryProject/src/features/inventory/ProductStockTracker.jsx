@@ -1,7 +1,41 @@
 import React, { useState, useEffect } from 'react';
 import { getAllProducts } from '../../api/productsApi';
 
-
+const STATUS_GROUPS = [
+  {
+    id: 'out',
+    label: 'Out of Stock',
+    badgeClass: 'bg-red-50 text-red-700 border-red-200',
+    headerBg: 'bg-red-50/70 border-red-200',
+    icon: (
+      <svg className="w-4 h-4 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+      </svg>
+    )
+  },
+  {
+    id: 'low',
+    label: 'Low Stock / Restock Needed',
+    badgeClass: 'bg-amber-50 text-amber-700 border-amber-200',
+    headerBg: 'bg-amber-50/70 border-amber-200',
+    icon: (
+      <svg className="w-4 h-4 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    )
+  },
+  {
+    id: 'normal',
+    label: 'In Stock',
+    badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    headerBg: 'bg-gray-100/70 border-gray-200',
+    icon: (
+      <svg className="w-4 h-4 text-emerald-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    )
+  }
+];
 
 const ProductStockTracker = () => {
   const [products, setProducts] = useState([]);
@@ -27,41 +61,51 @@ const ProductStockTracker = () => {
   };
 
   const getStockStatus = (current, threshold) => {
-    if (current <= 0) return 'out';
-    if (current <= threshold) return 'critical';
-    if (current <= threshold * 1.5) return 'warning';
+    const qty = Number(current) || 0;
+    const thresh = Number(threshold) || 0;
+    if (qty <= 0) return 'out';
+    if (thresh > 0 && qty <= thresh * 1.5) return 'low';
     return 'normal';
   };
 
   const getStatusLabel = (status) => {
     if (status === 'out') return 'Out of Stock';
-    if (status === 'critical') return 'Restock Needed';
-    if (status === 'warning') return 'Low Stock';
+    if (status === 'low') return 'Low Stock / Restock Needed';
     return 'In Stock';
   };
 
   const getStockPercent = (current, threshold) => {
-    if (!threshold || threshold === 0) return 100;
-    return Math.min(Math.round((current / (threshold * 2)) * 100), 100);
+    const thresh = Number(threshold) || 0;
+    if (!thresh || thresh <= 0) return 100;
+    const currentNum = Number(current) || 0;
+    return Math.min(Math.round((currentNum / (thresh * 2)) * 100), 100);
   };
 
   const filteredProducts = products.filter(p => {
     const status = getStockStatus(p.stock_quantity, p.low_stock_threshold);
-    const matchSearch = (p.name || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchSearch = (p.name || '').toLowerCase().includes(searchTerm.toLowerCase().trim());
     const matchStatus =
       stockFilter === 'ALL' ? true :
-      stockFilter === 'HEALTHY' ? status === 'normal' :
-      status.toUpperCase() === stockFilter;
+      status === stockFilter.toLowerCase();
     return matchSearch && matchStatus;
   });
 
   const stats = {
     total: products.length,
-    out: products.filter(p => p.stock_quantity <= 0).length,
-    critical: products.filter(p => p.stock_quantity > 0 && p.stock_quantity <= p.low_stock_threshold).length,
-    warning: products.filter(p => p.stock_quantity > p.low_stock_threshold && p.stock_quantity <= p.low_stock_threshold * 1.5).length,
-    healthy: products.filter(p => p.stock_quantity > p.low_stock_threshold * 1.5).length,
+    out: products.filter(p => getStockStatus(p.stock_quantity, p.low_stock_threshold) === 'out').length,
+    low: products.filter(p => getStockStatus(p.stock_quantity, p.low_stock_threshold) === 'low').length,
+    healthy: products.filter(p => getStockStatus(p.stock_quantity, p.low_stock_threshold) === 'normal').length,
   };
+
+  const groupedProducts = STATUS_GROUPS.map(group => {
+    const items = filteredProducts
+      .filter(p => getStockStatus(p.stock_quantity, p.low_stock_threshold) === group.id)
+      .sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }));
+    return {
+      ...group,
+      items
+    };
+  }).filter(group => group.items.length > 0);
 
   return (
     <div className="p-4 md:p-8 flex-1 bg-gray-50 overflow-y-auto w-full">
@@ -80,7 +124,7 @@ const ProductStockTracker = () => {
       </div>
 
       {/* ---- Stats Row ---- */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <div className="bg-white border border-gray-200 p-5 rounded-xl shadow-sm flex flex-col justify-center text-center">
           <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Tracked Products</div>
           <div className="text-2xl font-extrabold text-gray-900">{stats.total}</div>
@@ -89,17 +133,13 @@ const ProductStockTracker = () => {
           <div className="text-xs font-bold text-red-600 uppercase tracking-wider mb-1">Out of Stock</div>
           <div className="text-2xl font-extrabold text-red-700">{stats.out}</div>
         </div>
-        <div className="bg-red-50 border border-red-100 p-5 rounded-xl shadow-sm flex flex-col justify-center text-center">
-          <div className="text-xs font-bold text-red-600 uppercase tracking-wider mb-1">Restock Needed</div>
-          <div className="text-2xl font-extrabold text-red-600">{stats.critical}</div>
+        <div className="bg-amber-50 border border-amber-200 p-5 rounded-xl shadow-sm flex flex-col justify-center text-center">
+          <div className="text-xs font-bold text-amber-700 uppercase tracking-wider mb-1">Low Stock / Restock Needed</div>
+          <div className="text-2xl font-extrabold text-amber-700">{stats.low}</div>
         </div>
-        <div className="bg-amber-50 border border-amber-100 p-5 rounded-xl shadow-sm flex flex-col justify-center text-center">
-          <div className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">Low Stock</div>
-          <div className="text-2xl font-extrabold text-amber-600">{stats.warning}</div>
-        </div>
-        <div className="bg-green-50 border border-green-100 p-5 rounded-xl shadow-sm flex flex-col justify-center text-center">
-          <div className="text-xs font-bold text-green-600 uppercase tracking-wider mb-1">In Stock</div>
-          <div className="text-2xl font-extrabold text-green-600">{stats.healthy}</div>
+        <div className="bg-green-50 border border-green-200 p-5 rounded-xl shadow-sm flex flex-col justify-center text-center">
+          <div className="text-xs font-bold text-green-700 uppercase tracking-wider mb-1">In Stock</div>
+          <div className="text-2xl font-extrabold text-green-700">{stats.healthy}</div>
         </div>
       </div>
 
@@ -116,22 +156,21 @@ const ProductStockTracker = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
             <select
-              className="w-full sm:w-48 px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
+              className="w-full sm:w-56 px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
               value={stockFilter}
               onChange={e => setStockFilter(e.target.value)}
             >
               <option value="ALL">All Status</option>
               <option value="OUT">Out of Stock Only</option>
-              <option value="CRITICAL">Restock Needed Only</option>
-              <option value="WARNING">Low Stock Only</option>
-              <option value="HEALTHY">In Stock Only</option>
+              <option value="LOW">Low Stock / Restock Needed Only</option>
+              <option value="NORMAL">In Stock Only</option>
             </select>
           </div>
         </div>
         <div className="p-0">
           {loading ? (
             <div className="p-8 text-center text-gray-500 font-medium">Loading...</div>
-          ) : filteredProducts.length > 0 ? (
+          ) : groupedProducts.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse whitespace-nowrap">
                 <thead>
@@ -145,43 +184,60 @@ const ProductStockTracker = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {filteredProducts.map(p => {
-                    const status = getStockStatus(p.stock_quantity, p.low_stock_threshold);
-                    const pct = getStockPercent(p.stock_quantity, p.low_stock_threshold);
-
-                    return (
-                      <tr key={p.id} className="hover:bg-gray-50/50 transition-colors">
-                        <td className="px-6 py-4"><strong className="text-sm font-bold text-gray-900">{p.name}</strong></td>
-                        <td className="px-6 py-4"><span className="text-xs text-gray-500 font-medium bg-gray-100 px-2 py-1 rounded">{p.category}</span></td>
-                        <td className="px-6 py-4 text-sm font-extrabold text-gray-900 text-right">{p.stock_quantity} pcs</td>
-                        <td className="px-6 py-4 text-sm font-medium text-gray-500 text-right">{p.low_stock_threshold} pcs</td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
-                              <div
-                                className={`h-full rounded-full ${
-                                  status === 'out' ? 'bg-red-600' :
-                                  status === 'critical' ? 'bg-red-500' :
-                                  status === 'warning' ? 'bg-orange-500' : 'bg-green-500'
-                                }`}
-                                style={{ width: `${pct}%` }}
-                              />
+                  {groupedProducts.map(group => (
+                    <React.Fragment key={group.id}>
+                      <tr className={`${group.headerBg} border-y`}>
+                        <td colSpan={6} className="px-6 py-2.5">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              {group.icon}
+                              <span className="text-xs font-bold uppercase tracking-wider text-gray-800">
+                                {group.label}
+                              </span>
                             </div>
-                            <span className="text-xs font-bold text-gray-600 w-8">{pct}%</span>
+                            <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border shadow-xs ${group.badgeClass}`}>
+                              {group.items.length} {group.items.length === 1 ? 'item' : 'items'}
+                            </span>
                           </div>
                         </td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                            status === 'out' ? 'bg-red-50 text-red-700 border border-red-200' :
-                            status === 'critical' ? 'bg-red-50 text-red-600 border border-red-100' :
-                            status === 'warning' ? 'bg-orange-50 text-orange-600 border border-orange-100' : 'bg-green-50 text-green-700 border border-green-200'
-                          }`}>
-                            {getStatusLabel(status)}
-                          </span>
-                        </td>
                       </tr>
-                    );
-                  })}
+                      {group.items.map(p => {
+                        const status = group.id;
+                        const pct = getStockPercent(p.stock_quantity, p.low_stock_threshold);
+
+                        return (
+                          <tr key={p.id} className="hover:bg-gray-50/50 transition-colors">
+                            <td className="px-6 py-4"><strong className="text-sm font-bold text-gray-900">{p.name}</strong></td>
+                            <td className="px-6 py-4"><span className="text-xs text-gray-500 font-medium bg-gray-100 px-2 py-1 rounded">{p.category}</span></td>
+                            <td className="px-6 py-4 text-sm font-extrabold text-gray-900 text-right">{p.stock_quantity} pcs</td>
+                            <td className="px-6 py-4 text-sm font-medium text-gray-500 text-right">{p.low_stock_threshold} pcs</td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full ${
+                                      status === 'out' ? 'bg-red-600' :
+                                      status === 'low' ? 'bg-amber-500' : 'bg-green-500'
+                                    }`}
+                                    style={{ width: `${pct}%` }}
+                                  />
+                                </div>
+                                <span className="text-xs font-bold text-gray-600 w-8">{pct}%</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                status === 'out' ? 'bg-red-50 text-red-700 border border-red-200' :
+                                status === 'low' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-green-50 text-green-700 border border-green-200'
+                              }`}>
+                                {getStatusLabel(status)}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </React.Fragment>
+                  ))}
                 </tbody>
               </table>
             </div>

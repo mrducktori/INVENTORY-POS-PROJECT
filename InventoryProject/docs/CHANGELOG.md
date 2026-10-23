@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Stock Trackers: Priority-Grouped Sorting & Unified Low Stock Status — 2026-10-23]
+- **Unified "Low Stock / Restock Needed" Status**:
+  - Merged redundant "Restock Needed" and "Low Stock" states into a single unified status (`Low Stock / Restock Needed`) across `RawMaterialTracker.jsx` and `ProductStockTracker.jsx`.
+  - Consolidated KPI summary cards from 5 cards to 4 clean, responsive cards (`Total`, `Out of Stock`, `Low Stock / Restock Needed`, `In Stock`).
+  - Simplified status filter dropdowns to `All Status`, `Out of Stock Only`, `Low Stock / Restock Needed Only`, and `In Stock Only`.
+- **Priority-Grouped Alphabetical Sorting**:
+  - Arranged stock tables by stock urgency priority:
+    1. **Out of Stock** (stock <= 0) — displayed on top with distinct red label header row, alert icon, and item count badge.
+    2. **Low Stock / Restock Needed** (stock <= threshold * 1.5) — displayed with distinct amber label header row, warning icon, and item count badge.
+    3. **In Stock** (healthy stock) — displayed with distinct emerald label header row, check icon, and item count badge.
+  - Items are automatically sorted alphabetically (A-Z) by name within each labeled section.
+- **Strict Rule 16 Compliance**:
+  - Used pure semantic inline SVGs for all section headers and alert indicators (strictly zero Unicode emojis).
+
 ## [Product List Pagination & 3-State Sorting — 2026-10-23]
 - **Reusable Pagination Component (`src/components/shared/Pagination.jsx`)**:
   - Implemented pagination with item counts ("Showing 1 to 10 of 42 items"), previous/next controls, dynamic page numbers with ellipsis truncation, and selectable items-per-page (10, 20, 50).
