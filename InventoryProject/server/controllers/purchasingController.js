@@ -61,10 +61,11 @@ export const createPurchaseOrder = async (req, res) => {
     const data = await purchasingService.createPurchaseOrder(body);
     
     // Log audit
-    await logAudit('PURCHASE_ORDER_CREATED', user_id || null, {
+    await logAudit('PURCHASE_ORDER_CREATED', req.user?.id || user_id || null, {
       po_id: data.id,
       supplier_id: data.supplier_id,
-      total_amount: data.total_amount
+      total_amount: data.total_amount,
+      notes: body.notes || null
     });
 
     res.status(201).json(data);

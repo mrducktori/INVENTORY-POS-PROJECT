@@ -140,6 +140,7 @@ const enrichPOsWithMetadata = async (pos) => {
       .from('audit_logs')
       .select('created_at, details, action')
       .in('action', [
+        'PURCHASE_ORDER_CREATED',
         'SUPPLIER_PO_DECLINED', 
         'PURCHASE_ORDER_STATUS_UPDATED', 
         'PURCHASE_ORDER_CANCELLED', 
@@ -150,6 +151,7 @@ const enrichPOsWithMetadata = async (pos) => {
     const declineMap = {};
     const cancellationMap = {};
     const rescheduleMap = {};
+    const notesMap = {};
 
     if (logs) {
       for (const log of logs) {
@@ -179,6 +181,11 @@ const enrichPOsWithMetadata = async (pos) => {
               reason: d.reschedule_reason || d.reason || null
             });
           }
+
+          // Notes
+          if (log.action === 'PURCHASE_ORDER_CREATED' && d?.notes && !notesMap[poId]) {
+            notesMap[poId] = d.notes;
+          }
         } catch (e) {}
       }
     }
@@ -205,7 +212,12 @@ const enrichPOsWithMetadata = async (pos) => {
         po.reschedule_history = rescheduleMap[po.id];
       }
 
-      // 4. Overdue detection
+      // 4. Notes
+      if (!po.notes && notesMap[po.id]) {
+        po.notes = notesMap[po.id];
+      }
+
+      // 5. Overdue detection
       const isTerminal = ['Received', 'Cancelled', 'Declined', 'DECLINED'].includes(po.status);
       const isOverdue = !isTerminal && Boolean(po.expected_date && po.expected_date < todayManila);
       let daysOverdue = 0;
@@ -420,18 +432,52 @@ export const getPurchaseOrdersBySupplier = async (supplierId) => {
 };
 
 export const createPurchaseOrder = async (poData) => {
-  // poData should look like: { supplier_id, expected_date, items: [{ ingredient_id, quantity, unit_price }] }
-  const { items, ...poDetails } = poData;
+  // poData should look like: { supplier_id, expected_date, notes, items: [{ ingredient_id, quantity, unit_price }] }
+  const { items, notes, ...poDetails } = poData;
 
   // Calculate total amount
   const total_amount = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
   
-  // 1. Insert PO
-  const { data: po, error: poError } = await supabase
-    .from("purchase_orders")
-    .insert([{ ...poDetails, total_amount, status: 'Pending' }])
-    .select()
-    .single();
+  // Base PO payload with guaranteed existing columns
+  const basePo = {
+    supplier_id: poDetails.supplier_id,
+    expected_date: poDetails.expected_date || null,
+    total_amount,
+    status: 'Pending'
+  };
+
+  // 1. Insert PO (attempt with notes if provided; if column is missing from schema cache, fallback gracefully)
+  let po = null;
+  let poError = null;
+
+  if (notes) {
+    const resWithNotes = await supabase
+      .from("purchase_orders")
+      .insert([{ ...basePo, notes }])
+      .select()
+      .single();
+
+    if (resWithNotes.error && (resWithNotes.error.code === '42703' || resWithNotes.error.code === 'PGRST204' || resWithNotes.error.message?.toLowerCase().includes('notes'))) {
+      const fallbackRes = await supabase
+        .from("purchase_orders")
+        .insert([basePo])
+        .select()
+        .single();
+      po = fallbackRes.data;
+      poError = fallbackRes.error;
+    } else {
+      po = resWithNotes.data;
+      poError = resWithNotes.error;
+    }
+  } else {
+    const res = await supabase
+      .from("purchase_orders")
+      .insert([basePo])
+      .select()
+      .single();
+    po = res.data;
+    poError = res.error;
+  }
 
   if (poError) throw poError;
 

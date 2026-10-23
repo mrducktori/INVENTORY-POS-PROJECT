@@ -963,14 +963,17 @@ const DemandForecasting = () => {
                             </div>
                           </td>
                           <td className="px-4 py-3">
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={item.unit_price}
-                              onChange={(e) => handleUpdatePoItemPrice(idx, e.target.value)}
-                              className="w-28 px-2 py-1 border border-gray-300 rounded text-sm text-gray-900 font-mono focus:ring-1 focus:ring-black"
-                            />
+                            <div className="flex items-center gap-1">
+                              <span className="text-xs text-gray-500 font-semibold">₱</span>
+                              <input
+                                type="text"
+                                value={Number(item.unit_price || 0).toFixed(2)}
+                                readOnly
+                                tabIndex="-1"
+                                className="w-24 px-2.5 py-1.5 border border-gray-200 bg-gray-50 text-gray-700 rounded-lg text-sm font-bold font-mono cursor-not-allowed select-none focus:outline-none"
+                                title="Unit cost is fixed from the supplier catalog and cannot be edited"
+                              />
+                            </div>
                           </td>
                           <td className="px-4 py-3 text-right font-extrabold font-mono text-gray-900">
                             {formatCurrency(item.quantity * item.unit_price)}

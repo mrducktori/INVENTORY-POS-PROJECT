@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [PO Price Lock & Database Schema Fallback Resilience — 2026-10-23]
+- **Locked Unit Price in Demand Forecasting PO Generation**:
+  - Made Unit Cost in `DemandForecasting.jsx` ("Generate Purchase Order" modal) read-only (`readOnly`, `cursor-not-allowed`, `bg-gray-50 text-gray-700`) with clear tooltip indication.
+  - Ensures prices are strictly sourced from verified supplier catalog defaults and cannot be modified arbitrarily during automated restock PO generation.
+- **Resilient PO Creation & Graceful Schema Handling**:
+  - Resolved `Could not find the 'notes' column of 'purchase_orders' in the schema cache` error.
+  - Updated `purchasingService.js` to attempt inserting `notes` if present, with automatic graceful fallback to core columns (`supplier_id`, `expected_date`, `total_amount`, `status`) if the database table has not yet had the `notes` column added.
+  - Captured `notes` in `audit_logs` under `PURCHASE_ORDER_CREATED` event and enriched returned POs so notes are preserved regardless of database migration status.
+- **Consolidated Migration Script (`docs/database/migration_purchase_orders_columns.sql`)**:
+  - Provided a single, copy-pasteable SQL migration script adding `notes`, `decline_reason`, and `cancellation_reason` to `purchase_orders`, plus `max_stock` to `ingredients` and `products`.
+
+
 ## [Overdue Purchase Order Lifecycle & Process Friction Safeguards — 2026-10-23]
 - **Overdue Purchase Order Status & Operational Flexibility**:
   - **Dynamic Overdue Detection**:
