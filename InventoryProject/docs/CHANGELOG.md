@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Dashboard Predictive Insights: Declutter, Accurate Depletion & Forecasting Linkage — 2026-10-23]
+- **Direct Linkage to Demand Forecasting (`PredictiveInsights.jsx`, `DashboardOverview.jsx`)**:
+  - Wired `onNavigate` prop from `Dashboard.jsx` through `DashboardOverview.jsx` to `PredictiveInsights.jsx`.
+  - Added "Open Forecast →" and "View Depletion →" action buttons in widget card headers that seamlessly open the full Demand Forecasting module (`Forecasting` tab).
+- **Decluttered 7-Day Demand Forecast Widget**:
+  - Replaced noisy and inflated percentage strings (e.g. `+4357.1%`) and redundant confidence labels with realistic, executive-grade trend indicators (`Avg. 1.5 / day • +28% trend`).
+  - Added clean status badges matching unified stock terminology: `Out of Stock` (soft red), `Restock Needed` (soft amber), and `In Stock` (soft emerald).
+  - Fixed SQL join performance in `server/routes/analytics.js` (`GET /api/analytics/demand-forecast`) by eliminating nested table scans that previously caused PostgreSQL statement timeouts.
+- **Accurate Stock Depletion Timeline**:
+  - Switched data source to `getIngredientDepletionForecast()`, ensuring 100% parity with the main Forecasting module.
+  - Replaced broken 100% solid red progress bars with meaningful, proportional supply bars based on a 14-day replenishment window (red for depleted/critical items, amber for low stock, emerald for stable inventory).
+  - Fixed grammar from "1 days left" to "1 day left", and added informative secondary metrics showing current stock quantity and daily burn rate.
+- **Strict Rule 16 Compliance**: Clean typography, generous whitespace, zero Unicode emojis.
+
 ## [Stock Trackers: Priority-Grouped Sorting & Unified Low Stock Status — 2026-10-23]
 - **Unified "Low Stock / Restock Needed" Status**:
   - Merged redundant "Restock Needed" and "Low Stock" states into a single unified status (`Low Stock / Restock Needed`) across `RawMaterialTracker.jsx` and `ProductStockTracker.jsx`.

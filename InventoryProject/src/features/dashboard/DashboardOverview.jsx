@@ -124,7 +124,7 @@ const DashboardOverview = ({ onNavigate }) => {
       )}
 
       {/* Predictive Analytics Section */}
-      <PredictiveInsights />
+      <PredictiveInsights onNavigate={onNavigate} />
 
       {/* BI Grid: Sales Analytics */}
       <div>

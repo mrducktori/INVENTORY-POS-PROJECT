@@ -288,7 +288,7 @@ router.get('/demand-forecast', async (req, res) => {
     ] = await Promise.all([
       supabase
         .from('sales')
-        .select('created_at, sale_items(product_id, quantity, unit_price, products(name, category, price, stock_quantity))')
+        .select('created_at, sale_items(product_id, quantity, unit_price)')
         .gte('created_at', thirtyDaysAgo.toISOString()),
       supabase
         .from('products')
@@ -328,11 +328,12 @@ router.get('/demand-forecast', async (req, res) => {
       (s.sale_items || []).forEach(si => {
         const pid = si.product_id;
         if (!productMap[pid]) {
+          const matchedProd = (allProducts || []).find(p => p.id === pid);
           productMap[pid] = {
             id: pid,
-            name: si.products?.name || 'Unknown',
-            category: si.products?.category || 'General',
-            currentStock: parseFloat(si.products?.stock_quantity) || 0,
+            name: matchedProd?.name || 'Product',
+            category: matchedProd?.category || 'General',
+            currentStock: parseFloat(matchedProd?.stock_quantity) || 0,
             price: parseFloat(si.unit_price) || 0,
             totalQty: 0,
             recentQty: 0,
@@ -361,9 +362,13 @@ router.get('/demand-forecast', async (req, res) => {
       const priorDaily = stats.priorQty / 16;
 
       let growthRate = 0;
-      if (priorDaily > 0) {
+      if (priorDaily > 0.5) {
         growthRate = ((recentDaily - priorDaily) / priorDaily) * 100;
+      } else if (avgDaily > 0.1) {
+        growthRate = ((recentDaily - avgDaily) / avgDaily) * 50;
       }
+      // Bound growthRate to realistic display limits [-100%, +100%]
+      growthRate = Math.max(-100, Math.min(100, growthRate));
 
       // 7-day cyclical projection: count upcoming weekends, paydays, and holidays
       let next7DaysPredicted = 0;
