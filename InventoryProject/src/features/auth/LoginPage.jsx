@@ -2,12 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Dashboard from '../dashboard/Dashboard';
 import { useLogin } from './useLogin';
-import locPic from '../../assets/images/LOC_PIC.png';
 import PageLoader from './PageLoader/PageLoader';
+import { getCmsContent } from '../../api/cmsApi';
+
+const DEFAULT_HERO_IMAGE = 'https://zngerymqycuxpxdmfftj.supabase.co/storage/v1/object/public/cms-images/public/landing_hero-0.8481000269201046.jpg';
 
 function LoginPage() {
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [sessionNotice, setSessionNotice] = useState('');
+  const [bgImage, setBgImage] = useState(DEFAULT_HERO_IMAGE);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -16,6 +19,13 @@ function LoginPage() {
       setSessionNotice(expiredMsg);
       sessionStorage.removeItem('session_expired_msg');
     }
+
+    getCmsContent()
+      .then(data => {
+        const hero = data?.find(d => d.section_key === 'landing_hero');
+        if (hero?.image_url) setBgImage(hero.image_url);
+      })
+      .catch(() => {});
 
     const timer = setTimeout(() => {
       setIsInitialLoading(false);
@@ -49,7 +59,7 @@ function LoginPage() {
   const fmt = (s) => `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
 
   return (
-    <div className="w-full h-screen bg-cover bg-center bg-fixed font-sans" style={{ backgroundImage: `url(${locPic})` }}>
+    <div className="w-full h-screen bg-cover bg-center bg-fixed font-sans" style={{ backgroundImage: `url(${bgImage})` }}>
       <div className="w-full h-full bg-black/60 backdrop-blur-[2px] flex items-center justify-center">
         <div className="bg-[#121212] border border-[#2a2a2a] rounded-xl p-8 w-[90%] max-w-[400px] shadow-2xl text-white">
           <form onSubmit={handleSubmit}>

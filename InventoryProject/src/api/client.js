@@ -62,7 +62,13 @@ export async function apiCall(endpoint, options = {}) {
 
   try {
     const response = await fetch(url, defaultOptions);
-    const data = await response.json();
+    const text = await response.text();
+    let data;
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      data = { error: text || `Server error (${response.status})` };
+    }
 
     if (!response.ok) {
       // If the server says our session is invalid, force a logout and redirect

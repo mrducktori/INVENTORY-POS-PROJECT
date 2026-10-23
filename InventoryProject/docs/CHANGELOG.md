@@ -8,7 +8,9 @@ All notable changes to this project will be documented in this file.
 - **Fixed Render & Production Dependencies:** Added `helmet`, `express-rate-limit`, and `jsonwebtoken` to `InventoryProject/package.json`. Moved `vite`, `@vitejs/plugin-react`, and `tailwindcss` to `dependencies` so production builds (`npm install` when `NODE_ENV=production`) have access to build tools.
 - **Fixed Linux Case-Sensitive Image Imports:** Changed imports in `LandingPage.jsx` and `LoginPage.jsx` from `loc_pic.png` to uppercase `LOC_PIC.png` to prevent build failures on Linux hosting (Vercel/Render).
 - **Added Vercel SPA Routing Configuration:** Added `InventoryProject/vercel.json` with rewrite rules so direct URLs and page refreshes route cleanly to `/index.html`.
-- **Created Remote Backup Branch:** Created and pushed `backup-trying-something-wierd-20261023` to preserve the complete repository state prior to cleanup.
+- **Switched Landing and Login Pages to Database CMS Image:** Removed reliance on local image assets (`loc_pic.png`) in `LandingPage.jsx` and `LoginPage.jsx`. Both pages now fetch and render the official `landing_hero` background image directly from Supabase CMS (`cms-images`).
+- **Resilient API Client Parsing:** Updated `src/api/client.js` to safely inspect response text before parsing JSON, preventing white screens and unexpected end-of-JSON errors when the backend is offline or proxying.
+- **Restored Local `.env`:** Recreated local `InventoryProject/.env` and `InventoryProject/server/.env` so the Express server and Vite frontend have access to Supabase credentials during local development.
 
 ## [Ingredient Depletion & Restock Forecasting Hub with One-Click Purchase Orders — 2026-10-19]
 - **Predictive Ingredient Burn & Depletion Forecasting Engine (`server/routes/analytics.js`):**

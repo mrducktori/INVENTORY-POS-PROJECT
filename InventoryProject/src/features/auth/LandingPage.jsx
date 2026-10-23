@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import locPic from '../../assets/images/LOC_PIC.png';
 import PageLoader from './PageLoader/PageLoader';
 import { getProducts } from '../../api/posApi';
 import { getCmsContent } from '../../api/cmsApi';
+
+const DEFAULT_HERO_IMAGE = 'https://zngerymqycuxpxdmfftj.supabase.co/storage/v1/object/public/cms-images/public/landing_hero-0.8481000269201046.jpg';
 
 
 
@@ -435,7 +436,7 @@ function LandingPage() {
     promo_image: '',
     hero_title: 'COF/TEA CAFÉ | ELWOOD BRANCH',
     hero_description: '',
-    hero_image: locPic,
+    hero_image: DEFAULT_HERO_IMAGE,
     menu_title: 'Menu Board',
     menu_subtitle: 'Browse Our',
     location_title: 'Location',
@@ -511,7 +512,7 @@ function LandingPage() {
             promo_image: parsedPromosList[0]?.image_url || promo?.image_url || '',
             hero_title: hero?.title || 'COF/TEA CAFÉ | ELWOOD BRANCH',
             hero_description: hero?.description || '',
-            hero_image: hero?.image_url || locPic,
+            hero_image: hero?.image_url || DEFAULT_HERO_IMAGE,
             menu_title: menu?.title || 'Menu Board',
             menu_subtitle: menu?.description || 'Browse Our',
             location_title: location?.title || 'Location',
