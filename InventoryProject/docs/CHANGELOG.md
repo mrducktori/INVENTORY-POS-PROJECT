@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Live Retail Data Seeding for Dashboard & Demand Forecasting — 2026-10-23]
+- **Realistic October 2026 Retail Seeding (`docs/database/seed_recent_dashboard_forecasting.js`)**:
+  - Seeded 374 authentic retail transactions and 737 line items covering October 10 to October 23, 2026 without deleting or truncating any existing records.
+  - Implemented organic cafe traffic patterns: afternoon/evening peaks, weekend surges (Saturday/Sunday multiplier), and the Philippine mid-month payday rush (October 15).
+  - Seeded 4 purchase orders across all workflow states (`DECLINED` with mandatory reason, `TO_BE_DELIVERED`, `PENDING`, and `RECEIVED`).
+  - Flagged critical low-stock ingredients (`BLUEBERRY SYRUP`, `16OZ PET CUPS`) below the configurable `max_stock * 0.5` threshold to populate real-time inventory alerts.
+  - Logged realistic wastage records to activate operational loss monitoring.
+  - Populates real-time dashboard figures (Today's revenue ₱2,941, 7-day revenue ₱24,187, continuous daily sales curve) and activates all 42 active products in the Demand & Depletion Forecasting engine.
+
 ## [Supplier PO Declines, Configurable Thresholds, Atomic Deductions & Date Range Queries — 2026-10-23]
 - **Supplier PO Declines (`PATCH /purchase-orders/:id`)**:
   - Updated `PATCH /api/purchase-orders/:id` and `PATCH /api/purchasing/purchase-orders/:id` to strictly validate `declineReason` as a non-empty string when status is updated to `DECLINED` (returns HTTP 400 with descriptive error if missing or empty).
