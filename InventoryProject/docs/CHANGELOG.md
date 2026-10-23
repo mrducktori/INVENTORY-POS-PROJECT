@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Demand Forecasting: Typography Scaling & High-Contrast Visibility Upgrade — 2026-10-23]
+- **Scaled Text Hierarchy & Enhanced Contrast Across Forecasting View**:
+  - In [DemandForecasting.jsx](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/analytics/DemandForecasting.jsx):
+    - **Header & Navigation**: Bumped subtitle from faint `text-sm text-gray-500` to high-contrast `text-sm sm:text-base text-gray-700 font-medium`. Scaled sub-tab buttons to `px-5 py-2.5 text-xs sm:text-sm font-extrabold uppercase` with clear badge counters.
+    - **KPI Summary Cards**: Scaled metric labels to `text-xs sm:text-sm font-black text-gray-700 uppercase tracking-wide`, numbers to `text-3xl sm:text-4xl font-black`, and subtitles to `text-xs sm:text-sm font-semibold`.
+    - **Filter & Search Controls**: Upgraded search input to `text-sm sm:text-base font-medium text-gray-900 placeholder:text-gray-500 py-2.5` and category selector to `font-bold`. Enlarged status filter pills to `px-3.5 py-2 text-xs sm:text-sm font-extrabold`.
+    - **Raw Materials Restock Table (Tab 1)**:
+      - Scaled column headers to `text-xs sm:text-sm font-black text-gray-700 uppercase py-4`.
+      - Material names enlarged to `font-black text-base text-gray-900`; category and unit conversion tags upgraded from `text-[10px]` to `text-xs font-bold text-gray-800` and `text-xs text-gray-600 font-medium`.
+      - Stock quantities and burn rates rendered in `font-mono font-black text-base text-gray-900` with clear `text-xs text-gray-600` min alert and calculation subtexts.
+      - Restock suggestions bumped to `font-black text-base text-gray-900` with high-visibility estimated cost tags.
+      - Upgraded `formatDaysRemaining` status badges to bolder `text-xs sm:text-sm font-black` with saturated, high-contrast badges (red, amber, emerald).
+      - Replaced faint supplier text with bold `text-sm font-black text-gray-900`.
+    - **Product Demand Predictions Table (Tab 2)**:
+      - Scaled table headers to `text-xs sm:text-sm font-black text-gray-700 uppercase py-4`.
+      - Product names enlarged to `text-base font-black text-gray-900`.
+      - In-stock, daily averages, and 7-day forecast figures boosted to `text-base font-black font-mono`.
+      - Confidence scores and stockout risk badges scaled to `text-sm font-extrabold` and `text-xs font-black`.
+    - **Purchase Order Modal**:
+      - Scaled modal headers, form labels, inputs, table cells, and grand total bar for effortless legibility.
+    - **AI Monthly Forecast Modal**:
+      - Upgraded product name, select dropdowns, 3 core KPI metrics (`text-3xl font-black`), demand driver cards, and analysis summary text to high-contrast `text-sm` typography.
+
 ## [Demand Forecasting: Strict Rule 16 Unicode Emoji Elimination — 2026-10-23]
 - **Replaced All Unicode Emojis with Semantic Inline SVGs**:
   - Eliminated raw emojis across [DemandForecasting.jsx](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/analytics/DemandForecasting.jsx):

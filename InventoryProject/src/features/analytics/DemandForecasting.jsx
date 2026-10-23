@@ -313,31 +313,36 @@ const DemandForecasting = () => {
 
   const formatDaysRemaining = (days, urgency) => {
     if (urgency === 'OUT_OF_STOCK' || days === 0) {
-      return <span className="inline-flex items-center gap-1 font-bold text-red-600 bg-red-50 border border-red-200 px-2.5 py-1 rounded text-xs">Out of Stock</span>;
+      return (
+        <span className="inline-flex items-center gap-1.5 font-black text-red-800 bg-red-100 border border-red-300 px-3 py-1.5 rounded-lg text-xs sm:text-sm">
+          <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse"></span>
+          <span>Out of Stock</span>
+        </span>
+      );
     }
     if (days === null || days === undefined) {
-      return <span className="text-gray-400 font-mono text-xs">No Recent Sales</span>;
+      return <span className="text-gray-600 font-mono font-bold text-xs sm:text-sm">No Recent Sales</span>;
     }
     if (days <= 3) {
       return (
-        <span className="inline-flex items-center gap-1.5 font-bold text-red-700 bg-red-50 border border-red-200 px-2.5 py-1 rounded-md text-xs">
-          <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse"></span>
+        <span className="inline-flex items-center gap-1.5 font-black text-red-800 bg-red-100 border border-red-300 px-3 py-1.5 rounded-lg text-xs sm:text-sm">
+          <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse"></span>
           <span>{days} {days === 1 ? 'day' : 'days'}</span>
         </span>
       );
     }
     if (days <= 7) {
       return (
-        <span className="inline-flex items-center gap-1.5 font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-md text-xs">
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+        <span className="inline-flex items-center gap-1.5 font-black text-amber-900 bg-amber-100 border border-amber-300 px-3 py-1.5 rounded-lg text-xs sm:text-sm">
+          <span className="w-2 h-2 rounded-full bg-amber-500"></span>
           <span>{days} days</span>
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center gap-1.5 font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded text-xs">
-        <svg className="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+      <span className="inline-flex items-center gap-1.5 font-extrabold text-emerald-900 bg-emerald-100 border border-emerald-300 px-3 py-1.5 rounded-lg text-xs sm:text-sm">
+        <svg className="w-4 h-4 text-emerald-700 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
         </svg>
         <span>{days} days</span>
       </span>
@@ -373,14 +378,14 @@ const DemandForecasting = () => {
 
       {/* Header & Sub-Tab Navigation */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 pb-5">
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-3">
-            <h1 className="m-0 text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">Demand & Inventory Forecasting</h1>
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-black text-white">
+            <h1 className="m-0 text-2xl sm:text-3xl lg:text-4xl font-black text-gray-900 tracking-tight">Demand & Inventory Forecasting</h1>
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs sm:text-sm font-black uppercase tracking-wider bg-black text-white">
               AI Predictive
             </span>
           </div>
-          <p className="m-0 text-sm text-gray-500 font-medium">
+          <p className="m-0 text-sm sm:text-base text-gray-700 font-medium">
             Cross-references 30-day POS product recipe usage with real-time stock to forecast depletion and automate restock purchase orders.
           </p>
         </div>
@@ -389,25 +394,25 @@ const DemandForecasting = () => {
         <div className="inline-flex bg-gray-100 p-1.5 rounded-xl border border-gray-200 self-start md:self-auto">
           <button
             onClick={() => handleTabSwitch('ingredients')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-150 ${
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs sm:text-sm font-extrabold uppercase tracking-wide transition-all duration-150 cursor-pointer ${
               activeTab === 'ingredients'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-500 hover:text-gray-900'
+                ? 'bg-white text-gray-950 shadow-sm'
+                : 'text-gray-600 hover:text-gray-950'
             }`}
           >
             <span>Raw Materials Restock</span>
             {(ingredientData.summary.criticalCount > 0 || ingredientData.summary.lowStockCount > 0) && (
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-extrabold bg-red-600 text-white">
+              <span className="px-2 py-0.5 rounded-full text-xs font-black bg-red-600 text-white">
                 {ingredientData.summary.criticalCount + ingredientData.summary.lowStockCount}
               </span>
             )}
           </button>
           <button
             onClick={() => handleTabSwitch('products')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-150 ${
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs sm:text-sm font-extrabold uppercase tracking-wide transition-all duration-150 cursor-pointer ${
               activeTab === 'products'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-500 hover:text-gray-900'
+                ? 'bg-white text-gray-950 shadow-sm'
+                : 'text-gray-600 hover:text-gray-950'
             }`}
           >
             <span>Product Sales Demand (7D)</span>
@@ -421,70 +426,70 @@ const DemandForecasting = () => {
           {/* Summary KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             {/* Card 1: Critical */}
-            <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-5 border-l-4 border-l-red-600 flex flex-col justify-between">
+            <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-5 sm:p-6 border-l-4 border-l-red-600 flex flex-col justify-between">
               <div className="flex justify-between items-start">
-                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Critical Depletion (&lt; 3 Days)</span>
-                <span className="p-1.5 bg-red-50 text-red-600 rounded-lg flex items-center justify-center">
-                  <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                <span className="text-xs sm:text-sm font-black text-gray-700 uppercase tracking-wide">Critical Depletion (&lt; 3 Days)</span>
+                <span className="p-2 bg-red-50 text-red-600 rounded-lg flex items-center justify-center">
+                  <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
                 </span>
               </div>
-              <div className="mt-3">
-                <div className="text-3xl font-extrabold text-red-600 tracking-tight">
+              <div className="mt-4">
+                <div className="text-3xl sm:text-4xl font-black text-red-600 tracking-tight">
                   {loadingIngredients ? '...' : ingredientData.summary.criticalCount}
                 </div>
-                <p className="m-0 mt-1 text-xs text-gray-500 font-medium">Immediate reorder required</p>
+                <p className="m-0 mt-1.5 text-xs sm:text-sm text-gray-700 font-semibold">Immediate reorder required</p>
               </div>
             </div>
 
             {/* Card 2: Low Stock */}
-            <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-5 border-l-4 border-l-amber-500 flex flex-col justify-between">
+            <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-5 sm:p-6 border-l-4 border-l-amber-500 flex flex-col justify-between">
               <div className="flex justify-between items-start">
-                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Low Stock (&lt; 7 Days)</span>
-                <span className="p-1.5 bg-amber-50 text-amber-600 rounded-lg flex items-center justify-center">
-                  <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <span className="text-xs sm:text-sm font-black text-gray-700 uppercase tracking-wide">Low Stock (&lt; 7 Days)</span>
+                <span className="p-2 bg-amber-50 text-amber-600 rounded-lg flex items-center justify-center">
+                  <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </span>
               </div>
-              <div className="mt-3">
-                <div className="text-3xl font-extrabold text-amber-700 tracking-tight">
+              <div className="mt-4">
+                <div className="text-3xl sm:text-4xl font-black text-amber-700 tracking-tight">
                   {loadingIngredients ? '...' : ingredientData.summary.lowStockCount}
                 </div>
-                <p className="m-0 mt-1 text-xs text-gray-500 font-medium">Approaching reorder threshold</p>
+                <p className="m-0 mt-1.5 text-xs sm:text-sm text-gray-700 font-semibold">Approaching reorder threshold</p>
               </div>
             </div>
 
             {/* Card 3: Restock Capital */}
-            <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-5 border-l-4 border-l-gray-900 flex flex-col justify-between">
+            <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-5 sm:p-6 border-l-4 border-l-gray-900 flex flex-col justify-between">
               <div className="flex justify-between items-start">
-                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Est. Restock Capital</span>
-                <span className="w-7 h-7 bg-gray-100 text-gray-900 rounded-lg flex items-center justify-center text-xs font-black">₱</span>
+                <span className="text-xs sm:text-sm font-black text-gray-700 uppercase tracking-wide">Est. Restock Capital</span>
+                <span className="w-8 h-8 bg-gray-100 text-gray-900 rounded-lg flex items-center justify-center text-sm font-black">₱</span>
               </div>
-              <div className="mt-3">
-                <div className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
+              <div className="mt-4">
+                <div className="text-2xl sm:text-4xl font-black text-gray-900 tracking-tight">
                   {loadingIngredients ? '...' : formatCurrency(ingredientData.summary.totalRestockCapitalRequired)}
                 </div>
-                <p className="m-0 mt-1 text-xs text-gray-500 font-medium">Capital to buffer 14-day supply</p>
+                <p className="m-0 mt-1.5 text-xs sm:text-sm text-gray-700 font-semibold">Capital to buffer 14-day supply</p>
               </div>
             </div>
 
             {/* Card 4: Tracked Items */}
-            <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-5 border-l-4 border-l-emerald-600 flex flex-col justify-between">
+            <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-5 sm:p-6 border-l-4 border-l-emerald-600 flex flex-col justify-between">
               <div className="flex justify-between items-start">
-                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Monitored Raw Materials</span>
-                <span className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center">
-                  <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                <span className="text-xs sm:text-sm font-black text-gray-700 uppercase tracking-wide">Monitored Raw Materials</span>
+                <span className="p-2 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center">
+                  <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                   </svg>
                 </span>
               </div>
-              <div className="mt-3">
-                <div className="text-3xl font-extrabold text-gray-900 tracking-tight">
+              <div className="mt-4">
+                <div className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tight">
                   {loadingIngredients ? '...' : ingredientData.summary.totalIngredients}
                 </div>
-                <p className="m-0 mt-1 text-xs text-emerald-700 font-semibold">
+                <p className="m-0 mt-1.5 text-xs sm:text-sm text-emerald-800 font-bold">
                   {ingredientData.summary.healthyCount} items in healthy stock
                 </p>
               </div>
@@ -497,8 +502,8 @@ const DemandForecasting = () => {
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1">
               <div className="relative flex-1 max-w-md">
                 <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
                 </span>
                 <input
@@ -506,7 +511,7 @@ const DemandForecasting = () => {
                   placeholder="Search material, supplier, category..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-all"
+                  className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm sm:text-base font-medium text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-all"
                 />
               </div>
 
@@ -514,7 +519,7 @@ const DemandForecasting = () => {
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-black font-medium"
+                  className="px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm sm:text-base text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-black font-bold"
                 >
                   <option value="ALL">All Categories</option>
                   {categories.map(cat => (
@@ -528,50 +533,50 @@ const DemandForecasting = () => {
             <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={() => setStatusFilter('ALL')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider border transition-colors ${
+                className={`px-3.5 py-2 rounded-lg text-xs sm:text-sm font-extrabold uppercase tracking-wide border transition-colors cursor-pointer ${
                   statusFilter === 'ALL'
-                    ? 'bg-gray-900 text-white border-gray-900'
-                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                    ? 'bg-gray-900 text-white border-gray-900 shadow-sm'
+                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
                 }`}
               >
                 All ({ingredientData.ingredients.length})
               </button>
               <button
                 onClick={() => setStatusFilter('CRITICAL')}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider border transition-colors ${
+                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-extrabold uppercase tracking-wide border transition-colors cursor-pointer ${
                   statusFilter === 'CRITICAL'
-                    ? 'bg-red-600 text-white border-red-600'
-                    : 'bg-white text-red-600 border-red-200 hover:bg-red-50'
+                    ? 'bg-red-600 text-white border-red-600 shadow-sm'
+                    : 'bg-white text-red-700 border-red-300 hover:bg-red-50'
                 }`}
               >
-                <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                <svg className="w-4 h-4 shrink-0 text-current" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
                 <span>Critical ({ingredientData.summary.criticalCount})</span>
               </button>
               <button
                 onClick={() => setStatusFilter('LOW_STOCK')}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider border transition-colors ${
+                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-extrabold uppercase tracking-wide border transition-colors cursor-pointer ${
                   statusFilter === 'LOW_STOCK'
-                    ? 'bg-amber-600 text-white border-amber-600'
-                    : 'bg-white text-amber-700 border-amber-200 hover:bg-amber-50'
+                    ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
+                    : 'bg-white text-amber-800 border-amber-300 hover:bg-amber-50'
                 }`}
               >
-                <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <svg className="w-4 h-4 shrink-0 text-current" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <span>Low Stock ({ingredientData.summary.lowStockCount})</span>
               </button>
               <button
                 onClick={() => setStatusFilter('HEALTHY')}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider border transition-colors ${
+                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-extrabold uppercase tracking-wide border transition-colors cursor-pointer ${
                   statusFilter === 'HEALTHY'
-                    ? 'bg-emerald-700 text-white border-emerald-700'
-                    : 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50'
+                    ? 'bg-emerald-700 text-white border-emerald-700 shadow-sm'
+                    : 'bg-white text-emerald-800 border-emerald-300 hover:bg-emerald-50'
                 }`}
               >
-                <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                <svg className="w-4 h-4 shrink-0 text-current" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
                 </svg>
                 <span>Healthy ({ingredientData.summary.healthyCount})</span>
               </button>
@@ -582,7 +587,7 @@ const DemandForecasting = () => {
               {ingredientData.summary.criticalCount > 0 && (
                 <button
                   onClick={handleSelectAllCritical}
-                  className="px-3 py-2 bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 rounded-lg text-xs font-bold tracking-wider transition-colors"
+                  className="px-3.5 py-2 bg-red-50 text-red-700 border border-red-300 hover:bg-red-100 rounded-lg text-xs sm:text-sm font-black tracking-wide transition-colors cursor-pointer"
                   title="Select all critical raw materials"
                 >
                   Select Critical
@@ -592,9 +597,9 @@ const DemandForecasting = () => {
               {selectedIngredientIds.length > 0 && (
                 <button
                   onClick={handleOpenBatchPO}
-                  className="px-4 py-2 bg-black text-white hover:bg-gray-800 rounded-lg text-xs font-bold uppercase tracking-wider shadow-sm flex items-center gap-2 transition-all cursor-pointer"
+                  className="px-4 py-2 bg-black text-white hover:bg-gray-800 rounded-lg text-xs sm:text-sm font-black uppercase tracking-wide shadow-sm flex items-center gap-2 transition-all cursor-pointer"
                 >
-                  <svg className="w-3.5 h-3.5 text-zinc-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg className="w-4 h-4 text-zinc-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="9" cy="21" r="1" />
                     <circle cx="20" cy="21" r="1" />
                     <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
@@ -606,10 +611,10 @@ const DemandForecasting = () => {
               <button
                 onClick={fetchIngredientForecast}
                 disabled={loadingIngredients}
-                className="p-2 border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
+                className="p-2 border border-gray-300 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
                 title="Refresh Depletion Calculations"
               >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
                 </svg>
               </button>
@@ -639,8 +644,8 @@ const DemandForecasting = () => {
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse whitespace-nowrap">
                     <thead>
-                      <tr className="bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                        <th className="px-4 py-3.5 w-10 text-center">
+                      <tr className="bg-gray-50 border-b border-gray-200 text-xs sm:text-sm font-black text-gray-700 uppercase tracking-wide">
+                        <th className="px-4 py-4 w-10 text-center">
                           <input
                             type="checkbox"
                             checked={selectedIngredientIds.length > 0 && selectedIngredientIds.length === filteredIngredients.length}
@@ -648,13 +653,13 @@ const DemandForecasting = () => {
                             className="rounded border-gray-300 text-black focus:ring-black cursor-pointer"
                           />
                         </th>
-                        <th className="px-5 py-3.5">Raw Material</th>
-                        <th className="px-4 py-3.5 text-right">Current Stock</th>
-                        <th className="px-4 py-3.5 text-right">Daily Burn Rate</th>
-                        <th className="px-4 py-3.5 text-center">Runout Forecast</th>
-                        <th className="px-5 py-3.5">Restock Suggestion</th>
-                        <th className="px-4 py-3.5">Preferred Supplier</th>
-                        <th className="px-5 py-3.5 text-center">Action</th>
+                        <th className="px-5 py-4">Raw Material</th>
+                        <th className="px-4 py-4 text-right">Current Stock</th>
+                        <th className="px-4 py-4 text-right">Daily Burn Rate</th>
+                        <th className="px-4 py-4 text-center">Runout Forecast</th>
+                        <th className="px-5 py-4">Restock Suggestion</th>
+                        <th className="px-4 py-4">Preferred Supplier</th>
+                        <th className="px-5 py-4 text-center">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -675,13 +680,13 @@ const DemandForecasting = () => {
                             </td>
                             <td className="px-5 py-4">
                               <div className="flex flex-col">
-                                <span className="font-extrabold text-sm text-gray-900">{item.name}</span>
+                                <span className="font-black text-base text-gray-900">{item.name}</span>
                                 <div className="flex items-center gap-2 mt-1">
-                                  <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-600 border border-gray-200">
+                                  <span className="inline-flex px-2.5 py-0.5 rounded text-xs font-bold uppercase tracking-wide bg-gray-100 text-gray-800 border border-gray-300">
                                     {item.category}
                                   </span>
                                   {item.conversion_factor > 1 && (
-                                    <span className="text-[11px] text-gray-400">
+                                    <span className="text-xs text-gray-600 font-medium">
                                       (1 {item.purchase_unit} = {item.conversion_factor} {item.unit})
                                     </span>
                                   )}
@@ -690,27 +695,27 @@ const DemandForecasting = () => {
                             </td>
                             <td className="px-4 py-4 text-right">
                               <div className="flex flex-col items-end">
-                                <span className="font-mono font-extrabold text-sm text-gray-900">
-                                  {Number(item.stock_quantity).toLocaleString()} <span className="text-xs text-gray-500 font-normal">{item.unit}</span>
+                                <span className="font-mono font-black text-base text-gray-900">
+                                  {Number(item.stock_quantity).toLocaleString()} <span className="text-xs sm:text-sm text-gray-700 font-semibold">{item.unit}</span>
                                 </span>
-                                <span className="text-[11px] text-gray-400">
+                                <span className="text-xs text-gray-600 font-medium mt-0.5">
                                   Min alert: {item.low_stock_alert} {item.unit}
                                 </span>
                               </div>
                             </td>
                             <td className="px-4 py-4 text-right">
                               <div className="flex flex-col items-end">
-                                <span className="font-mono font-bold text-sm text-gray-800">
+                                <span className="font-mono font-black text-base text-gray-900">
                                   {item.avg_daily_burn_rate > 0 ? `${item.avg_daily_burn_rate} ${item.unit}/day` : '0.00'}
                                 </span>
-                                <span className="text-[11px] text-gray-400">30-day recipe average</span>
+                                <span className="text-xs text-gray-600 font-medium mt-0.5">30-day recipe average</span>
                               </div>
                             </td>
                             <td className="px-4 py-4 text-center">
                               <div className="flex flex-col items-center">
                                 {formatDaysRemaining(item.days_remaining, item.urgency_status)}
                                 {item.depletion_date && (
-                                  <span className="text-[10px] text-gray-500 mt-1 font-mono">
+                                  <span className="text-xs text-gray-700 font-bold mt-1 font-mono">
                                     Depletes {item.depletion_date}
                                   </span>
                                 )}
@@ -719,31 +724,31 @@ const DemandForecasting = () => {
                             <td className="px-5 py-4">
                               {item.suggested_purchase_qty > 0 ? (
                                 <div className="flex flex-col">
-                                  <span className="font-extrabold text-sm text-gray-900">
+                                  <span className="font-black text-base text-gray-900">
                                     {item.suggested_purchase_qty} {item.purchase_unit}
                                     {item.conversion_factor > 1 && (
-                                      <span className="text-xs text-gray-500 font-normal ml-1">
+                                      <span className="text-xs text-gray-700 font-medium ml-1">
                                         ({(item.suggested_purchase_qty * item.conversion_factor).toLocaleString()} {item.unit})
                                       </span>
                                     )}
                                   </span>
-                                  <span className="text-xs text-gray-600 font-semibold mt-0.5">
+                                  <span className="text-xs sm:text-sm text-gray-800 font-bold mt-0.5">
                                     Est. {formatCurrency(item.estimated_restock_cost)}
                                   </span>
                                 </div>
                               ) : (
-                                <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                                <span className="text-xs sm:text-sm font-extrabold text-emerald-900 bg-emerald-100 px-3 py-1 rounded-lg border border-emerald-300">
                                   Adequate Stock
                                 </span>
                               )}
                             </td>
                             <td className="px-4 py-4">
                               <div className="flex flex-col">
-                                <span className="text-xs font-bold text-gray-800">
+                                <span className="text-sm font-black text-gray-900">
                                   {item.supplier_name}
                                 </span>
                                 {item.unit_price > 0 && (
-                                  <span className="text-[11px] text-gray-500">
+                                  <span className="text-xs text-gray-700 font-semibold mt-0.5">
                                     {formatCurrency(item.unit_price)} / {item.purchase_unit}
                                   </span>
                                 )}
@@ -752,7 +757,7 @@ const DemandForecasting = () => {
                             <td className="px-5 py-4 text-center">
                               <button
                                 onClick={() => handleOpenSingleItemPO(item)}
-                                className="px-3.5 py-1.5 bg-gray-900 hover:bg-black text-white text-xs font-bold rounded-lg tracking-wider uppercase shadow-sm transition-all flex items-center gap-1 mx-auto"
+                                className="px-4 py-2 bg-gray-900 hover:bg-black text-white text-xs sm:text-sm font-black rounded-lg tracking-wider uppercase shadow-sm transition-all flex items-center gap-1.5 mx-auto cursor-pointer"
                               >
                                 <span>+ Order</span>
                               </button>
@@ -769,23 +774,23 @@ const DemandForecasting = () => {
 
           {/* Forecasting Methodology Explainer Card */}
           <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
-              <h2 className="m-0 text-sm font-bold text-gray-900 uppercase tracking-wider">
+            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+              <h2 className="m-0 text-sm sm:text-base font-black text-gray-900 uppercase tracking-wide">
                 Ingredient Burn Rate & Depletion Methodology
               </h2>
-              <span className="text-xs font-mono text-gray-400">Formula Specification</span>
+              <span className="text-xs font-mono font-bold text-gray-600">Formula Specification</span>
             </div>
-            <div className="p-5 text-xs text-gray-600 leading-relaxed grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="p-6 text-sm text-gray-700 leading-relaxed grid grid-cols-1 md:grid-cols-3 gap-5">
               <div className="p-4 rounded-xl bg-gray-50 border border-gray-200">
-                <div className="font-extrabold text-gray-900 mb-1">1. Recipe Deconstruction</div>
+                <div className="text-base font-black text-gray-900 mb-1.5">1. Recipe Deconstruction</div>
                 Every completed POS order in the last 30 days is cross-referenced with your bill of materials (recipes), converting units (g, ml, pcs) into base ingredient usage.
               </div>
               <div className="p-4 rounded-xl bg-gray-50 border border-gray-200">
-                <div className="font-extrabold text-gray-900 mb-1">2. Weighted Burn Velocity</div>
+                <div className="text-base font-black text-gray-900 mb-1.5">2. Weighted Burn Velocity</div>
                 Daily burn rates give 70% weight to recent 14-day velocity and 30% to monthly baseline, adapting quickly to sudden surges in drink demand.
               </div>
               <div className="p-4 rounded-xl bg-gray-50 border border-gray-200">
-                <div className="font-extrabold text-gray-900 mb-1">3. Automated Supplier Units</div>
+                <div className="text-base font-black text-gray-900 mb-1.5">3. Automated Supplier Units</div>
                 Reorder quantities are automatically converted into whole supplier purchase units (Bags, Cases, Packs) targeting a safe 14-day buffer.
               </div>
             </div>
@@ -797,33 +802,33 @@ const DemandForecasting = () => {
       {activeTab === 'products' && (
         <div className="flex flex-col gap-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-5 border-t-4 border-t-blue-500">
-              <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Forecast Confidence</div>
-              <div className="text-2xl font-extrabold text-gray-900 mb-1">92%</div>
-              <p className="m-0 text-xs text-gray-500">Based on historical daily sales consistency</p>
+            <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-5 sm:p-6 border-t-4 border-t-blue-500">
+              <div className="text-xs sm:text-sm font-black text-gray-700 uppercase tracking-wide mb-2">Forecast Confidence</div>
+              <div className="text-3xl sm:text-4xl font-black text-gray-900 mb-1">92%</div>
+              <p className="m-0 text-xs sm:text-sm text-gray-700 font-semibold mt-1">Based on historical daily sales consistency</p>
             </div>
-            <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-5 border-t-4 border-t-green-500">
-              <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">High Growth Products</div>
-              <div className="text-2xl font-extrabold text-gray-900 mb-1">
+            <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-5 sm:p-6 border-t-4 border-t-green-500">
+              <div className="text-xs sm:text-sm font-black text-gray-700 uppercase tracking-wide mb-2">High Growth Products</div>
+              <div className="text-3xl sm:text-4xl font-black text-gray-900 mb-1">
                 {productForecasts.filter(f => parseFloat(f.growthRate) > 5).length} items
               </div>
-              <p className="m-0 text-xs text-gray-500">Growing faster than 5% week-over-week</p>
+              <p className="m-0 text-xs sm:text-sm text-gray-700 font-semibold mt-1">Growing faster than 5% week-over-week</p>
             </div>
-            <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-5 border-t-4 border-t-gray-900">
-              <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Analysis Window</div>
-              <div className="text-2xl font-extrabold text-gray-900 mb-1">30 Days Historical</div>
-              <p className="m-0 text-xs text-gray-500">Day-of-week cyclical modeling</p>
+            <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-5 sm:p-6 border-t-4 border-t-gray-900">
+              <div className="text-xs sm:text-sm font-black text-gray-700 uppercase tracking-wide mb-2">Analysis Window</div>
+              <div className="text-3xl sm:text-4xl font-black text-gray-900 mb-1">30 Days Historical</div>
+              <p className="m-0 text-xs sm:text-sm text-gray-700 font-semibold mt-1">Day-of-week cyclical modeling</p>
             </div>
           </div>
 
           <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden">
-            <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+            <div className="px-6 py-5 border-b border-gray-200 bg-gray-50 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
               <div>
-                <h2 className="m-0 text-lg font-bold text-gray-900 tracking-tight">Product Demand Predictions (Next 7 Days)</h2>
-                <p className="m-0 text-xs text-gray-500 mt-0.5">Estimated customer orders across menu categories</p>
+                <h2 className="m-0 text-lg sm:text-xl font-black text-gray-900 tracking-tight">Product Demand Predictions (Next 7 Days)</h2>
+                <p className="m-0 text-sm text-gray-700 font-medium mt-1">Estimated customer orders across menu categories</p>
               </div>
               <button 
-                className="px-5 py-2.5 bg-gray-900 text-white rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm" 
+                className="px-5 py-2.5 bg-gray-900 text-white rounded-lg text-xs sm:text-sm font-black uppercase tracking-wide hover:bg-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm cursor-pointer" 
                 onClick={fetchProductForecasts} 
                 disabled={loadingProducts}
               >
@@ -832,59 +837,59 @@ const DemandForecasting = () => {
             </div>
             <div className="p-0">
               {loadingProducts ? (
-                <div className="p-12 flex flex-col items-center justify-center text-gray-500 bg-white">
-                  <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-900 rounded-full animate-spin mb-4"></div>
-                  <p className="m-0 font-medium">Generating menu predictions using historical sales data...</p>
+                <div className="p-16 flex flex-col items-center justify-center text-gray-500 bg-white">
+                  <div className="w-9 h-9 border-4 border-gray-200 border-t-gray-900 rounded-full animate-spin mb-4"></div>
+                  <p className="m-0 font-bold text-gray-800 text-base">Generating menu predictions using historical sales data...</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse whitespace-nowrap">
                     <thead>
-                      <tr className="bg-gray-50 border-b border-gray-200">
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Product</th>
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Category</th>
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">In-Stock</th>
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Daily Avg</th>
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">7-Day Forecast</th>
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Growth</th>
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider min-w-[140px]">Confidence</th>
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Stockout Risk</th>
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">AI Forecasting</th>
+                      <tr className="bg-gray-50 border-b border-gray-200 text-xs sm:text-sm font-black text-gray-700 uppercase tracking-wide">
+                        <th className="px-6 py-4">Product</th>
+                        <th className="px-6 py-4">Category</th>
+                        <th className="px-6 py-4 text-right">In-Stock</th>
+                        <th className="px-6 py-4 text-right">Daily Avg</th>
+                        <th className="px-6 py-4 text-right">7-Day Forecast</th>
+                        <th className="px-6 py-4">Growth</th>
+                        <th className="px-6 py-4 min-w-[140px]">Confidence</th>
+                        <th className="px-6 py-4 text-center">Stockout Risk</th>
+                        <th className="px-6 py-4 text-center">AI Forecasting</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {productForecasts.map(item => (
-                        <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
-                          <td className="px-6 py-4 text-sm font-bold text-gray-900">{item.name}</td>
+                        <tr key={item.id} className="hover:bg-gray-50/60 transition-colors">
+                          <td className="px-6 py-4 text-base font-black text-gray-900">{item.name}</td>
                           <td className="px-6 py-4">
-                            <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-600 border border-gray-200">
+                            <span className="inline-flex px-2.5 py-1 rounded text-xs font-bold uppercase tracking-wide bg-gray-100 text-gray-800 border border-gray-300">
                               {item.category}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-sm font-bold font-mono text-zinc-900 text-right">
+                          <td className="px-6 py-4 text-base font-black font-mono text-zinc-950 text-right">
                             {item.currentStock ?? 0}
                           </td>
-                          <td className="px-6 py-4 text-sm font-bold font-mono text-gray-900 text-right">{item.avgDailySales}</td>
-                          <td className="px-6 py-4 text-sm font-extrabold font-mono text-blue-700 text-right">{item.predictedNext7Days} units</td>
+                          <td className="px-6 py-4 text-base font-black font-mono text-gray-900 text-right">{item.avgDailySales}</td>
+                          <td className="px-6 py-4 text-base font-black font-mono text-blue-800 text-right">{item.predictedNext7Days} units</td>
                           <td className="px-6 py-4">
-                            <span className={`inline-flex items-center gap-1 font-bold font-mono text-xs ${parseFloat(item.growthRate) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            <span className={`inline-flex items-center gap-1 font-black font-mono text-sm ${parseFloat(item.growthRate) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                               {parseFloat(item.growthRate) >= 0 ? '↑' : '↓'} {Math.abs(item.growthRate)}%
                             </span>
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
-                              <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                              <div className="flex-1 h-2.5 bg-gray-200 rounded-full overflow-hidden">
                                 <div 
-                                  className={`h-full rounded-full ${item.confidence >= 90 ? 'bg-green-500' : item.confidence >= 70 ? 'bg-blue-500' : 'bg-orange-500'}`} 
+                                  className={`h-full rounded-full ${item.confidence >= 90 ? 'bg-green-600' : item.confidence >= 70 ? 'bg-blue-600' : 'bg-orange-600'}`} 
                                   style={{ width: `${item.confidence}%` }}
                                 ></div>
                               </div>
-                              <span className="text-xs font-bold text-gray-600 w-8 text-right">{item.confidence}%</span>
+                              <span className="text-sm font-extrabold text-gray-900 w-10 text-right">{item.confidence}%</span>
                             </div>
                           </td>
                           <td className="px-6 py-4 text-center">
-                            <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
-                              item.stockoutRisk === 'Low' ? 'bg-green-50 text-green-700 border-green-200' : item.stockoutRisk === 'Medium' ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-red-50 text-red-700 border-red-200'
+                            <span className={`inline-flex px-3 py-1 rounded-full text-xs font-black uppercase tracking-wide border ${
+                              item.stockoutRisk === 'Low' ? 'bg-green-50 text-green-800 border-green-300' : item.stockoutRisk === 'Medium' ? 'bg-orange-50 text-orange-800 border-orange-300' : 'bg-red-50 text-red-800 border-red-300'
                             }`}>
                               {item.stockoutRisk}
                             </span>
@@ -893,10 +898,10 @@ const DemandForecasting = () => {
                             <button
                               type="button"
                               onClick={() => handleOpenAiForecast(item)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-black text-white text-xs font-semibold transition-all shadow-xs cursor-pointer"
+                              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-zinc-900 hover:bg-black text-white text-xs sm:text-sm font-black transition-all shadow-xs cursor-pointer"
                               title="Calculate monthly demand projection"
                             >
-                              <svg className="w-3.5 h-3.5 text-zinc-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <svg className="w-4 h-4 text-zinc-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
                                 <polyline points="17 6 23 6 23 12" />
                               </svg>
@@ -921,12 +926,12 @@ const DemandForecasting = () => {
             {/* Modal Header */}
             <div className="px-6 py-4 bg-gray-900 text-white flex items-center justify-between">
               <div>
-                <h3 className="m-0 text-lg font-extrabold tracking-tight">Generate Purchase Order</h3>
-                <p className="m-0 text-xs text-gray-400 mt-0.5">Automated procurement from predictive depletion analysis</p>
+                <h3 className="m-0 text-xl font-black tracking-tight">Generate Purchase Order</h3>
+                <p className="m-0 text-sm text-gray-300 mt-1">Automated procurement from predictive depletion analysis</p>
               </div>
               <button
                 onClick={() => setPoModalOpen(false)}
-                className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
+                className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
                 title="Close"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -940,13 +945,13 @@ const DemandForecasting = () => {
               {/* Supplier Selection & Expected Date */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+                  <label className="block text-xs sm:text-sm font-black uppercase tracking-wide text-gray-800 mb-1.5">
                     Supplier <span className="text-red-500">*</span>
                   </label>
                   <select
                     value={poTargetSupplierId}
                     onChange={(e) => setPoTargetSupplierId(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 font-medium focus:ring-2 focus:ring-black focus:outline-none"
+                    className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm sm:text-base text-gray-900 font-bold focus:ring-2 focus:ring-black focus:outline-none"
                   >
                     <option value="">Select Supplier</option>
                     {suppliers.map(sup => (
@@ -956,76 +961,76 @@ const DemandForecasting = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+                  <label className="block text-xs sm:text-sm font-black uppercase tracking-wide text-gray-800 mb-1.5">
                     Expected Delivery Date
                   </label>
                   <input
                     type="date"
                     value={poExpectedDate}
                     onChange={(e) => setPoExpectedDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-black focus:outline-none"
+                    className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm sm:text-base text-gray-900 font-bold focus:ring-2 focus:ring-black focus:outline-none"
                   />
                 </div>
               </div>
 
               {/* Items List Table */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-2">
+                <label className="block text-xs sm:text-sm font-black uppercase tracking-wide text-gray-800 mb-2">
                   Materials to Reorder ({poItems.length})
                 </label>
                 <div className="border border-gray-200 rounded-xl overflow-hidden">
                   <table className="w-full text-left text-sm">
                     <thead>
-                      <tr className="bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                        <th className="px-4 py-2.5">Material</th>
-                        <th className="px-4 py-2.5 w-32">Order Qty</th>
-                        <th className="px-4 py-2.5 w-36">Unit Cost (₱)</th>
-                        <th className="px-4 py-2.5 text-right w-32">Subtotal</th>
-                        <th className="px-3 py-2.5 text-center w-12"></th>
+                      <tr className="bg-gray-50 border-b border-gray-200 text-xs sm:text-sm font-black text-gray-700 uppercase tracking-wide">
+                        <th className="px-4 py-3">Material</th>
+                        <th className="px-4 py-3 w-36">Order Qty</th>
+                        <th className="px-4 py-3 w-40">Unit Cost (₱)</th>
+                        <th className="px-4 py-3 text-right w-36">Subtotal</th>
+                        <th className="px-3 py-3 text-center w-12"></th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {poItems.map((item, idx) => (
                         <tr key={item.ingredient_id} className="hover:bg-gray-50/50">
-                          <td className="px-4 py-3">
-                            <div className="font-bold text-gray-900">{item.name}</div>
-                            <div className="text-xs text-gray-400">
+                          <td className="px-4 py-3.5">
+                            <div className="font-black text-base text-gray-900">{item.name}</div>
+                            <div className="text-xs text-gray-600 font-semibold mt-0.5">
                               Unit: {item.purchase_unit} ({item.conversion_factor} {item.unit})
                             </div>
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3.5">
                             <div className="flex items-center gap-1.5">
                               <input
                                 type="number"
                                 min="1"
                                 value={item.quantity}
                                 onChange={(e) => handleUpdatePoItemQty(idx, e.target.value)}
-                                className="w-20 px-2 py-1 border border-gray-300 rounded text-sm text-gray-900 font-bold focus:ring-1 focus:ring-black"
+                                className="w-20 px-2 py-1.5 border border-gray-300 rounded-lg text-base text-gray-900 font-black focus:ring-1 focus:ring-black"
                               />
-                              <span className="text-xs text-gray-500">{item.purchase_unit}</span>
+                              <span className="text-xs sm:text-sm text-gray-700 font-bold">{item.purchase_unit}</span>
                             </div>
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3.5">
                             <div className="flex items-center gap-1">
-                              <span className="text-xs text-gray-500 font-semibold">₱</span>
+                              <span className="text-sm text-gray-700 font-black">₱</span>
                               <input
                                 type="text"
                                 value={Number(item.unit_price || 0).toFixed(2)}
                                 readOnly
                                 tabIndex="-1"
-                                className="w-24 px-2.5 py-1.5 border border-gray-200 bg-gray-50 text-gray-700 rounded-lg text-sm font-bold font-mono cursor-not-allowed select-none focus:outline-none"
+                                className="w-24 px-2.5 py-1.5 border border-gray-200 bg-gray-100 text-gray-800 rounded-lg text-base font-black font-mono cursor-not-allowed select-none focus:outline-none"
                                 title="Unit cost is fixed from the supplier catalog and cannot be edited"
                               />
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-right font-extrabold font-mono text-gray-900">
+                          <td className="px-4 py-3.5 text-right font-black font-mono text-base text-gray-950">
                             {formatCurrency(item.quantity * item.unit_price)}
                           </td>
-                          <td className="px-3 py-3 text-center">
+                          <td className="px-3 py-3.5 text-center">
                             {poItems.length > 1 && (
                               <button
                                 onClick={() => handleRemovePoItem(idx)}
-                                className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 transition-colors"
+                                className="text-red-500 hover:text-red-700 p-1.5 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
                                 title="Remove item"
                               >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1043,7 +1048,7 @@ const DemandForecasting = () => {
 
               {/* Order Notes */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+                <label className="block text-xs sm:text-sm font-black uppercase tracking-wide text-gray-800 mb-1.5">
                   Order Notes / Instructions
                 </label>
                 <textarea
@@ -1051,17 +1056,17 @@ const DemandForecasting = () => {
                   value={poNotes}
                   onChange={(e) => setPoNotes(e.target.value)}
                   placeholder="Special instructions for the supplier..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-black focus:outline-none"
+                  className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm sm:text-base text-gray-900 focus:ring-2 focus:ring-black focus:outline-none"
                 ></textarea>
               </div>
 
               {/* Grand Total Bar */}
               <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl flex items-center justify-between">
                 <div>
-                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider block">Estimated Total PO Amount</span>
-                  <span className="text-xs text-gray-400">Excludes supplier delivery/freight fees</span>
+                  <span className="text-xs sm:text-sm font-black text-gray-700 uppercase tracking-wide block">Estimated Total PO Amount</span>
+                  <span className="text-xs sm:text-sm text-gray-600 font-semibold">Excludes supplier delivery/freight fees</span>
                 </div>
-                <div className="text-2xl font-extrabold text-gray-900 font-mono">
+                <div className="text-2xl sm:text-3xl font-black text-gray-950 font-mono">
                   {formatCurrency(calculatePoTotal())}
                 </div>
               </div>
@@ -1073,7 +1078,7 @@ const DemandForecasting = () => {
                 type="button"
                 onClick={() => setPoModalOpen(false)}
                 disabled={submittingPO}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-bold text-gray-700 hover:bg-gray-100 transition-colors"
+                className="px-5 py-2.5 border border-gray-300 rounded-lg text-sm font-bold text-gray-800 hover:bg-gray-100 transition-colors cursor-pointer"
               >
                 Cancel
               </button>
@@ -1081,7 +1086,7 @@ const DemandForecasting = () => {
                 type="button"
                 onClick={handleConfirmSubmitPO}
                 disabled={submittingPO || poItems.length === 0}
-                className="px-5 py-2 bg-black hover:bg-gray-800 text-white rounded-lg text-sm font-bold uppercase tracking-wider shadow-sm disabled:opacity-50 flex items-center gap-2 transition-all"
+                className="px-6 py-2.5 bg-black hover:bg-gray-800 text-white rounded-lg text-xs sm:text-sm font-black uppercase tracking-wide shadow-sm disabled:opacity-50 flex items-center gap-2 transition-all cursor-pointer"
               >
                 {submittingPO ? (
                   <>
@@ -1104,15 +1109,15 @@ const DemandForecasting = () => {
             {/* Header */}
             <div className="px-6 py-4 bg-zinc-950 text-white flex items-center justify-between border-b border-zinc-800">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-300">
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <div className="w-9 h-9 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-300">
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
                     <polyline points="17 6 23 6 23 12" />
                   </svg>
                 </div>
                 <div>
-                  <h3 className="m-0 text-base font-bold text-white tracking-tight">Demand & Stock Forecast</h3>
-                  <p className="m-0 text-xs text-zinc-400">
+                  <h3 className="m-0 text-lg font-black text-white tracking-tight">Demand & Stock Forecast</h3>
+                  <p className="m-0 text-xs sm:text-sm text-zinc-300 mt-0.5">
                     Time-series projection and inventory reorder planning
                   </p>
                 </div>
@@ -1131,17 +1136,17 @@ const DemandForecasting = () => {
             </div>
 
             {/* Target Selectors Bar */}
-            <div className="p-4 bg-zinc-50 border-b border-zinc-200/80 flex flex-wrap items-center justify-between gap-3">
+            <div className="p-4 bg-zinc-50 border-b border-zinc-200 flex flex-wrap items-center justify-between gap-3">
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block">Product</span>
-                <span className="text-sm font-bold text-zinc-900">{aiSelectedProduct?.name || 'Selected Item'}</span>
+                <span className="text-xs font-black uppercase tracking-wide text-zinc-500 block">Product</span>
+                <span className="text-base font-black text-zinc-950">{aiSelectedProduct?.name || 'Selected Item'}</span>
               </div>
 
               <div className="flex items-center gap-2">
                 <select
                   value={aiTargetMonth}
                   onChange={(e) => setAiTargetMonth(parseInt(e.target.value, 10))}
-                  className="px-2.5 py-1.5 text-xs font-semibold border border-zinc-300 rounded-lg bg-white text-zinc-900 focus:outline-none focus:ring-1 focus:ring-black"
+                  className="px-3 py-2 text-xs sm:text-sm font-bold border border-zinc-300 rounded-lg bg-white text-zinc-900 focus:outline-none focus:ring-1 focus:ring-black"
                 >
                   {[
                     'January', 'February', 'March', 'April', 'May', 'June',
@@ -1154,7 +1159,7 @@ const DemandForecasting = () => {
                 <select
                   value={aiTargetYear}
                   onChange={(e) => setAiTargetYear(parseInt(e.target.value, 10))}
-                  className="px-2.5 py-1.5 text-xs font-semibold border border-zinc-300 rounded-lg bg-white text-zinc-900 focus:outline-none focus:ring-1 focus:ring-black"
+                  className="px-3 py-2 text-xs sm:text-sm font-bold border border-zinc-300 rounded-lg bg-white text-zinc-900 focus:outline-none focus:ring-1 focus:ring-black"
                 >
                   {[2025, 2026, 2027].map((yr) => (
                     <option key={yr} value={yr}>{yr}</option>
@@ -1165,9 +1170,9 @@ const DemandForecasting = () => {
                   type="button"
                   onClick={() => runAiForecast(aiSelectedProduct?.id, aiTargetYear, aiTargetMonth)}
                   disabled={aiLoading}
-                  className="px-3 py-1.5 bg-zinc-900 hover:bg-black text-white text-xs font-semibold rounded-lg transition-all shadow-xs disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
+                  className="px-3.5 py-2 bg-zinc-900 hover:bg-black text-white text-xs sm:text-sm font-bold rounded-lg transition-all shadow-xs disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
                 >
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
                   </svg>
                   <span>{aiLoading ? 'Calculating...' : 'Recalculate'}</span>
@@ -1179,57 +1184,57 @@ const DemandForecasting = () => {
             <div className="p-5 overflow-y-auto flex-1 space-y-4">
               {aiLoading ? (
                 <div className="py-14 flex flex-col items-center justify-center text-center">
-                  <div className="w-7 h-7 border-2 border-zinc-200 border-t-zinc-900 rounded-full animate-spin mb-3"></div>
-                  <p className="text-xs font-semibold text-zinc-600 m-0">Generating monthly demand projection...</p>
+                  <div className="w-8 h-8 border-3 border-zinc-200 border-t-zinc-900 rounded-full animate-spin mb-3"></div>
+                  <p className="text-sm font-bold text-zinc-700 m-0">Generating monthly demand projection...</p>
                 </div>
               ) : aiResult ? (
                 <>
                   {/* Model Engine Tag */}
-                  <div className="flex items-center justify-between text-xs pb-1">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-medium text-zinc-700 bg-zinc-100 border border-zinc-200">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  <div className="flex items-center justify-between text-xs sm:text-sm pb-1">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-bold text-zinc-800 bg-zinc-100 border border-zinc-200">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                       <span>{aiResult.engine === 'gemini_ai' ? 'Gemini AI Model' : 'Ensemble Time-Series Model'}</span>
                     </span>
-                    <span className="text-zinc-500 text-xs">
-                      Confidence: <span className="font-bold text-zinc-900">{aiResult.confidenceScore || 85}%</span>
+                    <span className="text-zinc-600 font-medium">
+                      Confidence: <span className="font-black text-zinc-950">{aiResult.confidenceScore || 85}%</span>
                     </span>
                   </div>
 
                   {/* 3 Core Output Metrics */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div className="bg-zinc-50 border border-zinc-200/80 rounded-xl p-3.5 text-center">
-                      <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1">
+                    <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-4 text-center">
+                      <div className="text-xs font-black uppercase tracking-wide text-zinc-500 mb-1">
                         Projected Demand
                       </div>
-                      <div className="text-2xl font-black text-zinc-900 tabular-nums">
+                      <div className="text-3xl font-black text-zinc-950 tabular-nums">
                         {aiResult.predictedUnitsSold || 0}
                       </div>
-                      <div className="text-[11px] text-zinc-400 mt-0.5">Units this month</div>
+                      <div className="text-xs font-semibold text-zinc-600 mt-1">Units this month</div>
                     </div>
 
-                    <div className="bg-zinc-50 border border-zinc-200/80 rounded-xl p-3.5 text-center">
-                      <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1">
+                    <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-4 text-center">
+                      <div className="text-xs font-black uppercase tracking-wide text-zinc-500 mb-1">
                         Current On-Hand
                       </div>
-                      <div className="text-2xl font-black text-zinc-900 tabular-nums">
+                      <div className="text-3xl font-black text-zinc-950 tabular-nums">
                         {aiResult.currentStock || 0}
                       </div>
-                      <div className="text-[11px] text-zinc-400 mt-0.5">Available units</div>
+                      <div className="text-xs font-semibold text-zinc-600 mt-1">Available units</div>
                     </div>
 
-                    <div className={`border rounded-xl p-3.5 text-center ${
+                    <div className={`border rounded-xl p-4 text-center ${
                       (aiResult.recommendedOrderQuantity || 0) > 0
-                        ? 'bg-amber-50/60 border-amber-200'
-                        : 'bg-emerald-50/60 border-emerald-200'
+                        ? 'bg-amber-50/80 border-amber-300'
+                        : 'bg-emerald-50/80 border-emerald-300'
                     }`}>
-                      <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-1">
+                      <div className="text-xs font-black uppercase tracking-wide text-zinc-600 mb-1">
                         Suggested Reorder
                       </div>
-                      <div className="text-2xl font-black text-zinc-950 tabular-nums">
+                      <div className="text-3xl font-black text-zinc-950 tabular-nums">
                         {aiResult.recommendedOrderQuantity || 0}
                       </div>
-                      <div className={`text-[11px] font-semibold mt-0.5 ${
-                        (aiResult.recommendedOrderQuantity || 0) > 0 ? 'text-amber-700' : 'text-emerald-700'
+                      <div className={`text-xs font-black mt-1 ${
+                        (aiResult.recommendedOrderQuantity || 0) > 0 ? 'text-amber-800' : 'text-emerald-800'
                       }`}>
                         {(aiResult.recommendedOrderQuantity || 0) > 0 ? 'Reorder Needed' : 'Stock Sufficient'}
                       </div>
@@ -1238,34 +1243,34 @@ const DemandForecasting = () => {
 
                   {/* Calendar Influencing Factors */}
                   <div>
-                    <div className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 mb-2">
+                    <div className="text-xs sm:text-sm font-black uppercase tracking-wide text-zinc-700 mb-2">
                       Demand Drivers
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      <div className="p-2.5 bg-zinc-50 border border-zinc-200/80 rounded-lg text-center">
-                        <div className="text-[10px] font-medium text-zinc-400 uppercase">Weekend Surge</div>
-                        <div className="text-sm font-bold text-zinc-900 mt-0.5">
+                      <div className="p-3 bg-zinc-50 border border-zinc-200 rounded-lg text-center">
+                        <div className="text-xs font-bold text-zinc-500 uppercase">Weekend Surge</div>
+                        <div className="text-base font-black text-zinc-950 mt-1">
                           {aiResult.factors?.weekendMultiplier ? `${aiResult.factors.weekendMultiplier}x` : '1.0x'}
                         </div>
                       </div>
 
-                      <div className="p-2.5 bg-zinc-50 border border-zinc-200/80 rounded-lg text-center">
-                        <div className="text-[10px] font-medium text-zinc-400 uppercase">Payday Lift</div>
-                        <div className="text-sm font-bold text-zinc-900 mt-0.5">
+                      <div className="p-3 bg-zinc-50 border border-zinc-200 rounded-lg text-center">
+                        <div className="text-xs font-bold text-zinc-500 uppercase">Payday Lift</div>
+                        <div className="text-base font-black text-zinc-950 mt-1">
                           {aiResult.factors?.paydayMultiplier ? `${aiResult.factors.paydayMultiplier}x` : '1.0x'}
                         </div>
                       </div>
 
-                      <div className="p-2.5 bg-zinc-50 border border-zinc-200/80 rounded-lg text-center">
-                        <div className="text-[10px] font-medium text-zinc-400 uppercase">Holidays</div>
-                        <div className="text-sm font-bold text-zinc-900 mt-0.5">
+                      <div className="p-3 bg-zinc-50 border border-zinc-200 rounded-lg text-center">
+                        <div className="text-xs font-bold text-zinc-500 uppercase">Holidays</div>
+                        <div className="text-base font-black text-zinc-950 mt-1">
                           {aiResult.factors?.holidaySurgeDays ?? 0}
                         </div>
                       </div>
 
-                      <div className="p-2.5 bg-zinc-50 border border-zinc-200/80 rounded-lg text-center">
-                        <div className="text-[10px] font-medium text-zinc-400 uppercase">Weekly Velocity</div>
-                        <div className="text-sm font-bold text-zinc-900 mt-0.5">
+                      <div className="p-3 bg-zinc-50 border border-zinc-200 rounded-lg text-center">
+                        <div className="text-xs font-bold text-zinc-500 uppercase">Weekly Velocity</div>
+                        <div className="text-base font-black text-zinc-950 mt-1">
                           {aiResult.factors?.unitsSoldGrowth7Days ? `${aiResult.factors.unitsSoldGrowth7Days}%` : '0.0%'}
                         </div>
                       </div>
@@ -1274,34 +1279,34 @@ const DemandForecasting = () => {
 
                   {/* Analysis Summary */}
                   {aiResult.reasoning && (
-                    <div className="p-3.5 bg-zinc-50 border border-zinc-200/80 rounded-xl">
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-700 mb-1">
-                        <svg className="w-3.5 h-3.5 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <div className="p-4 bg-zinc-50 border border-zinc-200 rounded-xl">
+                      <div className="flex items-center gap-1.5 text-xs sm:text-sm font-black text-zinc-800 mb-1.5">
+                        <svg className="w-4 h-4 text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <circle cx="12" cy="12" r="10" />
                           <line x1="12" y1="16" x2="12" y2="12" />
                           <line x1="12" y1="8" x2="12.01" y2="8" />
                         </svg>
                         <span>Analysis Summary</span>
                       </div>
-                      <p className="text-xs text-zinc-600 leading-relaxed m-0 font-normal">
+                      <p className="text-sm text-zinc-700 leading-relaxed m-0 font-normal">
                         {aiResult.reasoning}
                       </p>
                     </div>
                   )}
                 </>
               ) : (
-                <div className="py-8 text-center text-xs text-zinc-400">
+                <div className="py-8 text-center text-sm font-medium text-zinc-500">
                   Select month and click Recalculate to generate forecast.
                 </div>
               )}
             </div>
 
             {/* Footer */}
-            <div className="px-5 py-3 bg-zinc-50 border-t border-zinc-200 flex justify-end">
+            <div className="px-5 py-3.5 bg-zinc-50 border-t border-zinc-200 flex justify-end">
               <button
                 type="button"
                 onClick={() => setAiModalOpen(false)}
-                className="px-4 py-1.5 border border-zinc-300 rounded-lg text-xs font-semibold text-zinc-700 hover:bg-zinc-100 transition-colors cursor-pointer"
+                className="px-5 py-2 border border-zinc-300 rounded-lg text-xs sm:text-sm font-bold text-zinc-800 hover:bg-zinc-100 transition-colors cursor-pointer"
               >
                 Close
               </button>
