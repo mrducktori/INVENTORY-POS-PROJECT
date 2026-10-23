@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Stock Movement Report: Priority-Grouped Sorting & Unified Stock Status — 2026-10-23]
+- **Unified "Low Stock / Restock Needed" Status in Stock Movement Snapshot**:
+  - Replaced legacy fragmented status classifications (`Restock Needed` vs. `Low Stock`) with the unified `Low Stock / Restock Needed` state across [StockMovementReport.jsx](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/reports/StockMovementReport.jsx).
+  - Matches the exact design language and alert levels established in `RawMaterialTracker.jsx` and `ProductStockTracker.jsx`.
+- **Priority-Grouped Sorting with Labeled Section Headers**:
+  - Arranged the Current Inventory Snapshot table by stock urgency:
+    1. **Out of Stock** (red header row, alert icon, item count badge)
+    2. **Low Stock / Restock Needed** (amber header row, warning icon, item count badge)
+    3. **In Stock** (gray/emerald header row, check icon, item count badge)
+  - Items are automatically sorted alphabetically (A-Z) by name within each labeled section.
+- **Dedicated Stock Status Filter**:
+  - Added status filter dropdown (`All Status`, `Out of Stock Only`, `Low Stock / Restock Needed Only`, `In Stock Only`) to the snapshot toolbar for instant drill-down.
+- **KPI Card & Print Alignment**:
+  - Updated KPI card 3 and print layout to display `Low Stock / Restock Needed` with amber theme.
+- **Strict Rule 16 Compliance**:
+  - Pure semantic inline SVGs; strictly zero Unicode emojis across all table headers and badges.
+
+
+
 ## [PO Price Lock & Database Schema Fallback Resilience — 2026-10-23]
 - **Locked Unit Price in Demand Forecasting PO Generation**:
   - Made Unit Cost in `DemandForecasting.jsx` ("Generate Purchase Order" modal) read-only (`readOnly`, `cursor-not-allowed`, `bg-gray-50 text-gray-700`) with clear tooltip indication.

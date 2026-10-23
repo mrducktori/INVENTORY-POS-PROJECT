@@ -4,6 +4,57 @@ import { getAllProducts } from '../../api/productsApi';
 import { getAuditLogs } from '../../api/auditApi';
 import { downloadCSV, printReport } from './reportUtils';
 
+// ─── Status Groups & Helpers ──────────────────────────────────────────────────
+const STATUS_GROUPS = [
+  {
+    id: 'out',
+    label: 'Out of Stock',
+    badgeClass: 'bg-red-50 text-red-700 border-red-200',
+    headerBg: 'bg-red-50/70 border-red-200',
+    icon: (
+      <svg className="w-4 h-4 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+      </svg>
+    )
+  },
+  {
+    id: 'low',
+    label: 'Low Stock / Restock Needed',
+    badgeClass: 'bg-amber-50 text-amber-700 border-amber-200 font-bold',
+    headerBg: 'bg-amber-50/70 border-amber-200',
+    icon: (
+      <svg className="w-4 h-4 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    )
+  },
+  {
+    id: 'normal',
+    label: 'In Stock',
+    badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    headerBg: 'bg-gray-100/70 border-gray-200',
+    icon: (
+      <svg className="w-4 h-4 text-emerald-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    )
+  }
+];
+
+const getStockStatus = (current, alert_level) => {
+  const qty = Number(current) || 0;
+  const alert = Number(alert_level) || 0;
+  if (qty <= 0) return 'out';
+  if (alert > 0 && qty <= alert * 1.5) return 'low';
+  return 'normal';
+};
+
+const getStatusLabel = (statusKey) => {
+  if (statusKey === 'out') return 'Out of Stock';
+  if (statusKey === 'low') return 'Low Stock / Restock Needed';
+  return 'In Stock';
+};
+
 // ─── Date helpers ─────────────────────────────────────────────────────────────
 const getPeriodStart = (period) => {
   const now = new Date();
@@ -21,6 +72,7 @@ const StockMovementReport = () => {
   const [loading, setLoading] = useState(false);
   const [fetched, setFetched] = useState(false);
   const [search, setSearch]   = useState('');
+  const [stockStatusFilter, setStockStatusFilter] = useState('ALL');
   const [activeView, setActiveView] = useState('receipts'); // 'receipts' | 'snapshot'
 
   const fetchReport = useCallback(async () => {
@@ -42,33 +94,41 @@ const StockMovementReport = () => {
       // 1. Build inventory snapshot (Ingredients + Trackable Products)
       const ingredientRows = (ingData || [])
         .filter(i => !i.is_archived)
-        .map(i => ({
-          id:           i.id,
-          name:         i.name,
-          type:         'Ingredient',
-          unit:         i.unit,
-          currentStock: parseFloat(i.stock_quantity) || 0,
-          lowAlert:     parseFloat(i.low_stock_alert) || 0,
-          status:       parseFloat(i.stock_quantity) <= 0 ? 'Out of Stock' :
-                        parseFloat(i.stock_quantity) <= parseFloat(i.low_stock_alert) ? 'Restock Needed' :
-                        parseFloat(i.stock_quantity) <= parseFloat(i.low_stock_alert) * 1.5 ? 'Low Stock' : 'In Stock',
-        }));
+        .map(i => {
+          const currentStock = parseFloat(i.stock_quantity) || 0;
+          const lowAlert = parseFloat(i.low_stock_alert) || 0;
+          const statusKey = getStockStatus(currentStock, lowAlert);
+          return {
+            id:           i.id,
+            name:         i.name,
+            type:         'Ingredient',
+            unit:         i.unit || 'pcs',
+            currentStock,
+            lowAlert,
+            statusKey,
+            status:       getStatusLabel(statusKey)
+          };
+        });
 
       const productRows = (prodData || [])
         .filter(p => p.track_stock && !p.is_archived)
-        .map(p => ({
-          id:           p.id,
-          name:         p.name,
-          type:         'Product',
-          unit:         'pcs',
-          currentStock: parseFloat(p.stock_quantity) || 0,
-          lowAlert:     parseFloat(p.low_stock_threshold) || 0,
-          status:       parseFloat(p.stock_quantity) <= 0 ? 'Out of Stock' :
-                        parseFloat(p.stock_quantity) <= parseFloat(p.low_stock_threshold) ? 'Restock Needed' :
-                        parseFloat(p.stock_quantity) <= parseFloat(p.low_stock_threshold) * 1.5 ? 'Low Stock' : 'In Stock',
-        }));
+        .map(p => {
+          const currentStock = parseFloat(p.stock_quantity) || 0;
+          const lowAlert = parseFloat(p.low_stock_threshold) || 0;
+          const statusKey = getStockStatus(currentStock, lowAlert);
+          return {
+            id:           p.id,
+            name:         p.name,
+            type:         'Product',
+            unit:         'pcs',
+            currentStock,
+            lowAlert,
+            statusKey,
+            status:       getStatusLabel(statusKey)
+          };
+        });
 
-      const snapshot = [...ingredientRows, ...productRows].sort((a, b) => a.name.localeCompare(b.name));
+      const snapshot = [...ingredientRows, ...productRows];
 
       // 2. Parse audit log receipts
       const combinedAudit = [...(rawAudit || []), ...(prodAudit || [])];
@@ -98,10 +158,27 @@ const StockMovementReport = () => {
   }, [period]);
 
   const filteredSnapshot = useMemo(() => {
-    if (!search) return rows;
-    const s = search.toLowerCase();
-    return rows.filter(r => r.name.toLowerCase().includes(s) || r.type.toLowerCase().includes(s));
-  }, [rows, search]);
+    return rows.filter(r => {
+      const matchSearch = !search ? true : (
+        r.name.toLowerCase().includes(search.toLowerCase()) || 
+        r.type.toLowerCase().includes(search.toLowerCase())
+      );
+      const matchStatus = stockStatusFilter === 'ALL' ? true : r.statusKey === stockStatusFilter.toLowerCase();
+      return matchSearch && matchStatus;
+    });
+  }, [rows, search, stockStatusFilter]);
+
+  const groupedSnapshot = useMemo(() => {
+    return STATUS_GROUPS.map(group => {
+      const items = filteredSnapshot
+        .filter(r => r.statusKey === group.id)
+        .sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }));
+      return {
+        ...group,
+        items
+      };
+    }).filter(group => group.items.length > 0);
+  }, [filteredSnapshot]);
 
   const filteredReceipts = useMemo(() => {
     if (!search) return receipts;
@@ -110,7 +187,7 @@ const StockMovementReport = () => {
   }, [receipts, search]);
 
   const totalReceived   = receipts.reduce((s, r) => s + r.quantityAdded, 0);
-  const criticalCount   = rows.filter(r => r.status === 'Restock Needed' || r.status === 'Out of Stock').length;
+  const criticalCount   = rows.filter(r => r.statusKey === 'low' || r.statusKey === 'out').length;
   const periodLabel     = period === 'daily' ? 'Today' : period === 'weekly' ? 'This Week' : 'This Month';
 
   const handleExport = () => {
@@ -150,7 +227,7 @@ const StockMovementReport = () => {
       </tr>`
     ).join('');
     const snapshotRows = rows.map(r => {
-      const color = r.status === 'In Stock' ? '#2e7d32' : r.status === 'Low Stock' ? '#e65100' : '#c62828';
+      const color = r.statusKey === 'normal' ? '#2e7d32' : r.statusKey === 'low' ? '#d97706' : '#dc2626';
       return `<tr><td><small>${r.type}</small></td><td>${r.name}</td><td style="text-align:right">${r.currentStock} ${r.unit}</td><td style="text-align:right">${r.lowAlert} ${r.unit}</td><td style="color:${color};font-weight:bold">${r.status}</td></tr>`;
     }).join('');
     const html = `
@@ -159,7 +236,7 @@ const StockMovementReport = () => {
       <div class="kpi-grid">
         <div class="kpi-box"><div class="kpi-label">Stock Receipts (${periodLabel})</div><div class="kpi-value">${receipts.length}</div></div>
         <div class="kpi-box"><div class="kpi-label">Total Qty Received</div><div class="kpi-value">${totalReceived.toFixed(2)}</div></div>
-        <div class="kpi-box"><div class="kpi-label">Restock Needed / Out of Stock</div><div class="kpi-value">${criticalCount}</div></div>
+        <div class="kpi-box"><div class="kpi-label">Low Stock / Restock Needed</div><div class="kpi-value">${criticalCount}</div></div>
       </div>
       <h2>Stock Received Log (${periodLabel})</h2>
       ${receipts.length > 0 ? `<table>
@@ -193,8 +270,7 @@ const StockMovementReport = () => {
             </select>
           </div>
           {fetched && (
-            <div className="flex items-center gap-3">
-              <span className="text-sm md:text-base font-bold text-gray-700 uppercase tracking-wider">Search</span>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <input
                 type="text"
                 className="px-4 py-2 border border-gray-300 rounded-lg text-sm md:text-base bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm w-48 lg:w-64"
@@ -202,6 +278,18 @@ const StockMovementReport = () => {
                 value={search}
                 onChange={e => setSearch(e.target.value)}
               />
+              {activeView === 'snapshot' && (
+                <select
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm md:text-base bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
+                  value={stockStatusFilter}
+                  onChange={e => setStockStatusFilter(e.target.value)}
+                >
+                  <option value="ALL">All Status</option>
+                  <option value="OUT">Out of Stock Only</option>
+                  <option value="LOW">Low Stock / Restock Needed Only</option>
+                  <option value="NORMAL">In Stock Only</option>
+                </select>
+              )}
             </div>
           )}
         </div>
@@ -259,10 +347,10 @@ const StockMovementReport = () => {
               <div className="text-2xl font-extrabold text-gray-900 mb-1">{totalReceived.toFixed(2)}</div>
               <div className="text-sm md:text-base font-medium text-gray-400">units added to stock</div>
             </div>
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-t-4 border-t-red-500">
-              <div className="text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider mb-2">Restock Needed / Out of Stock</div>
-              <div className="text-2xl font-extrabold text-gray-900 mb-1">{criticalCount}</div>
-              <div className="text-sm md:text-base font-medium text-gray-400">need immediate attention</div>
+            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-t-4 border-t-amber-500">
+              <div className="text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider mb-2">Low Stock / Restock Needed</div>
+              <div className="text-2xl font-extrabold text-amber-700 mb-1">{criticalCount}</div>
+              <div className="text-sm md:text-base font-medium text-gray-400">need replenishment attention</div>
             </div>
             <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-t-4 border-t-gray-900">
               <div className="text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider mb-2">Tracked Items</div>
@@ -344,11 +432,14 @@ const StockMovementReport = () => {
           {/* Inventory Snapshot Table */}
           {activeView === 'snapshot' && (
             <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden">
-              <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50">
+              <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <h2 className="m-0 text-lg font-bold text-gray-900 tracking-tight">Current Inventory Snapshot ({filteredSnapshot.length} items)</h2>
+                <div className="text-xs font-semibold text-gray-500">
+                  Priority Grouped: Out of Stock → Low Stock / Restock Needed → In Stock
+                </div>
               </div>
               <div className="p-0">
-                {filteredSnapshot.length > 0 ? (
+                {groupedSnapshot.length > 0 ? (
                   <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse whitespace-nowrap">
                       <thead>
@@ -362,35 +453,47 @@ const StockMovementReport = () => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
-                        {filteredSnapshot.map(row => {
-                          const badgeCls = {
-                            'In Stock': 'bg-green-50 text-green-700 border-green-200', 'Low Stock': 'bg-orange-50 text-orange-700 border-orange-200',
-                            'Restock Needed': 'bg-red-50 text-red-700 border-red-200', 'Out of Stock': 'bg-black text-white border-black'
-                          }[row.status] || 'bg-gray-50 text-gray-700 border-gray-200';
-                          
-                          return (
-                            <tr key={`${row.type}-${row.id}`} className="hover:bg-gray-50/50 transition-colors">
-                              <td className="px-6 py-4">
-                                <span className="inline-flex px-2 py-0.5 rounded text-xs md:text-sm font-bold uppercase tracking-wider bg-gray-100 text-gray-600 border border-gray-200">
-                                  {row.type}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 text-sm md:text-base font-bold text-gray-900">{row.name}</td>
-                              <td className="px-6 py-4 text-sm md:text-base font-bold font-mono text-gray-900 text-right">
-                                {row.currentStock}
-                              </td>
-                              <td className="px-6 py-4 text-sm md:text-base font-medium font-mono text-gray-400 text-right">
-                                {row.lowAlert}
-                              </td>
-                              <td className="px-6 py-4 text-sm md:text-base font-medium text-gray-500">{row.unit}</td>
-                              <td className="px-6 py-4 text-right">
-                                <span className={`inline-flex px-2.5 py-1 rounded-full text-xs md:text-sm font-bold uppercase tracking-wider border ${badgeCls}`}>
-                                  {row.status}
-                                </span>
+                        {groupedSnapshot.map(group => (
+                          <React.Fragment key={group.id}>
+                            <tr className={`${group.headerBg} border-y`}>
+                              <td colSpan={6} className="px-6 py-2.5">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    {group.icon}
+                                    <span className="text-xs font-bold uppercase tracking-wider text-gray-800">
+                                      {group.label}
+                                    </span>
+                                  </div>
+                                  <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border shadow-xs ${group.badgeClass}`}>
+                                    {group.items.length} {group.items.length === 1 ? 'item' : 'items'}
+                                  </span>
+                                </div>
                               </td>
                             </tr>
-                          );
-                        })}
+                            {group.items.map(row => (
+                              <tr key={`${row.type}-${row.id}`} className="hover:bg-gray-50/50 transition-colors">
+                                <td className="px-6 py-4">
+                                  <span className="inline-flex px-2 py-0.5 rounded text-xs md:text-sm font-bold uppercase tracking-wider bg-gray-100 text-gray-600 border border-gray-200">
+                                    {row.type}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 text-sm md:text-base font-bold text-gray-900">{row.name}</td>
+                                <td className="px-6 py-4 text-sm md:text-base font-bold font-mono text-gray-900 text-right">
+                                  {row.currentStock}
+                                </td>
+                                <td className="px-6 py-4 text-sm md:text-base font-medium font-mono text-gray-400 text-right">
+                                  {row.lowAlert}
+                                </td>
+                                <td className="px-6 py-4 text-sm md:text-base font-medium text-gray-500">{row.unit}</td>
+                                <td className="px-6 py-4 text-right">
+                                  <span className={`inline-flex px-2.5 py-1 rounded-full text-xs md:text-sm font-bold uppercase tracking-wider border ${group.badgeClass}`}>
+                                    {row.status}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </React.Fragment>
+                        ))}
                       </tbody>
                     </table>
                   </div>
