@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Overdue Purchase Orders: Restricted Action Buttons (Reschedule & Cancel Only) — 2026-10-23]
+- **Restricted Action Buttons on Overdue Orders**:
+  - In [PurchaseOrders.jsx](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/inventory/PurchaseOrders.jsx), made `Receive Stock` and `Accept Date` unavailable on past due / overdue POs.
+  - Overdue orders now strictly allow only **Reschedule** (to provide an updated delivery date) and **Cancel** (to void the order with documented reasons).
+  - Styled `Reschedule` button on overdue rows with high-visibility amber CTA styling (`bg-amber-100 text-amber-900 border-amber-300 font-extrabold`) and descriptive tooltip guidance.
+  - Added an informational overdue notice banner inside the expanded order details informing managers that stock receiving is locked until a revised delivery date is scheduled.
+- **Supplier Portal Overdue Guidance**:
+  - In [SupplierPortal.jsx](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/inventory/SupplierPortal.jsx), updated overdue order controls to hide blind "Mark Delivering" clicks and prioritize "Postpone & Reschedule".
+- **Strict Rule 16 Compliance**:
+  - All indicators, banners, and tooltips use clean semantic inline SVGs; zero Unicode emojis.
+
+
+
 ## [Stock Movement Report: Priority-Grouped Sorting & Unified Stock Status — 2026-10-23]
 - **Unified "Low Stock / Restock Needed" Status in Stock Movement Snapshot**:
   - Replaced legacy fragmented status classifications (`Restock Needed` vs. `Low Stock`) with the unified `Low Stock / Restock Needed` state across [StockMovementReport.jsx](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/reports/StockMovementReport.jsx).

@@ -348,7 +348,7 @@ const PurchaseOrders = () => {
                             <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                               {po.status !== 'Received' && po.status !== 'Cancelled' && po.status !== 'Declined' && po.status !== 'DECLINED' && (
                                 <div className="flex justify-end gap-1.5 flex-wrap">
-                                  {(['Accepted', 'To Be Delivered', 'Delivering', 'Partial'].includes(po.status) || isOverdue) && (
+                                  {!isOverdue && ['Accepted', 'To Be Delivered', 'Delivering', 'Partial'].includes(po.status) && (
                                     <button 
                                       className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors border border-emerald-300 whitespace-nowrap cursor-pointer"
                                       onClick={() => setReceivingPO(po)}
@@ -359,14 +359,15 @@ const PurchaseOrders = () => {
                                   <button 
                                     className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors whitespace-nowrap cursor-pointer ${
                                       isOverdue
-                                        ? 'bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300'
+                                        ? 'bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-extrabold shadow-2xs'
                                         : 'bg-zinc-50 hover:bg-zinc-100 text-zinc-700 border border-zinc-200'
                                     }`}
                                     onClick={() => setReschedulingPO(po)}
+                                    title={isOverdue ? 'Order past due: reschedule delivery date to proceed' : 'Reschedule expected date'}
                                   >
                                     Reschedule
                                   </button>
-                                  {po.status === 'Postponed' && (
+                                  {!isOverdue && po.status === 'Postponed' && (
                                     <button 
                                       className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors border border-blue-200 whitespace-nowrap cursor-pointer"
                                       onClick={() => updatePurchaseOrderStatus(po.id, 'To Be Delivered')}
@@ -388,6 +389,17 @@ const PurchaseOrders = () => {
                           <tr className="bg-gray-50/80">
                             <td colSpan="7" className="p-0">
                               <div className="px-8 py-6 border-b border-gray-200">
+                                {isOverdue && (
+                                  <div className="mb-4 p-4 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-3 text-rose-900">
+                                    <svg className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <div>
+                                      <div className="text-xs font-bold uppercase tracking-wider text-rose-700">Order Past Due ({daysOverdue} days late)</div>
+                                      <div className="text-sm font-medium mt-0.5 text-rose-900">Stock receiving is locked until a revised delivery date is scheduled or the order is cancelled.</div>
+                                    </div>
+                                  </div>
+                                )}
                                 {(po.status === 'Declined' || po.status === 'DECLINED') && po.decline_reason && (
                                   <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 text-red-900">
                                     <svg className="w-5 h-5 text-red-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -416,17 +416,24 @@ const SupplierPortal = () => {
                         )}
                         {po.status === 'To Be Delivered' && (
                           <div className="flex justify-end gap-2">
-                            <button 
-                              onClick={() => handleStatusChange(po.id, 'Delivering')} 
-                              className="px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
-                            >
-                              Mark Delivering
-                            </button>
+                            {!isOverdue && (
+                              <button 
+                                onClick={() => handleStatusChange(po.id, 'Delivering')} 
+                                className="px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                              >
+                                Mark Delivering
+                              </button>
+                            )}
                             <button 
                               onClick={() => handleStatusChange(po.id, 'Postponed')} 
-                              className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200 rounded text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                              className={`px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer ${
+                                isOverdue
+                                  ? 'bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-extrabold shadow-2xs'
+                                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200'
+                              }`}
+                              title={isOverdue ? 'Order past due: reschedule a new delivery date' : 'Postpone delivery date'}
                             >
-                              Postpone
+                              {isOverdue ? 'Postpone & Reschedule' : 'Postpone'}
                             </button>
                           </div>
                         )}
