@@ -158,15 +158,22 @@ router.get('/ingredient-forecast', async (req, res) => {
         targetDate.setDate(targetDate.getDate() + Math.round(rawDays));
         depletionDate = targetDate.toISOString().split('T')[0];
 
+        const maxStock = parseFloat(item.max_stock) || parseFloat(item.max_capacity) || (lowStockAlert * 2) || 20;
+        const lowStockThreshold = maxStock * 0.5;
+
         if (daysRemaining <= 3) {
           urgencyStatus = 'CRITICAL';
-        } else if (daysRemaining <= 7 || currentStock <= lowStockAlert) {
+        } else if (daysRemaining <= 7 || currentStock <= lowStockThreshold) {
           urgencyStatus = 'LOW_STOCK';
         } else {
           urgencyStatus = 'HEALTHY';
         }
-      } else if (currentStock <= lowStockAlert) {
-        urgencyStatus = 'LOW_STOCK';
+      } else {
+        const maxStock = parseFloat(item.max_stock) || parseFloat(item.max_capacity) || (lowStockAlert * 2) || 20;
+        const lowStockThreshold = maxStock * 0.5;
+        if (currentStock <= lowStockThreshold) {
+          urgencyStatus = 'LOW_STOCK';
+        }
       }
 
       if (urgencyStatus === 'OUT_OF_STOCK' || urgencyStatus === 'CRITICAL') {

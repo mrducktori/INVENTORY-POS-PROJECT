@@ -13,6 +13,9 @@ router.put("/suppliers/:id", purchasingController.updateSupplier);
 router.get("/", purchasingController.getPurchaseOrders);
 router.post("/", purchasingController.createPurchaseOrder);
 router.put("/:id/status", purchasingController.updatePurchaseOrderStatus);
+router.patch("/:id/status", purchasingController.updatePurchaseOrderStatus);
+router.patch("/:id", purchasingController.updatePurchaseOrderStatus);
+router.patch("/purchase-orders/:id", purchasingController.updatePurchaseOrderStatus);
 router.put("/:id/proposals/respond", requireAuth, purchasingController.respondToSupplierProposal);
 
 // === Supplier Portal Routes ===
@@ -20,6 +23,8 @@ router.put("/:id/proposals/respond", requireAuth, purchasingController.respondTo
 router.get("/my-orders", requireAuth, requireRole('Supplier'), purchasingController.getSupplierOwnOrders);
 // Suppliers can update the status of their own POs (Accept, Decline, To Be Delivered)
 router.put("/my-orders/:id/status", requireAuth, requireRole('Supplier'), purchasingController.updateSupplierOrderStatus);
+router.patch("/my-orders/:id/status", requireAuth, requireRole('Supplier'), purchasingController.updateSupplierOrderStatus);
+router.patch("/my-orders/:id", requireAuth, requireRole('Supplier'), purchasingController.updateSupplierOrderStatus);
 // Suppliers submit item-by-item availability, proposed dates, and reasons
 router.put("/my-orders/:id/item-responses", requireAuth, requireRole('Supplier'), purchasingController.submitSupplierItemResponses);
 

@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Supplier PO Declines, Configurable Thresholds, Atomic Deductions & Date Range Queries — 2026-10-23]
+- **Supplier PO Declines (`PATCH /purchase-orders/:id`)**:
+  - Updated `PATCH /api/purchase-orders/:id` and `PATCH /api/purchasing/purchase-orders/:id` to strictly validate `declineReason` as a non-empty string when status is updated to `DECLINED` (returns HTTP 400 with descriptive error if missing or empty).
+  - Saved decline reason in `purchase_orders.decline_reason` and recorded in `audit_logs` under `SUPPLIER_PO_DECLINED`.
+  - Added SQL migration `docs/database/add_decline_reason_to_purchase_orders.sql`.
+  - Updated `SupplierPortal.jsx` with a dedicated Decline Modal requiring a mandatory explanation before declining.
+  - Displayed the supplier's decline reason in both the Supplier Portal and the Shop Manager Purchase Orders table & expanded order drawer.
+- **Configurable Stock Thresholds (`current_stock <= (max_stock * 0.5)`)**:
+  - Removed static hardcoded low stock triggers.
+  - Implemented dynamic low stock calculation: flags items where `current_stock <= (max_stock * 0.5)` across `inventoryService.getLowStockAlerts`, `server/routes/dashboard.js`, and `server/routes/analytics.js`.
+  - Added SQL migration `docs/database/add_max_stock_columns.sql`.
+- **Atomic POS Checkout Deductions (`server/services/posService.js`)**:
+  - Implemented PostgreSQL RPC transaction function `process_pos_checkout` (`docs/database/process_pos_checkout_rpc.sql`) running order creation, item insertion, and inventory deductions in a single atomic database transaction with row locks (`FOR UPDATE`).
+  - Added automated compensation rollback pattern in `posService.createSale`: if any step in checkout or stock deduction fails, all deducted stocks are restored to previous snapshot values and the sale record is rolled back.
+- **Strict Date Range Queries for Dashboard & Analytics**:
+  - Added `toManilaStartOfDay` and `toManilaEndOfDay` in `server/utils/dateUtils.js` ensuring bounding timestamps always cover `00:00:00+08:00` to `23:59:59.999+08:00`.
+  - Updated `server/routes/dashboard.js` `/stats` endpoint to strictly bound revenue, transaction counts, average transaction values, top products by category, and daily trend groupings between `startDate` and `endDate`.
+  - Updated `server/routes/sales.js`, `server/routes/audit.js`, and `server/services/wastageService.js` to strictly enforce bounding start and end dates.
+  - Enhanced frontend `TopSalesGrid.jsx` and `useDashboardStats.js` with Custom Date Range pickers.
+
 ## [Design Policy: Rule 16 Added — Strictly No Emojis & Anti-AI Slop Decluttering — 2026-10-23]
 - **Codified Rule 16 in `.agents/rules/AGENTS.md`**:
   - Prohibits all raw Unicode emojis in UI buttons, tables, badges, headers, or cards. Requires crisp, semantic inline SVGs.

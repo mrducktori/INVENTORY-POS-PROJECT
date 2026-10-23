@@ -15,6 +15,10 @@ const TopSalesGrid = ({
   getSortedProducts,
   period,
   onPeriodChange,
+  startDate,
+  endDate,
+  onStartDateChange,
+  onEndDateChange,
 }) => {
   const categoryEntries = Object.entries(topProductsByCategory || {});
   const isEmpty = categoryEntries.length === 0;
@@ -88,9 +92,13 @@ const TopSalesGrid = ({
           <div className="flex bg-zinc-100 p-1 rounded-xl border border-zinc-200">
             <button 
               type="button"
-              onClick={() => onPeriodChange('day')}
-              className={`px-4 py-1.5 text-xs md:text-sm font-bold rounded-lg cursor-pointer transition-all ${
-                period === 'day' 
+              onClick={() => {
+                onPeriodChange('day');
+                if (onStartDateChange) onStartDateChange('');
+                if (onEndDateChange) onEndDateChange('');
+              }}
+              className={`px-3.5 py-1.5 text-xs md:text-sm font-bold rounded-lg cursor-pointer transition-all ${
+                period === 'day' && !startDate && !endDate
                   ? 'bg-white text-zinc-900 shadow-xs' 
                   : 'text-zinc-600 hover:text-zinc-900'
               }`}
@@ -99,16 +107,51 @@ const TopSalesGrid = ({
             </button>
             <button 
               type="button"
-              onClick={() => onPeriodChange('week')}
-              className={`px-4 py-1.5 text-xs md:text-sm font-bold rounded-lg cursor-pointer transition-all ${
-                period === 'week' 
+              onClick={() => {
+                onPeriodChange('week');
+                if (onStartDateChange) onStartDateChange('');
+                if (onEndDateChange) onEndDateChange('');
+              }}
+              className={`px-3.5 py-1.5 text-xs md:text-sm font-bold rounded-lg cursor-pointer transition-all ${
+                period === 'week' && !startDate && !endDate
                   ? 'bg-white text-zinc-900 shadow-xs' 
                   : 'text-zinc-600 hover:text-zinc-900'
               }`}
             >
               Past 7 Days
             </button>
+            <button 
+              type="button"
+              onClick={() => onPeriodChange('custom')}
+              className={`px-3.5 py-1.5 text-xs md:text-sm font-bold rounded-lg cursor-pointer transition-all ${
+                period === 'custom' || startDate || endDate
+                  ? 'bg-white text-zinc-900 shadow-xs' 
+                  : 'text-zinc-600 hover:text-zinc-900'
+              }`}
+            >
+              Custom
+            </button>
           </div>
+
+          {(period === 'custom' || startDate || endDate) && (
+            <div className="flex items-center gap-2 bg-zinc-50 border border-zinc-200 p-1.5 rounded-xl text-xs">
+              <input
+                type="date"
+                value={startDate || ''}
+                onChange={(e) => onStartDateChange && onStartDateChange(e.target.value)}
+                className="px-2 py-1 bg-white border border-zinc-300 rounded-lg text-xs font-semibold text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-900 cursor-pointer"
+                title="Start Date"
+              />
+              <span className="text-zinc-400 font-bold">to</span>
+              <input
+                type="date"
+                value={endDate || ''}
+                onChange={(e) => onEndDateChange && onEndDateChange(e.target.value)}
+                className="px-2 py-1 bg-white border border-zinc-300 rounded-lg text-xs font-semibold text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-900 cursor-pointer"
+                title="End Date"
+              />
+            </div>
+          )}
 
           {/* Sort order toggle */}
           <button

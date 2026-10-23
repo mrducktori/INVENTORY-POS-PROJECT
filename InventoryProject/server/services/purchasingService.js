@@ -128,6 +128,46 @@ const enrichPOsWithReceiptHistory = async (pos) => {
   return pos;
 };
 
+// Helper to enrich POs with decline reasons (from DB column or audit logs)
+const enrichPOsWithDeclineReasons = async (pos) => {
+  if (!pos || pos.length === 0) return pos;
+
+  try {
+    const { data: declineLogs } = await supabase
+      .from('audit_logs')
+      .select('created_at, details')
+      .in('action', ['SUPPLIER_PO_DECLINED', 'PURCHASE_ORDER_STATUS_UPDATED'])
+      .order('created_at', { ascending: false });
+
+    const declineMap = {};
+    if (declineLogs) {
+      for (const log of declineLogs) {
+        try {
+          const d = typeof log.details === 'string' ? JSON.parse(log.details) : log.details;
+          const poId = d?.po_id;
+          const reason = d?.decline_reason || d?.declineReason;
+          if (poId && reason && !declineMap[poId]) {
+            declineMap[poId] = reason;
+          }
+        } catch (e) {}
+      }
+    }
+
+    for (const po of pos) {
+      if (!po.decline_reason && declineMap[po.id]) {
+        po.decline_reason = declineMap[po.id];
+      }
+      if (po.decline_reason) {
+        po.declineReason = po.decline_reason;
+      }
+    }
+  } catch (err) {
+    console.error('Error enriching POs with decline reasons:', err);
+  }
+
+  return pos;
+};
+
 // Helper to enrich PO items with supplier proposals & shop decisions from audit logs
 const enrichPOsWithSupplierProposals = async (pos) => {
   if (!pos || pos.length === 0) return pos;
@@ -261,7 +301,8 @@ export const getPurchaseOrders = async () => {
   }
 
   const withReceipts = await enrichPOsWithReceiptHistory(data);
-  return await enrichPOsWithSupplierProposals(withReceipts);
+  const withProposals = await enrichPOsWithSupplierProposals(withReceipts);
+  return await enrichPOsWithDeclineReasons(withProposals);
 };
 
 // Get purchase orders for a specific supplier (Supplier Portal)
@@ -319,7 +360,8 @@ export const getPurchaseOrdersBySupplier = async (supplierId) => {
   }
 
   const withReceipts = await enrichPOsWithReceiptHistory(data);
-  return await enrichPOsWithSupplierProposals(withReceipts);
+  const withProposals = await enrichPOsWithSupplierProposals(withReceipts);
+  return await enrichPOsWithDeclineReasons(withProposals);
 };
 
 export const createPurchaseOrder = async (poData) => {
@@ -358,7 +400,7 @@ export const createPurchaseOrder = async (poData) => {
   return po;
 };
 
-export const updatePurchaseOrderStatus = async (id, status, items_received = [], expected_date = null) => {
+export const updatePurchaseOrderStatus = async (id, status, items_received = [], expected_date = null, decline_reason = null) => {
   const updates = { status };
   if (status === 'Received' || status === 'Partial') {
     updates.received_at = new Date().toISOString();
@@ -366,15 +408,38 @@ export const updatePurchaseOrderStatus = async (id, status, items_received = [],
   if (expected_date) {
     updates.expected_date = expected_date;
   }
+  if (decline_reason) {
+    updates.decline_reason = decline_reason;
+  }
 
-  const { data, error } = await supabase
+  let data = null;
+  const result = await supabase
     .from("purchase_orders")
     .update(updates)
     .eq("id", id)
     .select()
     .single();
 
-  if (error) throw error;
+  if (result.error && (result.error.code === '42703' || result.error.message?.includes('decline_reason'))) {
+    // Column doesn't exist yet in the database, fall back without decline_reason column
+    delete updates.decline_reason;
+    const fallback = await supabase
+      .from("purchase_orders")
+      .update(updates)
+      .eq("id", id)
+      .select()
+      .single();
+    if (fallback.error) throw fallback.error;
+    data = fallback.data;
+    if (decline_reason) {
+      data.decline_reason = decline_reason;
+      data.declineReason = decline_reason;
+    }
+  } else if (result.error) {
+    throw result.error;
+  } else {
+    data = result.data;
+  }
 
   // If items_received is provided, update those items and inventory stock
   if (items_received && items_received.length > 0) {

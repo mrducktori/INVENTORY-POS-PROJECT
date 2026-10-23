@@ -34,6 +34,10 @@ const DashboardOverview = ({ onNavigate }) => {
     COLORS,
     topSalesPeriod,
     setTopSalesPeriod,
+    startDate,
+    endDate,
+    setStartDate,
+    setEndDate,
   } = useDashboardStats();
 
   const todayFormatted = new Intl.DateTimeFormat('en-PH', {
@@ -132,6 +136,10 @@ const DashboardOverview = ({ onNavigate }) => {
           getSortedProducts={getSortedCategoryProducts}
           period={topSalesPeriod}
           onPeriodChange={setTopSalesPeriod}
+          startDate={startDate}
+          endDate={endDate}
+          onStartDateChange={setStartDate}
+          onEndDateChange={setEndDate}
         />
       </div>
 

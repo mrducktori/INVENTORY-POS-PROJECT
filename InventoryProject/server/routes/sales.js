@@ -1,5 +1,6 @@
 import express from 'express';
 import { supabase } from "../config/supabaseClient.js";
+import { toManilaStartOfDay, toManilaEndOfDay } from "../utils/dateUtils.js";
 
 const router = express.Router();
 
@@ -20,14 +21,21 @@ router.get('/', async (req, res) => {
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    // Date range filtering
-    if (req.query.start_date && req.query.end_date) {
-      const s = req.query.start_date;
-      const e = req.query.end_date;
-      query = query.gte('created_at', `${s}T00:00:00+08:00`).lte('created_at', `${e}T23:59:59+08:00`);
+    // Date range filtering (supports both snake_case and camelCase)
+    const startDateParam = req.query.start_date || req.query.startDate;
+    const endDateParam = req.query.end_date || req.query.endDate;
+
+    if (startDateParam && endDateParam) {
+      query = query
+        .gte('created_at', toManilaStartOfDay(startDateParam))
+        .lte('created_at', toManilaEndOfDay(endDateParam));
+    } else if (startDateParam) {
+      query = query.gte('created_at', toManilaStartOfDay(startDateParam));
+    } else if (endDateParam) {
+      query = query.lte('created_at', toManilaEndOfDay(endDateParam));
     } else if (req.query.date) {
       const d = req.query.date;
-      query = query.gte('created_at', `${d}T00:00:00+08:00`).lte('created_at', `${d}T23:59:59+08:00`);
+      query = query.gte('created_at', toManilaStartOfDay(d)).lte('created_at', toManilaEndOfDay(d));
     } else if (req.query.period) {
       const period = req.query.period;
       // Get current date in Manila timezone
@@ -76,8 +84,8 @@ router.get('/', async (req, res) => {
 router.get('/summary/report', async (req, res) => {
   try {
     const period = req.query.period || 'day';
-    const customStart = req.query.start_date;
-    const customEnd = req.query.end_date;
+    const customStart = req.query.start_date || req.query.startDate;
+    const customEnd = req.query.end_date || req.query.endDate;
     
     // Get current date in Manila timezone
     const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }));
@@ -88,11 +96,12 @@ router.get('/summary/report', async (req, res) => {
     let startStr;
     let endStr = null;
 
-    if (period === 'custom' && customStart && customEnd) {
-      startStr = `${customStart}T00:00:00+08:00`;
-      endStr = `${customEnd}T23:59:59+08:00`;
+    if ((period === 'custom' || customStart || customEnd) && (customStart || customEnd)) {
+      startStr = toManilaStartOfDay(customStart || customEnd);
+      endStr = toManilaEndOfDay(customEnd || customStart);
     } else if (period === 'day' || period === 'daily') {
       startStr = `${y}-${m}-${d}T00:00:00+08:00`;
+      endStr = `${y}-${m}-${d}T23:59:59.999+08:00`;
     } else if (period === 'week' || period === 'weekly') {
       const weekAgo = new Date(now);
       weekAgo.setDate(weekAgo.getDate() - 7);
@@ -100,8 +109,10 @@ router.get('/summary/report', async (req, res) => {
       const wm = String(weekAgo.getMonth() + 1).padStart(2, '0');
       const wd = String(weekAgo.getDate()).padStart(2, '0');
       startStr = `${wy}-${wm}-${wd}T00:00:00+08:00`;
+      endStr = `${y}-${m}-${d}T23:59:59.999+08:00`;
     } else {
       startStr = `${y}-${m}-01T00:00:00+08:00`;
+      endStr = `${y}-${m}-${d}T23:59:59.999+08:00`;
     }
 
     let query = supabase

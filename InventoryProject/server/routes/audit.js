@@ -1,5 +1,6 @@
 import express from 'express';
 import { supabase } from '../config/supabaseClient.js';
+import { toManilaStartOfDay, toManilaEndOfDay } from '../utils/dateUtils.js';
 
 const router = express.Router();
 
@@ -20,8 +21,11 @@ router.get('/', async (req, res) => {
 
     if (req.query.user_id) query = query.eq('user_id', req.query.user_id);
     if (req.query.action) query = query.ilike('action', `%${req.query.action}%`);
-    if (req.query.start_date) query = query.gte('created_at', req.query.start_date);
-    if (req.query.end_date) query = query.lte('created_at', req.query.end_date);
+    
+    const startDate = req.query.start_date || req.query.startDate;
+    const endDate = req.query.end_date || req.query.endDate;
+    if (startDate) query = query.gte('created_at', toManilaStartOfDay(startDate));
+    if (endDate) query = query.lte('created_at', toManilaEndOfDay(endDate));
 
     const { data, error, count } = await query;
     if (error) throw error;

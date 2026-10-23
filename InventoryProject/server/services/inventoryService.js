@@ -111,8 +111,21 @@ export const getLowStockAlerts = async () => {
 
   if (error) throw error;
   
-  // Filter in JS to ensure column-to-column comparison works correctly
-  return (data || []).filter(i => i.stock_quantity <= i.low_stock_alert);
+  // Configurable Thresholds: Flag items where current_stock <= (max_stock * 0.5)
+  return (data || []).filter(i => {
+    const currentStock = parseFloat(i.stock_quantity) || 0;
+    const maxStock = parseFloat(i.max_stock) || parseFloat(i.max_capacity) || (parseFloat(i.low_stock_alert || 10) * 2);
+    const threshold = maxStock * 0.5;
+    return currentStock <= threshold;
+  }).map(i => {
+    const currentStock = parseFloat(i.stock_quantity) || 0;
+    const maxStock = parseFloat(i.max_stock) || parseFloat(i.max_capacity) || (parseFloat(i.low_stock_alert || 10) * 2);
+    return {
+      ...i,
+      max_stock: maxStock,
+      low_stock_threshold: maxStock * 0.5
+    };
+  });
 };
 
 // FIX #12: Validates that quantity is a positive number before adding to stock.

@@ -12,6 +12,7 @@ const SupplierPortal = () => {
   const [tabFilter, setTabFilter] = useState('ALL'); // 'ALL' | 'PENDING' | 'PROPOSALS' | 'ACTIVE' | 'COMPLETED'
   const [postponeModal, setPostponeModal] = useState({ show: false, orderId: null, date: '' });
   const [reviewModal, setReviewModal] = useState({ show: false, order: null });
+  const [declineModal, setDeclineModal] = useState({ show: false, orderId: null, reason: '' });
 
   const fetchOrders = async () => {
     try {
@@ -52,11 +53,32 @@ const SupplierPortal = () => {
       setPostponeModal({ show: true, orderId: id, date: '' });
       return;
     }
+    if (newStatus === 'Declined') {
+      setDeclineModal({ show: true, orderId: id, reason: '' });
+      return;
+    }
     try {
       await updateSupplierOrderStatus(id, newStatus);
       fetchOrders();
     } catch (err) {
       setError('Failed to update status: ' + err.message);
+      setTimeout(() => setError(''), 5000);
+    }
+  };
+
+  const handleDeclineSubmit = async (e) => {
+    e.preventDefault();
+    if (!declineModal.reason || !declineModal.reason.trim()) {
+      setError('A decline reason is required.');
+      setTimeout(() => setError(''), 5000);
+      return;
+    }
+    try {
+      await updateSupplierOrderStatus(declineModal.orderId, 'Declined', null, declineModal.reason.trim());
+      setDeclineModal({ show: false, orderId: null, reason: '' });
+      fetchOrders();
+    } catch (err) {
+      setError('Failed to decline order: ' + err.message);
       setTimeout(() => setError(''), 5000);
     }
   };
@@ -261,12 +283,17 @@ const SupplierPortal = () => {
                             po.status === 'Accepted' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
                             po.status === 'To Be Delivered' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' :
                             po.status === 'Delivering' ? 'bg-purple-50 text-purple-700 border border-purple-200' :
-                            po.status === 'Declined' ? 'bg-red-50 text-red-700 border border-red-200' :
+                            (po.status === 'Declined' || po.status === 'DECLINED') ? 'bg-red-50 text-red-700 border border-red-200' :
                             po.status === 'Received' ? 'bg-green-50 text-green-700 border border-green-200' :
                             'bg-gray-100 text-gray-700 border border-gray-200'
                           }`}>
                           {po.status}
                         </span>
+                        {(po.status === 'Declined' || po.status === 'DECLINED') && po.decline_reason && (
+                          <div className="mt-1 text-xs text-red-600 font-medium max-w-xs truncate" title={po.decline_reason}>
+                            Reason: {po.decline_reason}
+                          </div>
+                        )}
                       </td>
                       <td className="px-6 py-4 text-right" onClick={e => e.stopPropagation()}>
                         {po.status === 'Pending' && (
@@ -461,6 +488,18 @@ const SupplierPortal = () => {
                                 <p className="m-0 text-sm text-orange-900">{po.notes}</p>
                               </div>
                             )}
+
+                            {(po.status === 'Declined' || po.status === 'DECLINED') && po.decline_reason && (
+                              <div className="bg-red-50 border border-red-200 p-4 rounded-xl flex items-start gap-3">
+                                <svg className="w-5 h-5 text-red-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                                <div>
+                                  <h4 className="m-0 text-xs font-bold text-red-800 uppercase tracking-wider">Decline Reason Recorded</h4>
+                                  <p className="m-0 text-sm font-medium text-red-900 mt-0.5">{po.decline_reason}</p>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -476,6 +515,61 @@ const SupplierPortal = () => {
           </div>
         )}
       </div>
+
+      {/* Decline Order Modal */}
+      {declineModal.show && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setDeclineModal({ show: false, orderId: null, reason: '' })}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 md:p-8" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600 shrink-0">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="m-0 text-xl font-black text-gray-900">Decline Purchase Order</h3>
+                <p className="m-0 text-xs text-gray-500 font-medium">Order #{declineModal.orderId?.substring(0, 8).toUpperCase()}</p>
+              </div>
+            </div>
+            
+            <p className="m-0 text-sm text-gray-600 mb-5 font-medium">
+              Please specify the reason for declining this purchase order. This reason will be recorded and communicated directly to the store manager.
+            </p>
+
+            <form onSubmit={handleDeclineSubmit} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                  Decline Reason <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  rows="3"
+                  className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none font-medium"
+                  placeholder="e.g., Raw materials temporarily out of stock, supplier maintenance..."
+                  value={declineModal.reason}
+                  onChange={e => setDeclineModal({ ...declineModal, reason: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 mt-2">
+                <button 
+                  type="button" 
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs uppercase tracking-wider rounded-lg transition-colors cursor-pointer" 
+                  onClick={() => setDeclineModal({ show: false, orderId: null, reason: '' })}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold text-xs uppercase tracking-wider rounded-lg transition-colors cursor-pointer shadow-xs"
+                >
+                  Confirm Decline
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Postpone Modal */}
       {postponeModal.show && (

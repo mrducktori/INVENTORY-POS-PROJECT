@@ -76,14 +76,28 @@ export const createPurchaseOrder = async (req, res) => {
 export const updatePurchaseOrderStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, items_received, user_id } = req.body;
+    const { status, items_received, user_id, expected_date } = req.body;
+    const rawReason = req.body.declineReason || req.body.decline_reason || req.body.reason;
+
+    const statusUpper = (status || '').toUpperCase();
+    if (statusUpper === 'DECLINED') {
+      if (!rawReason || typeof rawReason !== 'string' || !rawReason.trim()) {
+        return res.status(400).json({ 
+          error: 'A declineReason string is required when status is DECLINED.' 
+        });
+      }
+    }
+
+    const declineReason = rawReason && typeof rawReason === 'string' ? rawReason.trim() : null;
+    const authUserId = req.user?.id || user_id || null;
     
-    const data = await purchasingService.updatePurchaseOrderStatus(id, status, items_received);
+    const data = await purchasingService.updatePurchaseOrderStatus(id, status, items_received, expected_date, declineReason);
     
     // Log the overall PO status change
-    await logAudit('PURCHASE_ORDER_STATUS_UPDATED', user_id || null, {
+    await logAudit(statusUpper === 'DECLINED' ? 'SUPPLIER_PO_DECLINED' : 'PURCHASE_ORDER_STATUS_UPDATED', authUserId, {
       po_id: data.id,
-      new_status: status
+      new_status: status,
+      ...(declineReason ? { decline_reason: declineReason, declineReason } : {})
     });
 
     // Log individual stock receipts for each received item so they show in
@@ -100,7 +114,7 @@ export const updatePurchaseOrderStatus = async (req, res) => {
         const conversion = Number(item.conversion_factor || 1);
         const baseUnitsAdded = Number(item.quantity_received_now) * conversion;
 
-        await logAudit('RAW_MATERIAL_STOCK_RECEIVED', user_id || null, {
+        await logAudit('RAW_MATERIAL_STOCK_RECEIVED', authUserId, {
           ingredient_id: item.ingredient_id,
           name: ingredient.name,
           unit: ingredient.unit,
@@ -153,12 +167,28 @@ export const updateSupplierOrderStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status, expected_date } = req.body;
+    const rawReason = req.body.declineReason || req.body.decline_reason || req.body.reason;
 
-    if (!SUPPLIER_ALLOWED_STATUSES.includes(status)) {
+    // Normalize comparison for allowed statuses
+    const matchedStatus = SUPPLIER_ALLOWED_STATUSES.find(
+      s => s.toLowerCase() === (status || '').toLowerCase()
+    );
+
+    if (!matchedStatus) {
       return res.status(400).json({ 
         error: `Invalid status. Suppliers can only set: ${SUPPLIER_ALLOWED_STATUSES.join(', ')}` 
       });
     }
+
+    if (matchedStatus.toLowerCase() === 'declined') {
+      if (!rawReason || typeof rawReason !== 'string' || !rawReason.trim()) {
+        return res.status(400).json({
+          error: 'A declineReason string is required when status is DECLINED.'
+        });
+      }
+    }
+
+    const declineReason = rawReason && typeof rawReason === 'string' ? rawReason.trim() : null;
 
     // Get supplier_id from user
     const { supabase } = await import("../config/supabaseClient.js");
@@ -183,12 +213,13 @@ export const updateSupplierOrderStatus = async (req, res) => {
       return res.status(403).json({ error: 'You can only update your own purchase orders.' });
     }
 
-    const data = await purchasingService.updatePurchaseOrderStatus(id, status, [], expected_date);
+    const data = await purchasingService.updatePurchaseOrderStatus(id, matchedStatus, [], expected_date, declineReason);
 
-    await logAudit('SUPPLIER_PO_STATUS_UPDATED', req.user.id, {
+    await logAudit(matchedStatus.toLowerCase() === 'declined' ? 'SUPPLIER_PO_DECLINED' : 'SUPPLIER_PO_STATUS_UPDATED', req.user.id, {
       po_id: id,
-      new_status: status,
-      supplier_id: userData.supplier_id
+      new_status: matchedStatus,
+      supplier_id: userData.supplier_id,
+      ...(declineReason ? { decline_reason: declineReason, declineReason } : {})
     });
 
     res.json(data);

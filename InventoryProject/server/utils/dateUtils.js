@@ -46,3 +46,24 @@ export const formatDisplayDate = (dateStr) => {
     timeZone: 'Asia/Manila'
   });
 };
+
+/**
+ * Returns an ISO-formatted start of day in Manila timezone (+08:00)
+ * Example: "2026-10-23" -> "2026-10-23T00:00:00+08:00"
+ */
+export const toManilaStartOfDay = (dateInput) => {
+  if (!dateInput) return null;
+  const dStr = typeof dateInput === 'string' ? dateInput.split('T')[0] : getManilaDateOnly();
+  return `${dStr}T00:00:00+08:00`;
+};
+
+/**
+ * Returns an ISO-formatted end of day in Manila timezone (+08:00)
+ * Example: "2026-10-23" -> "2026-10-23T23:59:59.999+08:00"
+ */
+export const toManilaEndOfDay = (dateInput) => {
+  if (!dateInput) return null;
+  const dStr = typeof dateInput === 'string' ? dateInput.split('T')[0] : getManilaDateOnly();
+  return `${dStr}T23:59:59.999+08:00`;
+};
+

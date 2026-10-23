@@ -82,12 +82,14 @@ const useDashboardStats = () => {
   const [activeTrendCategory, setActiveTrendCategory] = useState('All');
   const [isLowStockExpanded, setIsLowStockExpanded] = useState(false);
   const [topSalesPeriod, setTopSalesPeriod] = useState('day'); // 'day' | 'week' | 'month'
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
         setLoading(true);
-        const data = await getDashboardStats(topSalesPeriod);
+        const data = await getDashboardStats(topSalesPeriod, startDate, endDate);
         setStats(data);
       } catch (err) {
         console.error('Failed to load dashboard stats:', err);
@@ -97,7 +99,7 @@ const useDashboardStats = () => {
     };
 
     fetchStats();
-  }, [topSalesPeriod]); // re-fetch whenever the period changes
+  }, [topSalesPeriod, startDate, endDate]); // re-fetch whenever the period or dates change
 
   // --- Derived / computed values ---
 
@@ -147,11 +149,15 @@ const useDashboardStats = () => {
     sortCategorySalesAsc,
     isLowStockExpanded,
     topSalesPeriod,
+    startDate,
+    endDate,
     // Actions (state setters)
     setIsTrendExpanded,
     setActiveTrendCategory,
     setSortCategorySalesAsc,
     setTopSalesPeriod,
+    setStartDate,
+    setEndDate,
     toggleLowStock,
     // Derived data ready for components
     kpiCards,

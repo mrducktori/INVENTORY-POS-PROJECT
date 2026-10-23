@@ -90,6 +90,8 @@ app.use('/api/products', requireAuth, productsRoutes);
 app.use('/api/analytics', requireAuth, analyticsRoutes);
 app.use('/api/categories/settings', requireAuth, categorySettingsRoutes);
 app.use('/api/purchasing', requireAuth, purchasingRoutes);
+app.use('/api/purchase-orders', requireAuth, purchasingRoutes);
+app.use('/purchase-orders', requireAuth, purchasingRoutes);
 app.use('/api/cms', cmsRoutes);
 
 // ==========================================

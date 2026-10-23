@@ -10,6 +10,7 @@ router.put("/ingredients/:id", inventoryController.updateIngredient);
 router.delete("/ingredients/:id", inventoryController.deleteIngredient);
 router.post("/ingredients/:id/receive", inventoryController.receiveStock);
 router.get("/low-stock-alerts", inventoryController.getLowStockAlerts);
+router.get("/alerts", inventoryController.getLowStockAlerts);
 router.put("/ingredients/:id/archive", inventoryController.archiveIngredient);
 router.put("/ingredients/:id/restore", inventoryController.restoreIngredient);
 

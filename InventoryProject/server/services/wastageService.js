@@ -2,6 +2,7 @@ import { supabase } from "../config/supabaseClient.js";
 import { getIngredientById } from "./inventoryService.js";
 import { updateStock } from "./inventoryService.js";
 import { logAudit } from "../utils/auditHelper.js";
+import { toManilaStartOfDay, toManilaEndOfDay } from "../utils/dateUtils.js";
 
 // FIX #3 & #13: Added a stock sufficiency check BEFORE logging the wastage record.
 // This prevents the audit log from being created if the deduction would fail,
@@ -67,12 +68,12 @@ export const getWastageHistory = async (filters = {}) => {
     query = query.eq("reported_by", filters.reported_by);
   }
 
-  if (filters.start_date) {
-    query = query.gte("created_at", filters.start_date);
+  if (filters.start_date || filters.startDate) {
+    query = query.gte("created_at", toManilaStartOfDay(filters.start_date || filters.startDate));
   }
 
-  if (filters.end_date) {
-    query = query.lte("created_at", filters.end_date);
+  if (filters.end_date || filters.endDate) {
+    query = query.lte("created_at", toManilaEndOfDay(filters.end_date || filters.endDate));
   }
 
   const { data, error } = await query;

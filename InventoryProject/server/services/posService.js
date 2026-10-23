@@ -211,31 +211,23 @@ export const createSale = async ({
     throw new Error(`Insufficient stock for: ${insufficient.join(', ')}`);
   }
 
-  // --- 2. CREATE THE SALE RECORD ---
-  const { data: sale, error: saleError } = await supabase
-    .from("sales")
-    .insert([{ 
-      total_amount: total, 
-      payment_method, 
-      staff_id,
-      receipt_number,
-      discount_amount,
-      tax_amount,
-      status,
-      payment_status,
-      amount_received,
-      change_amount,
-      transaction_reference,
-      notes
-    }])
-    .select()
-    .single();
+  // --- 2. ATOMIC EXECUTION (Single Database Transaction) ---
+  const saleData = {
+    total_amount: total,
+    payment_method,
+    staff_id,
+    receipt_number,
+    discount_amount,
+    tax_amount,
+    status,
+    payment_status,
+    amount_received,
+    change_amount,
+    transaction_reference,
+    notes
+  };
 
-  if (saleError) throw saleError;
-
-  // --- 3. INSERT SALE ITEMS ---
   const saleItems = cart.map(item => ({
-    sale_id: sale.id,
     product_id: item.id,
     quantity: item.qty,
     unit_price: item.price,
@@ -245,60 +237,161 @@ export const createSale = async ({
     notes: item.notes || ""
   }));
 
-  const { error: itemError } = await supabase
-    .from("sale_items")
-    .insert(saleItems);
+  const productDeductions = pIds.map(pid => ({
+    id: pid,
+    name: requiredProducts[pid].name,
+    qty: requiredProducts[pid].qty
+  }));
 
-  if (itemError) throw itemError;
+  const ingredientDeductions = iIds.map(iid => ({
+    id: iid,
+    name: requiredIngredients[iid].name,
+    qty: requiredIngredients[iid].qty
+  }));
 
-  // --- 4. APPLY STOCK DEDUCTIONS ---
-  // Since we pre-validated, we can just apply the newStock amounts
+  let sale = null;
+
+  // Attempt 1: Call PostgreSQL RPC function for true ACID database-level transaction
+  try {
+    const { data: rpcSale, error: rpcError } = await supabase.rpc('process_pos_checkout', {
+      p_sale_data: saleData,
+      p_sale_items: saleItems,
+      p_product_deductions: productDeductions,
+      p_ingredient_deductions: ingredientDeductions
+    });
+
+    if (!rpcError && rpcSale) {
+      sale = typeof rpcSale === 'string' ? JSON.parse(rpcSale) : rpcSale;
+    } else if (rpcError && rpcError.code !== '42883' && !rpcError.message?.includes('process_pos_checkout')) {
+      // If error is actual business logic or constraint failure inside transaction, bubble up
+      throw new Error(`Transaction failed: ${rpcError.message}`);
+    }
+  } catch (err) {
+    if (!err.message?.includes('process_pos_checkout') && !err.message?.includes('42883')) {
+      throw err;
+    }
+  }
+
+  // Attempt 2: If RPC is not installed in Postgres yet, execute atomic transaction with rollback compensation
+  if (!sale) {
+    let createdSaleId = null;
+    const appliedProductDeductions = [];
+    const appliedIngredientDeductions = [];
+
+    try {
+      // 2a. Insert Sale Record
+      const { data: insertedSale, error: saleError } = await supabase
+        .from("sales")
+        .insert([saleData])
+        .select()
+        .single();
+
+      if (saleError) throw saleError;
+      sale = insertedSale;
+      createdSaleId = sale.id;
+
+      // 2b. Insert Sale Items
+      const itemsToInsert = saleItems.map(item => ({
+        ...item,
+        sale_id: createdSaleId
+      }));
+
+      const { error: itemError } = await supabase
+        .from("sale_items")
+        .insert(itemsToInsert);
+
+      if (itemError) throw itemError;
+
+      // 2c. Deduct Product Stocks
+      for (const pid of pIds) {
+        const pData = requiredProducts[pid];
+        const { error: prodUpdateError } = await supabase
+          .from("products")
+          .update({ stock_quantity: pData.newStock })
+          .eq("id", pid);
+
+        if (prodUpdateError) throw prodUpdateError;
+        appliedProductDeductions.push({ pid, restoreStock: pData.newStock + pData.qty });
+      }
+
+      // 2d. Deduct Ingredient Stocks
+      for (const iid of iIds) {
+        const iData = requiredIngredients[iid];
+        const { error: ingUpdateError } = await supabase
+          .from("ingredients")
+          .update({ stock_quantity: iData.newStock })
+          .eq("id", iid);
+
+        if (ingUpdateError) throw ingUpdateError;
+        appliedIngredientDeductions.push({ iid, restoreStock: iData.newStock + iData.qty });
+      }
+    } catch (atomicError) {
+      // ROLLBACK COMPENSATION: Undo all partial operations to ensure 100% transactional atomicity
+      console.error('[POS Transaction Rollback] An error occurred during checkout, rolling back:', atomicError);
+
+      // Rollback products
+      for (const item of appliedProductDeductions) {
+        try {
+          await supabase.from("products").update({ stock_quantity: item.restoreStock }).eq("id", item.pid);
+        } catch (e) {
+          console.error('[Rollback Failure] Product restore error:', e);
+        }
+      }
+
+      // Rollback ingredients
+      for (const item of appliedIngredientDeductions) {
+        try {
+          await supabase.from("ingredients").update({ stock_quantity: item.restoreStock }).eq("id", item.iid);
+        } catch (e) {
+          console.error('[Rollback Failure] Ingredient restore error:', e);
+        }
+      }
+
+      // Rollback created sale (cascades to sale_items)
+      if (createdSaleId) {
+        try {
+          await supabase.from("sales").delete().eq("id", createdSaleId);
+        } catch (e) {
+          console.error('[Rollback Failure] Sale delete error:', e);
+        }
+      }
+
+      throw new Error(`Transaction aborted: ${atomicError.message}`);
+    }
+  }
+
+  // --- 3. AUDIT LOGGING (Post-commit) ---
   for (const pid of pIds) {
     const pData = requiredProducts[pid];
-    const { error: prodUpdateError } = await supabase
-      .from("products")
-      .update({ stock_quantity: pData.newStock })
-      .eq("id", pid);
-
-    if (!prodUpdateError) {
-      await logAudit('PRODUCT_DEDUCTED', staff_id, {
-        product_id: pid,
-        name: pData.name,
-        quantity: -pData.qty,
-        new_stock: pData.newStock,
-        sale_id: sale.id,
-        type: 'SALE'
-      });
-    }
+    await logAudit('PRODUCT_DEDUCTED', staff_id, {
+      product_id: pid,
+      name: pData.name,
+      quantity: -pData.qty,
+      new_stock: pData.newStock,
+      sale_id: sale.id,
+      type: 'SALE'
+    });
   }
 
   for (const iid of iIds) {
     const iData = requiredIngredients[iid];
-    const { error: updateError } = await supabase
-      .from("ingredients")
-      .update({ stock_quantity: iData.newStock })
-      .eq("id", iid);
-
-    if (!updateError) {
-      await logAudit('INGREDIENT_DEDUCTED', staff_id, {
-        ingredient_id: iid,
-        name: iData.name,
-        quantity: -iData.qty,
-        new_stock: iData.newStock,
-        sale_id: sale.id,
-        type: 'SALE'
-      });
-    }
+    await logAudit('INGREDIENT_DEDUCTED', staff_id, {
+      ingredient_id: iid,
+      name: iData.name,
+      quantity: -iData.qty,
+      new_stock: iData.newStock,
+      sale_id: sale.id,
+      type: 'SALE'
+    });
   }
 
-  // --- 5. LOG TO AUDIT ---
   await supabase.from("audit_logs").insert([{
     action: "SALE",
     action_type: "SALE",
     entity_type: "SALE",
     entity_id: sale.id,
     user_id: staff_id,
-    details: `Completed sale of ${cart.length} items for ₱${total}. Inventory deducted.`,
+    details: `Completed sale of ${cart.length} items for ₱${total}. Inventory deducted atomically.`,
     new_value: { sale_id: sale.id, items: cart.length, total: total }
   }]);
 

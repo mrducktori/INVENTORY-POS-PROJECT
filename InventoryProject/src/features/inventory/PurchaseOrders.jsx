@@ -252,15 +252,21 @@ const PurchaseOrders = () => {
                                 po.status === 'To Be Delivered' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' :
                                 po.status === 'Delivering' ? 'bg-purple-50 text-purple-700 border border-purple-200' :
                                 po.status === 'Partial' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                                (po.status === 'Declined' || po.status === 'DECLINED') ? 'bg-red-50 text-red-700 border border-red-200 font-extrabold' :
                                 po.status === 'Received' ? 'bg-green-50 text-green-700 border border-green-200' :
                                 po.status === 'Cancelled' ? 'bg-red-50 text-red-700 border border-red-200' :
                                 'bg-gray-100 text-gray-700 border border-gray-200'
                               }`}>
                               {po.status}
                             </span>
+                            {(po.status === 'Declined' || po.status === 'DECLINED') && po.decline_reason && (
+                              <div className="mt-1 text-xs text-red-600 font-medium max-w-xs truncate" title={po.decline_reason}>
+                                Reason: {po.decline_reason}
+                              </div>
+                            )}
                           </td>
                           <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
-                            {po.status !== 'Received' && po.status !== 'Cancelled' && (
+                            {po.status !== 'Received' && po.status !== 'Cancelled' && po.status !== 'Declined' && po.status !== 'DECLINED' && (
                               <div className="flex justify-end gap-2">
                                 {['Accepted', 'To Be Delivered', 'Delivering', 'Partial'].includes(po.status) && (
                                   <button 
@@ -292,6 +298,17 @@ const PurchaseOrders = () => {
                           <tr className="bg-gray-50/80">
                             <td colSpan="7" className="p-0">
                               <div className="px-8 py-6 border-b border-gray-200">
+                                {(po.status === 'Declined' || po.status === 'DECLINED') && po.decline_reason && (
+                                  <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 text-red-900">
+                                    <svg className="w-5 h-5 text-red-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                    </svg>
+                                    <div>
+                                      <div className="text-xs font-bold uppercase tracking-wider text-red-700">Decline Reason Provided by Supplier</div>
+                                      <div className="text-sm font-medium mt-0.5 text-red-900">{po.decline_reason}</div>
+                                    </div>
+                                  </div>
+                                )}
                                 <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
                                   <h4 className="m-0 text-xs font-bold text-gray-500 uppercase tracking-wider">
                                     Order Items & Supplier Responses

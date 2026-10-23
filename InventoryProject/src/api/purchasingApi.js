@@ -35,10 +35,23 @@ export async function createPurchaseOrder(poData) {
   });
 }
 
-export async function updatePurchaseOrderStatus(id, status, items_received = []) {
-  return apiCall(`/purchasing/${id}/status`, {
-    method: "PUT",
-    body: JSON.stringify({ status, items_received })
+export async function updatePurchaseOrderStatus(id, status, items_received = [], expected_date = null, declineReason = null) {
+  return apiCall(`/purchasing/purchase-orders/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ 
+      status, 
+      items_received, 
+      expected_date, 
+      declineReason, 
+      decline_reason: declineReason 
+    })
+  });
+}
+
+export async function patchPurchaseOrder(id, payload) {
+  return apiCall(`/purchasing/purchase-orders/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload)
   });
 }
 
@@ -49,10 +62,15 @@ export async function getSupplierOwnOrders() {
   });
 }
 
-export async function updateSupplierOrderStatus(id, status, expected_date = null) {
-  return apiCall(`/purchasing/my-orders/${id}/status`, {
-    method: "PUT",
-    body: JSON.stringify({ status, expected_date })
+export async function updateSupplierOrderStatus(id, status, expected_date = null, declineReason = null) {
+  return apiCall(`/purchasing/purchase-orders/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ 
+      status, 
+      expected_date, 
+      declineReason, 
+      decline_reason: declineReason 
+    })
   });
 }
 
