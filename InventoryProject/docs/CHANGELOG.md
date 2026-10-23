@@ -2,7 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Demand Forecasting: Typography Scaling & High-Contrast Visibility Upgrade — 2026-10-23]
+## [Stock Movement Report: Inflow/Outflow/Wastage Overhaul & CSV/PDF Layout Fixes — 2026-10-23]
+- **True Stock Movement Tracking (Inflow, Outflow & Wastage)**:
+  - In [StockMovementReport.jsx](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/reports/StockMovementReport.jsx):
+    - Replaced the previous receipts-only approach with full two-way stock movement monitoring across `RAW_MATERIAL_STOCK_RECEIVED`, `PRODUCT_STOCK_RECEIVED`, `INGREDIENT_DEDUCTED`, `PRODUCT_DEDUCTED`, and `WASTAGE`.
+    - Added comprehensive metric cards: **Stock Inflow (+)**, **Stock Outflow (-)**, **Wastage / Loss (-)**, **Net Stock Movement**, and **Restock Attention**.
+    - Added movement direction filters: `All`, `Inflow`, `Outflow`, and `Wastage`.
+    - Resolved missing ingredient/product names in audit deduction records by maintaining active snapshot lookup mappings.
+  - In [server/routes/audit.js](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/server/routes/audit.js):
+    - Enhanced audit route to support comma-separated action lists (`query.in('action', actionList)`) and increased query range limit to 2000 for comprehensive reporting.
+- **Fixed and Restyled PDF & Print Layout**:
+  - In [reportUtils.js](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/reports/reportUtils.js):
+    - Fixed parameter mismatch bug in `printReport()` where single-argument invocations rendered `undefined` in the print window.
+    - Designed an executive, high-contrast print stylesheet with print color preservation (`-webkit-print-color-adjust: exact`), branded report header, color-coded KPI cards, page-break guards (`page-break-inside: avoid`), and clean typography.
+    - Added rendering timeout to prevent premature blank print dialogs in Chromium-based browsers.
+- **Fixed and Standardized CSV Export**:
+  - Converted CSV export into an RFC-4180 standard CRLF layout with UTF-8 BOM for seamless Microsoft Excel and Google Sheets compatibility.
+  - Formatted CSV with clear executive summary metrics, structured Stock Movement Audit Log with explicit `+`/`-` signed quantity changes, and priority-grouped Current Inventory Snapshot.
 - **Scaled Text Hierarchy & Enhanced Contrast Across Forecasting View**:
   - In [DemandForecasting.jsx](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/analytics/DemandForecasting.jsx):
     - **Header & Navigation**: Bumped subtitle from faint `text-sm text-gray-500` to high-contrast `text-sm sm:text-base text-gray-700 font-medium`. Scaled sub-tab buttons to `px-5 py-2.5 text-xs sm:text-sm font-extrabold uppercase` with clear badge counters.

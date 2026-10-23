@@ -7,7 +7,7 @@ const router = express.Router();
 // Get audit logs with optional filters
 router.get('/', async (req, res) => {
   try {
-    const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+    const limit = Math.min(parseInt(req.query.limit) || 100, 2000);
     const offset = parseInt(req.query.offset) || 0;
 
     let query = supabase
@@ -20,7 +20,14 @@ router.get('/', async (req, res) => {
       .range(offset, offset + limit - 1);
 
     if (req.query.user_id) query = query.eq('user_id', req.query.user_id);
-    if (req.query.action) query = query.ilike('action', `%${req.query.action}%`);
+    if (req.query.action) {
+      if (req.query.action.includes(',')) {
+        const actionList = req.query.action.split(',').map(a => a.trim()).filter(Boolean);
+        query = query.in('action', actionList);
+      } else {
+        query = query.ilike('action', `%${req.query.action}%`);
+      }
+    }
     
     const startDate = req.query.start_date || req.query.startDate;
     const endDate = req.query.end_date || req.query.endDate;
