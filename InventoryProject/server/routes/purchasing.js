@@ -8,6 +8,7 @@ const router = express.Router();
 router.get("/suppliers", purchasingController.getSuppliers);
 router.post("/suppliers", purchasingController.createSupplier);
 router.put("/suppliers/:id", purchasingController.updateSupplier);
+router.delete("/suppliers/:id", requireAuth, requireRole("Admin", "Owner"), purchasingController.deleteSupplier);
 
 // Purchase Orders
 router.get("/", purchasingController.getPurchaseOrders);
@@ -27,5 +28,8 @@ router.patch("/my-orders/:id/status", requireAuth, requireRole('Supplier'), purc
 router.patch("/my-orders/:id", requireAuth, requireRole('Supplier'), purchasingController.updateSupplierOrderStatus);
 // Suppliers submit item-by-item availability, proposed dates, and reasons
 router.put("/my-orders/:id/item-responses", requireAuth, requireRole('Supplier'), purchasingController.submitSupplierItemResponses);
+// Suppliers can view and update their own catalog pricing
+router.get("/my-catalog", requireAuth, requireRole('Supplier'), purchasingController.getSupplierOwnCatalog);
+router.put("/my-catalog/prices", requireAuth, requireRole('Supplier'), purchasingController.updateSupplierOwnCatalog);
 
 export default router;

@@ -74,14 +74,23 @@ const PurchaseOrderForm = ({ onClose, onSuccess }) => {
   const unselectedIngredients = sortItems(searchedIngredients.filter(ing => !formData.items[ing.id]?.selected));
 
   // Compute selected items count & total PO cost
-  const selectedItemsList = Object.entries(formData.items).filter(([_, item]) => item.selected);
+  const selectedItemsList = Object.entries(formData.items).filter(([, item]) => item.selected);
   const selectedCount = selectedItemsList.length;
-  const orderTotal = selectedItemsList.reduce((sum, [_, item]) => {
+  const orderTotal = selectedItemsList.reduce((sum, [, item]) => {
     return sum + ((item.quantity || 0) * (item.unit_price || 0));
   }, 0);
 
   const handleCheckboxChange = (ing) => {
-    // Read PO defaults from the ingredient itself (not the supplier mapping)
+    // Read PO defaults from supplier_ingredients if configured, falling back to ingredient
+    const mapping = selectedSupplier?.supplier_ingredients?.find(si => si.ingredient_id === ing.id);
+    const defaultPrice = mapping?.default_price != null && Number(mapping.default_price) > 0
+      ? Number(mapping.default_price)
+      : (ing.cost_per_purchase_unit || 0);
+    const defaultUnit = mapping?.default_purchase_unit || ing.purchase_unit || 'Unit';
+    const defaultFactor = mapping?.default_conversion_factor != null && Number(mapping.default_conversion_factor) > 0
+      ? Number(mapping.default_conversion_factor)
+      : (ing.conversion_factor || 1);
+
     setFormData(prev => {
       const isSelected = prev.items[ing.id]?.selected;
       return {
@@ -91,9 +100,9 @@ const PurchaseOrderForm = ({ onClose, onSuccess }) => {
           [ing.id]: {
             selected: !isSelected,
             quantity: prev.items[ing.id]?.quantity || 1,
-            unit_price: prev.items[ing.id]?.unit_price || ing.cost_per_purchase_unit || 0,
-            purchase_unit: prev.items[ing.id]?.purchase_unit || ing.purchase_unit || 'Unit',
-            conversion_factor: prev.items[ing.id]?.conversion_factor || ing.conversion_factor || 1
+            unit_price: prev.items[ing.id]?.unit_price || defaultPrice,
+            purchase_unit: prev.items[ing.id]?.purchase_unit || defaultUnit,
+            conversion_factor: prev.items[ing.id]?.conversion_factor || defaultFactor
           }
         }
       };
@@ -121,7 +130,7 @@ const PurchaseOrderForm = ({ onClose, onSuccess }) => {
     
     // Filter out selected items
     const selectedItems = Object.entries(formData.items)
-      .filter(([_, item]) => item.selected)
+      .filter(([, item]) => item.selected)
       .map(([ingId, item]) => {
         const fullIng = ingredients.find(i => i.id === ingId);
         return {

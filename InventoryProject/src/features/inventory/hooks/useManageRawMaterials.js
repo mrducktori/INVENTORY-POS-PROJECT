@@ -2,6 +2,17 @@ import { useState, useEffect } from 'react';
 import { getIngredients, createIngredient, updateIngredient, archiveIngredient, restoreIngredient } from '../../../api/inventoryApi';
 import { checkDuplicateOrSimilar } from '../../../utils/productUtils';
 
+export const RAW_MATERIAL_CATEGORIES = [
+  'COFFEE & TEA BASES',
+  'DAIRY & CREAMERS',
+  'SWEETENERS & SYRUPS',
+  'FLAVORING POWDERS',
+  'SINKERS & TOPPINGS',
+  'BEVERAGE ENHANCERS',
+  'PACKAGING & SUPPLIES',
+  'ADD-ONS'
+];
+
 export const useManageRawMaterials = () => {
   const [viewMode, setViewMode] = useState('ADD');
   const [ingredients, setIngredients] = useState([]);
@@ -9,11 +20,12 @@ export const useManageRawMaterials = () => {
   const [message, setMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingId, setProcessingId] = useState(null);
 
-  const [formData, setFormData] = useState({ name: '', unit: '', low_stock_alert: '' });
+  const [formData, setFormData] = useState({ name: '', unit: '', category: '', low_stock_alert: '' });
 
   const [selectedIngredient, setSelectedIngredient] = useState(null);
   const [editName, setEditName] = useState('');
@@ -23,6 +35,7 @@ export const useManageRawMaterials = () => {
   const [editPurchaseUnit, setEditPurchaseUnit] = useState('Unit');
   const [editConversionFactor, setEditConversionFactor] = useState(1);
   const [editCost, setEditCost] = useState(0);
+  const [editCategory, setEditCategory] = useState('');
 
   const UNIT_CHOICES = ['KG', 'G', 'L', 'ML', 'PCS', 'PACK', 'BOTTLE', 'CAN'];
 
@@ -92,12 +105,13 @@ export const useManageRawMaterials = () => {
       await createIngredient({
         name: newName,
         unit: newUnit,
+        category: formData.category ? formData.category.trim() : null,
         low_stock_alert: parseFloat(formData.low_stock_alert) || 0,
         stock_quantity: 0,
         force_create: forceCreate
       });
       setMessage('Ingredient created successfully!');
-      setFormData({ name: '', unit: '', low_stock_alert: '' });
+      setFormData({ name: '', unit: '', category: '', low_stock_alert: '' });
       fetchIngredients();
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
@@ -227,6 +241,7 @@ export const useManageRawMaterials = () => {
   const handleSetModify = (ingredient) => {
     setSelectedIngredient(ingredient);
     setEditName(ingredient.name);
+    setEditCategory(ingredient.category || '');
     setEditUnit(ingredient.unit);
     setEditAlert(ingredient.low_stock_alert);
     setEditQuantity(ingredient.stock_quantity);
@@ -241,6 +256,8 @@ export const useManageRawMaterials = () => {
     isProcessing, processingId,
     searchTerm, setSearchTerm,
     statusFilter, setStatusFilter,
+    categoryFilter, setCategoryFilter,
+    RAW_MATERIAL_CATEGORIES,
     confirmConfig, setConfirmConfig,
     formData, handleInputChange,
     selectedIngredient, setSelectedIngredient,
@@ -251,6 +268,7 @@ export const useManageRawMaterials = () => {
     editPurchaseUnit, setEditPurchaseUnit,
     editConversionFactor, setEditConversionFactor,
     editCost, setEditCost,
+    editCategory, setEditCategory,
     UNIT_CHOICES,
     handleAddIngredient,
     handleArchiveToggle,

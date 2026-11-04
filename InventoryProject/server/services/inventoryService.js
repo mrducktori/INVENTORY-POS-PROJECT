@@ -24,7 +24,7 @@ export const getIngredientById = async (id) => {
 
 import { findSimilarName } from "../utils/stringHelper.js";
 
-export const createIngredient = async ({ name, unit, stock_quantity, low_stock_alert, image_url, force_create }) => {
+export const createIngredient = async ({ name, unit, category, stock_quantity, low_stock_alert, image_url, force_create }) => {
   // Check for duplicates
   if (!force_create) {
     const { data: existingIngredients } = await supabase.from("ingredients").select("name");
@@ -59,8 +59,9 @@ export const createIngredient = async ({ name, unit, stock_quantity, low_stock_a
 
 // FIX #2: stock_quantity is intentionally excluded — stock must only be changed
 // through receiveStock() (add) or the POS/wastage flow (subtract).
-export const updateIngredient = async (id, { name, unit, low_stock_alert, image_url, purchase_unit, conversion_factor, cost_per_purchase_unit }) => {
+export const updateIngredient = async (id, { name, unit, category, low_stock_alert, image_url, purchase_unit, conversion_factor, cost_per_purchase_unit }) => {
   const updatePayload = { name, unit, low_stock_alert, image_url };
+  if (category !== undefined) updatePayload.category = category || null;
   
   // Include PO defaults if provided
   if (purchase_unit !== undefined) updatePayload.purchase_unit = purchase_unit;

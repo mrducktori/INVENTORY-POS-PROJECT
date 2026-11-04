@@ -14,6 +14,12 @@ export async function createSupplier(supplierData) {
   });
 }
 
+export async function deleteSupplier(id) {
+  return apiCall(`/purchasing/suppliers/${id}`, {
+    method: "DELETE"
+  });
+}
+
 export async function updateSupplier(id, supplierData) {
   return apiCall(`/purchasing/suppliers/${id}`, {
     method: "PUT",
@@ -102,3 +108,16 @@ export async function respondToSupplierProposal(id, itemId, decision, splitIntoB
   });
 }
 
+
+export async function getSupplierOwnCatalog() {
+  return apiCall("/purchasing/my-catalog", {
+    method: "GET"
+  });
+}
+
+export async function updateSupplierOwnCatalog(items) {
+  return apiCall("/purchasing/my-catalog/prices", {
+    method: "PUT",
+    body: JSON.stringify({ items })
+  });
+}

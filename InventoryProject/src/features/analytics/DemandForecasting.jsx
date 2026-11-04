@@ -124,7 +124,7 @@ const DemandForecasting = () => {
       setAiResult(res);
     } catch (err) {
       console.error('Failed to run AI forecast:', err);
-      showToast('error', 'AI Forecast Error: ' + (err.message || 'Server error'));
+      showToast('error', 'Forecast Error: ' + (err.message || 'Server error'));
     } finally {
       setAiLoading(false);
     }
@@ -250,7 +250,7 @@ const DemandForecasting = () => {
     });
   };
 
-  const handleUpdatePoItemPrice = (index, value) => {
+  const _handleUpdatePoItemPrice = (index, value) => {
     const val = Math.max(0, parseFloat(value) || 0);
     setPoItems(prev => {
       const copy = [...prev];
@@ -381,9 +381,7 @@ const DemandForecasting = () => {
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-3">
             <h1 className="m-0 text-2xl sm:text-3xl lg:text-4xl font-black text-gray-900 tracking-tight">Demand & Inventory Forecasting</h1>
-            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs sm:text-sm font-black uppercase tracking-wider bg-black text-white">
-              AI Predictive
-            </span>
+            
           </div>
           <p className="m-0 text-sm sm:text-base text-gray-700 font-medium">
             Cross-references 30-day POS product recipe usage with real-time stock to forecast depletion and automate restock purchase orders.
@@ -824,7 +822,7 @@ const DemandForecasting = () => {
           <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden">
             <div className="px-6 py-5 border-b border-gray-200 bg-gray-50 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
               <div>
-                <h2 className="m-0 text-lg sm:text-xl font-black text-gray-900 tracking-tight">Product Demand Predictions (Next 7 Days)</h2>
+                <h2 className="m-0 text-lg sm:text-xl font-black text-gray-900 tracking-tight">Product Demand Forecast (Next 7 Days)</h2>
                 <p className="m-0 text-sm text-gray-700 font-medium mt-1">Estimated customer orders across menu categories</p>
               </div>
               <button 
@@ -832,14 +830,14 @@ const DemandForecasting = () => {
                 onClick={fetchProductForecasts} 
                 disabled={loadingProducts}
               >
-                {loadingProducts ? 'Analyzing...' : 'Refresh Predictions'}
+                {loadingProducts ? 'Calculating...' : 'Refresh Forecast'}
               </button>
             </div>
             <div className="p-0">
               {loadingProducts ? (
                 <div className="p-16 flex flex-col items-center justify-center text-gray-500 bg-white">
                   <div className="w-9 h-9 border-4 border-gray-200 border-t-gray-900 rounded-full animate-spin mb-4"></div>
-                  <p className="m-0 font-bold text-gray-800 text-base">Generating menu predictions using historical sales data...</p>
+                  <p className="m-0 font-bold text-gray-800 text-base">Calculating demand projections from sales history...</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -854,7 +852,7 @@ const DemandForecasting = () => {
                         <th className="px-6 py-4">Growth</th>
                         <th className="px-6 py-4 min-w-[140px]">Confidence</th>
                         <th className="px-6 py-4 text-center">Stockout Risk</th>
-                        <th className="px-6 py-4 text-center">AI Forecasting</th>
+                        <th className="px-6 py-4 text-center">Monthly Projection</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -927,7 +925,7 @@ const DemandForecasting = () => {
             <div className="px-6 py-4 bg-gray-900 text-white flex items-center justify-between">
               <div>
                 <h3 className="m-0 text-xl font-black tracking-tight">Generate Purchase Order</h3>
-                <p className="m-0 text-sm text-gray-300 mt-1">Automated procurement from predictive depletion analysis</p>
+                <p className="m-0 text-sm text-gray-300 mt-1">Automated procurement from depletion analysis</p>
               </div>
               <button
                 onClick={() => setPoModalOpen(false)}
@@ -1193,7 +1191,7 @@ const DemandForecasting = () => {
                   <div className="flex items-center justify-between text-xs sm:text-sm pb-1">
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-bold text-zinc-800 bg-zinc-100 border border-zinc-200">
                       <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                      <span>{aiResult.engine === 'gemini_ai' ? 'Gemini AI Model' : 'Ensemble Time-Series Model'}</span>
+                      <span>Demand Trend Model</span>
                     </span>
                     <span className="text-zinc-600 font-medium">
                       Confidence: <span className="font-black text-zinc-950">{aiResult.confidenceScore || 85}%</span>

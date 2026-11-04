@@ -22,27 +22,69 @@ export const getSuppliers = async () => {
   return data;
 };
 
-export const createSupplier = async (supplierData) => {
-  const { ingredient_ids, ...details } = supplierData;
-  
-  const { data, error } = await supabase
-    .from("suppliers")
-    .insert([details])
-    .select()
-    .single();
-
-  if (error) throw error;
-
-  if (ingredient_ids && ingredient_ids.length > 0) {
-    const mappings = ingredient_ids.map(id => ({
-      supplier_id: data.id,
-      ingredient_id: id
+// Helper to build supplier ingredient mappings with prices, units, and conversion factors
+const buildSupplierIngredientMappings = async (supplierId, ingredientItems, ingredientIds) => {
+  if (Array.isArray(ingredientItems) && ingredientItems.length > 0) {
+    return ingredientItems.map(item => ({
+      supplier_id: supplierId,
+      ingredient_id: item.ingredient_id,
+      default_purchase_unit: item.default_purchase_unit || item.purchase_unit || 'Unit',
+      default_conversion_factor: parseFloat(item.default_conversion_factor || item.conversion_factor) || 1,
+      default_price: parseFloat(item.default_price ?? item.price ?? item.unit_price) || 0
     }));
-    
+  }
+
+  if (Array.isArray(ingredientIds) && ingredientIds.length > 0) {
+    const { data: defaultIngs } = await supabase
+      .from('ingredients')
+      .select('id, purchase_unit, conversion_factor, cost_per_purchase_unit')
+      .in('id', ingredientIds);
+
+    const defaultMap = {};
+    (defaultIngs || []).forEach(ing => {
+      defaultMap[ing.id] = ing;
+    });
+
+    return ingredientIds.map(id => {
+      const def = defaultMap[id] || {};
+      return {
+        supplier_id: supplierId,
+        ingredient_id: id,
+        default_purchase_unit: def.purchase_unit || 'Unit',
+        default_conversion_factor: parseFloat(def.conversion_factor) || 1,
+        default_price: parseFloat(def.cost_per_purchase_unit) || 0
+      };
+    });
+  }
+
+  return [];
+};
+
+const sanitizeSupplierDetails = (details) => {
+  const payload = { ...details };
+  if (!payload.contact_info && (payload.contact_person || payload.contact_number || payload.email)) {
+    payload.contact_info = [payload.contact_person, payload.contact_number, payload.email].filter(Boolean).join(' | ');
+  }
+  return payload;
+};
+
+export const createSupplier = async (supplierData) => {
+  const { ingredient_ids, ingredient_items, ...details } = supplierData;
+  const payload = sanitizeSupplierDetails(details);
+  
+  let res = await supabase.from("suppliers").insert([payload]).select().single();
+  if (res.error && res.error.message && res.error.message.includes('description')) {
+    delete payload.description;
+    res = await supabase.from("suppliers").insert([payload]).select().single();
+  }
+  if (res.error) throw res.error;
+  const data = res.data;
+
+  const mappings = await buildSupplierIngredientMappings(data.id, ingredient_items, ingredient_ids);
+  if (mappings.length > 0) {
     const { error: mappingError } = await supabase
       .from("supplier_ingredients")
       .insert(mappings);
-      
     if (mappingError) throw mappingError;
   }
 
@@ -50,16 +92,16 @@ export const createSupplier = async (supplierData) => {
 };
 
 export const updateSupplier = async (id, supplierData) => {
-  const { ingredient_ids, ...details } = supplierData;
+  const { ingredient_ids, ingredient_items, ...details } = supplierData;
+  const payload = sanitizeSupplierDetails(details);
   
-  const { data, error } = await supabase
-    .from("suppliers")
-    .update(details)
-    .eq("id", id)
-    .select()
-    .single();
-
-  if (error) throw error;
+  let res = await supabase.from("suppliers").update(payload).eq("id", id).select().single();
+  if (res.error && res.error.message && res.error.message.includes('description')) {
+    delete payload.description;
+    res = await supabase.from("suppliers").update(payload).eq("id", id).select().single();
+  }
+  if (res.error) throw res.error;
+  const data = res.data;
 
   // Delete existing mappings
   await supabase
@@ -67,20 +109,22 @@ export const updateSupplier = async (id, supplierData) => {
     .delete()
     .eq("supplier_id", id);
 
-  if (ingredient_ids && ingredient_ids.length > 0) {
-    const mappings = ingredient_ids.map(ingId => ({
-      supplier_id: id,
-      ingredient_id: ingId
-    }));
-    
+  const mappings = await buildSupplierIngredientMappings(id, ingredient_items, ingredient_ids);
+  if (mappings.length > 0) {
     const { error: mappingError } = await supabase
       .from("supplier_ingredients")
       .insert(mappings);
-      
     if (mappingError) throw mappingError;
   }
 
   return data;
+};
+
+export const deleteSupplier = async (id) => {
+  await supabase.from("supplier_ingredients").delete().eq("supplier_id", id);
+  const { error } = await supabase.from("suppliers").delete().eq("id", id);
+  if (error) throw error;
+  return { success: true };
 };
 
 // Helper to enrich PO items with actual multi-receive batch events from audit logs

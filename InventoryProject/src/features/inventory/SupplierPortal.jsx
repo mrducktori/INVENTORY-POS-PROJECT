@@ -3,13 +3,16 @@ import { getSupplierOwnOrders, updateSupplierOrderStatus, submitSupplierItemResp
 import { supabase } from '../../config/supabaseClient';
 import { formatDisplayDate, isDatePast, getDaysOverdue } from '../../utils/dateUtils';
 import SupplierReviewPOModal from './components/SupplierReviewPOModal';
+import SupplierCatalogSection from './components/SupplierCatalogSection';
 
 const SupplierPortal = () => {
+  const [mainView, setMainView] = useState('ORDERS'); // 'ORDERS' | 'CATALOG'
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [expandedId, setExpandedId] = useState(null);
   const [tabFilter, setTabFilter] = useState('ALL'); // 'ALL' | 'PENDING' | 'PROPOSALS' | 'ACTIVE' | 'COMPLETED'
+  const [searchQuery, setSearchQuery] = useState('');
   const [postponeModal, setPostponeModal] = useState({ show: false, orderId: null, date: '' });
   const [reviewModal, setReviewModal] = useState({ show: false, order: null });
   const [declineModal, setDeclineModal] = useState({ show: false, orderId: null, reason: '' });
@@ -97,13 +100,9 @@ const SupplierPortal = () => {
   };
 
   const handleReviewSubmit = async (poId, itemsPayload) => {
-    try {
-      await submitSupplierItemResponses(poId, itemsPayload);
-      setReviewModal({ show: false, order: null });
-      fetchOrders();
-    } catch (err) {
-      throw err;
-    }
+    await submitSupplierItemResponses(poId, itemsPayload);
+    setReviewModal({ show: false, order: null });
+    fetchOrders();
   };
 
   const toggleExpand = (id) => {
@@ -132,11 +131,22 @@ const SupplierPortal = () => {
 
   // Filtered orders
   const filteredOrders = orders.filter(po => {
-    if (tabFilter === 'OVERDUE') return isPOOverdue(po);
-    if (tabFilter === 'PENDING') return po.status === 'Pending';
-    if (tabFilter === 'PROPOSALS') return po.has_proposals || po.status === 'Proposal Pending' || po.status === 'Partially Accepted';
-    if (tabFilter === 'ACTIVE') return ['Accepted', 'To Be Delivered', 'Delivering', 'Partial'].includes(po.status);
-    if (tabFilter === 'COMPLETED') return po.status === 'Received';
+    if (tabFilter === 'OVERDUE' && !isPOOverdue(po)) return false;
+    if (tabFilter === 'PENDING' && po.status !== 'Pending') return false;
+    if (tabFilter === 'PROPOSALS' && !(po.has_proposals || po.status === 'Proposal Pending' || po.status === 'Partially Accepted')) return false;
+    if (tabFilter === 'ACTIVE' && !['Accepted', 'To Be Delivered', 'Delivering', 'Partial'].includes(po.status)) return false;
+    if (tabFilter === 'COMPLETED' && po.status !== 'Received') return false;
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      const poId = String(po.id || '').toLowerCase();
+      const status = String(po.status || '').toLowerCase();
+      const itemsMatch = (po.purchase_order_items || []).some(item =>
+        String(item.ingredients?.name || '').toLowerCase().includes(q)
+      );
+      return poId.includes(q) || status.includes(q) || itemsMatch;
+    }
+
     return true;
   });
 
@@ -145,7 +155,37 @@ const SupplierPortal = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="m-0 text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">Supplier Portal</h1>
-          <p className="m-0 mt-1 text-sm md:text-base text-gray-500 font-medium">Manage incoming purchase orders from the store.</p>
+          <p className="m-0 mt-1 text-sm md:text-base text-gray-500 font-medium">
+            {mainView === 'ORDERS' 
+              ? 'Manage incoming purchase orders from the store.' 
+              : 'Review catalog items, customize packaging units, and update pricing.'}
+          </p>
+        </div>
+
+        {/* Top View Switcher */}
+        <div className="inline-flex p-1 bg-gray-200/80 rounded-xl gap-1 shrink-0">
+          <button
+            type="button"
+            onClick={() => setMainView('ORDERS')}
+            className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+              mainView === 'ORDERS'
+                ? 'bg-zinc-900 text-white shadow-xs'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Orders {orders.length > 0 ? `(${orders.length})` : ''}
+          </button>
+          <button
+            type="button"
+            onClick={() => setMainView('CATALOG')}
+            className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+              mainView === 'CATALOG'
+                ? 'bg-zinc-900 text-white shadow-xs'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            My Catalog & Pricing
+          </button>
         </div>
       </div>
 
@@ -155,6 +195,10 @@ const SupplierPortal = () => {
         </div>
       )}
 
+      {mainView === 'CATALOG' ? (
+        <SupplierCatalogSection />
+      ) : (
+        <>
       {/* Summary Stats */}
       {!loading && orders.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
@@ -215,8 +259,8 @@ const SupplierPortal = () => {
 
       {/* Main Table Card with Tabs */}
       <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden w-full">
-        {/* Navigation Tabs Bar */}
-        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50/60 flex items-center justify-between flex-wrap gap-3">
+        {/* Navigation Tabs Bar + Search */}
+        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50/60 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
             <button
               onClick={() => setTabFilter('ALL')}
@@ -283,6 +327,28 @@ const SupplierPortal = () => {
               Completed ({completedCount})
             </button>
           </div>
+
+          <div className="relative w-full lg:w-72 shrink-0">
+            <svg className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search PO #, status, or ingredient..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-8 py-1.5 bg-white border border-gray-300 rounded-lg text-xs font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900 transition-all"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 text-xs cursor-pointer"
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </div>
 
         {loading ? (
@@ -294,6 +360,7 @@ const SupplierPortal = () => {
                 <tr className="bg-gray-50 border-b border-gray-200">
                   <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">PO ID</th>
                   <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Date Expected</th>
+                  <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Items Summary</th>
                   <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Total Amount</th>
                   <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
                   <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Actions</th>
@@ -303,6 +370,9 @@ const SupplierPortal = () => {
                 {filteredOrders.map(po => {
                   const isOverdue = isPOOverdue(po);
                   const daysOverdue = getPODaysOverdue(po);
+                  const itemNames = (po.purchase_order_items || [])
+                    .map(i => i.ingredients?.name)
+                    .filter(Boolean);
 
                   return (
                     <React.Fragment key={po.id}>
@@ -333,6 +403,16 @@ const SupplierPortal = () => {
                             </div>
                           ) : (
                             <span className="text-gray-600">{formatDisplayDate(po.expected_date)}</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-sm font-medium text-gray-600 max-w-[260px]">
+                          <div className="font-bold text-gray-800">
+                            {po.purchase_order_items ? `${po.purchase_order_items.length} ingredient${po.purchase_order_items.length === 1 ? '' : 's'}` : '0 items'}
+                          </div>
+                          {itemNames.length > 0 && (
+                            <div className="text-xs text-gray-500 truncate" title={itemNames.join(', ')}>
+                              {itemNames.slice(0, 2).join(', ')}{itemNames.length > 2 ? ` +${itemNames.length - 2} more` : ''}
+                            </div>
                           )}
                         </td>
                         <td className="px-6 py-4 text-sm font-bold text-gray-900">₱{Number(po.total_amount).toFixed(2)}</td>
@@ -449,7 +529,7 @@ const SupplierPortal = () => {
                     </tr>
                     {expandedId === po.id && (
                       <tr className="bg-[#fafafa] border-b border-gray-200">
-                        <td colSpan="5" className="p-0">
+                        <td colSpan="6" className="p-0">
                           <div className="p-6 md:p-8 flex flex-col gap-6">
                             <div className="flex flex-col md:flex-row justify-between gap-4 border-b border-gray-200 pb-6">
                               <div>
@@ -517,7 +597,7 @@ const SupplierPortal = () => {
                                                 {resp.status === 'PROPOSED_DATE' && (
                                                   <div className="flex flex-col gap-0.5">
                                                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
-                                                      ⏳ Proposed: {formatDisplayDate(resp.proposed_date)}
+                                                      Proposed: {formatDisplayDate(resp.proposed_date)}
                                                     </span>
                                                     {resp.reason && (
                                                       <span className="text-[10px] text-zinc-500 font-medium">
@@ -597,10 +677,12 @@ const SupplierPortal = () => {
           </div>
         ) : (
           <div className="p-12 flex flex-col items-center justify-center text-gray-400 bg-gray-50/50 h-full">
-            <p className="m-0 text-sm font-medium">No purchase orders found in this category.</p>
+            <p className="m-0 text-sm font-medium">No purchase orders found matching your filters.</p>
           </div>
         )}
       </div>
+        </>
+      )}
 
       {/* Decline Order Modal */}
       {declineModal.show && (

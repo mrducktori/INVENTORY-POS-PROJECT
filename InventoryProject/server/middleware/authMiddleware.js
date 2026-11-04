@@ -16,11 +16,22 @@ export const requireAuth = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret-key-change-me');
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('users')
-      .select('id, name, username, role, status')
+      .select('id, name, username, role, status, current_session_id')
       .eq('id', decoded.userId)
       .single();
+
+    // Fallback if current_session_id is not yet in PostgREST schema cache
+    if (error && error.message && error.message.includes('current_session_id')) {
+      const fallback = await supabase
+        .from('users')
+        .select('id, name, username, role, status')
+        .eq('id', decoded.userId)
+        .single();
+      data = fallback.data;
+      error = fallback.error;
+    }
 
     if (error || !data) {
       return res.status(401).json({ error: 'Invalid session. Please log in again.' });
@@ -30,7 +41,18 @@ export const requireAuth = async (req, res, next) => {
       return res.status(403).json({ error: 'Your account has been deactivated. Contact an administrator.' });
     }
 
-    req.user = data;
+    // Single active session: only enforce when current_session_id column exists
+    if (data.current_session_id !== undefined && data.current_session_id !== null) {
+      if (!decoded.sid || decoded.sid !== data.current_session_id) {
+        return res.status(401).json({
+          error: 'Your account was signed in on another device.',
+          code: 'SESSION_REPLACED'
+        });
+      }
+    }
+
+    const { current_session_id: _sid, ...user } = data;
+    req.user = user;
     next();
   } catch (err) {
     return res.status(401).json({ error: 'Session expired or invalid. Please log in again.' });

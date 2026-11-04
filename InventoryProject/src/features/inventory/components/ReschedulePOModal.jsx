@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { getManilaDateOnly, formatDisplayDate, isDatePast, getDaysOverdue } from '../../../utils/dateUtils';
+import InfoTip from '../../../components/shared/InfoTip';
 
 const RESCHEDULE_REASONS = [
   'Supplier notified of delay in transit / logistics',
@@ -83,9 +84,12 @@ const ReschedulePOModal = ({ po, onClose, onSubmit, loading = false }) => {
               </span>
             </div>
             {isOverdue && (
-              <div className="mt-1 flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold">
-                <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
-                <span>Past Due by {daysOverdue} day{daysOverdue === 1 ? '' : 's'}. Rescheduling will set a new target date and resolve the overdue alert.</span>
+              <div className="mt-1 flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                  <span>Past Due ({daysOverdue} day{daysOverdue === 1 ? '' : 's'} late)</span>
+                </div>
+                <InfoTip text="Rescheduling will set a new target date and clear the overdue alert." />
               </div>
             )}
           </div>
@@ -103,7 +107,6 @@ const ReschedulePOModal = ({ po, onClose, onSubmit, loading = false }) => {
               className="w-full px-3.5 py-2.5 bg-white border border-zinc-300 rounded-xl text-sm font-semibold text-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all cursor-pointer"
               required
             />
-            <p className="m-0 mt-1 text-[11px] text-zinc-500">Must be today or a future date.</p>
           </div>
 
           {/* Reschedule Reason Selector */}

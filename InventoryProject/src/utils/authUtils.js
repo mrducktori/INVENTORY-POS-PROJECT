@@ -46,7 +46,18 @@ export const clearUserSession = (reason = null) => {
     if (reason === "expired") {
       sessionStorage.setItem(
         EXPIRED_MSG_KEY,
-        "Your session timed out after 2 hours of inactivity. Please log in again."
+        JSON.stringify({
+          title: "Session Timed Out",
+          message: "Your session timed out after 2 hours of inactivity. Please log in again."
+        })
+      );
+    } else if (reason === "replaced") {
+      sessionStorage.setItem(
+        EXPIRED_MSG_KEY,
+        JSON.stringify({
+          title: "Signed Out on Another Device",
+          message: "This account was signed in on another device or window. Only one active session is allowed at a time."
+        })
       );
     }
   } catch {

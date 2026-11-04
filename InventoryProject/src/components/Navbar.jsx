@@ -3,6 +3,7 @@ import { logoutUser, getCurrentUser } from '../api/authApi';
 import { useNotifications } from '../features/dashboard/useNotifications';
 import { getCmsMap } from '../api/cmsApi';
 import NotificationInbox from '../features/dashboard/components/NotificationInbox';
+import { PERMISSION_GROUPS, getUserPermissions, usesPagePermissions, getRoleLabel } from '../utils/permissions';
 
 const MENU_CONFIG = {
   Staff: [
@@ -151,8 +152,22 @@ const ICONS = {
   )
 };
 
+// Builds a sidebar menu from a Staff/Custom account's page permissionsr
+const buildPermissionMenu = (user) => {
+  const allowed = getUserPermissions(user);
+  return PERMISSION_GROUPS
+    .map((group) => {
+      const pages = group.pages.filter((p) => allowed.includes(p.key));
+      if (pages.length === 0) return null;
+      if (group.pages.length === 1) return { label: group.label, value: pages[0].key };
+      return { label: group.label, submenu: pages.map((p) => ({ label: p.label, value: p.key })) };
+    })
+    .filter(Boolean);
+};
+
 const Navbar = ({ activeTab, onTabChange }) => {
-  const [userRole] = useState(() => getCurrentUser()?.role || null);
+  const [currentUser] = useState(() => getCurrentUser());
+  const userRole = currentUser?.role || null;
   const [expanded, setExpanded] = useState(null);
   const { unreadCount } = useNotifications();
   const [brandInfo, setBrandInfo] = useState({
@@ -192,7 +207,9 @@ const Navbar = ({ activeTab, onTabChange }) => {
     onTabChange(value);
   };
 
-  const menuItems = MENU_CONFIG[userRole] || MENU_CONFIG.Staff;
+  const menuItems = usesPagePermissions(currentUser)
+    ? buildPermissionMenu(currentUser)
+    : (MENU_CONFIG[userRole] || MENU_CONFIG.Staff);
 
   const getExpandedGroup = () => {
     for (const item of menuItems) {
@@ -233,7 +250,7 @@ const Navbar = ({ activeTab, onTabChange }) => {
           />
         </div>
         <div className="text-[11px] uppercase tracking-wider text-zinc-400 font-semibold mt-1.5 pl-0.5">
-          {userRole ? `${userRole} Portal` : 'Staff Console'}
+          {userRole ? `${getRoleLabel(currentUser)} Portal` : 'Staff Console'}
         </div>
       </div>
 

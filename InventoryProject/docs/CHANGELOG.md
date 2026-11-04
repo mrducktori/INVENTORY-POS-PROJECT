@@ -2,17 +2,172 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Search & Filtering: Deep Multi-Field Search Across Receipt Journal, Audit/Transaction Logs, Sales Summary, and Purchase Orders - 2026-10-30]
+- **Receipt Journal (`SalesReceiptJournal.jsx`, `server/routes/sales.js`, `src/api/salesApi.js`)**:
+  - Added debounced multi-field search bar matching Receipt Number (`#0012`), Transaction ID, Cashier/Operator Name, Sold Product Names inside nested `sale_items`, Add-on names, Payment Reference numbers, and Total Amount.
+  - Added **Payment Method** filter (`All Methods`, `Cash`, `GCash`, `Card`) and **Quick Date Range Presets** (`All Time`, `Today`, `Last 7 Days`, `This Month`) with a one-click Reset button.
+  - Added an inline **Order Summary** preview column (`2x Americano, 1x Matcha...`) and **Payment Method** badge directly in the receipt table rows so users can scan orders without expanding every receipt.
+- **Audit Logs (`AuditLogs.jsx`) & Transaction Logs (`TransactionLogs.jsx`)**:
+  - Fixed a critical `TypeError: (log.details || "").toLowerCase is not a function` crash caused by `log.details` being a JSONB object rather than a string.
+  - Upgraded search to match against the **human-readable formatted description** (`formatAuditDescription` / `formatDescription`), operator name, action code, and raw JSON details (item names, quantities, receipt numbers, supplier names).
+  - Added Quick Date Presets (`Today`, `Last 7 Days`, `This Month`, `All Time`) so users are no longer trapped in today-only results when searching historical logs.
+- **Sales Summary Report (`SalesSummaryReport.jsx`)**:
+  - Fixed staff sales audit modal where `getSales()` returned `{ data, total }` instead of an array and `salesApi.js` previously ignored `staff_id` and `period` query params.
+  - Added operator search in the Personnel Performance table and a live receipt/product/payment-method search bar inside the Staff Sales Audit modal.
+- **Purchase Orders (`PurchaseOrders.jsx`) & Supplier Portal (`SupplierPortal.jsx`)**:
+  - Added a multi-field search input to filter POs by Reference ID (`#8F3A12B4`), Supplier Name, Status, or any Raw Material Name inside `purchase_order_items`.
+  - Enhanced the **Items Summary** column to preview the ingredient names inside each PO row.
+
+## [Pagination: Added Pagination to Long Inventory & Supplier Lists - 2026-10-30]
+- **Manage Raw Materials (ManageRawMaterials.jsx)**:
+  - Added clean reusable Pagination to the Materials List table (defaults to 10 items per page; options: 10, 20, 50).
+  - Added Pagination to the Modify Cards grid (defaults to 12 items per page; options: 12, 24, 48).
+  - Search, status, and category filter changes automatically reset pagination to page 1.
+- **Supplier Portal Catalog (SupplierCatalogSection.jsx)**:
+  - Added pagination to the supplier product and pricing catalog table (defaults to 10 items per page; options: 10, 20, 50).
+  - Search and category filters reset page to 1 while preserving unsaved price edits across pages.
+- **Supplier Price Comparison (SupplierPriceComparison.jsx)**:
+  - Added pagination to the multi-vendor pricing comparison matrix (defaults to 10 items per page; options: 10, 20, 50).
+  - Eliminates infinite vertical scrolling across all 72 raw materials.
+
+## [UI & Layout: Manage Raw Materials Side-by-Side Layout Restored with Fixed Grid - 2026-10-30]
+- **Restored Familiar Side-by-Side Layout**:
+  - Restored original 2-button header toggle: **Add Material** and **Modify Existing**.
+  - Kept the side-by-side layout (Add form on the left, Materials List on the right).
+- **Fixed Cramped Form Grid in Add Material Card**:
+  - Replaced the cramped 4-in-a-row inputs (Category, Unit, Initial Stock, Low Stock Alert) with a clean, spacious 2x2 grid (`grid-cols-1 sm:grid-cols-2 gap-4`).
+  - Dropdown options and input labels now have full horizontal breathing room without any truncated text.
+  - Row 1: Material Name (full width).
+  - Row 2: Category and Unit (2 columns).
+  - Row 3: Low Stock Alert and Initial Stock (2 columns).
+- **Hook Integration (`useManageRawMaterials.js`)**:
+  - Preserved `viewMode` default to `'ADD'`.
+  - Maintained category support in `createIngredient` and table filters.
+
+## [Raw Materials & Supplier Portal: Categories & Supplier Price Management - 2026-10-30]
+- **Raw Material Categorization**:
+  - Assigned standard categories across all 22 previously uncategorized active raw materials in the database (`PACKAGING & SUPPLIES`, `COFFEE & TEA BASES`, `DAIRY & CREAMERS`, `SINKERS & TOPPINGS`, `SWEETENERS & SYRUPS`, `FLAVORING POWDERS`, `BEVERAGE ENHANCERS`).
+  - Saved SQL schema and migration reference in `docs/database/categorize_raw_materials.sql`.
+  - Backend (`server/services/inventoryService.js`): Updated `createIngredient` and `updateIngredient` to accept and persist `category`.
+  - Frontend (`ManageRawMaterials.jsx` & `useManageRawMaterials.js`):
+    - Added Category dropdown in the "Add Material" drawer.
+    - Added Category selector in the "Edit Material" modal to allow updating categories for existing items anytime.
+    - Added Category badge column and Category filter dropdown in the raw materials table.
+- **Supplier Portal Catalog & Pricing Management (`SupplierPortal.jsx`, `SupplierCatalogSection.jsx`)**:
+  - Added top view switcher in Supplier Portal: **Incoming Orders** and **My Catalog & Pricing**.
+  - Built dedicated `SupplierCatalogSection.jsx` component adhering to Rule 16 (clean typography, SVG icons, zero Unicode emojis):
+    - Suppliers can view all materials they supply, search by name, and filter by category.
+    - Direct inline editing of agreed prices (₱), purchase/packaging units (e.g. Bag, Bottle, Box, Can), and yield/conversion factors with live base-unit cost calculation.
+    - Visual indicators for modified rows, Reset button, and bulk Save action.
+  - Backend API:
+    - Added `GET /purchasing/my-catalog` and `PUT /purchasing/my-catalog/prices` in `server/routes/purchasing.js` & `server/controllers/purchasingController.js`.
+    - Added audit logging with action `SUPPLIER_CATALOG_PRICES_UPDATED`.
+    - Frontend API functions `getSupplierOwnCatalog()` and `updateSupplierOwnCatalog()` in `src/api/purchasingApi.js`.
+- **Authentication & Single-Session Resilience (`server/routes/auth.js`, `server/middleware/authMiddleware.js`)**:
+  - Added defensive fallback handling for `current_session_id` column queries in case PostgREST schema cache has not yet refreshed after the migration.
+  - Prevents login lockouts or unhandled 500 exceptions on the sign-in screen.
+
+## [Deployment: Decoupled Architecture for Vercel (Frontend) & Render (Backend) - 2026-10-30]
+- **Frontend Decoupling (`src/api/client.js`, `src/api/authApi.js`)**:
+  - Implemented dynamic API base URL resolution (`getApiBaseUrl()`) supporting `VITE_API_URL` with automatic normalization (appends `/api` and trims trailing slashes).
+  - Falls back to relative `/api` for local Vite proxy, cPanel single-origin, and Vercel rewrites.
+  - Updated `authApi.js` to route `loginUser()` through `API_BASE_URL`.
+- **Supabase Client Resilience (`src/config/supabaseClient.js`)**:
+  - Added support for both `VITE_SUPABASE_ANON_KEY` and `VITE_SUPABASE_PUBLISHABLE_DEFAULT_KEY`.
+  - Added fallback placeholder initialization to prevent runtime startup crashes during initial Vercel deploy before environment variables are set.
+- **Vite Configuration (`vite.config.js`)**:
+  - Made `envDir` dynamic to discover `.env` files in either `InventoryProject/` root or `server/`.
+- **Backend Modernization for Render (`server/server.js`, `server/config/supabaseClient.js`)**:
+  - Configured `app.set('trust proxy', 1)` so reverse proxies (Render, Cloudflare, Vercel) provide true client IP for rate limiting.
+  - Enhanced CORS to accept `CLIENT_URL` / `ALLOWED_ORIGINS` environment variables, automatically whitelist all `*.vercel.app` preview deployments, and handle Express 5 preflight OPTIONS.
+  - Set Helmet `crossOriginResourcePolicy: { policy: "cross-origin" }`.
+  - Added `/health` and `/api/health` endpoints returning 200 OK for Render health monitoring.
+  - Handled headless API mode: if `dist/index.html` does not exist, server gracefully returns JSON status on `/` and 404 for unmatched non-API routes instead of ENOENT crash.
+  - Made Supabase backend connection accept either `SUPABASE_URL` or `VITE_SUPABASE_URL`.
+- **Deployment Manifests & Documentation**:
+  - Added `render.yaml` at repository root for Render Blueprint 1-click web service deployment.
+  - Configured `vercel.json` at root and inside `InventoryProject/` for Vite SPA rewrites.
+  - Added `InventoryProject/server/.env.example` and updated `InventoryProject/.env.example`.
+  - Created root `package.json` for monorepo build script resolution.
+  - Sanitized `migration_purchase_orders_columns.sql` removing syntax-breaking trailing character.
+  - Verified 100% database synchronization: all schema columns (`purchase_orders.notes`, `decline_reason`, `cancellation_reason`, `max_stock`) and `process_pos_checkout` RPC confirmed active.
+
+## [Suppliers & Purchasing: Raw Material Sourcing, Price Differences & Manage Suppliers Overhaul - 2026-10-30]
+- **Complete Supplier Sourcing for all 72 Raw Materials**:
+  - Mapped 100% of raw materials across café suppliers (Global Coffee Traders, Metro Dairy Co., Star Packaging Supplies, STI COFFEE).
+  - Configured verified packaging units, conversion factors, and default prices for all ingredients.
+  - Added alternative vendor quotes with realistic price differences for coffee beans, cold brew, and packaging cups to enable vendor cost comparison.
+  - Seed reference script generated at `docs/database/seed_all_supplier_materials.sql`.
+- **Manage Suppliers Redesign (`ManageSuppliers.jsx`)**:
+  - **Suppliers Directory Tab**: Lists all suppliers with contact info, location, supplied item counts, and quick actions ("View Price List / Catalog", "Edit & Prices", "Delete").
+  - **Price Differences & Comparison Matrix Tab (`SupplierPriceComparison.jsx`)**: Multi-vendor pricing matrix for all raw materials with category filters, baseline cost, vendor quotes (package price and price per base unit), cost variance, and "Lowest Cost" vendor tags.
+  - **Supplier Price Configuration Modal (`SupplierFormModal.jsx`)**: Fast categorized search to select ingredients, customize agreed price (₱), purchase unit, and conversion factor with real-time base cost preview.
+  - **Supplier Catalog View (`SupplierCatalogModal.jsx`)**: Modal to inspect any supplier's complete product and price catalog.
+- **Backend & PO Integration**:
+  - In `purchasingService.js`: Enhanced `createSupplier` and `updateSupplier` to store `default_price`, `default_purchase_unit`, and `default_conversion_factor` per ingredient; added `deleteSupplier`.
+  - In `purchasingController.js` and `routes/purchasing.js`: Added `DELETE /suppliers/:id` endpoint with audit logging.
+  - In `PurchaseOrderForm.jsx`: Pre-populates agreed supplier pricing, purchase unit, and conversion factor from `supplier_ingredients` when selecting items.
+
+## [Forecasting: Professional Terminology & AI Text Removal - 2026-10-30]
+- **Removed Overt AI References in UI**:
+  - Removed prominent "AI Predictive" header badge in DemandForecasting.jsx.
+  - Replaced "AI Forecasting" column header with "Monthly Projection".
+  - Replaced "Gemini AI Model" engine tag with "Demand Trend Model".
+  - Refined "Predictions" / "Analyzing..." labels to standard business terms ("Forecast", "Calculating demand projections from sales history...").
+- **Backend Service Prompt Refinement (iForecastingService.js)**:
+  - Instructed the model prompt to produce executive-grade inventory analysis without mentioning AI, prompts, or algorithms.
+  - Replaced synthetic algorithmic wording in deterministic fallback reasoning with concise business metrics.
+## [Landing Page: Hidden Staff Login Shortcut - 2026-10-30]
+- In `LandingPage.jsx`, tapping the brand logo 5 times within 1.5s between taps navigates to the staff login route (`/coftealoginpageforstaff`).
+
+## [UI Declutter & Anti-Information Overload: InfoTip Component & Clean Views — 2026-10-30]
+- **Reusable `InfoTip` Component (`src/components/shared/InfoTip.jsx`)**:
+  - Implemented a clean, unobtrusive `(i)` info icon with hover/focus tooltips for secondary descriptions, replacing disruptive multi-line text boxes.
+- **Decluttered Modals & Views**:
+  - **`ReceivePOModal.jsx`**: Removed redundant full-width explainer box in Step 1; replaced bulky 4-line Step 2 outcome paragraph with a compact status badge and `InfoTip`.
+  - **`ReschedulePOModal.jsx`**: Streamlined overdue alert banner with `InfoTip` and removed redundant date picker helper text.
+  - **`CancelPOModal.jsx`**: Replaced large warning block with a compact irreversible action bar and `InfoTip`.
+  - **`DemandForecasting.jsx`**: Removed massive 25-line "Methodology Explainer Card" detailing internal math formulas; relocated essential methodology guidance to an unobtrusive toolbar `InfoTip`.
+  - **`StockMovementReport.jsx`**: Condensed wordy empty and loading states; added `InfoTip` to KPI cards for metric calculations.
+  - **`TransactionLogs.jsx`**: Replaced raw Unicode emojis (`🔒`) with clean SVG lock icons and compact `InfoTip`.
+  - **`PurchaseOrders.jsx`**: Replaced large overdue callout drawer with a single-line alert and `InfoTip`.
+
+## [Access Control: Custom Roles & Page Permissions - 2026-10-30]
+- **Migration**: `docs/database/migration_user_permissions.sql` adds `users.permissions text[]` and `users.custom_role_name text`. Must run before deploying.
+- **Permission model** (`src/utils/permissions.js`, `server/utils/permissions.js`):
+  - Staff and new `Custom` role accounts are limited to the pages in their permission list (tab keys). Staff with no list keep the previous default pages.
+  - Admin/Owner/Supplier access unchanged. Account management, CMS and Transaction Logs are not grantable.
+- **Backend** (`server/routes/users.js`): accepts/validates `permissions`, `custom_role_name`, `Custom` role; PUT now also saves `supplier_id`; audit logs include role name and permissions.
+- **Frontend gating**: `Dashboard.jsx` uses `canAccess()`; `Navbar.jsx` builds the sidebar from permissions; `QuickActions.jsx` and `ManageProducts.jsx` respect permissions.
+- **Account Manager redesign** (`src/features/accounts/`): split into `AccountForm`, `PermissionGrid`, `UsersTable`. Accounts/Create tabs, role segmented control, reusable role templates, grouped page-access checkboxes, searchable/filterable accounts table.
+- Permission changes apply on the user's next login.
+
+## [Security & Authentication: Single Active Session Enforcement — 2026-10-26]
+- **Enforced Single Active Session Per Account**:
+  - Added database migration script `docs/database/add_single_session.sql` adding `current_session_id` to `users`.
+  - In `server/routes/auth.js`:
+    - On login, a unique `sid` is generated and assigned to `users.current_session_id`. Any previous session is logged (`SESSION_REPLACED`) and replaced.
+    - Embeds `sid` into the signed JWT token.
+    - On logout, clears `current_session_id` only if the caller's `sid` matches the active session.
+  - In `server/middleware/authMiddleware.js`:
+    - Rejects requests with 401 and code `SESSION_REPLACED` when `decoded.sid !== data.current_session_id`.
+  - In `src/api/client.js` & `src/utils/authUtils.js`:
+    - Catches `SESSION_REPLACED` 401 responses and triggers `clearUserSession('replaced')`.
+    - Passes Bearer token on `/auth/logout` so server-side session cleanup can verify caller identity.
+  - In `src/features/auth/LoginPage.jsx`:
+    - Displays dedicated "Signed Out on Another Device" banner when another login displaces the user.
+
 ## [Stock Movement Report: Inflow/Outflow/Wastage Overhaul & CSV/PDF Layout Fixes — 2026-10-23]
 - **True Stock Movement Tracking (Inflow, Outflow & Wastage)**:
-  - In [StockMovementReport.jsx](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/reports/StockMovementReport.jsx):
+  - In `StockMovementReport.jsx`:
     - Replaced the previous receipts-only approach with full two-way stock movement monitoring across `RAW_MATERIAL_STOCK_RECEIVED`, `PRODUCT_STOCK_RECEIVED`, `INGREDIENT_DEDUCTED`, `PRODUCT_DEDUCTED`, and `WASTAGE`.
     - Added comprehensive metric cards: **Stock Inflow (+)**, **Stock Outflow (-)**, **Wastage / Loss (-)**, **Net Stock Movement**, and **Restock Attention**.
     - Added movement direction filters: `All`, `Inflow`, `Outflow`, and `Wastage`.
     - Resolved missing ingredient/product names in audit deduction records by maintaining active snapshot lookup mappings.
-  - In [server/routes/audit.js](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/server/routes/audit.js):
+  - In `server/routes/audit.js`:
     - Enhanced audit route to support comma-separated action lists (`query.in('action', actionList)`) and increased query range limit to 2000 for comprehensive reporting.
 - **Fixed and Restyled PDF & Print Layout**:
-  - In [reportUtils.js](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/reports/reportUtils.js):
+  - In `reportUtils.js`:
     - Fixed parameter mismatch bug in `printReport()` where single-argument invocations rendered `undefined` in the print window.
     - Designed an executive, high-contrast print stylesheet with print color preservation (`-webkit-print-color-adjust: exact`), branded report header, color-coded KPI cards, page-break guards (`page-break-inside: avoid`), and clean typography.
     - Added rendering timeout to prevent premature blank print dialogs in Chromium-based browsers.
@@ -20,7 +175,7 @@ All notable changes to this project will be documented in this file.
   - Converted CSV export into an RFC-4180 standard CRLF layout with UTF-8 BOM for seamless Microsoft Excel and Google Sheets compatibility.
   - Formatted CSV with clear executive summary metrics, structured Stock Movement Audit Log with explicit `+`/`-` signed quantity changes, and priority-grouped Current Inventory Snapshot.
 - **Scaled Text Hierarchy & Enhanced Contrast Across Forecasting View**:
-  - In [DemandForecasting.jsx](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/analytics/DemandForecasting.jsx):
+  - In `DemandForecasting.jsx`:
     - **Header & Navigation**: Bumped subtitle from faint `text-sm text-gray-500` to high-contrast `text-sm sm:text-base text-gray-700 font-medium`. Scaled sub-tab buttons to `px-5 py-2.5 text-xs sm:text-sm font-extrabold uppercase` with clear badge counters.
     - **KPI Summary Cards**: Scaled metric labels to `text-xs sm:text-sm font-black text-gray-700 uppercase tracking-wide`, numbers to `text-3xl sm:text-4xl font-black`, and subtitles to `text-xs sm:text-sm font-semibold`.
     - **Filter & Search Controls**: Upgraded search input to `text-sm sm:text-base font-medium text-gray-900 placeholder:text-gray-500 py-2.5` and category selector to `font-bold`. Enlarged status filter pills to `px-3.5 py-2 text-xs sm:text-sm font-extrabold`.
@@ -43,7 +198,7 @@ All notable changes to this project will be documented in this file.
 
 ## [Demand Forecasting: Strict Rule 16 Unicode Emoji Elimination — 2026-10-23]
 - **Replaced All Unicode Emojis with Semantic Inline SVGs**:
-  - Eliminated raw emojis across [DemandForecasting.jsx](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/analytics/DemandForecasting.jsx):
+  - Eliminated raw emojis across `DemandForecasting.jsx`:
     - **KPI Summary Cards**: Replaced `🚨` (Critical), `⚠️` (Low Stock), and `📦` (Monitored Raw Materials) with clean, semantic inline SVG icons.
     - **Filter Pill Buttons**: Replaced `🚨 Critical` and `⚠️ Low Stock` raw emojis with sharp, color-matched inline SVGs.
     - **Search Bar**: Replaced `🔍` with an inline Lucide-style search SVG icon.
@@ -51,24 +206,20 @@ All notable changes to this project will be documented in this file.
     - **Modal Controls**: Replaced raw `✕` characters with scalable SVG close and delete icons.
 - **Strict Rule 16 Compliance**: Verified 0 raw Unicode emojis remaining in `DemandForecasting.jsx`.
 
-
-
 ## [Overdue Purchase Orders: Restricted Action Buttons (Reschedule & Cancel Only) — 2026-10-23]
 - **Restricted Action Buttons on Overdue Orders**:
-  - In [PurchaseOrders.jsx](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/inventory/PurchaseOrders.jsx), made `Receive Stock` and `Accept Date` unavailable on past due / overdue POs.
+  - In `PurchaseOrders.jsx`, made `Receive Stock` and `Accept Date` unavailable on past due / overdue POs.
   - Overdue orders now strictly allow only **Reschedule** (to provide an updated delivery date) and **Cancel** (to void the order with documented reasons).
   - Styled `Reschedule` button on overdue rows with high-visibility amber CTA styling (`bg-amber-100 text-amber-900 border-amber-300 font-extrabold`) and descriptive tooltip guidance.
   - Added an informational overdue notice banner inside the expanded order details informing managers that stock receiving is locked until a revised delivery date is scheduled.
 - **Supplier Portal Overdue Guidance**:
-  - In [SupplierPortal.jsx](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/inventory/SupplierPortal.jsx), updated overdue order controls to hide blind "Mark Delivering" clicks and prioritize "Postpone & Reschedule".
+  - In `SupplierPortal.jsx`, updated overdue order controls to hide blind "Mark Delivering" clicks and prioritize "Postpone & Reschedule".
 - **Strict Rule 16 Compliance**:
   - All indicators, banners, and tooltips use clean semantic inline SVGs; zero Unicode emojis.
 
-
-
 ## [Stock Movement Report: Priority-Grouped Sorting & Unified Stock Status — 2026-10-23]
 - **Unified "Low Stock / Restock Needed" Status in Stock Movement Snapshot**:
-  - Replaced legacy fragmented status classifications (`Restock Needed` vs. `Low Stock`) with the unified `Low Stock / Restock Needed` state across [StockMovementReport.jsx](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/reports/StockMovementReport.jsx).
+  - Replaced legacy fragmented status classifications (`Restock Needed` vs. `Low Stock`) with the unified `Low Stock / Restock Needed` state across `StockMovementReport.jsx`.
   - Matches the exact design language and alert levels established in `RawMaterialTracker.jsx` and `ProductStockTracker.jsx`.
 - **Priority-Grouped Sorting with Labeled Section Headers**:
   - Arranged the Current Inventory Snapshot table by stock urgency:
@@ -83,8 +234,6 @@ All notable changes to this project will be documented in this file.
 - **Strict Rule 16 Compliance**:
   - Pure semantic inline SVGs; strictly zero Unicode emojis across all table headers and badges.
 
-
-
 ## [PO Price Lock & Database Schema Fallback Resilience — 2026-10-23]
 - **Locked Unit Price in Demand Forecasting PO Generation**:
   - Made Unit Cost in `DemandForecasting.jsx` ("Generate Purchase Order" modal) read-only (`readOnly`, `cursor-not-allowed`, `bg-gray-50 text-gray-700`) with clear tooltip indication.
@@ -95,7 +244,6 @@ All notable changes to this project will be documented in this file.
   - Captured `notes` in `audit_logs` under `PURCHASE_ORDER_CREATED` event and enriched returned POs so notes are preserved regardless of database migration status.
 - **Consolidated Migration Script (`docs/database/migration_purchase_orders_columns.sql`)**:
   - Provided a single, copy-pasteable SQL migration script adding `notes`, `decline_reason`, and `cancellation_reason` to `purchase_orders`, plus `max_stock` to `ingredients` and `products`.
-
 
 ## [Overdue Purchase Order Lifecycle & Process Friction Safeguards — 2026-10-23]
 - **Overdue Purchase Order Status & Operational Flexibility**:
@@ -129,7 +277,6 @@ All notable changes to this project will be documented in this file.
   - Corrected nested JSX map closure in `SupplierPortal.jsx` and `PurchaseOrders.jsx` resolving Vite transform parse error on line 586.
 - **Strict Rule 16 Compliance**:
   - All icons rendered as clean, semantic inline SVGs; strictly zero Unicode emojis across all modals and badges.
-
 
 ## [Module Loading Performance Fix & Universal Skeleton Loading Suite — 2026-10-23]
 - **Root-Cause Analysis & Fix for Module Loading Lag**:
@@ -248,12 +395,11 @@ All notable changes to this project will be documented in this file.
   - Prohibits all raw Unicode emojis in UI buttons, tables, badges, headers, or cards. Requires crisp, semantic inline SVGs.
   - Mandates eliminating verbose text clutter, noisy helper text, redundant badge spam, and literal formula explanations to ensure a clean, human-designed aesthetic.
 - **Removed Emojis Across Dashboard & Analytics UI**:
-  - Replaced emojis in [RevenueSnapshot.jsx](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/dashboard/components/RevenueSnapshot.jsx) (`★`, `☕`, `→`, `▲`/`▼`) with clean inline SVGs.
-  - Replaced emojis in [DemandForecasting.jsx](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/analytics/DemandForecasting.jsx) (`⚡`, `🛒`, `⚠️`, `🔄`, `💬`) with professional SVG icons.
+  - Replaced emojis in `RevenueSnapshot.jsx` (`★`, `☕`, `→`, `▲`/`▼`) with clean inline SVGs.
+  - Replaced emojis in `DemandForecasting.jsx` (`⚡`, `🛒`, `⚠️`, `🔄`, `💬`) with professional SVG icons.
 - **Redesigned & Decluttered Forecast Modal**:
   - Removed internal formula boxes and noisy marketing copy.
   - Redesigned with minimalist typography, calm spacing, and clear executive metrics.
-
 
 ## [AI-Driven Stock Forecasting Hub & 16-Factor Time-Series Engine — 2026-10-23]
 - **Time-Series Feature Extraction Service (`server/services/aiForecastingService.js`):**
@@ -275,7 +421,6 @@ All notable changes to this project will be documented in this file.
     - Transparent 4-factor breakdown: Weekend Lift, 15/30 Payday Surge, Philippine Holiday Surge (+20%), and Weekly Velocity Growth.
     - AI Analytical Synthesis explanation.
 
-
 ## [Dashboard Revenue Overview Graph Redesign — 2026-10-23]
 - **Executive Revenue Overview Redesign (`RevenueSnapshot.jsx`):**
   - Replaced the cramped single black line sparkline with a full-width financial performance card.
@@ -284,7 +429,6 @@ All notable changes to this project will be documented in this file.
   - **Custom Interactive Tooltip (`CustomRevenueTooltip`)**: Floating glassmorphic card displaying human-readable dates (`Fri, Oct 17`), centavo-accurate gross sales, and top 3 category revenue drivers.
   - **Clean Axes & Gridlines**: Integrated peso-formatted Y-axis labels (`₱1k`, `₱2k`), abbreviated day names (`Mon`, `Tue`), subtle dashed grid lines, and adaptive 0-baseline domain handling.
   - Retained "Breakdown by Category" action button to trigger the expanded category-level comparison modal.
-
 
 ## [Deployment Preparation & Environment Fixes — 2026-10-23]
 - **Fixed `.gitignore` across repository:** Added root `.gitignore` and updated `InventoryProject/.gitignore` to properly ignore `node_modules/`, `dist/`, `.env*` files, and `*.zip` artifacts.
@@ -349,7 +493,6 @@ All notable changes to this project will be documented in this file.
   - Enhanced `useNotifications.js` to automatically fetch low stock items if not supplied by the parent, synchronizing unread counts between Navbar and the Inbox drawer.
   - Added Supabase real-time listeners for `ingredients` and `products` table updates in addition to `purchase_orders`.
   - Added `variant="navbar"` trigger to `NotificationInbox.jsx` and added a notification bell in `Navbar.jsx`, enabling users to inspect notifications from any dashboard tab.
-
 
 ## [Fix Unused Variable Lint Errors in LandingPage — 2026-10-15]
 - **Landing Page Cleanup (`LandingPage.jsx`):**

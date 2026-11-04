@@ -1,0 +1,10 @@
+{
+  "buildCommand": "cd InventoryProject && npm install && npm run build",
+  "outputDirectory": "InventoryProject/dist",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

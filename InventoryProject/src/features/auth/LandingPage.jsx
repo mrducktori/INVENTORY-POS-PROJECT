@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import PageLoader from './PageLoader/PageLoader';
 import { getProducts } from '../../api/posApi';
 import { getCmsMap } from '../../api/cmsApi';
@@ -425,6 +426,22 @@ function PromoShowcase({ promos = [] }) {
 }
 
 function LandingPage() {
+  const navigate = useNavigate();
+  // Hidden staff entry: tap the logo 5 times quickly to open the login page
+  const logoTapRef = React.useRef({ count: 0, timer: null });
+  const handleLogoTap = () => {
+    const tap = logoTapRef.current;
+    clearTimeout(tap.timer);
+    tap.count += 1;
+    if (tap.count >= 5) {
+      tap.count = 0;
+      navigate('/coftealoginpageforstaff');
+      return;
+    }
+    tap.timer = setTimeout(() => { tap.count = 0; }, 1500);
+  };
+  useEffect(() => () => clearTimeout(logoTapRef.current.timer), []);
+
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isMenuOpen, setIsMenuOpen] = useState(false); // Default is CLOSED per requirement
   const [cmsData, setCmsData] = useState({
@@ -570,6 +587,8 @@ function LandingPage() {
               <img 
                 src={cmsData.brand_logo} 
                 alt={cmsData.brand_title || "Logo"} 
+                onClick={handleLogoTap}
+                draggable={false}
                 className="w-14 h-14 sm:w-18 sm:h-18 md:w-22 md:h-22 object-contain rounded-2xl drop-shadow-[0_8px_20px_rgba(0,0,0,0.8)] border border-white/25 p-1 sm:p-1.5 bg-black/60 shrink-0 hover:scale-105 transition-transform duration-300 shadow-xl" 
               />
             )}

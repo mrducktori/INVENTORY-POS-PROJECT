@@ -41,32 +41,35 @@ import CMSDashboard from '../cms/CMSDashboard';
 // Supplier Portal
 import SupplierPortal from '../inventory/SupplierPortal';
 import { getCurrentUser } from '../../utils/authUtils';
+import { canAccess, getUserPermissions } from '../../utils/permissions';
 
 const Dashboard = () => {
   const user = getCurrentUser() || {};
-  const [activeTab, setActiveTab] = useState(
-    user.role === 'Supplier' ? 'SupplierPortal' : 
-    (user.role === 'Staff' ? 'POS' : 'Dashboard')
-  );
-
-  const isAuthorized = (tab) => {
-    // Owner-exclusive tabs
-    const ownerOnly = ['TransactionLogs'];
-    if (ownerOnly.includes(tab)) return user.role === 'Owner';
-
-    if (user.role === 'Admin' || user.role === 'Owner') return true;
-    
-    if (user.role === 'Supplier') return tab === 'SupplierPortal';
-
-    // Staff restricted tabs
-    const staffAllowed = ['POS', 'Products', 'RawMaterialTracker', 'ProductStockTracker', 'ReportWastage'];
-    return staffAllowed.includes(tab);
+  const getDefaultTab = () => {
+    if (user.role === 'Supplier') return 'SupplierPortal';
+    if (user.role === 'Admin' || user.role === 'Owner') return 'Dashboard';
+    const allowed = getUserPermissions(user);
+    if (allowed.includes('POS')) return 'POS';
+    return allowed[0] || 'POS';
   };
+
+  const [activeTab, setActiveTab] = useState(getDefaultTab);
+
+  const isAuthorized = (tab) => canAccess(user, tab);
 
   const renderContent = () => {
     if (!isAuthorized(activeTab)) {
-      setActiveTab('POS');
-      return <POS />;
+      const fallback = getDefaultTab();
+      if (fallback !== activeTab && isAuthorized(fallback)) {
+        setTimeout(() => setActiveTab(fallback), 0);
+        return null;
+      }
+      return (
+        <div className="p-8 flex-1 bg-gray-50">
+          <h2 className="text-lg font-bold text-zinc-900 m-0">No pages assigned</h2>
+          <p className="text-sm text-zinc-500 mt-1 m-0">Ask an administrator to grant access to this account.</p>
+        </div>
+      );
     }
 
     switch (activeTab) {

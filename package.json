@@ -1,0 +1,10 @@
+{
+  "name": "inventory-pos-root",
+  "private": true,
+  "description": "Root configuration for monorepo deployments",
+  "scripts": {
+    "build": "npm run build --prefix InventoryProject",
+    "dev": "npm run dev --prefix InventoryProject",
+    "server": "npm start --prefix InventoryProject/server"
+  }
+}

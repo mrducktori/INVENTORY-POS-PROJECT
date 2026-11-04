@@ -4,6 +4,22 @@ import { fileURLToPath } from 'url';
 import cors from 'cors';
 import fs from 'fs';
 import helmet from 'helmet';
+import dotenv from 'dotenv';
+
+// Resolve __dirname for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load .env from root or server folder if available (for local dev)
+const envPaths = [
+  path.resolve(__dirname, '../../.env'), // Root of repository
+  path.resolve(__dirname, '../.env'),    // InventoryProject/.env
+  path.resolve(__dirname, '.env')        // server/.env
+];
+for (const envPath of envPaths) {
+  const result = dotenv.config({ path: envPath });
+  if (!result.error) break;
+}
 
 import authRoutes from './routes/auth.js';
 import posRoutes from './routes/pos.js';
@@ -24,14 +40,20 @@ import { requireAuth } from './middleware/authMiddleware.js';
 import { generalLimiter, authLimiter } from './middleware/rateLimiter.js';
 
 const app = express();
-// Use PORT from environment (cPanel sets this) or fall back to 5000 for local dev
+
+// Trust reverse proxy (Render, Vercel, cPanel, Cloudflare) for accurate client IP in rate limiting & logs
+app.set('trust proxy', 1);
+
+// Use PORT from environment (Render / cPanel sets this) or fall back to 5000 for local dev
 const PORT = process.env.PORT || 5000;
 
-// Resolve __dirname for ES modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Configure CORS for decoupled architecture (Frontend on Vercel, Backend on Render)
+const configuredOrigins = (process.env.ALLOWED_ORIGINS || process.env.CLIENT_URL || '')
+  .split(',')
+  .map(o => o.trim())
+  .filter(Boolean);
 
-const allowedOrigins = [
+const defaultAllowedOrigins = [
   'http://localhost:5173',       // Vite dev server
   'http://127.0.0.1:5173',       // Vite dev server (IP)
   'http://localhost:4173',       // Vite preview
@@ -42,30 +64,60 @@ const allowedOrigins = [
   'https://www.cofteacafe.space',// Production www
 ];
 
-app.use(cors({
-  origin: (origin, callback) => {
-    // For now, to prevent any CORS blocking or server crashes, 
-    // dynamically allow the requesting origin.
-    // In strict production, you can lock this back down to allowedOrigins.
-    callback(null, true);
-  },
-  credentials: true
-}));
+const allowedOrigins = [...new Set([...defaultAllowedOrigins, ...configuredOrigins])];
 
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      fontSrc: ["'self'", "data:", "https://fonts.gstatic.com"],
-      imgSrc: ["'self'", "data:", "https://*.supabase.co"],
-      connectSrc: ["'self'", "https://*.supabase.co"],
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow non-browser requests (curl, Postman, server-to-server, Render health checks)
+    if (!origin) return callback(null, true);
+
+    // Allow explicitly configured origins
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+
+    // Allow any Vercel deployment preview / production URL (*.vercel.app)
+    try {
+      const hostname = new URL(origin).hostname;
+      if (hostname.endsWith('.vercel.app')) {
+        return callback(null, true);
+      }
+    } catch {
+      // In case URL parsing fails
     }
-  }
+
+    // In local development or if CORS_ALLOW_ALL is set, allow all
+    if (process.env.NODE_ENV !== 'production' || process.env.CORS_ALLOW_ALL === 'true') {
+      return callback(null, true);
+    }
+
+    // Default permissive callback so newly deployed frontends are not blocked by default
+    return callback(null, true);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id']
+};
+
+app.use(cors(corsOptions));
+// Note: In Express 5, cors() middleware automatically responds to preflight OPTIONS requests.
+// Regex pattern is used for explicit options handler to comply with Express 5 path-to-regexp.
+app.options(/.*/, cors(corsOptions));
+
+// Security headers with cross-origin support for APIs
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
 app.use(express.json({ limit: '1mb' }));
+
+// ==========================================
+// HEALTH CHECKS — Used by Render & monitoring
+// ==========================================
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', service: 'coftea-backend', timestamp: new Date().toISOString() });
+});
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'ok', service: 'coftea-backend', timestamp: new Date().toISOString() });
+});
 
 // ==========================================
 // PUBLIC ROUTES — No authentication required
@@ -74,8 +126,7 @@ app.use('/api', generalLimiter);
 app.use('/api/auth', authLimiter, authRoutes);
 
 // ==========================================
-// PROTECTED ROUTES — FIX #5: All routes below require a valid, active user session.
-// The requireAuth middleware reads x-user-id header (or body.user_id as fallback).
+// PROTECTED ROUTES
 // ==========================================
 app.use('/api/pos', posRoutes); // pos.js applies its own auth for protected routes like sales
 app.use('/api/inventory', requireAuth, inventoryRoutes);
@@ -106,18 +157,37 @@ app.use((err, req, res, next) => {
 });
 
 // ==========================================
-// STATIC FILES — Serve the React frontend build
+// STATIC FILES & SPA FALLBACK (or Headless API)
 // ==========================================
+// In monolithic mode (e.g. cPanel or local build), dist/ exists.
+// In decoupled mode (Render backend only), dist/ does not exist.
 let distPath = path.resolve(__dirname, '../dist'); // Local dev: InventoryProject/dist
 if (!fs.existsSync(distPath)) {
   distPath = path.resolve(__dirname, 'dist'); // cPanel: nodeapp/dist
 }
-app.use(express.static(distPath));
 
-// Catch-all: return index.html for any non-API route so React Router works
-app.get(/.*/, (req, res) => {
-  res.sendFile(path.join(distPath, 'index.html'));
-});
+const indexPath = path.join(distPath, 'index.html');
+if (fs.existsSync(indexPath)) {
+  app.use(express.static(distPath));
+  // Catch-all: return index.html for any non-API route so React Router works
+  app.get(/.*/, (req, res) => {
+    res.sendFile(indexPath);
+  });
+} else {
+  // Headless API mode (Render): provide friendly root response and 404 handler
+  app.get('/', (req, res) => {
+    res.status(200).json({
+      status: 'ok',
+      name: 'CofTea Cafe API',
+      message: 'Backend server is running on Render.',
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  app.use((req, res) => {
+    res.status(404).json({ error: 'Endpoint not found' });
+  });
+}
 
 const server = app.listen(PORT, () => {
   console.log(`[Server] Running on port ${PORT}`);

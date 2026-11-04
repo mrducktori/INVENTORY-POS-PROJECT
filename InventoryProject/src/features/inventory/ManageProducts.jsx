@@ -3,6 +3,7 @@ import { useManageProducts } from './hooks/useManageProducts';
 import ConfirmModal from '../../components/shared/ConfirmModal';
 import { CATEGORIES, CATEGORIES_WITH_ALL } from '../../utils/constants';
 import { getCurrentUser } from '../../utils/authUtils';
+import { canAccess } from '../../utils/permissions';
 import CategorySettingsModal from './components/CategorySettingsModal';
 import SearchableIngredientSelect from '../../components/shared/SearchableIngredientSelect';
 import Pagination from '../../components/shared/Pagination';
@@ -58,7 +59,7 @@ const ManageProducts = () => {
     handleUpdateRecipeItem
   } = useManageProducts();
 
-  if (user?.role === 'Staff') {
+  if (!canAccess(user, 'ManageProducts')) {
     return <div className="p-6 flex-1 bg-gray-50"><h2 className="text-xl font-bold text-red-600">Access Denied</h2></div>;
   }
 

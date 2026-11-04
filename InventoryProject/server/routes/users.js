@@ -3,18 +3,19 @@ import bcrypt from 'bcrypt';
 import { supabase } from '../config/supabaseClient.js';
 import { logAudit } from '../utils/auditHelper.js';
 import { requireAuth, requireRole } from '../middleware/authMiddleware.js';
+import { normalizeAccessFields } from '../utils/permissions.js';
 
 const router = express.Router();
 
 // Allowed roles in the system
-const ALLOWED_ROLES = ['Admin', 'Owner', 'Staff', 'Supplier'];
+const ALLOWED_ROLES = ['Admin', 'Owner', 'Staff', 'Supplier', 'Custom'];
 
 // Get all users — requires authentication
 router.get('/', requireAuth, async (req, res) => {
   try {
     let query = supabase
       .from('users')
-      .select('id, name, username, role, status, created_at')
+      .select('id, name, username, role, status, created_at, supplier_id, permissions, custom_role_name')
       .order('created_at', { ascending: false });
 
     if (req.query.role) query = query.eq('role', req.query.role);
@@ -31,7 +32,7 @@ router.get('/', requireAuth, async (req, res) => {
 // Create a new user — FIX #6: requires Admin or Owner role
 router.post('/', requireAuth, requireRole('Admin', 'Owner'), async (req, res) => {
   try {
-    const { name, username, password, role, supplier_id } = req.body;
+    const { name, username, password, role, supplier_id, permissions, custom_role_name } = req.body;
     if (!name || !username || !password || !role) {
       return res.status(400).json({ error: 'All fields required' });
     }
@@ -44,6 +45,11 @@ router.post('/', requireAuth, requireRole('Admin', 'Owner'), async (req, res) =>
     // Supplier role requires a linked supplier
     if (role === 'Supplier' && !supplier_id) {
       return res.status(400).json({ error: 'Supplier role requires a linked supplier.' });
+    }
+
+    const access = normalizeAccessFields(role, permissions, custom_role_name);
+    if (access.error) {
+      return res.status(400).json({ error: access.error });
     }
 
     if (role === 'Owner') {
@@ -63,7 +69,11 @@ router.post('/', requireAuth, requireRole('Admin', 'Owner'), async (req, res) =>
     const saltRounds = 10;
     const password_hash = await bcrypt.hash(password, saltRounds);
 
-    const insertData = { name, username, password_hash, role, status: 'ACTIVE' };
+    const insertData = {
+      name, username, password_hash, role, status: 'ACTIVE',
+      permissions: access.permissions,
+      custom_role_name: access.custom_role_name
+    };
     if (role === 'Supplier' && supplier_id) {
       insertData.supplier_id = supplier_id;
     }
@@ -71,7 +81,7 @@ router.post('/', requireAuth, requireRole('Admin', 'Owner'), async (req, res) =>
     const { data, error } = await supabase
       .from('users')
       .insert([insertData])
-      .select('id, name, username, role, status, created_at, supplier_id')
+      .select('id, name, username, role, status, created_at, supplier_id, permissions, custom_role_name')
       .single();
 
     if (error) throw error;
@@ -81,6 +91,8 @@ router.post('/', requireAuth, requireRole('Admin', 'Owner'), async (req, res) =>
       name: data.name,
       username: data.username,
       role: data.role,
+      custom_role_name: data.custom_role_name,
+      permissions: data.permissions,
       created_by: req.user.name
     });
 
@@ -138,7 +150,7 @@ router.put('/:id/status', requireAuth, requireRole('Admin', 'Owner'), async (req
 // Update a user (name, username, password, role) — FIX #7: requires Admin or Owner
 router.put('/:id', requireAuth, requireRole('Admin', 'Owner'), async (req, res) => {
   try {
-    const { name, username, password, role } = req.body;
+    const { name, username, password, role, supplier_id, permissions, custom_role_name } = req.body;
     if (!name || !username || !role) {
       return res.status(400).json({ error: 'Name, username, and role are required' });
     }
@@ -185,7 +197,21 @@ router.put('/:id', requireAuth, requireRole('Admin', 'Owner'), async (req, res) 
       }
     }
 
-    const updates = { name, username, role };
+    if (role === 'Supplier' && !supplier_id) {
+      return res.status(400).json({ error: 'Supplier role requires a linked supplier.' });
+    }
+
+    const access = normalizeAccessFields(role, permissions, custom_role_name);
+    if (access.error) {
+      return res.status(400).json({ error: access.error });
+    }
+
+    const updates = {
+      name, username, role,
+      permissions: access.permissions,
+      custom_role_name: access.custom_role_name
+    };
+    if (role === 'Supplier') updates.supplier_id = supplier_id;
 
     if (password && password.trim() !== '') {
       const saltRounds = 10;
@@ -196,7 +222,7 @@ router.put('/:id', requireAuth, requireRole('Admin', 'Owner'), async (req, res) 
       .from('users')
       .update(updates)
       .eq('id', req.params.id)
-      .select('id, name, username, role, status, created_at')
+      .select('id, name, username, role, status, created_at, supplier_id, permissions, custom_role_name')
       .single();
 
     if (error) throw error;
@@ -206,6 +232,8 @@ router.put('/:id', requireAuth, requireRole('Admin', 'Owner'), async (req, res) 
       name: data.name,
       username: data.username,
       role: data.role,
+      custom_role_name: data.custom_role_name,
+      permissions: data.permissions,
       updated_by: req.user.name
     });
 

@@ -38,3 +38,5 @@ desktop.ini
 *.suo
 *.sw?
 *.local
+InventoryProject/docs/database/*
+

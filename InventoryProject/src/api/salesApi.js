@@ -6,6 +6,14 @@ export const getSales = async (filters = {}, pageSize = 50, page = 1) => {
   if (filters.start_date) params.append('start_date', filters.start_date);
   if (filters.end_date) params.append('end_date', filters.end_date);
   if (filters.category) params.append('category', filters.category);
+  if (filters.staff_id) params.append('staff_id', filters.staff_id);
+  if (filters.period) params.append('period', filters.period);
+  if (filters.payment_method && filters.payment_method !== 'ALL') {
+    params.append('payment_method', filters.payment_method);
+  }
+  if (filters.search && filters.search.trim()) {
+    params.append('search', filters.search.trim());
+  }
   // pagination parameters
   params.append('limit', pageSize);
   params.append('offset', (page - 1) * pageSize);

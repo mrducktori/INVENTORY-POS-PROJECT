@@ -10,6 +10,11 @@ router.get('/', async (req, res) => {
     // Parse pagination parameters (default limit 50, offset 0)
     const limit = parseInt(req.query.limit) || 50;
     const offset = parseInt(req.query.offset) || 0;
+    const searchParam = (req.query.search || '').trim().toLowerCase();
+    const categoryParam = (req.query.category || '').trim();
+    const paymentMethodParam = (req.query.payment_method || '').trim();
+
+    const needsInMemoryFilter = Boolean(searchParam || categoryParam);
 
     let query = supabase
       .from('sales')
@@ -18,8 +23,11 @@ router.get('/', async (req, res) => {
         users(id, name, username),
         sale_items(id, quantity, unit_price, cup_size, add_ons, products(id, name, category))
       `, { count: 'exact' })
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+      .order('created_at', { ascending: false });
+
+    if (!needsInMemoryFilter) {
+      query = query.range(offset, offset + limit - 1);
+    }
 
     // Date range filtering (supports both snake_case and camelCase)
     const startDateParam = req.query.start_date || req.query.startDate;
@@ -61,19 +69,65 @@ router.get('/', async (req, res) => {
     }
 
     if (req.query.staff_id) query = query.eq('staff_id', req.query.staff_id);
+    if (paymentMethodParam && paymentMethodParam.toUpperCase() !== 'ALL') {
+      query = query.ilike('payment_method', paymentMethodParam);
+    }
 
     const { data, error, count } = await query;
     if (error) throw error;
-    // Category filtering (applied after fetching)
-    let filteredData = data;
-    let total = count;
-    if (req.query.category) {
-      const cat = req.query.category;
-      filteredData = (data || []).filter(sale =>
-        sale.sale_items?.some(item => item.products?.category === cat)
+
+    let filteredData = data || [];
+    let total = count || 0;
+
+    if (categoryParam) {
+      filteredData = filteredData.filter(sale =>
+        sale.sale_items?.some(item => item.products?.category === categoryParam)
       );
-      total = filteredData.length;
     }
+
+    if (searchParam) {
+      const cleanTerm = searchParam.replace(/^#/, '');
+      filteredData = filteredData.filter(sale => {
+        const receiptNum = String(sale.receipt_number || '').toLowerCase();
+        const idPrefix = String(sale.id || '').substring(0, 8).toLowerCase();
+        const fullId = String(sale.id || '').toLowerCase();
+        const staffName = String(sale.users?.name || sale.users?.username || '').toLowerCase();
+        const paymentMethod = String(sale.payment_method || '').toLowerCase();
+        const txRef = String(sale.transaction_reference || '').toLowerCase();
+        const totalStr = String(sale.total_amount || '');
+
+        const matchesTopLevel =
+          receiptNum.includes(cleanTerm) ||
+          idPrefix.includes(cleanTerm) ||
+          fullId.includes(cleanTerm) ||
+          staffName.includes(searchParam) ||
+          paymentMethod.includes(searchParam) ||
+          txRef.includes(cleanTerm) ||
+          totalStr.includes(cleanTerm);
+
+        if (matchesTopLevel) return true;
+
+        // Check items and add-ons inside the receipt
+        return (sale.sale_items || []).some(item => {
+          const prodName = String(item.products?.name || '').toLowerCase();
+          const prodCat = String(item.products?.category || '').toLowerCase();
+          const cupSize = String(item.cup_size || '').toLowerCase();
+          const addOnsStr = JSON.stringify(item.add_ons || '').toLowerCase();
+          return (
+            prodName.includes(searchParam) ||
+            prodCat.includes(searchParam) ||
+            cupSize.includes(searchParam) ||
+            addOnsStr.includes(searchParam)
+          );
+        });
+      });
+    }
+
+    if (needsInMemoryFilter) {
+      total = filteredData.length;
+      filteredData = filteredData.slice(offset, offset + limit);
+    }
+
     res.json({ data: filteredData, total, limit, offset });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -192,7 +246,5 @@ router.get('/:id', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
-
 
 export default router;

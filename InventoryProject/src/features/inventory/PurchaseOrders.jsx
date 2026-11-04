@@ -6,6 +6,7 @@ import CancelPOModal from './components/CancelPOModal';
 import ReschedulePOModal from './components/ReschedulePOModal';
 
 import { TableSkeleton } from '../../components/shared/SkeletonLoader';
+import InfoTip from '../../components/shared/InfoTip';
 import { supabase } from '../../config/supabaseClient';
 import { formatDisplayDateTime, formatDisplayDate, isDatePast, getDaysOverdue } from '../../utils/dateUtils';
 
@@ -19,6 +20,7 @@ const PurchaseOrders = () => {
   const [reschedulingPO, setReschedulingPO] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [tabFilter, setTabFilter] = useState('ALL'); // 'ALL' | 'OVERDUE' | 'PROPOSALS' | 'DELIVERING' | 'COMPLETED'
+  const [searchQuery, setSearchQuery] = useState('');
   const [processingProposalId, setProcessingProposalId] = useState(null);
 
   const fetchOrders = async () => {
@@ -143,12 +145,24 @@ const PurchaseOrders = () => {
   const deliveringCount = orders.filter(o => ['To Be Delivered', 'Delivering', 'Partial'].includes(o.status)).length;
   const completedCount = orders.filter(o => o.status === 'Received').length;
 
-  // Filtered orders
+  // Filtered orders (tab + multi-field search)
   const filteredOrders = orders.filter(po => {
-    if (tabFilter === 'OVERDUE') return isPOOverdue(po);
-    if (tabFilter === 'PROPOSALS') return po.has_proposals || po.status === 'Proposal Pending' || po.status === 'Partially Accepted';
-    if (tabFilter === 'DELIVERING') return ['To Be Delivered', 'Delivering', 'Partial'].includes(po.status);
-    if (tabFilter === 'COMPLETED') return po.status === 'Received';
+    if (tabFilter === 'OVERDUE' && !isPOOverdue(po)) return false;
+    if (tabFilter === 'PROPOSALS' && !(po.has_proposals || po.status === 'Proposal Pending' || po.status === 'Partially Accepted')) return false;
+    if (tabFilter === 'DELIVERING' && !['To Be Delivered', 'Delivering', 'Partial'].includes(po.status)) return false;
+    if (tabFilter === 'COMPLETED' && po.status !== 'Received') return false;
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      const poId = String(po.id || '').toLowerCase();
+      const supplierName = String(po.suppliers?.name || '').toLowerCase();
+      const status = String(po.status || '').toLowerCase();
+      const itemsMatch = (po.purchase_order_items || []).some(item =>
+        String(item.ingredients?.name || '').toLowerCase().includes(q)
+      );
+      return poId.includes(q) || supplierName.includes(q) || status.includes(q) || itemsMatch;
+    }
+
     return true;
   });
 
@@ -172,8 +186,8 @@ const PurchaseOrders = () => {
           </button>
         </div>
 
-        {/* Tab Filter Navigation Bar */}
-        <div className="px-6 py-3.5 border-b border-gray-200 bg-white flex items-center justify-between flex-wrap gap-2">
+        {/* Tab Filter Navigation Bar + Search */}
+        <div className="px-6 py-3.5 border-b border-gray-200 bg-white flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
             <button
               onClick={() => setTabFilter('ALL')}
@@ -230,6 +244,28 @@ const PurchaseOrders = () => {
               Completed ({completedCount})
             </button>
           </div>
+
+          <div className="relative w-full lg:w-72 shrink-0">
+            <svg className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search PO #, supplier, or ingredient..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-8 py-1.5 bg-gray-50 border border-gray-300 rounded-lg text-xs font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:bg-white transition-all"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 text-xs cursor-pointer"
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </div>
         
         <div className="p-0">
@@ -259,13 +295,16 @@ const PurchaseOrders = () => {
                       <td colSpan="7" className="p-8 text-center text-gray-400 font-medium">
                         {tabFilter === 'PROPOSALS'
                           ? 'No purchase orders with supplier proposals or rescheduled items at the moment.'
-                          : 'No purchase orders found in this section.'}
+                          : 'No purchase orders found matching your filters.'}
                       </td>
                     </tr>
                   ) : (
                     filteredOrders.map(po => {
                       const isOverdue = isPOOverdue(po);
                       const daysOverdue = getPODaysOverdue(po);
+                      const itemNames = (po.purchase_order_items || [])
+                        .map(i => i.ingredients?.name)
+                        .filter(Boolean);
 
                       return (
                         <React.Fragment key={po.id}>
@@ -302,8 +341,15 @@ const PurchaseOrders = () => {
                                 <span className="text-gray-600 font-medium">{formatDisplayDate(po.expected_date)}</span>
                               )}
                             </td>
-                            <td className="px-6 py-4 text-sm font-medium text-gray-600">
-                              {po.purchase_order_items ? `${po.purchase_order_items.length} ingredients` : '0 items'}
+                            <td className="px-6 py-4 text-sm font-medium text-gray-600 max-w-[260px]">
+                              <div className="font-bold text-gray-800">
+                                {po.purchase_order_items ? `${po.purchase_order_items.length} ingredient${po.purchase_order_items.length === 1 ? '' : 's'}` : '0 items'}
+                              </div>
+                              {itemNames.length > 0 && (
+                                <div className="text-xs text-gray-500 truncate" title={itemNames.join(', ')}>
+                                  {itemNames.slice(0, 2).join(', ')}{itemNames.length > 2 ? ` +${itemNames.length - 2} more` : ''}
+                                </div>
+                              )}
                             </td>
                             <td className="px-6 py-4 text-sm font-bold text-gray-900 text-right">₱{Number(po.total_amount).toFixed(2)}</td>
                             <td className="px-6 py-4">
@@ -390,14 +436,12 @@ const PurchaseOrders = () => {
                             <td colSpan="7" className="p-0">
                               <div className="px-8 py-6 border-b border-gray-200">
                                 {isOverdue && (
-                                  <div className="mb-4 p-4 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-3 text-rose-900">
-                                    <svg className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
-                                    <div>
-                                      <div className="text-xs font-bold uppercase tracking-wider text-rose-700">Order Past Due ({daysOverdue} days late)</div>
-                                      <div className="text-sm font-medium mt-0.5 text-rose-900">Stock receiving is locked until a revised delivery date is scheduled or the order is cancelled.</div>
+                                  <div className="mb-4 px-3.5 py-2.5 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between text-rose-900">
+                                    <div className="flex items-center gap-2 text-xs font-bold text-rose-800">
+                                      <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                                      <span>Order Past Due ({daysOverdue} days late)</span>
                                     </div>
+                                    <InfoTip text="Stock receiving is locked until a revised delivery date is scheduled or the order is cancelled." />
                                   </div>
                                 )}
                                 {(po.status === 'Declined' || po.status === 'DECLINED') && po.decline_reason && (
@@ -485,7 +529,7 @@ const PurchaseOrders = () => {
                                                     {resp.status === 'PROPOSED_DATE' && (
                                                       <div className="flex flex-col gap-1 max-w-sm">
                                                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">
-                                                          ⏳ Proposed Delivery: {formatDisplayDate(resp.proposed_date)}
+                                                          Proposed Delivery: {formatDisplayDate(resp.proposed_date)}
                                                         </span>
                                                         {resp.reason && (
                                                           <span className="text-xs text-zinc-600 font-medium whitespace-normal">

@@ -46,6 +46,19 @@ export const updateSupplier = async (req, res) => {
 };
 
 // === Purchase Orders ===
+export const deleteSupplier = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await purchasingService.deleteSupplier(id);
+    await logAudit('SUPPLIER_DELETED', req.user?.id || null, {
+      supplier_id: id
+    });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 export const getPurchaseOrders = async (req, res) => {
   try {
     const data = await purchasingService.getPurchaseOrders();
@@ -307,3 +320,92 @@ export const respondToSupplierProposal = async (req, res) => {
   }
 };
 
+
+export const getSupplierOwnCatalog = async (req, res) => {
+  try {
+    const { supabase } = await import("../config/supabaseClient.js");
+    let supplierId = req.user.supplier_id;
+    if (!supplierId) {
+      const { data: userData } = await supabase
+        .from('users')
+        .select('supplier_id')
+        .eq('id', req.user.id)
+        .single();
+      supplierId = userData?.supplier_id;
+    }
+
+    if (!supplierId) {
+      return res.status(403).json({ error: 'Your account is not linked to a supplier.' });
+    }
+
+    const { data, error } = await supabase
+      .from('suppliers')
+      .select(`
+        id,
+        name,
+        contact_person,
+        contact_number,
+        email,
+        address,
+        supplier_ingredients (
+          ingredient_id,
+          default_purchase_unit,
+          default_conversion_factor,
+          default_price,
+          ingredients ( id, name, unit, category )
+        )
+      `)
+      .eq('id', supplierId)
+      .single();
+
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const updateSupplierOwnCatalog = async (req, res) => {
+  try {
+    const { supabase } = await import("../config/supabaseClient.js");
+    let supplierId = req.user.supplier_id;
+    if (!supplierId) {
+      const { data: userData } = await supabase
+        .from('users')
+        .select('supplier_id')
+        .eq('id', req.user.id)
+        .single();
+      supplierId = userData?.supplier_id;
+    }
+
+    if (!supplierId) {
+      return res.status(403).json({ error: 'Your account is not linked to a supplier.' });
+    }
+
+    const { items } = req.body;
+    if (!Array.isArray(items)) {
+      return res.status(400).json({ error: 'Expected items array.' });
+    }
+
+    for (const item of items) {
+      const { error: upErr } = await supabase
+        .from('supplier_ingredients')
+        .update({
+          default_price: parseFloat(item.default_price ?? item.price) || 0,
+          default_purchase_unit: item.default_purchase_unit || item.purchase_unit || 'Unit',
+          default_conversion_factor: parseFloat(item.default_conversion_factor || item.conversion_factor) || 1
+        })
+        .match({ supplier_id: supplierId, ingredient_id: item.ingredient_id });
+      if (upErr) throw upErr;
+    }
+
+    await logAudit('SUPPLIER_CATALOG_PRICES_UPDATED', req.user.id, {
+      supplier_id: supplierId,
+      items_count: items.length
+    });
+
+    res.json({ success: true, count: items.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

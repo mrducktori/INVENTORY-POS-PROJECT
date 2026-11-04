@@ -1,4 +1,6 @@
 import React from 'react';
+import { getCurrentUser } from '../../../utils/authUtils';
+import { canAccess, usesPagePermissions } from '../../../utils/permissions';
 
 // ---------------------------------------------------------------------------
 // QuickActions
@@ -32,7 +34,10 @@ const ALL_LINKS = [
 ];
 
 const QuickActions = ({ onNavigate, userRole }) => {
+  const currentUser = getCurrentUser();
   const visibleLinks = ALL_LINKS.filter((link) => {
+    // Staff / Custom accounts: show only shortcuts to pages they can open
+    if (usesPagePermissions(currentUser)) return canAccess(currentUser, link.value);
     if (link.staffOnly && userRole !== 'Staff') return false;
     if (link.adminOnly && userRole === 'Staff') return false;
     if (userRole === 'Staff') return ['POS', 'RawMaterialTracker'].includes(link.value);

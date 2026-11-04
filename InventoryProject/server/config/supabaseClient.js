@@ -20,11 +20,12 @@ for (const envPath of envPaths) {
   if (!result.error) break; // Stop at first successful load
 }
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// Support both standard SUPABASE_URL and frontend VITE_SUPABASE_URL
+const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
-  throw new Error("Missing Supabase URL or Key in environment variables.");
+  throw new Error("Missing Supabase URL or Key in environment variables. Please check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.");
 }
 
 export const supabase = createClient(supabaseUrl, supabaseKey, {
@@ -32,6 +33,6 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
     persistSession: false // Recommended for backend servers
   },
   realtime: {
-    transport: ws // Fixes the Node 20 WebSocket error on cPanel
+    transport: ws // Fixes the Node 20 WebSocket error on cPanel / cloud hosts
   }
 });

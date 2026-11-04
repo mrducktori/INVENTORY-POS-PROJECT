@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { formatDisplayDateTime } from '../../../utils/dateUtils';
+import InfoTip from '../../../components/shared/InfoTip';
 
 const ReceivePOModal = ({ po, onClose, onSubmit }) => {
   const [items, setItems] = useState(
@@ -59,9 +60,12 @@ const ReceivePOModal = ({ po, onClose, onSubmit }) => {
               <h2 className="m-0 text-base md:text-lg font-bold tracking-wide">
                 Receive Stock • PO #{poRef}
               </h2>
-              <p className="m-0 text-xs text-zinc-400 font-medium">
-                {isReviewStep ? 'Step 2 of 2: Verify stock additions' : 'Step 1 of 2: Enter received quantities'}
-              </p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <p className="m-0 text-xs text-zinc-400 font-medium">
+                  {isReviewStep ? 'Verify stock additions' : 'Enter received quantities'}
+                </p>
+                <InfoTip text={`Verify delivered counts from ${po.suppliers?.name || 'the supplier'}. Quantities less than ordered will mark the order as Partial.`} />
+              </div>
             </div>
           </div>
           <button className="text-zinc-400 hover:text-white transition-colors bg-transparent border-none text-xl leading-none cursor-pointer p-0" onClick={onClose} disabled={saving}>✕</button>
@@ -71,10 +75,6 @@ const ReceivePOModal = ({ po, onClose, onSubmit }) => {
         {!isReviewStep ? (
           <form onSubmit={handleProceedToReview} className="flex flex-col overflow-hidden min-h-0 flex-1">
             <div className="p-6 overflow-y-auto flex-1 flex flex-col gap-4">
-              <div className="bg-zinc-50 border border-zinc-200 p-4 rounded-xl text-xs md:text-sm text-zinc-700 font-medium flex items-center justify-between">
-                <span>Verify quantities delivered by <strong>{po.suppliers?.name || 'the supplier'}</strong>. Items less than ordered will mark the order as <strong>Partial</strong>.</span>
-              </div>
-
               <div className="flex flex-col gap-3">
                 {items.map(item => {
                   const maxRemaining = Math.max(0, item.quantity - (item.quantity_received || 0));
@@ -150,32 +150,32 @@ const ReceivePOModal = ({ po, onClose, onSubmit }) => {
           <div className="flex flex-col overflow-hidden min-h-0 flex-1">
             <div className="p-6 overflow-y-auto flex-1 flex flex-col gap-4">
               {/* Status Outcome Banner */}
-              <div className={`p-4 rounded-xl border flex items-start gap-3 ${
+              <div className={`px-4 py-3 rounded-xl border flex items-center justify-between ${
                 newStatus === 'Received'
                   ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
                   : 'bg-amber-50 border-amber-200 text-amber-900'
               }`}>
-                <div className="mt-0.5 shrink-0">
+                <div className="flex items-center gap-2">
                   {newStatus === 'Received' ? (
-                    <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <svg className="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
                     </svg>
                   ) : (
-                    <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 text-amber-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                   )}
+                  <span className="text-xs font-bold uppercase tracking-wider">
+                    {newStatus === 'Received' ? 'Full Order Received' : 'Partial Delivery'}
+                  </span>
+                  <InfoTip text={newStatus === 'Received'
+                    ? 'All ordered items are fully accounted for. PO status will be set to Received.'
+                    : 'Some items remain unreceived. PO status will be set to Partial until fulfilled.'
+                  } />
                 </div>
-                <div>
-                  <div className="text-xs font-bold uppercase tracking-wider">
-                    {newStatus === 'Received' ? 'Full Order Completion' : 'Partial Delivery Discrepancy'}
-                  </div>
-                  <div className="text-xs md:text-sm font-medium mt-0.5">
-                    {newStatus === 'Received'
-                      ? 'All ordered quantities will be marked fully received and order status updated to Received.'
-                      : 'Some items have remaining unreceived quantities. Order status will be set to Partial until remaining stock is delivered.'}
-                  </div>
-                </div>
+                <span className="text-xs font-semibold text-zinc-500">
+                  {itemsToSubmit.length} item{itemsToSubmit.length === 1 ? '' : 's'} updating
+                </span>
               </div>
 
               {/* Inventory Stock Additions Breakdown */}

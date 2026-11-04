@@ -3,7 +3,7 @@ import { getAuditLogs } from '../../api/auditApi';
 import { getCurrentUser } from '../../api/authApi';
 import { getManilaDateOnly } from '../../utils/dateUtils';
 import { TableSkeleton } from '../../components/shared/SkeletonLoader';
-
+import InfoTip from '../../components/shared/InfoTip';
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -79,10 +79,10 @@ const formatDescription = (action, rawDetails) => {
     case 'PURCHASE_ORDER_STATUS_UPDATED':
       return `PO #${(d.po_id || '').substring(0, 8).toUpperCase()} status changed to ${d.new_status}.`;
     default:
-      if (Object.keys(d).length === 0) return action.replace(/_/g, ' ');
+      if (Object.keys(d).length === 0) return (action || '').replace(/_/g, ' ');
       return Object.entries(d)
         .filter(([k]) => !['id', 'product_id', 'ingredient_id', 'new_user_id', 'target_user_id'].includes(k))
-        .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v}`)
+        .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${typeof v === 'object' ? JSON.stringify(v) : v}`)
         .join(', ');
   }
 };
@@ -106,6 +106,7 @@ const TransactionLogs = () => {
   const [loading, setLoading] = useState(false);
   const today = getManilaDateOnly();
 
+  const [datePreset, setDatePreset] = useState('TODAY');
   const [filters, setFilters] = useState({
     start_date: today,
     end_date: today,
@@ -125,12 +126,12 @@ const TransactionLogs = () => {
           end_date: filters.end_date ? filters.end_date + 'T23:59:59' : undefined
         };
         const response = await getAuditLogs(adjustedFilters);
-        // The audit API returns { data: [...], total, limit, offset }
         const allLogs = response?.data || response || [];
         
-        // Filter out everything except Sales and PO (Stock Received)
+        // Filter out everything except Sales, PO, and Stock Received
         const txLogs = allLogs.filter(log => 
           log.action?.toUpperCase().startsWith('SALE') || 
+          log.action?.toUpperCase().startsWith('PURCHASE_ORDER') ||
           log.action?.toUpperCase().includes('STOCK_RECEIVED')
         );
         
@@ -150,7 +151,11 @@ const TransactionLogs = () => {
   if (!user || user.role !== 'Owner') {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 bg-gray-50">
-        <div className="text-6xl mb-4">🔒</div>
+        <div className="w-16 h-16 rounded-2xl bg-zinc-100 border border-zinc-200 flex items-center justify-center text-zinc-600 mb-4">
+          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+        </div>
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Restricted</h2>
         <p className="text-gray-500 font-medium">Transaction Logs are only accessible to the system Owner. Contact your administrator for access.</p>
       </div>
@@ -159,7 +164,26 @@ const TransactionLogs = () => {
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
+    if (name === 'start_date' || name === 'end_date') {
+      setDatePreset('CUSTOM');
+    }
     setFilters(prev => ({ ...prev, [name]: value }));
+  };
+
+  const applyDatePreset = (preset) => {
+    setDatePreset(preset);
+    const todayStr = getManilaDateOnly();
+    if (preset === 'ALL') {
+      setFilters(prev => ({ ...prev, start_date: '', end_date: '' }));
+    } else if (preset === 'TODAY') {
+      setFilters(prev => ({ ...prev, start_date: todayStr, end_date: todayStr }));
+    } else if (preset === '7D') {
+      const d = new Date();
+      d.setDate(d.getDate() - 6);
+      setFilters(prev => ({ ...prev, start_date: d.toISOString().split('T')[0], end_date: todayStr }));
+    } else if (preset === 'MONTH') {
+      setFilters(prev => ({ ...prev, start_date: todayStr.substring(0, 8) + '01', end_date: todayStr }));
+    }
   };
 
   const handleSort = (key) => {
@@ -173,14 +197,24 @@ const TransactionLogs = () => {
   const getProcessedLogs = () => {
     let result = [...logs];
 
-    // Local search filter
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      result = result.filter(log =>
-        (log.users?.name || '').toLowerCase().includes(term) ||
-        (log.action || '').toLowerCase().includes(term) ||
-        (log.details || '').toLowerCase().includes(term)
-      );
+    // Safe multi-field search filter
+    if (searchTerm.trim()) {
+      const term = searchTerm.trim().toLowerCase();
+      result = result.filter(log => {
+        const staffName = String(log.users?.name || 'System').toLowerCase();
+        const actionName = String(log.action || '').toLowerCase();
+        const rawDetailsStr = typeof log.details === 'string'
+          ? log.details.toLowerCase()
+          : JSON.stringify(log.details || '').toLowerCase();
+        const humanDesc = formatDescription(log.action, log.details).toLowerCase();
+
+        return (
+          staffName.includes(term) ||
+          actionName.includes(term) ||
+          rawDetailsStr.includes(term) ||
+          humanDesc.includes(term)
+        );
+      });
     }
 
     // Sort
@@ -223,7 +257,7 @@ const TransactionLogs = () => {
           <p className="m-0 mt-1 text-sm md:text-base text-gray-500 font-medium">Owner-level view of all system transactions and activity.</p>
         </div>
         <div className="bg-amber-100 text-amber-800 px-4 py-2 rounded-lg text-sm md:text-base font-bold uppercase tracking-wider flex items-center gap-2 shadow-sm border border-amber-200">
-          <span>🔒</span> Owner Access Only
+          <svg className="w-3.5 h-3.5 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg> <span>Owner Access</span> <InfoTip text="Confidential transaction log restricted to Owner role." />
         </div>
       </div>
 
@@ -248,49 +282,110 @@ const TransactionLogs = () => {
       </div>
 
       {/* Filters */}
-      <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-5 mb-8 grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div>
-          <label className="block text-sm md:text-base font-bold text-gray-600 uppercase tracking-wider mb-2">Start Date</label>
-          <input
-            type="date"
-            name="start_date"
-            value={filters.start_date}
-            onChange={handleFilterChange}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm md:text-base bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
-          />
+      <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-5 mb-8 space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+          <div className="md:col-span-5">
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Search Transactions</label>
+            <div className="relative">
+              <svg className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search receipt #, product, PO #, operator, or details..."
+                value={searchTerm}
+                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                className="w-full pl-10 pr-9 py-2 border border-gray-300 rounded-lg text-sm font-medium bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => { setSearchTerm(''); setCurrentPage(1); }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 cursor-pointer"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="md:col-span-3">
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Transaction Type</label>
+            <select
+              name="action"
+              value={filters.action}
+              onChange={handleFilterChange}
+              className="w-full px-3.5 py-2 border border-gray-300 rounded-lg text-sm font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 cursor-pointer"
+            >
+              {CATEGORY_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="md:col-span-4 grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Start Date</label>
+              <input
+                type="date"
+                name="start_date"
+                value={filters.start_date}
+                onChange={handleFilterChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">End Date</label>
+              <input
+                type="date"
+                name="end_date"
+                value={filters.end_date}
+                onChange={handleFilterChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900"
+              />
+            </div>
+          </div>
         </div>
-        <div>
-          <label className="block text-sm md:text-base font-bold text-gray-600 uppercase tracking-wider mb-2">End Date</label>
-          <input
-            type="date"
-            name="end_date"
-            value={filters.end_date}
-            onChange={handleFilterChange}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm md:text-base bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
-          />
-        </div>
-        <div>
-          <label className="block text-sm md:text-base font-bold text-gray-600 uppercase tracking-wider mb-2">Transaction Type</label>
-          <select
-            name="action"
-            value={filters.action}
-            onChange={handleFilterChange}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm md:text-base bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
-          >
-            {CATEGORY_OPTIONS.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
+
+        {/* Quick Date Presets */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-gray-100">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider mr-1">Quick Period:</span>
+            {[
+              { id: 'TODAY', label: 'Today' },
+              { id: '7D', label: 'Last 7 Days' },
+              { id: 'MONTH', label: 'This Month' },
+              { id: 'ALL', label: 'All Time' }
+            ].map(p => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => applyDatePreset(p.id)}
+                className={`px-3 py-1 rounded-md text-xs font-bold transition-colors cursor-pointer ${
+                  datePreset === p.id
+                    ? 'bg-gray-900 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {p.label}
+              </button>
             ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm md:text-base font-bold text-gray-600 uppercase tracking-wider mb-2">Search</label>
-          <input
-            type="text"
-            placeholder="Search by user, action, or details..."
-            value={searchTerm}
-            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm md:text-base bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
-          />
+          </div>
+
+          {(searchTerm || filters.action || datePreset !== 'TODAY') && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchTerm('');
+                setDatePreset('TODAY');
+                setFilters({ start_date: today, end_date: today, action: '' });
+                setCurrentPage(1);
+              }}
+              className="text-xs font-bold text-red-600 hover:text-red-800 uppercase tracking-wider cursor-pointer"
+            >
+              Reset Filters
+            </button>
+          )}
         </div>
       </div>
 
@@ -318,77 +413,77 @@ const TransactionLogs = () => {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {paginatedLogs.length > 0 ? (
-                paginatedLogs.map(log => {
-                  const cat = getCategory(log.action);
-                  const userRole = log.users?.role?.toLowerCase() || 'staff';
-                  return (
-                    <tr key={log.id} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-6 py-4 text-sm md:text-base font-medium text-gray-600">
-                        {new Date(log.created_at).toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-col items-start">
-                          <span className="text-sm md:text-base font-bold text-gray-900">{log.users?.name || 'System'}</span>
-                          <span className={`inline-flex mt-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${userRole === 'owner' ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-gray-100 text-gray-600 border-gray-200'} border`}>
-                            {log.users?.role || 'SYS'}
+                  paginatedLogs.map(log => {
+                    const cat = getCategory(log.action);
+                    const userRole = log.users?.role?.toLowerCase() || 'staff';
+                    return (
+                      <tr key={log.id} className="hover:bg-gray-50/50 transition-colors">
+                        <td className="px-6 py-4 text-sm md:text-base font-medium text-gray-600">
+                          {new Date(log.created_at).toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col items-start">
+                            <span className="text-sm md:text-base font-bold text-gray-900">{log.users?.name || 'System'}</span>
+                            <span className={`inline-flex mt-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${userRole === 'owner' ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-gray-100 text-gray-600 border-gray-200'} border`}>
+                              {log.users?.role || 'SYS'}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <span className="inline-flex px-2.5 py-1 rounded-full text-sm md:text-base font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                            {cat.label}
                           </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <span className="inline-flex px-2.5 py-1 rounded-full text-sm md:text-base font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-                          {cat.label}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <span className="inline-flex px-2.5 py-1 rounded-md text-xs md:text-sm font-bold uppercase tracking-wider bg-gray-100 text-gray-700 border border-gray-200">
-                          {log.action}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <p className="m-0 text-sm md:text-base font-medium text-gray-800 whitespace-normal">
-                          {formatDescription(log.action, log.details)}
-                        </p>
-                      </td>
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td colSpan="5" className="p-12 text-center text-gray-400 bg-gray-50/50">
-                    <svg className="w-12 h-12 mb-3 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                    <div className="text-sm md:text-base font-medium">No transaction records found</div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        {processedLogs.length > ITEMS_PER_PAGE && (
-          <div className="px-6 py-4 border-t border-gray-100 bg-white flex items-center justify-between">
-            <div className="text-sm md:text-base font-medium text-gray-500">
-              Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, processedLogs.length)} of {processedLogs.length} records
-            </div>
-            <div className="flex gap-2">
-              <button
-                className="px-4 py-2 border border-gray-300 rounded-lg text-sm md:text-base font-bold text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-              >
-                ← Previous
-              </button>
-              <button
-                className="px-4 py-2 border border-gray-300 rounded-lg text-sm md:text-base font-bold text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-              >
-                Next →
-              </button>
-            </div>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <span className="inline-flex px-2.5 py-1 rounded-md text-xs md:text-sm font-bold uppercase tracking-wider bg-gray-100 text-gray-700 border border-gray-200">
+                            {log.action}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <p className="m-0 text-sm md:text-base font-medium text-gray-800 whitespace-normal">
+                            {formatDescription(log.action, log.details)}
+                          </p>
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan="5" className="p-12 text-center text-gray-400 bg-gray-50/50">
+                      <svg className="w-12 h-12 mb-3 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                      <div className="text-sm md:text-base font-medium">No transaction records found</div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
-        )}
-      </div>
+
+          {/* Pagination */}
+          {processedLogs.length > ITEMS_PER_PAGE && (
+            <div className="px-6 py-4 border-t border-gray-100 bg-white flex items-center justify-between">
+              <div className="text-sm md:text-base font-medium text-gray-500">
+                Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, processedLogs.length)} of {processedLogs.length} records
+              </div>
+              <div className="flex gap-2">
+                <button
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm md:text-base font-bold text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  Previous
+                </button>
+                <button
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm md:text-base font-bold text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

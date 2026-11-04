@@ -1,6 +1,7 @@
 import express from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 import { supabase } from "../config/supabaseClient.js";
 import { logAudit } from "../utils/auditHelper.js";
 
@@ -112,13 +113,39 @@ router.post("/login", async (req, res) => {
 
     // Successful login — clear any previous failure record
     resetLockout(username);
+
+    // Single active session: a new login replaces the previous session,
+    // which signs out any other device using this account.
+    const sessionId = crypto.randomUUID();
+    let sessionTracked = false;
+    try {
+      const { error: sessionError } = await supabase
+        .from("users")
+        .update({ current_session_id: sessionId })
+        .eq("id", data.id);
+      if (sessionError) {
+        console.warn("Notice: current_session_id update skipped (column or schema cache pending):", sessionError.message);
+      } else {
+        sessionTracked = true;
+      }
+    } catch (sErr) {
+      console.warn("Notice: session tracking update failed:", sErr.message);
+    }
+
+    if (sessionTracked && data.current_session_id) {
+      await logAudit("SESSION_REPLACED", data.id, { username: data.username });
+    }
     await logAudit("LOGIN", data.id, { username: data.username, role: data.role });
 
-    const { password_hash: _password_hash, ...userWithoutPassword } = data;
+    const {
+      password_hash: _password_hash,
+      current_session_id: _previousSession,
+      ...userWithoutPassword
+    } = data;
     
-    // Create JWT token
+    // Create JWT token (sid ties the token to this specific session)
     const token = jwt.sign(
-      { userId: data.id, role: data.role },
+      { userId: data.id, role: data.role, sid: sessionId },
       process.env.JWT_SECRET || 'fallback-secret-key-change-me',
       { expiresIn: '8h' }
     );
@@ -130,14 +157,37 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// LOGOUT — called by frontend before clearing localStorage
+// LOGOUT — identity comes from the token, never from the request body.
+// Always responds 200 so the client can finish signing out locally.
 router.post("/logout", async (req, res) => {
   try {
-    const { user_id, username, role } = req.body;
-    await logAudit("LOGOUT", user_id || null, { username, role });
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
+    if (!token) return res.json({ success: true });
+
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret-key-change-me');
+    } catch {
+      return res.json({ success: true });
+    }
+
+    // Only clear the session if this token is still the active one,
+    // so an old device logging out cannot sign out the newer device.
+    const { data } = await supabase
+      .from("users")
+      .update({ current_session_id: null })
+      .eq("id", decoded.userId)
+      .eq("current_session_id", decoded.sid)
+      .select("id, username, role");
+
+    if (data && data.length > 0) {
+      await logAudit("LOGOUT", data[0].id, { username: data[0].username, role: data[0].role });
+    }
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[Logout]", err);
+    res.json({ success: true });
   }
 });
 

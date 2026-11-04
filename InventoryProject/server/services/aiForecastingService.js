@@ -361,7 +361,7 @@ export const runDeterministicEnsembleForecast = (forecastingData) => {
       paydaySurgeDays: paydayCount,
       holidaySurgeDays: holidayCount
     },
-    reasoning: `Synthesized ${dailySales.length} historical sales days. Evaluated ${daysInMonth} target days including ${weekendCount} weekends (${weekendMultiplier.toFixed(2)}x lift), ${paydayCount} quincena paydays (${paydayMultiplier.toFixed(2)}x surge), and ${holidayCount} national holidays with a ${(clampedGrowth * 100).toFixed(1)}% weekly growth rate.`
+    reasoning: `Based on ${dailySales.length} days of sales records across ${daysInMonth} target days with ${weekendCount} weekends (${weekendMultiplier.toFixed(2)}x volume), ${paydayCount} payday periods (${paydayMultiplier.toFixed(2)}x lift), and ${holidayCount} national holidays with a ${(clampedGrowth * 100).toFixed(1)}% weekly trend.`
   };
 };
 
@@ -454,7 +454,7 @@ Return ONLY valid JSON using exactly this structure:
   "predictedUnitsSold": 0,
   "recommendedOrderQuantity": 0,
   "confidenceScore": 85,
-  "reasoning": "Concise 2-sentence summary of demand drivers."
+  "reasoning": "Professional 2-sentence summary of demand drivers (e.g. weekend lift, paydays, seasonal velocity). Do NOT mention AI, machine learning, prompts, or algorithms."
 }
 Do not include explanations outside the JSON.
 Do not include markdown backticks.

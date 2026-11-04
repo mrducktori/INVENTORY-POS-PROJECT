@@ -3,6 +3,7 @@ import { getInventoryStatusReport } from '../../api/reportsApi';
 import { getAllProducts } from '../../api/productsApi';
 import { getAuditLogs } from '../../api/auditApi';
 import { downloadCSV, printReport } from './reportUtils';
+import InfoTip from '../../components/shared/InfoTip';
 
 // ─── Status Groups & Helpers for Snapshot ───────────────────────────────────────
 const STATUS_GROUPS = [
@@ -594,25 +595,24 @@ const StockMovementReport = () => {
 
       {/* Initial Empty State */}
       {!fetched && !loading && (
-        <div className="p-16 flex flex-col items-center justify-center text-gray-500 bg-white border border-gray-200 border-dashed rounded-xl h-72 text-center">
-          <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-4 text-gray-400">
-            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="p-12 flex flex-col items-center justify-center text-gray-500 bg-white border border-gray-200 border-dashed rounded-xl h-64 text-center">
+          <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3 text-gray-400">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
           </div>
-          <div className="text-xl font-black text-gray-900 mb-1">Stock Movement Analysis Ready</div>
-          <p className="m-0 text-sm sm:text-base text-gray-600 max-w-md">
-            Select a period and click <strong className="text-gray-900">Generate Report</strong> to inspect all stock receipts, sales deductions, wastage, and net movement.
+          <div className="text-base font-bold text-gray-900 mb-1">Stock Movement Analysis</div>
+          <p className="m-0 text-xs sm:text-sm text-gray-500 max-w-sm">
+            Select a period and click <strong className="text-gray-900">Generate Report</strong> to inspect stock inflow, outflow, and wastage.
           </p>
         </div>
       )}
 
       {/* Loading Skeleton */}
       {loading && (
-        <div className="p-16 flex flex-col items-center justify-center text-gray-500 bg-white border border-gray-200 rounded-xl h-72">
-          <div className="w-10 h-10 border-4 border-gray-200 border-t-gray-900 rounded-full animate-spin mb-4"></div>
-          <p className="m-0 text-base font-bold text-gray-800">Compiling inventory movements, POS deductions &amp; restock records...</p>
-          <p className="m-0 text-xs text-gray-500 mt-1">Cross-referencing audit logs with current stock records</p>
+        <div className="p-12 flex flex-col items-center justify-center text-gray-500 bg-white border border-gray-200 rounded-xl h-64">
+          <div className="w-8 h-8 border-3 border-gray-200 border-t-gray-900 rounded-full animate-spin mb-3"></div>
+          <p className="m-0 text-sm font-bold text-gray-800">Compiling stock movements...</p>
         </div>
       )}
 
@@ -623,38 +623,47 @@ const StockMovementReport = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-5">
             {/* Card 1: Inflow */}
             <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-l-4 border-l-emerald-600 flex flex-col justify-between">
-              <div className="text-xs font-black text-gray-600 uppercase tracking-wide">Stock Inflow (+)</div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-gray-600 uppercase tracking-wide">Stock Inflow (+)</span>
+                <InfoTip text="Total inventory received from Purchase Orders and direct restocks." />
+              </div>
               <div className="mt-3">
                 <div className="text-2xl sm:text-3xl font-black text-emerald-700 tracking-tight font-mono">
                   +{totalStockIn.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                 </div>
-                <div className="text-xs sm:text-sm font-semibold text-gray-600 mt-1">
-                  {movements.filter(m => m.movementType === 'IN').length} receiving events
+                <div className="text-xs sm:text-sm font-semibold text-gray-500 mt-1">
+                  {movements.filter(m => m.movementType === 'IN').length} receipts
                 </div>
               </div>
             </div>
 
             {/* Card 2: Outflow */}
             <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-l-4 border-l-red-600 flex flex-col justify-between">
-              <div className="text-xs font-black text-gray-600 uppercase tracking-wide">Stock Outflow (-)</div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-gray-600 uppercase tracking-wide">Stock Outflow (-)</span>
+                <InfoTip text="Total inventory deducted through completed POS customer sales." />
+              </div>
               <div className="mt-3">
                 <div className="text-2xl sm:text-3xl font-black text-red-700 tracking-tight font-mono">
                   -{totalStockOut.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                 </div>
-                <div className="text-xs sm:text-sm font-semibold text-gray-600 mt-1">
-                  {movements.filter(m => m.movementType === 'OUT').length} POS sales deductions
+                <div className="text-xs sm:text-sm font-semibold text-gray-500 mt-1">
+                  {movements.filter(m => m.movementType === 'OUT').length} sales deductions
                 </div>
               </div>
             </div>
 
             {/* Card 3: Wastage */}
             <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-l-4 border-l-amber-500 flex flex-col justify-between">
-              <div className="text-xs font-black text-gray-600 uppercase tracking-wide">Wastage / Loss (-)</div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-gray-600 uppercase tracking-wide">Wastage / Loss (-)</span>
+                <InfoTip text="Reported inventory deductions from spoilage, breakage, or expired ingredients." />
+              </div>
               <div className="mt-3">
                 <div className="text-2xl sm:text-3xl font-black text-amber-700 tracking-tight font-mono">
                   -{totalWastage.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                 </div>
-                <div className="text-xs sm:text-sm font-semibold text-gray-600 mt-1">
+                <div className="text-xs sm:text-sm font-semibold text-gray-500 mt-1">
                   {movements.filter(m => m.movementType === 'WASTAGE').length} wastage logs
                 </div>
               </div>
@@ -662,26 +671,32 @@ const StockMovementReport = () => {
 
             {/* Card 4: Net Movement */}
             <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-l-4 border-l-gray-900 flex flex-col justify-between">
-              <div className="text-xs font-black text-gray-600 uppercase tracking-wide">Net Stock Movement</div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-gray-600 uppercase tracking-wide">Net Movement</span>
+                <InfoTip text="Net change in stock volume (Inflow - Outflow - Wastage)." />
+              </div>
               <div className="mt-3">
                 <div className={`text-2xl sm:text-3xl font-black tracking-tight font-mono ${netMovement >= 0 ? 'text-gray-950' : 'text-red-700'}`}>
                   {netMovement >= 0 ? `+${netMovement.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}` : netMovement.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                 </div>
-                <div className="text-xs sm:text-sm font-semibold text-gray-600 mt-1">
-                  inbound minus outbound
+                <div className="text-xs sm:text-sm font-semibold text-gray-500 mt-1">
+                  volume delta
                 </div>
               </div>
             </div>
 
             {/* Card 5: Low Stock */}
             <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-l-4 border-l-red-500 flex flex-col justify-between">
-              <div className="text-xs font-black text-gray-600 uppercase tracking-wide">Restock Attention</div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-gray-600 uppercase tracking-wide">Restock Attention</span>
+                <InfoTip text="Tracked items currently at low stock or completely depleted." />
+              </div>
               <div className="mt-3">
                 <div className="text-2xl sm:text-3xl font-black text-red-600 tracking-tight">
                   {criticalCount}
                 </div>
                 <div className="text-xs sm:text-sm font-bold text-red-700 mt-1">
-                  low or out of stock items
+                  items need restock
                 </div>
               </div>
             </div>
