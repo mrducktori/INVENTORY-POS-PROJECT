@@ -38,7 +38,10 @@ export const requireAuth = async (req, res, next) => {
     }
 
     if (data.status !== 'ACTIVE') {
-      return res.status(403).json({ error: 'Your account has been deactivated. Contact an administrator.' });
+      return res.status(403).json({
+        error: 'Your account has been deactivated. Contact an administrator.',
+        code: 'ACCOUNT_DEACTIVATED'
+      });
     }
 
     // Single active session: only enforce when current_session_id column exists

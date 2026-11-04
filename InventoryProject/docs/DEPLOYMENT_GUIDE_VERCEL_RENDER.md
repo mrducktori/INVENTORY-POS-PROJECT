@@ -98,6 +98,68 @@ flowchart LR
 
 ---
 
+## Part 4: Use a Namecheap Domain with Vercel
+
+Example domain: `cofteacafe.space` (replace with yours).
+
+### Step 1: Add the domain in Vercel
+1. Vercel Dashboard → your project → **Settings** → **Domains**.
+2. Enter `cofteacafe.space` → **Add**. When prompted, choose the recommended option of also adding `www.cofteacafe.space` (one redirects to the other).
+3. Vercel will show **Invalid Configuration** and list the DNS records it needs. Keep this page open — always use the exact values Vercel displays.
+
+### Step 2: Point Namecheap to Vercel (choose ONE method)
+
+#### Method A: DNS Records (Recommended — keeps DNS managed at Namecheap)
+1. Namecheap → **Domain List** → **Manage** (next to your domain) → **Advanced DNS** tab.
+2. **Delete** the default Namecheap records (the `CNAME www → parkingpage.namecheap.com` and any `URL Redirect Record` for `@`). These conflict with Vercel.
+3. Under **Host Records**, click **Add New Record** and add:
+
+   | Type | Host | Value | TTL |
+   |---|---|---|---|
+   | `A Record` | `@` | `76.76.21.21` *(or the IP Vercel shows)* | Automatic |
+   | `CNAME Record` | `www` | `cname.vercel-dns.com.` *(or the project-specific value Vercel shows)* | Automatic |
+
+4. Click the green checkmark to save each record.
+
+#### Method A2: Domain uses Namecheap Web Hosting DNS (cPanel)
+If **Advanced DNS** says *"You can transfer DNS back to Namecheap BasicDNS..."* and shows no Host Records, DNS is managed by your cPanel hosting. Edit records in cPanel instead:
+1. Log in to **cPanel** → **Domains** → **Zone Editor** → **Manage** next to your domain.
+2. Edit the existing `A` record for `cofteacafe.space.` → set it to `76.76.21.21` (or the IP Vercel shows).
+3. Edit or delete the existing `www` record, then add a `CNAME` record: Name `www`, Record `cname.vercel-dns.com` (or the value Vercel shows).
+4. Leave `MX`, `mail`, and `TXT` (SPF/DKIM) records untouched so cPanel email keeps working.
+
+> [!WARNING]
+> Do NOT click "Change DNS Type" to BasicDNS unless you are leaving cPanel hosting. It removes all cPanel DNS records, including email.
+
+#### Method B: Use Vercel Nameservers (Vercel manages all DNS)
+1. Namecheap → **Domain List** → **Manage** → **Nameservers** section.
+2. Change from *Namecheap BasicDNS* to **Custom DNS** and enter:
+   - `ns1.vercel-dns.com`
+   - `ns2.vercel-dns.com`
+3. Save. Any other records (e.g. email/MX) must now be re-created inside Vercel's DNS tab.
+
+### Step 3: Wait for verification
+- DNS usually propagates in 5–30 minutes (can take up to 48 hours). Check progress at https://dnschecker.org.
+- Once Vercel shows **Valid Configuration**, it automatically issues a free SSL certificate (HTTPS).
+
+### Step 4: Update backend CORS on Render
+1. Render → your backend service → **Environment**.
+2. Set `CLIENT_URL` to a comma-separated list of every frontend origin (no trailing slashes):
+   ```
+   https://cofteacafe.space,https://www.cofteacafe.space,https://coftea-pos.vercel.app
+   ```
+3. Save — Render re-deploys automatically.
+
+> [!NOTE]
+> `server.js` already whitelists `https://cofteacafe.space`, `https://www.cofteacafe.space`, and any `*.vercel.app` URL. If you use a different domain, `CLIENT_URL` is required or API calls will fail with CORS errors.
+
+### Optional: API subdomain for Render (`api.cofteacafe.space`)
+1. Render → backend service → **Settings** → **Custom Domains** → add `api.cofteacafe.space`.
+2. Namecheap → **Advanced DNS** → add `CNAME Record`, Host `api`, Value `coftea-backend.onrender.com.` (use the value Render shows).
+3. After Render verifies it, update `VITE_API_URL` in Vercel to `https://api.cofteacafe.space` and **Redeploy** (Vite env vars are baked in at build time).
+
+---
+
 ## 💡 Troubleshooting & Render Free Tier Notes
 
 - **Cold Starts**: Render's free tier spins down web services after 15 minutes of inactivity. When a request arrives, it may take 30–50 seconds to spin back up.

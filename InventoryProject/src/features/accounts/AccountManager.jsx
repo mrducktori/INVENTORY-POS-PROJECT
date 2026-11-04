@@ -28,6 +28,7 @@ const AccountManager = () => {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null); // 'save' or 'status'
   const [statusTarget, setStatusTarget] = useState(null);
+  const [countdown, setCountdown] = useState(0);
 
   const [suppliers, setSuppliers] = useState([]);
 
@@ -57,6 +58,15 @@ const AccountManager = () => {
       setLoading(false);
     }
   };
+
+  // 5-second countdown timer for archiving online accounts
+  useEffect(() => {
+    if (!showConfirmModal || confirmAction !== 'status' || countdown <= 0) return;
+    const timer = setInterval(() => {
+      setCountdown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [showConfirmModal, confirmAction, countdown]);
 
   const flash = (type, text, ms = 3500) => {
     setMessage({ type, text });
@@ -171,8 +181,15 @@ const AccountManager = () => {
   };
 
   const handleToggleStatusClick = (id, currentStatus) => {
-    setStatusTarget({ id, currentStatus });
+    const targetUser = users.find((u) => u.id === id);
+    const isOnline = Boolean(targetUser?.current_session_id);
+    setStatusTarget({ id, currentStatus, isOnline, user: targetUser });
     setConfirmAction('status');
+    if (currentStatus === 'ACTIVE' && isOnline) {
+      setCountdown(5);
+    } else {
+      setCountdown(0);
+    }
     setShowConfirmModal(true);
   };
 
@@ -261,30 +278,78 @@ const AccountManager = () => {
         </div>
       )}
 
-      {/* Confirmation Modal */}
+      {/* Confirmation / Warning Modal */}
       {showConfirmModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-[fadeIn_0.2s_ease-out]">
-          <div className="bg-white rounded-2xl p-6 md:p-8 w-full max-w-sm shadow-2xl animate-[slideUp_0.3s_ease-out]">
-            <h3 className="m-0 text-xl font-bold text-zinc-900 mb-2">Confirm action</h3>
-            <p className="m-0 text-sm text-zinc-500 mb-8">
-              {confirmAction === 'save'
-                ? `${editingUserId ? 'Save changes to this' : 'Create this'} account?`
-                : `${statusTarget?.currentStatus === 'ACTIVE' ? 'Deactivate' : 'Activate'} this account?`}
-            </p>
-            <div className="flex gap-3 w-full">
-              <button
-                className="flex-1 px-4 py-2.5 bg-zinc-100 text-zinc-700 rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-zinc-200 transition-colors cursor-pointer"
-                onClick={() => setShowConfirmModal(false)}
-              >
-                Cancel
-              </button>
-              <button
-                className="flex-1 px-4 py-2.5 bg-zinc-900 text-white rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-black transition-colors cursor-pointer"
-                onClick={confirmAction === 'save' ? executeSaveUser : executeToggleStatus}
-              >
-                Proceed
-              </button>
-            </div>
+          <div className="bg-white rounded-2xl p-6 md:p-8 w-full max-w-md shadow-2xl animate-[slideUp_0.3s_ease-out]">
+            {confirmAction === 'status' && statusTarget?.isOnline && statusTarget?.currentStatus === 'ACTIVE' ? (
+              <div>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+                    <svg className="w-6 h-6 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="m-0 text-lg font-black text-zinc-900">Account is Currently Online</h3>
+                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 mt-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                      Active Session Detected
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-3.5 bg-amber-50/80 border border-amber-200 rounded-xl text-xs text-amber-950 font-medium leading-relaxed mb-6">
+                  <strong>Warning:</strong> User <span className="font-bold underline">{statusTarget.user?.name}</span> (@{statusTarget.user?.username}) is currently logged in and actively working. Archiving this account will terminate their active session and <strong>immediately force them to log out</strong>.
+                </div>
+
+                <div className="flex gap-3 w-full">
+                  <button
+                    type="button"
+                    className="flex-1 px-4 py-2.5 bg-zinc-100 text-zinc-700 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-zinc-200 transition-colors cursor-pointer"
+                    onClick={() => {
+                      setShowConfirmModal(false);
+                      setCountdown(0);
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={countdown > 0}
+                    className="flex-1 px-4 py-2.5 bg-rose-600 text-white rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer shadow-sm"
+                    onClick={executeToggleStatus}
+                  >
+                    {countdown > 0 ? `Archive & Terminate (${countdown}s)` : 'Confirm Archive & Force Logout'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <h3 className="m-0 text-xl font-bold text-zinc-900 mb-2">Confirm action</h3>
+                <p className="m-0 text-sm text-zinc-500 mb-8">
+                  {confirmAction === 'save'
+                    ? `${editingUserId ? 'Save changes to this' : 'Create this'} account?`
+                    : `${statusTarget?.currentStatus === 'ACTIVE' ? 'Archive and deactivate' : 'Restore'} this account?`}
+                </p>
+                <div className="flex gap-3 w-full">
+                  <button
+                    type="button"
+                    className="flex-1 px-4 py-2.5 bg-zinc-100 text-zinc-700 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-zinc-200 transition-colors cursor-pointer"
+                    onClick={() => setShowConfirmModal(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="flex-1 px-4 py-2.5 bg-zinc-900 text-white rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-black transition-colors cursor-pointer"
+                    onClick={confirmAction === 'save' ? executeSaveUser : executeToggleStatus}
+                  >
+                    Proceed
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

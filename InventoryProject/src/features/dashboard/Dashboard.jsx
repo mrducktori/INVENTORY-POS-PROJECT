@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../../config/supabaseClient';
+import { clearUserSession } from '../../utils/authUtils';
 
 import Navbar from '../../components/Navbar';
 import DashboardOverview from './DashboardOverview';
@@ -54,6 +56,54 @@ const Dashboard = () => {
   };
 
   const [activeTab, setActiveTab] = useState(getDefaultTab);
+
+  // Monitor account active status and session validity in real time
+  useEffect(() => {
+    if (!user?.id) return;
+
+    // 1. Supabase Realtime channel listener for this specific user
+    const channel = supabase
+      .channel(`user_status_monitor_${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'users',
+          filter: `id=eq.${user.id}`
+        },
+        (payload) => {
+          const updated = payload.new;
+          if (updated && (updated.status === 'INACTIVE' || updated.current_session_id === null)) {
+            clearUserSession('deactivated');
+            window.location.href = '/coftealoginpageforstaff';
+          }
+        }
+      )
+      .subscribe();
+
+    // 2. Periodic heartbeat fallback check (every 10 seconds)
+    const interval = setInterval(async () => {
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('status, current_session_id')
+          .eq('id', user.id)
+          .single();
+        if (!error && data && (data.status === 'INACTIVE' || data.current_session_id === null)) {
+          clearUserSession('deactivated');
+          window.location.href = '/coftealoginpageforstaff';
+        }
+      } catch {
+        // ignore transient network errors
+      }
+    }, 10000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
+  }, [user?.id]);
 
   const isAuthorized = (tab) => canAccess(user, tab);
 

@@ -70,6 +70,18 @@ function LoginPage() {
               ← Back to Home
             </button>
             
+            <div className="flex items-center gap-3.5 mb-6 pb-6 border-b border-zinc-800/80">
+              <img 
+                src="/favicon.svg" 
+                alt="CofTea Logo" 
+                className="w-11 h-11 rounded-xl object-contain bg-white p-1 border border-white/20 shrink-0 shadow-md" 
+              />
+              <div>
+                <div className="text-[11px] text-zinc-400 font-bold uppercase tracking-widest">COF/TEA CAFE</div>
+                <div className="text-xs text-amber-300 font-bold tracking-wide">Staff &amp; Admin Console</div>
+              </div>
+            </div>
+
             <div className="mb-8">
               <div className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-2">Secure Access</div>
               <h2 className="text-2xl font-bold m-0 mb-1">Welcome back</h2>

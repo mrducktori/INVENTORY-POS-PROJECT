@@ -98,10 +98,22 @@ const UsersTable = ({ users, loading, currentUser, onEdit, onToggleStatus }) => 
                     </td>
                     <td className="px-5 py-3.5 text-sm text-zinc-600">{accessSummary(u)}</td>
                     <td className="px-5 py-3.5">
-                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-700">
-                        <span className={`w-1.5 h-1.5 rounded-full ${active ? 'bg-emerald-500' : 'bg-zinc-300'}`} />
-                        {active ? 'Active' : 'Inactive'}
-                      </span>
+                      <div className="flex flex-col gap-1 items-start">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-700">
+                          <span className={`w-1.5 h-1.5 rounded-full ${active ? 'bg-emerald-500' : 'bg-zinc-300'}`} />
+                          {active ? 'Active' : 'Archived'}
+                        </span>
+                        {active && (
+                          <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${
+                            Boolean(u.current_session_id)
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                              : 'bg-zinc-100 text-zinc-400 border-zinc-200'
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${Boolean(u.current_session_id) ? 'bg-emerald-500' : 'bg-zinc-400'}`} />
+                            {Boolean(u.current_session_id) ? 'Online' : 'Offline'}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-5 py-3.5 text-right">
                       {protectedOwner ? (
@@ -123,7 +135,7 @@ const UsersTable = ({ users, loading, currentUser, onEdit, onToggleStatus }) => 
                                 active ? 'bg-white text-red-600 border-red-200 hover:bg-red-50' : 'bg-zinc-900 text-white border-zinc-900 hover:bg-black'
                               }`}
                             >
-                              {active ? 'Deactivate' : 'Activate'}
+                              {active ? 'Archive' : 'Restore'}
                             </button>
                           )}
                         </div>

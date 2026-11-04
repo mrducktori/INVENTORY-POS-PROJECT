@@ -2,6 +2,57 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Docs: Namecheap Custom Domain Setup for Vercel - 2026-11-04]
+- Added **Part 4** to `DEPLOYMENT_GUIDE_VERCEL_RENDER.md`: connecting a Namecheap domain to Vercel (A/CNAME records or Vercel nameservers), SSL verification, updating Render `CLIENT_URL` for CORS, and an optional `api.` subdomain for the Render backend.
+
+## [UI & Animation: Seamless Menu Transitions, Translucent Glass Aesthetics, and Taller Proportions - 2026-11-04]
+- **Scrollable Lightbox & Mobile Viewport Protection (LandingPage.jsx)**:
+  - Added `overflow-y-auto` and momentum touch scrolling (`-webkit-overflow-scrolling: touch`) to `PromoLightbox` so mobile users can freely scroll if screen height is constrained.
+  - Sized mobile image height down to `max-h-[50vh]` (while keeping desktop at `max-h-[76vh]`), ensuring the poster image, title, description, and navigation buttons fit comfortably on screen above the mobile browser URL bar.
+  - Added `mb-6` safe-area padding at the bottom of the footer caption to keep Previous/Next buttons and indicator dots completely unobstructed and clickable.
+- **Fixed Lightbox Coordinate Trap on PC via Portal (LandingPage.jsx)**:
+  - Fixed an issue where CSS transitions and `transform` on the landing page layout established a local coordinate containing block, squishing the `position: fixed` Lightbox into a tiny cropped box on desktop screens.
+  - Ported `PromoLightbox` directly to `document.body` using React `createPortal`.
+  - On PC and laptops, the modal now correctly spans 100% of the entire viewport with full-bleed backdrop blur (`z-[9999]`), displaying the vertical poster at full resolution and uncropped, with desktop navigation arrows stationed in the spacious margins.
+- **Seamless Menu Opening / Closing (LandingPage.jsx)**:
+  - Replaced instant conditional DOM mounting with a smooth 500ms ease-out crossfade and scale-in transition (`opacity-0 scale-[0.97] -translate-y-4` to `opacity-100 scale-100 translate-y-0`).
+  - Menu Board and Side-by-Side Overview now smoothly glide between states with zero jarring layout pops or flashes.
+- **Translucent Glass Cards (No Pure Black Slabs)**:
+  - Replaced opaque solid black backgrounds (`bg-zinc-950/80`) with translucent frosted glass (`bg-black/45 backdrop-blur-xl border border-white/20 shadow-2xl`), allowing the warm cafe ambient lighting to softly shine through.
+  - Refined location pill with semi-transparent frosted styling and elevated the Open Menu button with smooth hover states.
+- **Calibrated Height & Proportions**:
+  - Scaled back the card height from 500px down to a balanced `min-h-[340px] sm:min-h-[370px] lg:min-h-[380px]` with refined `p-6 sm:p-7` padding.
+  - Restored promo image aspect ratio (`aspect-[16/10] max-h-[380px]`) so the side-by-side layout comfortably fits within standard viewport heights without pushing page headers or footers.
+
+## [Mobile UX: Responsive Carousel & Lightbox Controls - 2026-11-04]
+- **Landing Page & Lightbox Navigation (LandingPage.jsx)**:
+  - **Repositioned Mobile Navigation**: Removed vertically centered side navigation arrows (top-1/2) on mobile viewports where they were obstructing promotional poster graphics, text, and price badges ("P40 only!", "P55 only!").
+  - **Integrated Mobile Control Pill**: In PromoShowcase, embedded the Previous (‹) and Next (›) buttons alongside the indicator dots into a floating frosted glass control bar at the bottom center of the card.
+  - **Lightbox Modal Footer Docking**: In PromoLightbox, moved mobile navigation controls into the footer bar flanking the promo title and description, leaving the expanded photo 100% clean and unobstructed.
+  - **Touch Swipe Gestures**: Added smooth touch swipe support (onTouchStart, onTouchMove, onTouchEnd) to both the landing page carousel and the fullscreen modal, allowing mobile users to swipe left and right to switch promotions.
+  - **Rule 16 Compliance**: Replaced legacy unicode star in the lightbox header badge with clean textual counter typography.
+
+## [UI & Security: Landing Page Side-by-Side Layout, Subtle Interactions, and Active User Archiving Protection - 2026-11-04]
+- **Landing Page Layout Redesign (LandingPage.jsx)**:
+  - Replaced isolated vertical stacking with a clean, executive side-by-side 2-column layout.
+  - Left column: welcome header, branch pill, cafe story, location link, and embedded Open Menu Board trigger.
+  - Right column: prominent featured promo carousel showcasing seasonal specials.
+  - Toned down hover interactions: removed exaggerated rubber-band transforms, scale jumps (scale-105, scale-110), and bouncy AI template animations in favor of subtle border and opacity transitions.
+- **Real-Time Active User Termination & 5s Archiving Warning (UsersTable.jsx, AccountManager.jsx, users.js, Dashboard.jsx, client.js)**:
+  - **Online Status Tracking**: UsersTable.jsx now displays real-time Online / Offline badges for active accounts based on current_session_id.
+  - **5-Second Countdown Warning Modal**: When an administrator attempts to archive/deactivate an account that is currently online, a dedicated warning modal alerts them that the user is actively working. The confirm button requires a 5-second countdown timer before enabling (Archive & Terminate (5s)... -> Confirm Archive & Force Logout).
+  - **Immediate Force Logout**: Archiving sets status = 'INACTIVE' and invalidates current_session_id = null. Active sessions are terminated in real-time via Supabase realtime channel updates and heartbeat checks in Dashboard.jsx, immediately redirecting the archived user to the login screen with an alert banner.
+
+## [Branding: CofTea Cafe Official Favicon & Localhost Logo Integration - 2026-11-04]
+- **Favicon Upgrade (public/favicon.svg, public/favicon.png, index.html)**:
+  - Replaced the default Vite purple lightning bolt favicon with the official circular **CofTea Cafe (Elwood Branch)** logo mark.
+  - Formatted as an SVG with circular clipping and subtle border boundary so it pops crisp and clearly on both light and dark browser tabs.
+  - Added alternate PNG and apple-touch-icon links in index.html.
+- **UI Logo Enhancements (Navbar.jsx, LandingPage.jsx, LoginPage.jsx)**:
+  - Updated sidebar header in Navbar.jsx to use /favicon.svg as an immediate, clean fallback instead of a generic initial.
+  - Added logo branding header badge to LoginPage.jsx.
+  - Added seamless fallback on LandingPage.jsx to ensure the brand logo always displays immediately on localhost even before CMS assets finish loading.
+
 ## [Search & Filtering: Deep Multi-Field Search Across Receipt Journal, Audit/Transaction Logs, Sales Summary, and Purchase Orders - 2026-10-30]
 - **Receipt Journal (`SalesReceiptJournal.jsx`, `server/routes/sales.js`, `src/api/salesApi.js`)**:
   - Added debounced multi-field search bar matching Receipt Number (`#0012`), Transaction ID, Cashier/Operator Name, Sold Product Names inside nested `sale_items`, Add-on names, Payment Reference numbers, and Total Amount.

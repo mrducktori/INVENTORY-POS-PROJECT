@@ -228,17 +228,11 @@ const Navbar = ({ activeTab, onTabChange }) => {
       <div className="p-4 border-b border-zinc-800 bg-black">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2.5 overflow-hidden">
-            {brandInfo.logo ? (
-              <img 
-                src={brandInfo.logo} 
-                alt="Logo" 
-                className="w-8 h-8 rounded-lg object-contain bg-white/10 p-0.5 border border-white/10 shrink-0" 
-              />
-            ) : (
-              <div className="w-8 h-8 rounded-lg bg-white text-zinc-900 flex items-center justify-center font-extrabold text-sm shrink-0">
-                C
-              </div>
-            )}
+            <img 
+              src={brandInfo.logo || "/favicon.svg"} 
+              alt="Logo" 
+              className="w-8 h-8 rounded-lg object-contain bg-white p-0.5 border border-white/20 shrink-0 shadow-xs" 
+            />
             <span className="text-sm font-extrabold text-white tracking-wide truncate">
               {brandInfo.name}
             </span>

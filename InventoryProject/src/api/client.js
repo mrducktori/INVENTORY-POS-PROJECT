@@ -88,8 +88,8 @@ export async function apiCall(endpoint, options = {}) {
 
     if (!response.ok) {
       // If the server says our session is invalid, force a logout and redirect
-      if (response.status === 401 && window.location.pathname !== "/coftealoginpageforstaff") {
-        const reason = data.code === "SESSION_REPLACED" ? "replaced" : "expired";
+      if ((response.status === 401 || (response.status === 403 && data.code === "ACCOUNT_DEACTIVATED")) && window.location.pathname !== "/coftealoginpageforstaff") {
+        const reason = data.code === "ACCOUNT_DEACTIVATED" ? "deactivated" : (data.code === "SESSION_REPLACED" ? "replaced" : "expired");
         clearUserSession(reason);
         window.location.href = "/coftealoginpageforstaff";
       }

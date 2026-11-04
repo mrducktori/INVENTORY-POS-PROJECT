@@ -15,7 +15,7 @@ router.get('/', requireAuth, async (req, res) => {
   try {
     let query = supabase
       .from('users')
-      .select('id, name, username, role, status, created_at, supplier_id, permissions, custom_role_name')
+      .select('id, name, username, role, status, created_at, supplier_id, permissions, custom_role_name, current_session_id')
       .order('created_at', { ascending: false });
 
     if (req.query.role) query = query.eq('role', req.query.role);
@@ -126,11 +126,16 @@ router.put('/:id/status', requireAuth, requireRole('Admin', 'Owner'), async (req
       }
     }
 
+    const updatePayload = { status };
+    if (status === 'INACTIVE') {
+      updatePayload.current_session_id = null;
+    }
+
     const { data, error } = await supabase
       .from('users')
-      .update({ status })
+      .update(updatePayload)
       .eq('id', req.params.id)
-      .select('id, name, username, role, status')
+      .select('id, name, username, role, status, current_session_id')
       .single();
     if (error) throw error;
 

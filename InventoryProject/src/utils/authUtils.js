@@ -59,6 +59,14 @@ export const clearUserSession = (reason = null) => {
           message: "This account was signed in on another device or window. Only one active session is allowed at a time."
         })
       );
+    } else if (reason === "deactivated") {
+      sessionStorage.setItem(
+        EXPIRED_MSG_KEY,
+        JSON.stringify({
+          title: "Account Archived",
+          message: "Your account has been archived by an administrator. Active session terminated."
+        })
+      );
     }
   } catch {
     // Ignore storage errors
