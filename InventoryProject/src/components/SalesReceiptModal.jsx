@@ -26,8 +26,8 @@ const SalesReceiptModal = ({ saleId, onClose }) => {
   if (!saleId) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-[modalBackdropFadeIn_0.2s_ease-out]" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)]" onClick={e => e.stopPropagation()}>
         <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
           <h2 className="text-lg md:text-xl font-black text-gray-900 uppercase tracking-wider m-0">Official Receipt</h2>
           <button className="text-gray-400 hover:text-gray-900 transition-colors cursor-pointer text-2xl leading-none" onClick={onClose}>×</button>
@@ -35,7 +35,16 @@ const SalesReceiptModal = ({ saleId, onClose }) => {
         
         <div className="p-6 md:p-8 overflow-y-auto bg-white text-gray-800">
           {loading ? (
-            <p className="text-gray-500 text-center py-6 text-base font-medium">Loading receipt details...</p>
+            <div className="space-y-4 py-4 animate-pulse">
+              <div className="h-6 bg-gray-200 rounded w-1/2 mx-auto"></div>
+              <div className="h-4 bg-gray-100 rounded w-1/3 mx-auto"></div>
+              <div className="border-t-2 border-b-2 border-dashed border-gray-200 py-4 my-6 space-y-3">
+                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+                <div className="h-4 bg-gray-200 rounded w-4/5"></div>
+              </div>
+              <div className="h-5 bg-gray-200 rounded w-1/3 ml-auto"></div>
+            </div>
           ) : receipt ? (
             <div className="text-base md:text-lg">
               {/* --- HEADER ZONE --- */}

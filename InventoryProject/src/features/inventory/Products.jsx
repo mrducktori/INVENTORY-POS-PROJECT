@@ -504,11 +504,11 @@ const Products = () => {
       {/* Recipe Modal */}
       {selectedProduct && (
         <div 
-          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" 
+          className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-[modalBackdropFadeIn_0.2s_ease-out]" 
           onMouseDown={(e) => { if (e.target === e.currentTarget) setSelectedProduct(null); }}
         >
           <div 
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col animate-[popIn_0.2s_ease-out]"
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)]"
             onClick={e => e.stopPropagation()}
           >
             {/* Modal Header */}
@@ -542,9 +542,8 @@ const Products = () => {
             {/* Modal Body */}
             <div className="p-0 overflow-y-auto max-h-[60vh]">
               {recipeLoading ? (
-                <div className="py-12 flex flex-col items-center justify-center gap-2">
-                  <div className="w-7 h-7 border-2 border-zinc-300 border-t-zinc-900 rounded-full animate-spin" />
-                  <span className="text-sm text-zinc-500 font-semibold">Loading recipe items...</span>
+                <div className="p-6">
+                  <TableSkeleton rows={4} cols={3} />
                 </div>
               ) : (
                 <table className="w-full text-left border-collapse">

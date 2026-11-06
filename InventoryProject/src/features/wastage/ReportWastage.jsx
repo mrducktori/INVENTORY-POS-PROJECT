@@ -3,6 +3,7 @@ import { getIngredients } from '../../api/inventoryApi';
 import { reportWastage, getWastageHistory } from '../../api/wastageApi';
 import { formatQuantity } from '../../utils/productUtils';
 import { getCurrentUser } from '../../api/authApi';
+import { TableSkeleton } from '../../components/shared/SkeletonLoader';
 
 const REASON_COLORS = {
   'Expiry': 'bg-amber-50 text-amber-800 border-amber-200/80',
@@ -355,9 +356,8 @@ const ReportWastage = () => {
           {/* Table Container */}
           <div className="w-full">
             {loading ? (
-              <div className="py-16 flex flex-col items-center justify-center gap-3">
-                <div className="w-8 h-8 border-3 border-zinc-300 border-t-zinc-900 rounded-full animate-spin" />
-                <span className="text-sm font-medium text-zinc-500">Loading history records...</span>
+              <div className="py-4">
+                <TableSkeleton rows={6} cols={6} />
               </div>
             ) : filteredHistory.length > 0 ? (
               <div className="overflow-x-auto rounded-xl border border-zinc-200">

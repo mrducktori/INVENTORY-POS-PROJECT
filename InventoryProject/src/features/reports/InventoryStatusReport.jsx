@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { getInventoryStatusReport } from '../../api/reportsApi';
 
 import { downloadCSV, printReport } from './reportUtils';
+import { TableSkeleton, StatCardsSkeleton } from '../../components/shared/SkeletonLoader';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const getStatus = (qty, alert) => {
@@ -233,9 +234,9 @@ const InventoryStatusReport = () => {
       )}
 
       {loading && (
-        <div className="p-12 flex flex-col items-center justify-center text-gray-500 bg-white border border-gray-200 rounded-xl h-64 animate-pulse">
-          <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-900 rounded-full animate-spin mb-4"></div>
-          <p className="m-0 font-medium">Scanning inventory...</p>
+        <div className="flex flex-col gap-6">
+          <StatCardsSkeleton count={4} />
+          <TableSkeleton rows={8} cols={5} />
         </div>
       )}
 

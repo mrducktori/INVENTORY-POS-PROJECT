@@ -158,8 +158,8 @@ const POS = () => {
       </div>
       {/* Options Modal */}
       {showOptions && selectedProduct && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) closeOptions(); }}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-[popIn_0.2s_ease-out]" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-[modalBackdropFadeIn_0.2s_ease-out]" onMouseDown={(e) => { if (e.target === e.currentTarget) closeOptions(); }}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)]" onClick={e => e.stopPropagation()}>
             <div className="bg-gray-900 text-white px-6 py-4 flex justify-between items-center">
               <h3 className="m-0 text-lg md:text-xl font-bold tracking-wide">{editingCartItemId ? 'Edit:' : 'Customize:'} {selectedProduct.name}</h3>
               <button className="text-gray-400 hover:text-white transition-colors bg-transparent border-none text-2xl leading-none cursor-pointer p-0" onClick={closeOptions}>✕</button>
@@ -293,15 +293,19 @@ const POS = () => {
         const isUnavailable = recipeProduct.is_available === false || isDirectOut;
         
         return (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) setRecipeProduct(null); }}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-[popIn_0.2s_ease-out]" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-[modalBackdropFadeIn_0.2s_ease-out]" onMouseDown={(e) => { if (e.target === e.currentTarget) setRecipeProduct(null); }}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)]" onClick={e => e.stopPropagation()}>
             <div className="bg-gray-900 text-white px-6 py-4 flex justify-between items-center">
               <h3 className="m-0 text-lg md:text-xl font-bold tracking-wide">Ingredients: {recipeProduct.name}</h3>
               <button className="text-gray-400 hover:text-white transition-colors bg-transparent border-none text-2xl leading-none cursor-pointer p-0" onClick={() => setRecipeProduct(null)}>✕</button>
             </div>
             <div className="p-6">
               {recipeLoading ? (
-                <div className="text-gray-500 italic text-center py-6 text-base">Loading recipe details...</div>
+                <div className="py-4 space-y-3 animate-pulse">
+                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                  <div className="h-4 bg-gray-100 rounded w-1/2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+                </div>
               ) : currentRecipe.length > 0 ? (
                 <div className="text-left">
                   <p className="mb-4 text-base md:text-lg text-gray-700 leading-relaxed font-semibold">

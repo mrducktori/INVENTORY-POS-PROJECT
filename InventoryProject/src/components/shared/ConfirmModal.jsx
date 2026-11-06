@@ -45,11 +45,11 @@ const ConfirmModal = ({
 
   return (
     <div 
-      className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4 animate-[fadeIn_0.2s_ease-out]"
+      className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-[100] p-4 animate-[modalBackdropFadeIn_0.2s_ease-out]"
       onClick={handleCancelClick}
     >
       <div 
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-[popIn_0.2s_ease-out]" 
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)]" 
         onClick={e => e.stopPropagation()}
       >
         <div className="p-6 md:p-8 text-center">

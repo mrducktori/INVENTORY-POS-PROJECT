@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getDemandForecast, getIngredientDepletionForecast, getAIForecast } from '../../api/analyticsApi';
 import { getSuppliers, createPurchaseOrder } from '../../api/purchasingApi';
+import { TableSkeleton } from '../../components/shared/SkeletonLoader';
 
 const DemandForecasting = () => {
   const [activeTab, setActiveTab] = useState('ingredients'); // 'ingredients' | 'products'
@@ -623,10 +624,8 @@ const DemandForecasting = () => {
           <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden">
             <div className="p-0">
               {loadingIngredients ? (
-                <div className="p-16 flex flex-col items-center justify-center text-gray-500 bg-white">
-                  <div className="w-9 h-9 border-4 border-gray-200 border-t-black rounded-full animate-spin mb-4"></div>
-                  <p className="m-0 font-bold text-gray-800">Calculating raw material burn rates from 30-day sales recipes...</p>
-                  <p className="m-0 text-xs text-gray-400 mt-1">Cross-referencing POS transactions with bill of materials</p>
+                <div className="p-6">
+                  <TableSkeleton rows={8} cols={7} />
                 </div>
               ) : filteredIngredients.length === 0 ? (
                 <div className="p-12 text-center text-gray-500 bg-white">
@@ -835,9 +834,8 @@ const DemandForecasting = () => {
             </div>
             <div className="p-0">
               {loadingProducts ? (
-                <div className="p-16 flex flex-col items-center justify-center text-gray-500 bg-white">
-                  <div className="w-9 h-9 border-4 border-gray-200 border-t-gray-900 rounded-full animate-spin mb-4"></div>
-                  <p className="m-0 font-bold text-gray-800 text-base">Calculating demand projections from sales history...</p>
+                <div className="p-6">
+                  <TableSkeleton rows={8} cols={6} />
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -919,8 +917,8 @@ const DemandForecasting = () => {
 
       {/* ONE-CLICK PURCHASE ORDER MODAL */}
       {poModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-[modalBackdropFadeIn_0.2s_ease-out]" onMouseDown={(e) => { if (e.target === e.currentTarget) setPoModalOpen(false); }}>
+          <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh] animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)]" onClick={e => e.stopPropagation()}>
             {/* Modal Header */}
             <div className="px-6 py-4 bg-gray-900 text-white flex items-center justify-between">
               <div>
@@ -1102,8 +1100,8 @@ const DemandForecasting = () => {
 
       {/* AI MONTHLY STOCK FORECAST MODAL */}
       {aiModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white rounded-2xl shadow-xl border border-zinc-200 w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-[modalBackdropFadeIn_0.2s_ease-out]" onMouseDown={(e) => { if (e.target === e.currentTarget) setAiModalOpen(false); }}>
+          <div className="bg-white rounded-2xl shadow-xl border border-zinc-200 w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh] animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)]" onClick={e => e.stopPropagation()}>
             {/* Header */}
             <div className="px-6 py-4 bg-zinc-950 text-white flex items-center justify-between border-b border-zinc-800">
               <div className="flex items-center gap-3">
@@ -1181,9 +1179,13 @@ const DemandForecasting = () => {
             {/* Content Area */}
             <div className="p-5 overflow-y-auto flex-1 space-y-4">
               {aiLoading ? (
-                <div className="py-14 flex flex-col items-center justify-center text-center">
-                  <div className="w-8 h-8 border-3 border-zinc-200 border-t-zinc-900 rounded-full animate-spin mb-3"></div>
-                  <p className="text-sm font-bold text-zinc-700 m-0">Generating monthly demand projection...</p>
+                <div className="p-4 space-y-4 animate-pulse">
+                  <div className="h-6 bg-zinc-200 rounded w-1/3"></div>
+                  <div className="h-10 bg-zinc-100 rounded"></div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="h-16 bg-zinc-100 rounded"></div>
+                    <div className="h-16 bg-zinc-100 rounded"></div>
+                  </div>
                 </div>
               ) : aiResult ? (
                 <>

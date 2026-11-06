@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { getWastageReport, getWastageStats } from '../../api/reportsApi';
 import { downloadCSV, printReport } from './reportUtils';
+import { TableSkeleton, StatCardsSkeleton } from '../../components/shared/SkeletonLoader';
 
 // ─── Reason badge colors ──────────────────────────────────────────────────────
 const reasonBadgeStyle = (reason) => {
@@ -242,13 +243,12 @@ const WastageReport = () => {
 
       {loading && (
         <div className="p-12 flex flex-col items-center justify-center text-gray-500 bg-white border border-gray-200 rounded-xl h-64 animate-pulse">
-          <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-900 rounded-full animate-spin mb-4"></div>
-          <p className="m-0 font-medium">Loading wastage records...</p>
+      {loading && (
+        <div className="flex flex-col gap-6">
+          <StatCardsSkeleton count={4} />
+          <TableSkeleton rows={8} cols={6} />
         </div>
       )}
-
-      {fetched && !loading && (
-        <div className="flex flex-col gap-6 animate-[fadeIn_0.3s_ease-out]">
           {/* KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-t-4 border-t-gray-900">
