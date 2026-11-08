@@ -46,14 +46,41 @@ export const updateSupplier = async (req, res) => {
 };
 
 // === Purchase Orders ===
+export const archiveSupplier = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await purchasingService.archiveSupplier(id);
+    await logAudit('SUPPLIER_ARCHIVED', req.user?.id || null, {
+      supplier_id: id
+    });
+    res.json({ success: true, message: "Supplier archived successfully." });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const restoreSupplier = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await purchasingService.restoreSupplier(id);
+    await logAudit('SUPPLIER_RESTORED', req.user?.id || null, {
+      supplier_id: id
+    });
+    res.json({ success: true, message: "Supplier restored successfully." });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 export const deleteSupplier = async (req, res) => {
   try {
     const { id } = req.params;
-    await purchasingService.deleteSupplier(id);
-    await logAudit('SUPPLIER_DELETED', req.user?.id || null, {
-      supplier_id: id
+    await purchasingService.archiveSupplier(id);
+    await logAudit('SUPPLIER_ARCHIVED', req.user?.id || null, {
+      supplier_id: id,
+      source: 'delete_action'
     });
-    res.json({ success: true });
+    res.json({ success: true, message: "Supplier archived successfully." });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

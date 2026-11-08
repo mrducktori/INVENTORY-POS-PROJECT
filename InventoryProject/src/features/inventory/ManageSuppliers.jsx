@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getSuppliers, createSupplier, updateSupplier, deleteSupplier } from '../../api/purchasingApi';
+import { getSuppliers, createSupplier, updateSupplier, archiveSupplier, restoreSupplier } from '../../api/purchasingApi';
 import { getIngredients } from '../../api/inventoryApi';
 import ConfirmModal from '../../components/shared/ConfirmModal';
 import SupplierFormModal from './components/SupplierFormModal';
@@ -210,7 +210,7 @@ const ManageSuppliers = () => {
             </div>
 
             <div className="text-xs font-semibold text-zinc-500 tabular-nums">
-              Showing {filteredSuppliers.length} of {suppliers.length} active suppliers
+              Showing {activeSuppliers.length} active suppliers
             </div>
           </div>
 
@@ -218,7 +218,7 @@ const ManageSuppliers = () => {
           <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden shadow-xs">
             {loading ? (
               <div className="p-12 text-center text-sm text-zinc-400">Loading supplier directory...</div>
-            ) : filteredSuppliers.length === 0 ? (
+            ) : activeSuppliers.length === 0 ? (
               <div className="p-12 text-center text-sm text-zinc-400">
                 No suppliers found. Click "Add Supplier" above to register one.
               </div>
@@ -235,7 +235,7 @@ const ManageSuppliers = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-100 text-sm">
-                    {filteredSuppliers.map((supp) => {
+                    {activeSuppliers.map((supp) => {
                       const itemsCount = supp.supplier_ingredients?.length || 0;
                       return (
                         <tr key={supp.id} className="hover:bg-zinc-50/60 transition-colors">

@@ -35,6 +35,8 @@ export const usePOS = () => {
 
   // Payment Modal State
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [completedSaleId, setCompletedSaleId] = useState(null);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [paymentOrder, setPaymentOrder] = useState(null);
 
   const [confirmConfig, setConfirmConfig] = useState({

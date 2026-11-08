@@ -14,9 +14,21 @@ export async function createSupplier(supplierData) {
   });
 }
 
+export async function archiveSupplier(id) {
+  return apiCall(`/purchasing/suppliers/${id}/archive`, {
+    method: "PUT"
+  });
+}
+
+export async function restoreSupplier(id) {
+  return apiCall(`/purchasing/suppliers/${id}/restore`, {
+    method: "PUT"
+  });
+}
+
 export async function deleteSupplier(id) {
-  return apiCall(`/purchasing/suppliers/${id}`, {
-    method: "DELETE"
+  return apiCall(`/purchasing/suppliers/${id}/archive`, {
+    method: "PUT"
   });
 }
 

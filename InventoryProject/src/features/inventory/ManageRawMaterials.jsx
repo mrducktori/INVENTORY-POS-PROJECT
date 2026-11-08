@@ -39,6 +39,10 @@ const ManageRawMaterials = () => {
   const [modifyCurrentPage, setModifyCurrentPage] = useState(1);
   const [modifyItemsPerPage, setModifyItemsPerPage] = useState(12);
 
+  const archivedRawMaterialsList = useMemo(() => {
+    return ingredients.filter(i => i.is_archived);
+  }, [ingredients]);
+
   const filteredList = useMemo(() => {
     return ingredients.filter(i => {
       const matchSearch = i.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -364,6 +368,48 @@ const ManageRawMaterials = () => {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dedicated Archived Raw Materials Section matching Image 2 */}
+      {archivedRawMaterialsList.length > 0 && (
+        <div className="mt-8 mb-6 bg-zinc-950 text-white rounded-2xl p-6 border border-zinc-800 shadow-xl w-full">
+          <div className="flex items-center justify-between pb-4 border-b border-zinc-800 mb-5">
+            <div>
+              <h3 className="text-lg font-bold text-white tracking-tight m-0">Archived Raw Materials</h3>
+              <p className="text-xs text-zinc-400 m-0 mt-0.5">Archived raw materials are hidden from active inventory and purchase orders until restored.</p>
+            </div>
+            <button
+              type="button"
+              onClick={fetchIngredients}
+              className="px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:text-white bg-zinc-900 border border-zinc-700 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer"
+            >
+              Refresh
+            </button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {archivedRawMaterialsList.map(i => (
+              <div key={i.id} className="bg-zinc-900/90 border border-zinc-800/80 rounded-xl p-3 flex items-center justify-between gap-3 shadow-sm hover:border-zinc-700 transition-colors">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center text-xs font-bold text-zinc-400 shrink-0 border border-zinc-700">
+                    {i.unit || 'RM'}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-bold text-zinc-100 truncate">{i.name}</div>
+                    <div className="text-xs text-zinc-400">{i.category || 'General'} • {i.stock_quantity || 0} {i.unit}</div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleArchiveToggle(i.id, true)}
+                  disabled={processingId === i.id}
+                  className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white rounded-lg border border-zinc-700 transition-colors cursor-pointer shrink-0 disabled:opacity-50"
+                >
+                  {processingId === i.id ? 'Restoring...' : 'Restore'}
+                </button>
+              </div>
+            ))}
           </div>
         </div>
       )}

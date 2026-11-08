@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Archiving & POS: Supplier Archiving, Dedicated Archive Sections, Sales Journal Overhaul, & Post-Payment Digital Receipts - 2026-11-08]
+- **Supplier Soft-Delete & Foreign Key Protection**:
+  - Replaced dangerous hard-deletes on `suppliers` table with soft-deleting (`is_archived`), preventing PostgreSQL foreign key violations on `users_supplier_id_fkey` and historical purchase orders.
+  - Created database migration `docs/database/add_is_archived_to_suppliers.sql` with backward-compatible fallback.
+  - Added `PUT /purchasing/suppliers/:id/archive` and `PUT /purchasing/suppliers/:id/restore` endpoints.
+- **Dedicated Archive Tables / Sections (Matching Client Reference Mockup)**:
+  - Added dedicated **Archived Suppliers** section to `ManageSuppliers.jsx` with item counts and one-click Restore.
+  - Added dedicated **Archived Products** section to `ManageProducts.jsx` with image thumbnails, price/category chips, and Restore buttons.
+  - Added dedicated **Archived Raw Materials** section to `ManageRawMaterials.jsx` with unit badges, stock levels, and Restore buttons.
+  - Main directory tables now default to clean, active items only.
+- **Sales Receipt Journal Overhaul**:
+  - Fixed typo in header ("Lastest Sales" → "Sales Receipt Journal").
+  - Fixed item/quantity misalignment by pairing quantities directly with menu items (e.g. `1× Aglio e Olio Pasta`).
+  - Added sticky left-pinned anchor to `Order No.` column for smooth horizontal table scrolling without losing row reference.
+  - Added explicit "Receipt" action button to every row, refined payment method badges, and improved customer name display ("Walk-in Guest" fallback).
+- **Post-Payment POS Digital Receipt**:
+  - Automatically pops up the full digital `SalesReceiptModal` upon completing payment in `POS.jsx` and `usePOS.js`, allowing cashiers to immediately view, verify, and print official customer receipts.
+
 ## [UI/Polish: Elimination of Raw Unicode Triangle/Arrow Glyphs - 2026-11-08]
 - **Unified Chevron & Expandable Row Icons**:
   - Replaced raw `▶` and `▼` characters in expandable table rows (`PurchaseOrders.jsx`, `SupplierPortal.jsx`) that were rendering as Windows blue emoji play buttons with sleek, animated Lucide SVG chevron icons that rotate smoothly on expand.

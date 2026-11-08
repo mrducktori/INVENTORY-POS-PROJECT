@@ -12,7 +12,7 @@ export const useManageProducts = () => {
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ALL'); 
+  const [statusFilter, setStatusFilter] = useState('ACTIVE'); 
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
   const [isProcessing, setIsProcessing] = useState(false);

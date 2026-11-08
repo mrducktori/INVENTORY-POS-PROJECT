@@ -63,6 +63,10 @@ const ManageProducts = () => {
     return <div className="p-6 flex-1 bg-gray-50"><h2 className="text-xl font-bold text-red-600">Access Denied</h2></div>;
   }
 
+  const archivedProductsList = useMemo(() => {
+    return products.filter(p => p.is_archived);
+  }, [products]);
+
   const filteredProductsList = useMemo(() => {
     return products.filter(p => {
       const matchSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -439,6 +443,52 @@ const ManageProducts = () => {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dedicated Archived Products Section matching Image 2 */}
+      {archivedProductsList.length > 0 && (
+        <div className="mt-8 mb-6 bg-zinc-950 text-white rounded-2xl p-6 border border-zinc-800 shadow-xl w-full">
+          <div className="flex items-center justify-between pb-4 border-b border-zinc-800 mb-5">
+            <div>
+              <h3 className="text-lg font-bold text-white tracking-tight m-0">Archived Products</h3>
+              <p className="text-xs text-zinc-400 m-0 mt-0.5">Archived items are hidden from inventory and POS until restored.</p>
+            </div>
+            <button
+              type="button"
+              onClick={fetchProducts}
+              className="px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:text-white bg-zinc-900 border border-zinc-700 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer"
+            >
+              Refresh
+            </button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {archivedProductsList.map(p => (
+              <div key={p.id} className="bg-zinc-900/90 border border-zinc-800/80 rounded-xl p-3 flex items-center justify-between gap-3 shadow-sm hover:border-zinc-700 transition-colors">
+                <div className="flex items-center gap-3 min-w-0">
+                  {p.image_url ? (
+                    <img src={p.image_url} alt={p.name} className="w-12 h-12 object-cover rounded-lg border border-zinc-800 shrink-0" />
+                  ) : (
+                    <div className="w-12 h-12 rounded-lg bg-zinc-800 flex items-center justify-center text-xs font-bold text-zinc-500 shrink-0">
+                      {p.name.substring(0, 2).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <div className="text-sm font-bold text-zinc-100 truncate">{p.name}</div>
+                    <div className="text-xs text-zinc-400">{p.category} • ₱{Number(p.price).toFixed(2)}</div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleArchiveToggle(p.id, true)}
+                  disabled={processingId === p.id}
+                  className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white rounded-lg border border-zinc-700 transition-colors cursor-pointer shrink-0 disabled:opacity-50"
+                >
+                  {processingId === p.id ? 'Restoring...' : 'Restore'}
+                </button>
+              </div>
+            ))}
           </div>
         </div>
       )}

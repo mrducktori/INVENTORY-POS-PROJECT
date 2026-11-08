@@ -458,7 +458,7 @@ const SalesReceiptJournal = () => {
               ) : (
                 <tr>
                   <td
-                    colSpan={AVAILABLE_COLUMNS.length}
+                    colSpan={AVAILABLE_COLUMNS.length + 1}
                     className="py-12 text-center text-zinc-400 bg-zinc-50/50"
                   >
                     No sales records found.

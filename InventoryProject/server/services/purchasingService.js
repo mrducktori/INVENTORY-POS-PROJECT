@@ -55,6 +55,7 @@ export const getSuppliers = async () => {
     });
 
     return data.map(supp => ({
+      is_archived: Boolean(supp.is_archived || (supp.description && supp.description.startsWith('[ARCHIVED]'))),
       ...supp,
       recent_price_updates: updatesBySupplier[supp.id] || null
     }));
@@ -176,11 +177,36 @@ export const updateSupplier = async (id, supplierData) => {
   return data;
 };
 
-export const deleteSupplier = async (id) => {
-  await supabase.from("supplier_ingredients").delete().eq("supplier_id", id);
-  const { error } = await supabase.from("suppliers").delete().eq("id", id);
-  if (error) throw error;
+export const archiveSupplier = async (id) => {
+  let { error } = await supabase.from("suppliers").update({ is_archived: true }).eq("id", id);
+  if (error && (error.message.includes('is_archived') || error.code === '42703')) {
+    const { data: s } = await supabase.from("suppliers").select("description").eq("id", id).single();
+    const currentDesc = s?.description || '';
+    const newDesc = currentDesc.startsWith('[ARCHIVED]') ? currentDesc : `[ARCHIVED] ${currentDesc}`.trim();
+    const fallback = await supabase.from("suppliers").update({ description: newDesc }).eq("id", id);
+    if (fallback.error) throw fallback.error;
+  } else if (error) {
+    throw error;
+  }
   return { success: true };
+};
+
+export const restoreSupplier = async (id) => {
+  let { error } = await supabase.from("suppliers").update({ is_archived: false }).eq("id", id);
+  if (error && (error.message.includes('is_archived') || error.code === '42703')) {
+    const { data: s } = await supabase.from("suppliers").select("description").eq("id", id).single();
+    const currentDesc = s?.description || '';
+    const newDesc = currentDesc.replace(/^\[ARCHIVED\]\s*/, '').trim();
+    const fallback = await supabase.from("suppliers").update({ description: newDesc || null }).eq("id", id);
+    if (fallback.error) throw fallback.error;
+  } else if (error) {
+    throw error;
+  }
+  return { success: true };
+};
+
+export const deleteSupplier = async (id) => {
+  return archiveSupplier(id);
 };
 
 // Helper to enrich PO items with actual multi-receive batch events from audit logs

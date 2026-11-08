@@ -5,6 +5,7 @@ import ProductCard from "./components/ProductCard";
 import Cart from "./components/Cart";
 import OngoingOrders from "./components/OngoingOrders";
 import PaymentModal from "./components/PaymentModal";
+import SalesReceiptModal from "../../components/SalesReceiptModal";
 import ConfirmModal from "../../components/shared/ConfirmModal";
 import { CardGridSkeleton } from "../../components/shared/SkeletonLoader";
 import { usePOS } from "./usePOS";

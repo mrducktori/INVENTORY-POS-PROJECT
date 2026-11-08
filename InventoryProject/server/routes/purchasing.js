@@ -9,6 +9,8 @@ router.get("/suppliers", purchasingController.getSuppliers);
 router.get("/price-updates", requireAuth, purchasingController.getSupplierPriceUpdates);
 router.post("/suppliers", purchasingController.createSupplier);
 router.put("/suppliers/:id", purchasingController.updateSupplier);
+router.put("/suppliers/:id/archive", requireAuth, requireRole("Admin", "Owner"), purchasingController.archiveSupplier);
+router.put("/suppliers/:id/restore", requireAuth, requireRole("Admin", "Owner"), purchasingController.restoreSupplier);
 router.delete("/suppliers/:id", requireAuth, requireRole("Admin", "Owner"), purchasingController.deleteSupplier);
 
 // Purchase Orders
