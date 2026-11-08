@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [UI/Refactor: Sales Receipt Journal Restored Classic Transaction Receipt & Removed Column Filter - 2026-11-08]
+- **Removed Column Visibility Dropdown**: Eliminated `ColumnVisibilityDropdown` and its dropdown menu button from the Latest Sales header toolbar, restoring a clean, distraction-free table view with fixed standard columns.
+- **Restored Classic Transaction Receipt Modal**:
+  - Re-implemented the clean "Transaction Receipt" layout with `COF/TEA CAFE` header, dashed metadata section (Date, Receipt No, Cashier), items breakdown, subtotal/total/change, and brand sign-off.
+  - Portaled the modal directly to `document.body` with top-anchored positioning (`items-start pt-8 sm:pt-12 md:pt-16 pb-12 z-[99999]`), ensuring it never gets pushed to the bottom of the screen or cut off when clicking rows on long scrolling tables.
+
 ## [Build/Optimization: Chunk Splitting & Ineffective Dynamic Imports Cleanup - 2026-11-08]
 - **Eliminated Ineffective Dynamic Import Warnings**:
   - Replaced inline `await import()` statements in `SalesSummaryReport.jsx` (`salesApi`) and `AccountManager.jsx` (`purchasingApi`) with standard top-level static imports, eliminating Rollup/Vite `[INEFFECTIVE_DYNAMIC_IMPORT]` warnings.
