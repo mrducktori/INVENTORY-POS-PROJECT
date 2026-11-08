@@ -53,9 +53,19 @@ const OngoingOrders = ({ orders, onComplete, onCancel, onEdit }) => (
                 ))}
               </div>
 
-              <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
-                <span className="text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider">Total</span>
-                <strong className="text-base font-extrabold text-gray-900">₱{order.total.toFixed(2)}</strong>
+              <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 flex flex-col gap-1">
+                {order.discountAmount > 0 && (
+                  <div className="flex justify-between items-center text-xs font-semibold text-emerald-700">
+                    <span>Discount ({order.discountLabel})</span>
+                    <span>-₱{Number(order.discountAmount).toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center">
+                  <span className="text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider">Total</span>
+                  <strong className="text-base font-extrabold text-gray-900">
+                    ₱{Number(order.finalTotal ?? order.total).toFixed(2)}
+                  </strong>
+                </div>
               </div>
 
               <div className="grid grid-cols-3 divide-x divide-gray-100 border-t border-gray-100">

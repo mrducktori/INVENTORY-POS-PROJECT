@@ -11,6 +11,9 @@ All notable changes to this project will be documented in this file.
   - Updated `DemandForecasting.jsx` with a `Seasonality (4-Yr)` column (`Peak` / `Norm` / `Low`), `30-Day Est.` sub-label, multi-year factors and same-month `2023–2026` historical breakdown in the `By Month` projection modal, and updated documentation in the `How Demand Forecasting Works` modal.
 - **Fixed Clipped Action Column in Materials List (`ManageRawMaterials.jsx`, `useManageRawMaterials.js`)**:
   - Made the `Action` column (`Edit` / `Archive`) sticky on the right edge (`sticky right-0 z-10`) alongside the left-anchored `Material Name` column, and narrowed the left `Add New Raw Material` card (`lg:w-80 xl:w-96 shrink-0`) so the `Materials List` table has full breathing room and action buttons are never cut off.
+- **Added Direct Discount Selector & "Checkout & Pay Now" in POS Cart Panel (`Cart.jsx`, `POS.jsx`, `usePOS.js`, `OngoingOrders.jsx`, `PaymentModal.jsx`)**:
+  - Added the **Discount Type** selector (`No Discount`, `Senior Citizen 20%`, `PWD 20%`, `Student / Promo 10%`, `Employee / Staff 15%`, and `Custom % / ₱`) directly inside the right-hand **Transaction (Cart)** checkout summary panel (`Cart.jsx`), updating `Subtotal`, `Discount`, `VAT`, and `Total Amount Due` live.
+  - Added a **`Checkout & Pay Now`** button in the Cart panel to open the `Complete Payment` modal immediately (pre-filled with the selected discount), alongside **`Hold Order`** (which sends the order and its selected discount to `Ongoing Orders`).
 
 ## [Auth/Security: Inactivity Auto-Logout, Live Activity Tracking, Online Status Sync & Audit Logging - 2026-11-08]
 - **Inactivity Logout Now Clears Online Session & Writes Audit Log (`authUtils.js`, `client.js`, `App.jsx`, `server/routes/auth.js`)**:

@@ -41,6 +41,14 @@ const POS = () => {
     removeFromCart,
     clearCart,
     calculateTotal,
+    discountType,
+    setDiscountType,
+    customDiscountMode,
+    setCustomDiscountMode,
+    customDiscountValue,
+    setCustomDiscountValue,
+    getCartDiscountDetails,
+    handleDirectCheckout,
     handleCompleteSale,
     handleCompleteOrder,
     handleCancelOrder,
@@ -127,26 +135,42 @@ const POS = () => {
             <Cart
               cart={cart}
               total={calculateTotal()}
+              discountType={discountType}
+              onSelectDiscountType={setDiscountType}
+              customDiscountMode={customDiscountMode}
+              onSelectCustomDiscountMode={setCustomDiscountMode}
+              customDiscountValue={customDiscountValue}
+              onChangeCustomDiscountValue={setCustomDiscountValue}
+              discountDetails={getCartDiscountDetails()}
               onUpdateQty={updateQty}
               onRemove={removeFromCart}
               onEdit={openEditOptions}
             />
 
-            <div className="p-4 border-t border-gray-200 bg-gray-50 mt-auto flex flex-col gap-3">
+            <div className="p-4 border-t border-gray-200 bg-gray-50 mt-auto flex flex-col gap-2.5">
               <button
-                className="w-full py-4 rounded-xl text-sm md:text-base font-bold uppercase tracking-wider text-white bg-gray-900 transition-all hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
-                onClick={handleCompleteSale}
+                className="w-full py-3.5 rounded-xl text-sm md:text-base font-bold uppercase tracking-wider text-white bg-gray-900 transition-all hover:bg-black hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                onClick={handleDirectCheckout}
                 disabled={cart.length === 0}
               >
-                Create Order
+                Checkout &amp; Pay Now
               </button>
-              <button
-                className="w-full py-3 rounded-xl text-sm md:text-base font-semibold uppercase tracking-wider text-red-600 bg-red-50 border border-red-200 transition-all hover:bg-red-100 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
-                onClick={clearCart}
-                disabled={cart.length === 0}
-              >
-                Clear Cart
-              </button>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  className="w-full py-2.5 rounded-xl text-xs md:text-sm font-bold uppercase tracking-wider text-gray-800 bg-white border border-gray-300 transition-all hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  onClick={handleCompleteSale}
+                  disabled={cart.length === 0}
+                >
+                  Hold Order
+                </button>
+                <button
+                  className="w-full py-2.5 rounded-xl text-xs md:text-sm font-semibold uppercase tracking-wider text-red-600 bg-red-50 border border-red-200 transition-all hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  onClick={clearCart}
+                  disabled={cart.length === 0}
+                >
+                  Clear Cart
+                </button>
+              </div>
             </div>
           </>
         )}

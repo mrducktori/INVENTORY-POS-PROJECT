@@ -12,9 +12,9 @@ const DISCOUNT_OPTIONS = [
 
 const PaymentModal = ({ order, onConfirm, onClose }) => {
   const [method, setMethod] = useState('CASH');
-  const [discountType, setDiscountType] = useState('NONE');
-  const [customMode, setCustomMode] = useState('PERCENT'); // 'PERCENT' | 'AMOUNT'
-  const [customValue, setCustomValue] = useState('');
+  const [discountType, setDiscountType] = useState(order?.discountType || 'NONE');
+  const [customMode, setCustomMode] = useState(order?.customDiscountMode || 'PERCENT'); // 'PERCENT' | 'AMOUNT'
+  const [customValue, setCustomValue] = useState(order?.customDiscountValue ?? '');
   const [amountReceived, setAmountReceived] = useState('');
   const [reference, setReference] = useState('');
   const [submitting, setSubmitting] = useState(false);

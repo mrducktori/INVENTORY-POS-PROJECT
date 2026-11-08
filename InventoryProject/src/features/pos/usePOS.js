@@ -40,6 +40,11 @@ export const usePOS = () => {
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [paymentOrder, setPaymentOrder] = useState(null);
 
+  // Cart-level Discount Selection State
+  const [discountType, setDiscountType] = useState("NONE");
+  const [customDiscountMode, setCustomDiscountMode] = useState("PERCENT"); // 'PERCENT' | 'AMOUNT'
+  const [customDiscountValue, setCustomDiscountValue] = useState("");
+
   const [confirmConfig, setConfirmConfig] = useState({
     isOpen: false,
     message: '',
@@ -358,26 +363,102 @@ export const usePOS = () => {
   const clearCart = async () => {
     if (await requestConfirm("Are you sure you want to clear the cart?")) {
       setCart([]);
+      setDiscountType("NONE");
+      setCustomDiscountValue("");
     }
   };
 
   const calculateTotal = () =>
     cart.reduce((sum, item) => sum + item.price * item.qty, 0);
 
+  const getCartDiscountDetails = (rawSubtotal = calculateTotal()) => {
+    const subtotal = parseFloat(rawSubtotal) || 0;
+    const rates = {
+      NONE: { label: "No Discount", rate: 0 },
+      SENIOR: { label: "Senior Citizen", rate: 0.20 },
+      PWD: { label: "PWD", rate: 0.20 },
+      STUDENT: { label: "Student / Promo", rate: 0.10 },
+      STAFF: { label: "Employee / Staff", rate: 0.15 },
+    };
+
+    let disc = 0;
+    let label = "";
+
+    if (discountType === "CUSTOM") {
+      const val = Math.max(0, parseFloat(customDiscountValue) || 0);
+      if (customDiscountMode === "PERCENT") {
+        const pct = Math.min(100, val);
+        disc = subtotal * (pct / 100);
+        label = pct > 0 ? `Custom (${pct}%)` : "";
+      } else {
+        disc = Math.min(subtotal, val);
+        label = disc > 0 ? `Custom (-₱${disc.toFixed(2)})` : "";
+      }
+    } else if (rates[discountType]?.rate) {
+      const r = rates[discountType];
+      disc = subtotal * r.rate;
+      label = `${r.label} (${Math.round(r.rate * 100)}%)`;
+    }
+
+    const discountAmount = Math.round(disc * 100) / 100;
+    const finalTotal = Math.max(0, Math.round((subtotal - discountAmount) * 100) / 100);
+
+    return {
+      subtotal,
+      discountType,
+      customDiscountMode,
+      customDiscountValue,
+      discountAmount,
+      discountLabel: label,
+      finalTotal,
+    };
+  };
+
+  const handleDirectCheckout = () => {
+    if (cart.length === 0) return;
+    const details = getCartDiscountDetails();
+    const directOrder = {
+      id: Date.now(),
+      items: [...cart],
+      total: details.subtotal,
+      discountType: details.discountType,
+      customDiscountMode: details.customDiscountMode,
+      customDiscountValue: details.customDiscountValue,
+      discountAmount: details.discountAmount,
+      discountLabel: details.discountLabel,
+      finalTotal: details.finalTotal,
+      staff_id: user.id,
+      timestamp: new Date().toLocaleTimeString(),
+      status: "pending",
+      isDirectCartCheckout: true,
+    };
+    setPaymentOrder(directOrder);
+    setShowPaymentModal(true);
+  };
+
   const handleCompleteSale = async () => {
     if (cart.length === 0) return;
     if (!(await requestConfirm("Are you sure you want to create this order?"))) return;
     try {
+      const details = getCartDiscountDetails();
       const newOrder = {
         id: Date.now(),
         items: [...cart],
-        total: calculateTotal(),
+        total: details.subtotal,
+        discountType: details.discountType,
+        customDiscountMode: details.customDiscountMode,
+        customDiscountValue: details.customDiscountValue,
+        discountAmount: details.discountAmount,
+        discountLabel: details.discountLabel,
+        finalTotal: details.finalTotal,
         staff_id: user.id,
         timestamp: new Date().toLocaleTimeString(),
         status: 'pending'
       };
       setOngoingOrders([...ongoingOrders, newOrder]);
       setCart([]); // Directly empty the cart without asking for confirmation again
+      setDiscountType("NONE");
+      setCustomDiscountValue("");
       setActiveTab('ongoing');
     } catch (err) {
       console.error(err);
@@ -497,7 +578,13 @@ export const usePOS = () => {
       })),
     };
 
-    setOngoingOrders(ongoingOrders.filter(o => o.id !== paymentOrder.id));
+    if (paymentOrder.isDirectCartCheckout) {
+      setCart([]);
+      setDiscountType("NONE");
+      setCustomDiscountValue("");
+    } else {
+      setOngoingOrders(ongoingOrders.filter(o => o.id !== paymentOrder.id));
+    }
     setShowPaymentModal(false);
     setPaymentOrder(null);
     setCompletedSaleId(createdSale.id || null);
@@ -534,6 +621,9 @@ export const usePOS = () => {
       });
       return newCart;
     });
+    if (order.discountType) setDiscountType(order.discountType);
+    if (order.customDiscountMode) setCustomDiscountMode(order.customDiscountMode);
+    if (order.customDiscountValue !== undefined) setCustomDiscountValue(order.customDiscountValue);
     setOngoingOrders(ongoingOrders.filter(o => o.id !== orderId));
     setActiveTab('cart');
   };
@@ -568,6 +658,14 @@ export const usePOS = () => {
     removeFromCart,
     clearCart,
     calculateTotal,
+    discountType,
+    setDiscountType,
+    customDiscountMode,
+    setCustomDiscountMode,
+    customDiscountValue,
+    setCustomDiscountValue,
+    getCartDiscountDetails,
+    handleDirectCheckout,
     handleCompleteSale,
     handleCompleteOrder,
     handleCancelOrder,
