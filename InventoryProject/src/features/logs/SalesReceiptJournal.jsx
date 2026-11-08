@@ -562,8 +562,21 @@ const SalesReceiptJournal = () => {
                 <div className="border-t border-zinc-200 pt-3 space-y-1 text-xs">
                   <div className="flex justify-between text-zinc-600">
                     <span>Subtotal</span>
-                    <span className="font-mono font-semibold">₱{Number(receiptDetails.total_amount).toFixed(2)}</span>
+                    <span className="font-mono font-semibold">
+                      ₱{(Number(receiptDetails.total_amount) + Number(receiptDetails.discount_amount || 0)).toFixed(2)}
+                    </span>
                   </div>
+                  {Number(receiptDetails.discount_amount) > 0 && (
+                    <div className="flex justify-between text-emerald-700 font-semibold">
+                      <span>
+                        Discount
+                        {typeof receiptDetails.notes === 'string' && receiptDetails.notes.startsWith('Discount:')
+                          ? ` (${receiptDetails.notes.replace(/^Discount:\s*/i, '').trim()})`
+                          : ''}
+                      </span>
+                      <span className="font-mono font-bold">-₱{Number(receiptDetails.discount_amount).toFixed(2)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-base font-extrabold text-zinc-900 pt-1 border-t border-zinc-900">
                     <span>Total</span>
                     <span className="font-mono text-lg">₱{Number(receiptDetails.total_amount).toFixed(2)}</span>

@@ -41,7 +41,7 @@ export const createSale = async (req, res) => {
     }
 
     const parsedTotal = parseFloat(total);
-    if (isNaN(parsedTotal) || parsedTotal <= 0 || parsedTotal > 500000) {
+    if (isNaN(parsedTotal) || parsedTotal < 0 || parsedTotal > 500000) {
       return res.status(400).json({ error: "Invalid order total amount." });
     }
 

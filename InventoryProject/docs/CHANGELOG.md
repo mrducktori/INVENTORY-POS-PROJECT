@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [POS/Feature: Discount Type Selector & Post-Checkout Digital Receipt Popup - 2026-11-08]
+- **Added Discount Type Options on POS Checkout (`PaymentModal.jsx`, `usePOS.js`, `posController.js`)**:
+  - Added selectable discount options during checkout: `No Discount (0%)`, `Senior Citizen (20% OFF)`, `PWD (20% OFF)`, `Student / Promo (10% OFF)`, `Employee / Staff (15% OFF)`, and `Custom (% or ₱)`.
+  - Automatically recalculates `Subtotal`, `Discount`, `Total Amount Due`, quick cash preset buttons (`Exact`, `₱100`, `₱200`, `₱500`, `₱1,000`), cash tender validation, and `Change`.
+  - Saves `discount_amount` and discount type notes (`Discount: ...`) with the transaction record.
+- **Added Automatic Digital Receipt Modal After POS Transaction (`POS.jsx`, `usePOS.js`, `SalesReceiptModal.jsx`, `SalesReceiptJournal.jsx`)**:
+  - Immediately pops up the completed **Digital Transaction Receipt** modal once payment is processed (with 0ms delay using the completed sale payload).
+  - Displays branch header, date/time, receipt number, cashier name, itemized drinks (with cup sizes and add-ons), subtotal, discount breakdown, total, payment method, amount tendered, reference number (if GCash), change, and `Print Receipt` / `Done` actions.
+
 ## [UI/Feature: Forecasting Info Icon & "How It Works" Modal - 2026-11-08]
 - **Added "How it works" Info Pill & Guide Modal (`DemandForecasting.jsx`)**:
   - Added a clean `(i) How it works` button next to the `Demand Forecasting` title that opens a concise, plain-language guide modal explaining how `Daily Usage`, `Est. Time Left`, `Suggested Order`, `Sales Trend`, and `Calendar Adjustments` (weekends, paydays, holidays) are calculated.

@@ -33,9 +33,10 @@ export const usePOS = () => {
   const [recipeLoading, setRecipeLoading] = useState(false);
   const [currentRecipe, setCurrentRecipe] = useState([]);
 
-  // Payment Modal State
+  // Payment & Digital Receipt Modal State
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [completedSaleId, setCompletedSaleId] = useState(null);
+  const [completedReceipt, setCompletedReceipt] = useState(null);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [paymentOrder, setPaymentOrder] = useState(null);
 
@@ -441,24 +442,75 @@ export const usePOS = () => {
   const confirmPayment = async (paymentData) => {
     if (!paymentOrder) return;
 
+    const subtotal = parseFloat(paymentOrder.total) || 0;
+    const discountAmount = parseFloat(paymentData.discountAmount) || 0;
+    const finalTotal = paymentData.finalTotal !== undefined
+      ? parseFloat(paymentData.finalTotal)
+      : Math.max(0, subtotal - discountAmount);
+    const discountLabel = paymentData.discountLabel || "";
+
     const saleData = {
       cart: paymentOrder.items,
-      total: paymentOrder.total,
+      total: finalTotal,
+      discount_amount: discountAmount,
       staff_id: user.id,
       payment_method: paymentData.method,
       amount_received: paymentData.amountReceived || 0,
       change_amount: paymentData.change || 0,
       transaction_reference: paymentData.reference || "",
+      notes: discountLabel ? `Discount: ${discountLabel}` : "",
     };
 
     // Let any error bubble up to PaymentModal so it can re-enable the button
-    await createSale(saleData);
+    const res = await createSale(saleData);
+    const createdSale = res?.sale || res || {};
+
+    // Build immediate digital receipt payload so the receipt modal pops up with 0ms delay
+    const immediateReceipt = {
+      id: createdSale.id || `LOCAL-${Date.now()}`,
+      receipt_number: createdSale.receipt_number || `RCP-${Date.now().toString().slice(-6)}`,
+      created_at: createdSale.created_at || new Date().toISOString(),
+      subtotal_amount: subtotal,
+      discount_amount: discountAmount,
+      discount_label: discountLabel,
+      tax_amount: createdSale.tax_amount || 0,
+      total_amount: finalTotal,
+      payment_method: paymentData.method,
+      amount_received: paymentData.amountReceived || finalTotal,
+      change_amount: paymentData.change || 0,
+      transaction_reference: paymentData.reference || "",
+      notes: saleData.notes,
+      users: {
+        name: user?.name || user?.username || "Staff",
+      },
+      sale_items: (paymentOrder.items || []).map((item, idx) => ({
+        id: item.cartItemId || `${item.id}-${idx}`,
+        quantity: item.qty,
+        unit_price: item.price,
+        cup_size: item.cup_size || null,
+        add_ons: item.add_ons || [],
+        products: {
+          id: item.id,
+          name: item.name,
+          category: item.category,
+        },
+      })),
+    };
 
     setOngoingOrders(ongoingOrders.filter(o => o.id !== paymentOrder.id));
     setShowPaymentModal(false);
     setPaymentOrder(null);
+    setCompletedSaleId(createdSale.id || null);
+    setCompletedReceipt(immediateReceipt);
+    setShowReceiptModal(true);
     setSaleComplete(true);
     setTimeout(() => setSaleComplete(false), 3000);
+  };
+
+  const closeReceiptModal = () => {
+    setShowReceiptModal(false);
+    setCompletedSaleId(null);
+    setCompletedReceipt(null);
   };
 
   const handleCancelOrder = async (orderId) => {
@@ -525,6 +577,10 @@ export const usePOS = () => {
     setShowPaymentModal,
     paymentOrder,
     confirmPayment,
+    showReceiptModal,
+    completedSaleId,
+    completedReceipt,
+    closeReceiptModal,
     confirmConfig
   };
 };

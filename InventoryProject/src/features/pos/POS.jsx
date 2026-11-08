@@ -49,6 +49,10 @@ const POS = () => {
     setShowPaymentModal,
     paymentOrder,
     confirmPayment,
+    showReceiptModal,
+    completedSaleId,
+    completedReceipt,
+    closeReceiptModal,
     confirmConfig
   } = usePOS();
 
@@ -355,6 +359,15 @@ const POS = () => {
           order={paymentOrder}
           onConfirm={confirmPayment}
           onClose={() => setShowPaymentModal(false)}
+        />
+      )}
+
+      {/* Digital Receipt Modal after Completed Transaction */}
+      {showReceiptModal && (completedReceipt || completedSaleId) && (
+        <SalesReceiptModal
+          saleId={completedSaleId}
+          initialReceipt={completedReceipt}
+          onClose={closeReceiptModal}
         />
       )}
 
