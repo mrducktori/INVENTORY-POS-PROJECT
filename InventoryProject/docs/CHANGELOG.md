@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [UI/CMS: Refactor Promotions Carousel Manager Layout & Add Slide Reordering / Sorting - 2026-11-09]
+- **Slide Reordering & Sorting Controls (`CMSDashboard.jsx`)**:
+  - Added interactive `Move Up` (↑) and `Move Down` (↓) action buttons on each slide card header to easily reorder promotional slides without having to delete and re-enter them.
+  - Added slide order index badge (`1`, `2`, ...) and a `First Slide (Hero Cover)` badge indicator so owners know which slide serves as the default landing page cover.
+- **Redesigned Slide Card Layout & Poster Preview (`CMSDashboard.jsx`)**:
+  - Replaced cramped horizontal rows inside the half-width grid with generous breathing room and clear visual hierarchy.
+  - Upgraded Poster Image container with a 128×128 rounded-xl preview, hover-to-expand full resolution link, and empty state placeholder with icon.
+  - Full-width URL input field and styled `Upload` button with semantic vector SVG icons, eliminating truncated URLs.
+  - Replaced plain text remove buttons with styled red action buttons with trash can vector icons.
+
+
 ## [UI/Forecasting: Refactor Toolbar Layout to Multi-Tier Structure & Add Interactive Column Sorting - 2026-11-09]
 - **Restructured Toolbars into Clean Multi-Tier Alignment (`DemandForecasting.jsx`)**:
   - **Ingredient Restock Tab**:
