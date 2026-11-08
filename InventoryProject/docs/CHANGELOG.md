@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [UI/Fix: Official Sales Receipt Modal Restored & Centered - 2026-11-08]
+- **Replaced Hand-Rolled Modal with Official Component**: Replaced the duplicate, inlined receipt modal in SalesReceiptJournal.jsx with the official SalesReceiptModal.jsx component.
+- **Resolved Viewport Alignment Clipping**: Integrated React createPortal directly to document.body, ensuring the receipt modal is always dead-center in the viewport window regardless of table scroll position.
+- **Added Print Action**: Included Print Receipt action with vector icon alongside Close button.
+
 ## [UI/Polish: Compacted Log Filter Toolbars - 2026-11-08]
 - **Audit Logs & Transaction Logs Toolbar Compaction**:
   - Replaced the massive, stacked 4-tier filter card (~260px tall) in `AuditLogs.jsx` and `TransactionLogs.jsx` with a streamlined, minimalist single-card bar (~56px tall).
