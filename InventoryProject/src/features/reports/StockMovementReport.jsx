@@ -252,11 +252,12 @@ const StockMovementReport = () => {
   // Filter movements
   const filteredMovements = useMemo(() => {
     return movements.filter(m => {
-      const matchSearch = !search ? true : (
-        m.name.toLowerCase().includes(search.toLowerCase()) || 
-        m.itemType.toLowerCase().includes(search.toLowerCase()) ||
-        m.reason.toLowerCase().includes(search.toLowerCase()) ||
-        m.recordedBy.toLowerCase().includes(search.toLowerCase())
+      const term = (search || '').trim().toLowerCase();
+      const matchSearch = !term ? true : (
+        String(m.name || '').toLowerCase().includes(term) || 
+        String(m.itemType || '').toLowerCase().includes(term) ||
+        String(m.reason || '').toLowerCase().includes(term) ||
+        String(m.recordedBy || '').toLowerCase().includes(term)
       );
       const matchType = movementTypeFilter === 'ALL' ? true : m.movementType === movementTypeFilter;
       return matchSearch && matchType;
@@ -266,9 +267,10 @@ const StockMovementReport = () => {
   // Filter snapshot
   const filteredSnapshot = useMemo(() => {
     return rows.filter(r => {
-      const matchSearch = !search ? true : (
-        r.name.toLowerCase().includes(search.toLowerCase()) || 
-        r.type.toLowerCase().includes(search.toLowerCase())
+      const term = (search || '').trim().toLowerCase();
+      const matchSearch = !term ? true : (
+        String(r.name || '').toLowerCase().includes(term) || 
+        String(r.type || '').toLowerCase().includes(term)
       );
       const matchStatus = stockStatusFilter === 'ALL' ? true : r.statusKey === stockStatusFilter.toLowerCase();
       return matchSearch && matchStatus;
@@ -495,13 +497,28 @@ const StockMovementReport = () => {
 
           {fetched && (
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-              <input
-                type="text"
-                className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm sm:text-base font-medium text-gray-900 placeholder:text-gray-500 bg-white focus:outline-none focus:ring-2 focus:ring-black shadow-sm w-48 sm:w-64"
-                placeholder="Search item, reason, staff..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-              />
+              <div className="relative w-full sm:w-64">
+                <svg className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                </svg>
+                <input
+                  type="text"
+                  className="w-full pl-9 pr-7 py-2 bg-zinc-50/70 border border-zinc-200 rounded-lg text-xs sm:text-sm text-zinc-800 placeholder-zinc-400 focus:outline-none focus:bg-white focus:border-zinc-400 transition-colors"
+                  placeholder="Search item, reason, staff..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => setSearch('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 text-xs cursor-pointer bg-transparent border-none"
+                    aria-label="Clear search"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
 
               {activeView === 'movements' && (
                 <div className="flex items-center gap-1.5 bg-gray-100 p-1 rounded-lg border border-gray-200">

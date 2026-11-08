@@ -59,11 +59,12 @@ const Products = () => {
   const categories = ['ALL', ...new Set(products.map(p => p.category).filter(Boolean))];
   
   const filteredProducts = useMemo(() => {
+    const term = (searchTerm || '').trim().toLowerCase();
     return products.filter(p => {
       const pCat = (p.category || "").toUpperCase();
       const fCat = filter.toUpperCase();
       const matchCat = filter === 'ALL' || pCat === fCat || (fCat === 'PASTRIES' && pCat === 'PASTRY') || (fCat === 'PASTRY' && pCat === 'PASTRIES');
-      const matchSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchSearch = !term || (p.name || '').toLowerCase().includes(term);
       return matchCat && matchSearch && !p.is_archived;
     });
   }, [products, filter, searchTerm]);

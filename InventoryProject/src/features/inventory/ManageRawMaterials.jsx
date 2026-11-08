@@ -45,8 +45,9 @@ const ManageRawMaterials = () => {
   }, [ingredients]);
 
   const filteredList = useMemo(() => {
+    const term = (searchTerm || '').trim().toLowerCase();
     return ingredients.filter(i => {
-      const matchSearch = i.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchSearch = !term || (i.name || '').toLowerCase().includes(term) || (i.category || '').toLowerCase().includes(term);
       const matchStatus = statusFilter === 'ALL' ? true : statusFilter === 'ACTIVE' ? !i.is_archived : i.is_archived;
       const matchCategory = categoryFilter === 'ALL' ? true : i.category === categoryFilter;
       return matchSearch && matchStatus && matchCategory;

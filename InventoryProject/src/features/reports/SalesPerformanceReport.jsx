@@ -1,7 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import {
-  getSalesPerformanceReport
-} from '../../api/reportsApi';
+import { getSalesPerformanceReport } from '../../api/reportsApi';
 import { downloadCSV, printReport } from './reportUtils';
 import { TableSkeleton, StatCardsSkeleton } from '../../components/shared/SkeletonLoader';
 
@@ -10,23 +8,18 @@ const TrendBars = ({ data }) => {
   if (!data || data.length === 0) return null;
   const max = Math.max(...data.map(d => d.value), 1);
   return (
-    <div className="rpt-trend-chart" style={{ display: 'flex', alignItems: 'flex-end', gap: '20px', height: '180px', padding: '40px 20px 20px' }}>
+    <div className="rpt-trend-chart flex items-end gap-5 h-44 px-5 py-4">
       {data.map((d, i) => {
         const height = (d.value / max) * 100;
         return (
-          <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: '0 0 60px', height: '100%', justifyContent: 'flex-end', gap: '8px' }}>
-            <span style={{ fontSize: '10px', fontWeight: 900, fontFamily: 'monospace' }}>₱{d.value.toLocaleString()}</span>
+          <div key={i} className="flex flex-col items-center flex-none w-14 h-full justify-end gap-2">
+            <span className="text-[10px] font-bold font-mono text-zinc-800">₱{d.value.toLocaleString()}</span>
             <div
-              style={{ 
-                width: '30px', 
-                height: `${Math.max(4, height)}%`, 
-                background: '#000', 
-                borderRadius: '2px 2px 0 0',
-                transition: 'height 0.5s ease'
-              }}
+              className="w-7 bg-zinc-900 rounded-t-sm transition-all duration-500"
+              style={{ height: `${Math.max(4, height)}%` }}
               title={`${d.label}: ₱${d.value.toFixed(2)}`}
             />
-            <span style={{ fontSize: '10px', color: '#666', fontWeight: 700, textTransform: 'uppercase', textAlign: 'center', maxWidth: '60px', overflow: 'hidden' }}>{d.label}</span>
+            <span className="text-[10px] text-zinc-500 font-semibold uppercase text-center max-w-[60px] truncate">{d.label}</span>
           </div>
         );
       })}
@@ -36,7 +29,7 @@ const TrendBars = ({ data }) => {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 const SalesPerformanceReport = () => {
-  const [period, setPeriod]   = useState('daily');
+  const [period, setPeriod] = useState('daily');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   const [summary, setSummary] = useState(null);
@@ -44,6 +37,8 @@ const SalesPerformanceReport = () => {
   const [fetched, setFetched] = useState(false);
   const [sortKey, setSortKey] = useState('total_sales');
   const [sortDir, setSortDir] = useState('desc');
+  const [staffSearch, setStaffSearch] = useState('');
+  const [productSearch, setProductSearch] = useState('');
 
   const fetchReport = useCallback(async () => {
     setLoading(true);
@@ -60,38 +55,57 @@ const SalesPerformanceReport = () => {
 
   const sortedStaff = useMemo(() => {
     if (!summary?.staff_data) return [];
-    return [...summary.staff_data].sort((a, b) => {
+    let list = [...summary.staff_data];
+    if (staffSearch.trim()) {
+      const q = staffSearch.trim().toLowerCase();
+      list = list.filter(s => (s.name || '').toLowerCase().includes(q));
+    }
+    return list.sort((a, b) => {
       const av = a[sortKey] ?? 0, bv = b[sortKey] ?? 0;
       return sortDir === 'asc' ? av - bv : bv - av;
     });
-  }, [summary, sortKey, sortDir]);
+  }, [summary, sortKey, sortDir, staffSearch]);
 
   const sortedProducts = useMemo(() => {
     if (!summary?.product_data) return [];
-    return summary.product_data; // already sorted by qty_sold desc from backend
-  }, [summary]);
+    let list = [...summary.product_data];
+    if (productSearch.trim()) {
+      const q = productSearch.trim().toLowerCase();
+      list = list.filter(p => (p.name || '').toLowerCase().includes(q) || (p.category || '').toLowerCase().includes(q));
+    }
+    return list;
+  }, [summary, productSearch]);
 
   const handleSort = (key) => {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
     else { setSortKey(key); setSortDir('desc'); }
   };
 
-  const sortArrow = (key) => {
-    if (sortKey !== key) return ' ↕';
-    return sortDir === 'asc' ? ' ↑' : ' ↓';
+  const renderSortIcon = (key) => {
+    const isCurrent = sortKey === key;
+    return (
+      <svg className={`w-3.5 h-3.5 inline ml-1 ${isCurrent ? 'text-zinc-900' : 'text-zinc-300'}`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+        {isCurrent && sortDir === 'asc' ? (
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+        ) : isCurrent && sortDir === 'desc' ? (
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        ) : (
+          <path strokeLinecap="round" strokeLinejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+        )}
+      </svg>
+    );
   };
 
-  // Build trend data from staff performance (approximate visualization)
+  // Build trend data from staff performance
   const trendData = sortedStaff.slice(0, 10).map(s => ({
     label: (s.name || '').split(' ')[0],
     value: s.total_sales || 0
   }));
 
   const totalSales = summary?.total_sales || 0;
-  const totalTx    = summary?.total_transactions || 0;
-  const avgTicket  = totalTx > 0 ? totalSales / totalTx : 0;
+  const totalTx = summary?.total_transactions || 0;
+  const avgTicket = totalTx > 0 ? totalSales / totalTx : 0;
   const totalItems = summary?.total_items_sold || 0;
-
 
   const handleExport = () => {
     if (!summary) return;
@@ -157,13 +171,13 @@ const SalesPerformanceReport = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Controls */}
-      <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-6 flex flex-col lg:flex-row justify-between gap-6">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-3">
-            <span className="text-sm md:text-base font-bold text-gray-700 uppercase tracking-wider">Period</span>
+      {/* Controls Card */}
+      <div className="bg-white border border-zinc-200/80 shadow-2xs rounded-2xl p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Period</span>
             <select
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm md:text-base bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
+              className="px-3 py-1.5 border border-zinc-200 rounded-lg text-xs sm:text-sm font-semibold bg-white text-zinc-800 focus:outline-none focus:border-zinc-400 cursor-pointer shadow-2xs"
               value={period}
               onChange={e => { setPeriod(e.target.value); setFetched(false); }}
             >
@@ -174,40 +188,43 @@ const SalesPerformanceReport = () => {
             </select>
           </div>
           {period === 'custom' && (
-            <div className="flex items-center gap-3 bg-gray-50 p-2 rounded-lg border border-gray-200">
+            <div className="flex items-center gap-2 bg-zinc-50 border border-zinc-200 rounded-lg px-2.5 py-1 text-xs">
               <input 
                 type="date" 
-                className="px-3 py-1.5 border border-gray-300 rounded text-sm md:text-base bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent" 
+                className="bg-transparent border-none text-xs font-medium text-zinc-800 focus:outline-none p-0 cursor-pointer" 
                 value={customStart} 
                 onChange={e => { setCustomStart(e.target.value); setFetched(false); }} 
               />
-              <span className="text-sm md:text-base font-bold text-gray-400">TO</span>
+              <span className="text-zinc-300 font-semibold">—</span>
               <input 
                 type="date" 
-                className="px-3 py-1.5 border border-gray-300 rounded text-sm md:text-base bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent" 
+                className="bg-transparent border-none text-xs font-medium text-zinc-800 focus:outline-none p-0 cursor-pointer" 
                 value={customEnd} 
                 onChange={e => { setCustomEnd(e.target.value); setFetched(false); }} 
               />
             </div>
           )}
         </div>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <button 
-            className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm md:text-base font-bold uppercase tracking-wider hover:bg-gray-50 transition-colors disabled:opacity-50 shadow-sm" 
+            type="button"
+            className="px-3.5 py-1.5 bg-white border border-zinc-200 text-zinc-700 rounded-lg text-xs sm:text-sm font-semibold hover:bg-zinc-50 transition-colors disabled:opacity-40 cursor-pointer shadow-2xs" 
             onClick={handleExport} 
             disabled={!fetched || loading}
           >
             Export CSV
           </button>
           <button 
-            className="px-5 py-2.5 bg-gray-900 text-white rounded-lg text-sm md:text-base font-bold uppercase tracking-wider hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm" 
+            type="button"
+            className="px-4 py-1.5 bg-zinc-900 hover:bg-black text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-2xs cursor-pointer" 
             onClick={fetchReport} 
             disabled={loading || (period === 'custom' && (!customStart || !customEnd))}
           >
-            {loading ? 'Loading...' : 'Generate Report'}
+            {loading ? 'Generating...' : 'Generate Report'}
           </button>
           <button 
-            className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm md:text-base font-bold uppercase tracking-wider hover:bg-gray-50 transition-colors disabled:opacity-50 shadow-sm" 
+            type="button"
+            className="px-3.5 py-1.5 bg-white border border-zinc-200 text-zinc-700 rounded-lg text-xs sm:text-sm font-semibold hover:bg-zinc-50 transition-colors disabled:opacity-40 cursor-pointer shadow-2xs" 
             onClick={handlePrint} 
             disabled={!fetched}
           >
@@ -218,10 +235,12 @@ const SalesPerformanceReport = () => {
 
       {/* Prompt when not yet fetched */}
       {!fetched && !loading && (
-        <div className="p-12 flex flex-col items-center justify-center text-gray-500 bg-white border border-gray-200 border-dashed rounded-xl h-64">
-          <svg className="w-16 h-16 mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
-          <div className="text-lg font-bold text-gray-900 mb-1">Ready to Generate</div>
-          <p className="m-0 text-sm md:text-base">Select a period and click <strong className="text-gray-900">Generate Report</strong> to load data.</p>
+        <div className="p-12 flex flex-col items-center justify-center text-zinc-500 bg-white border border-zinc-200/80 border-dashed rounded-2xl h-64 text-center">
+          <svg className="w-12 h-12 mb-3 text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+          <div className="text-base font-bold text-zinc-900 mb-1">Ready to Generate</div>
+          <p className="m-0 text-xs sm:text-sm text-zinc-500">Select a period and click <strong className="text-zinc-900 font-semibold">Generate Report</strong> to compile analytics.</p>
         </div>
       )}
 
@@ -236,143 +255,196 @@ const SalesPerformanceReport = () => {
         <div className="flex flex-col gap-6 animate-[fadeIn_0.3s_ease-out]">
           {/* KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-t-4 border-t-blue-500">
-              <div className="text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider mb-2">Gross Revenue</div>
-              <div className="text-2xl font-extrabold text-gray-900 mb-1">₱{totalSales.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-              <div className="text-sm md:text-base font-medium text-gray-400 lowercase">{period} total</div>
+            <div className="bg-white border border-zinc-200 rounded-xl p-4 shadow-2xs">
+              <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Gross Revenue</div>
+              <div className="text-2xl font-bold text-zinc-900 tabular-nums mt-1 font-mono">₱{totalSales.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              <div className="text-xs text-zinc-400 mt-1 capitalize">{period} completed sales</div>
             </div>
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-t-4 border-t-green-500">
-              <div className="text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider mb-2">Total Transactions</div>
-              <div className="text-2xl font-extrabold text-gray-900 mb-1">{totalTx.toLocaleString()}</div>
-              <div className="text-sm md:text-base font-medium text-gray-400">sales recorded</div>
+            <div className="bg-white border border-zinc-200 rounded-xl p-4 shadow-2xs">
+              <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Total Transactions</div>
+              <div className="text-2xl font-bold text-zinc-900 tabular-nums mt-1 font-mono">{totalTx.toLocaleString()}</div>
+              <div className="text-xs text-zinc-400 mt-1">orders recorded</div>
             </div>
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-t-4 border-t-gray-900">
-              <div className="text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider mb-2">Average Ticket</div>
-              <div className="text-2xl font-extrabold text-gray-900 mb-1">₱{avgTicket.toFixed(2)}</div>
-              <div className="text-sm md:text-base font-medium text-gray-400">per transaction</div>
+            <div className="bg-white border border-zinc-200 rounded-xl p-4 shadow-2xs">
+              <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Average Ticket</div>
+              <div className="text-2xl font-bold text-zinc-900 tabular-nums mt-1 font-mono">₱{avgTicket.toFixed(2)}</div>
+              <div className="text-xs text-zinc-400 mt-1">per order average</div>
             </div>
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-t-4 border-t-purple-500">
-              <div className="text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider mb-2">Items Sold</div>
-              <div className="text-2xl font-extrabold text-gray-900 mb-1">{totalItems.toLocaleString()}</div>
-              <div className="text-sm md:text-base font-medium text-gray-400">units dispatched</div>
+            <div className="bg-white border border-zinc-200 rounded-xl p-4 shadow-2xs">
+              <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Items Dispatched</div>
+              <div className="text-2xl font-bold text-zinc-900 tabular-nums mt-1 font-mono">{totalItems.toLocaleString()}</div>
+              <div className="text-xs text-zinc-400 mt-1">total units sold</div>
             </div>
           </div>
 
           {/* Revenue by Staff (Trend Bars) */}
           {trendData.length > 0 && (
-            <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden pt-4 pb-2">
-              <div className="px-6 flex justify-between items-baseline mb-4">
-                <h2 className="m-0 text-lg font-bold text-gray-900 tracking-tight">Revenue by Operator</h2>
-                <span className="text-xs md:text-sm text-gray-400 font-bold uppercase tracking-wider">
-                  {period} view
+            <div className="bg-white border border-zinc-200/80 shadow-2xs rounded-2xl overflow-hidden pt-4 pb-2">
+              <div className="px-6 flex justify-between items-baseline mb-2">
+                <h2 className="m-0 text-base font-bold text-zinc-900 tracking-tight">Revenue by Operator</h2>
+                <span className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">
+                  {period} breakdown
                 </span>
               </div>
-              <div className="overflow-x-auto pb-4">
+              <div className="overflow-x-auto pb-2">
                 <TrendBars data={trendData} />
               </div>
             </div>
           )}
 
           {/* Staff Performance Table */}
-          <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden">
-            <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50">
-              <h2 className="m-0 text-lg font-bold text-gray-900 tracking-tight">Personnel Performance Breakdown</h2>
+          <div className="bg-white border border-zinc-200/80 shadow-2xs rounded-2xl overflow-hidden">
+            <div className="p-4 sm:p-5 border-b border-zinc-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <h2 className="m-0 text-base font-bold text-zinc-900 tracking-tight">Personnel Performance Breakdown</h2>
+              
+              {/* Staff Search */}
+              <div className="relative w-full sm:w-64">
+                <svg className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Search operator..."
+                  value={staffSearch}
+                  onChange={(e) => setStaffSearch(e.target.value)}
+                  className="w-full pl-9 pr-7 py-1.5 bg-zinc-50/70 border border-zinc-200 rounded-lg text-xs sm:text-sm text-zinc-800 placeholder-zinc-400 focus:outline-none focus:bg-white focus:border-zinc-400 transition-colors"
+                />
+                {staffSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setStaffSearch('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 text-xs cursor-pointer bg-transparent border-none"
+                    aria-label="Clear search"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
             </div>
-            <div className="p-0">
+            <div className="overflow-x-auto">
               {sortedStaff.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse whitespace-nowrap">
-                    <thead>
-                      <tr className="bg-gray-50 border-b border-gray-200">
-                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider w-16">#</th>
-                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-900" onClick={() => handleSort('name')}>Operator{sortArrow('name')}</th>
-                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-900" onClick={() => handleSort('total_sales')}>Total Sales{sortArrow('total_sales')}</th>
-                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-900 text-center" onClick={() => handleSort('transactions')}>
-                          Transactions{sortArrow('transactions')}
-                        </th>
-                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider text-center">Avg Per Sale</th>
-                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider min-w-[180px]">Market Share</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {sortedStaff.map((staff, i) => {
-                        const share = totalSales > 0 ? (staff.total_sales / totalSales) * 100 : 0;
-                        const avg   = staff.transactions > 0 ? staff.total_sales / staff.transactions : 0;
-                        return (
-                          <tr key={staff.id} className="hover:bg-gray-50/50 transition-colors">
-                            <td className="px-6 py-4">
-                              <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-sm md:text-base font-bold ${ i === 0 ? 'bg-yellow-100 text-yellow-700' : i === 1 ? 'bg-gray-200 text-gray-700' : i === 2 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500' }`}>
-                                {i + 1}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-sm md:text-base font-bold text-gray-900 uppercase tracking-wider">{staff.name}</td>
-                            <td className="px-6 py-4 text-sm md:text-base font-bold font-mono text-gray-900">
-                              ₱{(staff.total_sales || 0).toFixed(2)}
-                            </td>
-                            <td className="px-6 py-4 text-sm md:text-base font-extrabold text-gray-900 text-center">{staff.transactions}</td>
-                            <td className="px-6 py-4 text-sm md:text-base font-medium font-mono text-gray-500 text-center">
-                              ₱{avg.toFixed(2)}
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-3">
-                                <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                                  <div className="h-full bg-gray-900 rounded-full" style={{ width: `${share}%` }} />
-                                </div>
-                                <span className="text-sm md:text-base font-bold text-gray-600 w-12 text-right">{share.toFixed(1)}%</span>
+                <table className="w-full text-left border-collapse whitespace-nowrap text-xs sm:text-sm">
+                  <thead>
+                    <tr className="bg-zinc-50/70 border-b border-zinc-200 text-zinc-500 uppercase text-[11px] font-bold tracking-wider">
+                      <th className="py-3 px-4 w-12 text-center">#</th>
+                      <th className="py-3 px-4 cursor-pointer hover:text-zinc-900 select-none" onClick={() => handleSort('name')}>
+                        Operator {renderSortIcon('name')}
+                      </th>
+                      <th className="py-3 px-4 cursor-pointer hover:text-zinc-900 select-none" onClick={() => handleSort('total_sales')}>
+                        Total Sales {renderSortIcon('total_sales')}
+                      </th>
+                      <th className="py-3 px-4 cursor-pointer hover:text-zinc-900 select-none text-center" onClick={() => handleSort('transactions')}>
+                        Transactions {renderSortIcon('transactions')}
+                      </th>
+                      <th className="py-3 px-4 text-center">Avg Per Sale</th>
+                      <th className="py-3 px-4 min-w-[160px]">Market Share</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100">
+                    {sortedStaff.map((staff, i) => {
+                      const share = totalSales > 0 ? (staff.total_sales / totalSales) * 100 : 0;
+                      const avg = staff.transactions > 0 ? staff.total_sales / staff.transactions : 0;
+                      return (
+                        <tr key={staff.id} className="hover:bg-zinc-50/60 transition-colors">
+                          <td className="py-3.5 px-4 text-center">
+                            <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold ${
+                              i === 0 ? 'bg-zinc-900 text-white' : i === 1 ? 'bg-zinc-200 text-zinc-800' : 'bg-zinc-100 text-zinc-600'
+                            }`}>
+                              {i + 1}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 font-semibold text-zinc-900">{staff.name}</td>
+                          <td className="py-3.5 px-4 font-bold font-mono text-zinc-900">
+                            ₱{(staff.total_sales || 0).toFixed(2)}
+                          </td>
+                          <td className="py-3.5 px-4 font-bold text-zinc-900 text-center font-mono">{staff.transactions}</td>
+                          <td className="py-3.5 px-4 font-medium font-mono text-zinc-600 text-center">
+                            ₱{avg.toFixed(2)}
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <div className="flex items-center gap-3">
+                              <div className="flex-1 h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-zinc-900 rounded-full" style={{ width: `${share}%` }} />
                               </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                              <span className="text-xs font-semibold text-zinc-600 w-10 text-right">{share.toFixed(1)}%</span>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               ) : (
-                <div className="p-8 text-center text-gray-500 font-medium bg-gray-50/50">No staff activity for this period.</div>
+                <div className="p-8 text-center text-zinc-400 font-medium">No staff activity matching filter.</div>
               )}
             </div>
           </div>
 
           {/* Top Products Sold Table */}
           {sortedProducts.length > 0 && (
-            <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden">
-              <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex justify-between items-baseline">
-                <h2 className="m-0 text-lg font-bold text-gray-900 tracking-tight">Top Products Sold</h2>
-                <span className="text-xs md:text-sm text-gray-400 font-bold uppercase tracking-wider">
-                  {period === 'custom' ? `${customStart} to ${customEnd}` : period}
-                </span>
-              </div>
-              <div className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse whitespace-nowrap">
-                    <thead>
-                      <tr className="bg-gray-50 border-b border-gray-200">
-                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider w-16">#</th>
-                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider">Product</th>
-                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider">Category</th>
-                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider text-center">Units Sold</th>
-                        <th className="px-6 py-3 text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider">Total Revenue</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {sortedProducts.map((p, i) => (
-                        <tr key={p.id} className="hover:bg-gray-50/50 transition-colors">
-                          <td className="px-6 py-4">
-                            <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-sm md:text-base font-bold ${ i === 0 ? 'bg-yellow-100 text-yellow-700' : i === 1 ? 'bg-gray-200 text-gray-700' : i === 2 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500' }`}>
-                              {i + 1}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-sm md:text-base font-bold text-gray-900">{p.name}</td>
-                          <td className="px-6 py-4 text-sm md:text-base font-medium text-gray-500">{p.category}</td>
-                          <td className="px-6 py-4 text-sm md:text-base font-extrabold text-gray-900 text-center">{p.qty_sold}</td>
-                          <td className="px-6 py-4 text-sm md:text-base font-bold font-mono text-green-700">
-                            ₱{p.revenue.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+            <div className="bg-white border border-zinc-200/80 shadow-2xs rounded-2xl overflow-hidden">
+              <div className="p-4 sm:p-5 border-b border-zinc-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <h2 className="m-0 text-base font-bold text-zinc-900 tracking-tight">Top Products Sold</h2>
+                
+                {/* Product Search */}
+                <div className="relative w-full sm:w-64">
+                  <svg className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                  </svg>
+                  <input
+                    type="text"
+                    placeholder="Search menu item or category..."
+                    value={productSearch}
+                    onChange={(e) => setProductSearch(e.target.value)}
+                    className="w-full pl-9 pr-7 py-1.5 bg-zinc-50/70 border border-zinc-200 rounded-lg text-xs sm:text-sm text-zinc-800 placeholder-zinc-400 focus:outline-none focus:bg-white focus:border-zinc-400 transition-colors"
+                  />
+                  {productSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setProductSearch('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 text-xs cursor-pointer bg-transparent border-none"
+                      aria-label="Clear search"
+                    >
+                      ✕
+                    </button>
+                  )}
                 </div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse whitespace-nowrap text-xs sm:text-sm">
+                  <thead>
+                    <tr className="bg-zinc-50/70 border-b border-zinc-200 text-zinc-500 uppercase text-[11px] font-bold tracking-wider">
+                      <th className="py-3 px-4 w-12 text-center">#</th>
+                      <th className="py-3 px-4">Menu Item</th>
+                      <th className="py-3 px-4">Category</th>
+                      <th className="py-3 px-4 text-center">Units Sold</th>
+                      <th className="py-3 px-4">Total Revenue</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100">
+                    {sortedProducts.map((p, i) => (
+                      <tr key={p.id} className="hover:bg-zinc-50/60 transition-colors">
+                        <td className="py-3.5 px-4 text-center">
+                          <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold ${
+                            i === 0 ? 'bg-zinc-900 text-white' : i === 1 ? 'bg-zinc-200 text-zinc-800' : 'bg-zinc-100 text-zinc-600'
+                          }`}>
+                            {i + 1}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 font-semibold text-zinc-900">{p.name}</td>
+                        <td className="py-3.5 px-4">
+                          <span className="inline-flex px-2 py-0.5 rounded text-[11px] font-semibold bg-zinc-100 text-zinc-700 border border-zinc-200">
+                            {p.category}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 font-bold font-mono text-zinc-900 text-center">{p.qty_sold}</td>
+                        <td className="py-3.5 px-4 font-bold font-mono text-zinc-900">
+                          ₱{p.revenue.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
@@ -380,9 +452,9 @@ const SalesPerformanceReport = () => {
       )}
 
       {fetched && !loading && !summary && (
-        <div className="p-12 flex flex-col items-center justify-center text-gray-500 bg-white border border-gray-200 rounded-xl">
-          <div className="text-lg font-bold text-gray-900 mb-1">No Data</div>
-          <p className="m-0 text-sm md:text-base">No sales data found for the selected period.</p>
+        <div className="p-12 flex flex-col items-center justify-center text-zinc-500 bg-white border border-zinc-200 rounded-2xl text-center">
+          <div className="text-base font-bold text-zinc-900 mb-1">No Data Available</div>
+          <p className="m-0 text-xs sm:text-sm text-zinc-500">No sales transactions were recorded for the selected date window.</p>
         </div>
       )}
     </div>

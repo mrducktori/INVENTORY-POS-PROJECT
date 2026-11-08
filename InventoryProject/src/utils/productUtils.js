@@ -17,7 +17,8 @@ export const filterProducts = (products, category, searchTerm = "") => {
       matchCategory = pCat === targetCat;
     }
 
-    const matchSearch = (p.name || "").toLowerCase().includes(searchTerm.toLowerCase());
+    const term = (searchTerm || "").trim().toLowerCase();
+    const matchSearch = !term || (p.name || "").toLowerCase().includes(term);
     return matchCategory && matchSearch;
   }).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 };

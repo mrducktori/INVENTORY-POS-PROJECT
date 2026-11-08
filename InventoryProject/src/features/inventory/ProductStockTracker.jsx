@@ -84,7 +84,10 @@ const ProductStockTracker = () => {
 
   const filteredProducts = products.filter(p => {
     const status = getStockStatus(p.stock_quantity, p.low_stock_threshold);
-    const matchSearch = (p.name || '').toLowerCase().includes(searchTerm.toLowerCase().trim());
+    const term = (searchTerm || '').trim().toLowerCase();
+    const matchSearch = !term ||
+      (p.name || '').toLowerCase().includes(term) ||
+      (p.category || '').toLowerCase().includes(term);
     const matchStatus =
       stockFilter === 'ALL' ? true :
       status === stockFilter.toLowerCase();

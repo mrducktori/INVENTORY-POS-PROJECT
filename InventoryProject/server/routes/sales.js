@@ -89,35 +89,50 @@ router.get('/', async (req, res) => {
       const cleanTerm = searchParam.replace(/^#/, '');
       filteredData = filteredData.filter(sale => {
         const receiptNum = String(sale.receipt_number || '').toLowerCase();
-        const idPrefix = String(sale.id || '').substring(0, 8).toLowerCase();
         const fullId = String(sale.id || '').toLowerCase();
         const staffName = String(sale.users?.name || sale.users?.username || '').toLowerCase();
         const paymentMethod = String(sale.payment_method || '').toLowerCase();
         const txRef = String(sale.transaction_reference || '').toLowerCase();
-        const totalStr = String(sale.total_amount || '');
+        const notes = String(sale.notes || '').toLowerCase();
+
+        // Exact or prefix match for ID (only if searching by ID-like hex string >= 6 chars)
+        const matchesId = cleanTerm.length >= 6 && fullId.startsWith(cleanTerm);
 
         const matchesTopLevel =
           receiptNum.includes(cleanTerm) ||
-          idPrefix.includes(cleanTerm) ||
-          fullId.includes(cleanTerm) ||
-          staffName.includes(searchParam) ||
-          paymentMethod.includes(searchParam) ||
+          matchesId ||
+          staffName.includes(cleanTerm) ||
+          paymentMethod.includes(cleanTerm) ||
           txRef.includes(cleanTerm) ||
-          totalStr.includes(cleanTerm);
+          notes.includes(cleanTerm);
 
         if (matchesTopLevel) return true;
 
-        // Check items and add-ons inside the receipt
+        // Check items, cup size, and add-ons inside the receipt
         return (sale.sale_items || []).some(item => {
-          const prodName = String(item.products?.name || '').toLowerCase();
-          const prodCat = String(item.products?.category || '').toLowerCase();
+          const prodName = String(item.products?.name || item.name || '').toLowerCase();
+          const prodCat = String(item.products?.category || item.category || '').toLowerCase();
           const cupSize = String(item.cup_size || '').toLowerCase();
-          const addOnsStr = JSON.stringify(item.add_ons || '').toLowerCase();
+          const notesStr = String(item.notes || '').toLowerCase();
+          
+          let addOnsMatch = false;
+          if (Array.isArray(item.add_ons)) {
+            addOnsMatch = item.add_ons.some(ao => {
+              let parsed = ao;
+              if (typeof ao === 'string') {
+                try { parsed = JSON.parse(ao); } catch { parsed = { name: ao }; }
+              }
+              const addOnName = String(parsed?.name || '').toLowerCase();
+              return addOnName.includes(cleanTerm);
+            });
+          }
+
           return (
-            prodName.includes(searchParam) ||
-            prodCat.includes(searchParam) ||
-            cupSize.includes(searchParam) ||
-            addOnsStr.includes(searchParam)
+            prodName.includes(cleanTerm) ||
+            prodCat.includes(cleanTerm) ||
+            cupSize.includes(cleanTerm) ||
+            notesStr.includes(cleanTerm) ||
+            addOnsMatch
           );
         });
       });

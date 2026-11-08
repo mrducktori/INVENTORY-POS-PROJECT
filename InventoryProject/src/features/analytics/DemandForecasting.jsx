@@ -812,16 +812,16 @@ const DemandForecasting = () => {
                 </div>
               </div>
 
-              {/* Row 2: Category Filter Pills spanning full width */}
+              {/* Row 2: Category Filter Pills with clean horizontal scroll and executive pill styling */}
               {categories.length > 0 && (
-                <div className="flex flex-wrap items-center gap-1 bg-zinc-100 p-1 rounded-lg">
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
                   <button
                     type="button"
                     onClick={() => setSelectedCategory('ALL')}
-                    className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                       selectedCategory === 'ALL'
-                        ? 'bg-white text-zinc-900 shadow-2xs'
-                        : 'text-zinc-500 hover:text-zinc-800'
+                        ? 'bg-zinc-900 text-white shadow-2xs'
+                        : 'bg-zinc-100 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/70'
                     }`}
                   >
                     All Types
@@ -831,10 +831,10 @@ const DemandForecasting = () => {
                       key={cat}
                       type="button"
                       onClick={() => setSelectedCategory(cat)}
-                      className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                         selectedCategory === cat
-                          ? 'bg-white text-zinc-900 shadow-2xs'
-                          : 'text-zinc-500 hover:text-zinc-800'
+                          ? 'bg-zinc-900 text-white shadow-2xs'
+                          : 'bg-zinc-100 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/70'
                       }`}
                     >
                       {cat}
@@ -1216,14 +1216,14 @@ const DemandForecasting = () => {
 
               {/* Row 2: Category Filter Pills */}
               {productCategories.length > 0 && (
-                <div className="flex flex-wrap items-center gap-1 bg-zinc-100 p-1 rounded-lg">
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
                   <button
                     type="button"
                     onClick={() => setProductCategory('ALL')}
-                    className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                       productCategory === 'ALL'
-                        ? 'bg-white text-zinc-900 shadow-2xs'
-                        : 'text-zinc-500 hover:text-zinc-800'
+                        ? 'bg-zinc-900 text-white shadow-2xs'
+                        : 'bg-zinc-100 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/70'
                     }`}
                   >
                     All Categories
@@ -1233,10 +1233,10 @@ const DemandForecasting = () => {
                       key={cat}
                       type="button"
                       onClick={() => setProductCategory(cat)}
-                      className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                         productCategory === cat
-                          ? 'bg-white text-zinc-900 shadow-2xs'
-                          : 'text-zinc-500 hover:text-zinc-800'
+                          ? 'bg-zinc-900 text-white shadow-2xs'
+                          : 'bg-zinc-100 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/70'
                       }`}
                     >
                       {cat}

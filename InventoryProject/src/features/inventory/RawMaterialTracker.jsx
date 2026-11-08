@@ -84,7 +84,10 @@ const RawMaterialTracker = () => {
 
   const filteredIngredients = ingredients.filter(ing => {
     const status = getStockStatus(ing.stock_quantity, ing.low_stock_alert);
-    const matchSearch = (ing.name || '').toLowerCase().includes(searchTerm.toLowerCase().trim());
+    const term = (searchTerm || '').trim().toLowerCase();
+    const matchSearch = !term ||
+      (ing.name || '').toLowerCase().includes(term) ||
+      (ing.category || '').toLowerCase().includes(term);
     const matchStatus =
       stockFilter === 'ALL' ? true :
       status === stockFilter.toLowerCase();

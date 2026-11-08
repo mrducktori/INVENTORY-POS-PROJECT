@@ -68,8 +68,9 @@ const ManageProducts = () => {
   }, [products]);
 
   const filteredProductsList = useMemo(() => {
+    const term = (searchTerm || '').trim().toLowerCase();
     return products.filter(p => {
-      const matchSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchSearch = !term || (p.name || '').toLowerCase().includes(term) || (p.category || '').toLowerCase().includes(term);
       const matchStatus = statusFilter === 'ALL' ? true : statusFilter === 'ACTIVE' ? !p.is_archived : p.is_archived;
       const matchCat = categoryFilter === 'ALL' || p.category === categoryFilter;
       return matchSearch && matchStatus && matchCat;

@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## [UI/Search & Logs: System-Wide Case-Insensitive Search & Unified Logs/Reports Design System - 2026-11-09]
+- **System-Wide Case-Insensitive & Accurate Search (`server/routes/sales.js`, `SalesReceiptJournal.jsx`, `productUtils.js`, `inventory`, `reports`)**:
+  - **Fixed Root Cause of False-Positive Matches on "RED" / "red velvet"**:
+    - Discovered that searching for `"RED"` was matching orders containing add-ons because serialized JSON strings contained `"ingredient_id"` (which contains the substring `"red"`).
+    - Refactored add-on search in both backend (`server/routes/sales.js`) and frontend (`SalesReceiptJournal.jsx`) to parse JSON and evaluate only the human-readable add-on name (`ao.name`), eliminating false positives.
+    - Removed loose UUID prefix and floating total price substring matching in `server/routes/sales.js` that caused unrelated sales (e.g. `CHOCOLATE`) to match unrelated search queries.
+    - Standardized `.trim().toLowerCase()` across all client-side and server-side search filters with null-safe handling (`(field || '').toLowerCase().includes(term)`).
+    - Audited and updated all search bars across `AuditLogs.jsx`, `TransactionLogs.jsx`, `AdminLogs.jsx`, `ManageProducts.jsx`, `Products.jsx`, `ManageRawMaterials.jsx`, `ProductStockTracker.jsx`, `RawMaterialTracker.jsx`, `productUtils.js` (POS search), and all `Reports.jsx` sub-reports.
+- **Unified Design System Across Logs and Reports Modules (`AuditLogs.jsx`, `TransactionLogs.jsx`, `AdminLogs.jsx`, `Reports.jsx`, Sub-reports)**:
+  - **Audit Logs (`AuditLogs.jsx`)**:
+    - Upgraded page to the unified executive black & white design system (`bg-white` container, subtle zinc borders, refined typography).
+    - Added 3 top KPI summary cards: `Total Event Logs`, `Admin Modifications`, and `Security & Auth Events`.
+    - Integrated structured multi-tier toolbar with quick date presets (`Today`, `7 Days`, `This Month`, `All Time`), inline date pickers, category dropdown, and search input with inline SVG icon and clear `✕` button.
+    - Replaced clunky text pagination buttons with sleek numbered page pills `< 1 2 3 ... N >` and per-page selector (25, 50, 100), with pagination accurately bound to filtered search totals.
+  - **Transaction Logs (`TransactionLogs.jsx`)**:
+    - Upgraded layout to match executive standards with confidential Owner badge and access control banner.
+    - Added 4 KPI metric cards: `Total Transactions`, `POS Sales Events`, `Purchase Orders`, and `Stock Received`.
+    - Added structured multi-tier toolbar and numbered pagination pills bar.
+  - **Admin Logs (`AdminLogs.jsx`)**:
+    - Migrated legacy `.inventory-container` layout to unified Tailwind executive card and table styling with search across operators, actions, and details.
+  - **Reports & Analytics Hub (`Reports.jsx`)**:
+    - Upgraded top navigation tabs to modern executive segmented pills matching `DemandForecasting` and `SalesReceiptJournal`.
+    - Enhanced sub-reports (`SalesPerformanceReport.jsx`, `InventoryStatusReport.jsx`, `StockMovementReport.jsx`, `WastageReport.jsx`) with inline SVG search bars, clear buttons, and consistent table typography and sort indicators.
+- **Refined Category Filter Toolbar (`DemandForecasting.jsx`)**:
+  - Upgraded category pill tracks in both Ingredient Restock and Menu Demand tables to clean horizontally scrollable pill tracks (`overflow-x-auto no-scrollbar`), permanently eliminating awkward pill wrapping and jagged grey boxes.
+
+
 ## [UI/CMS: Refactor Promotions Carousel Manager Layout & Add Slide Reordering / Sorting - 2026-11-09]
 - **Slide Reordering & Sorting Controls (`CMSDashboard.jsx`)**:
   - Added interactive `Move Up` (↑) and `Move Down` (↓) action buttons on each slide card header to easily reorder promotional slides without having to delete and re-enter them.

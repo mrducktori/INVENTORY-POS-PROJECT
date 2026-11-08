@@ -1,72 +1,86 @@
 import React, { useState } from 'react';
 import SalesPerformanceReport from './SalesPerformanceReport';
-import InventoryStatusReport  from './InventoryStatusReport';
-import StockMovementReport    from './StockMovementReport';
-import WastageReport          from './WastageReport';
+import InventoryStatusReport from './InventoryStatusReport';
+import StockMovementReport from './StockMovementReport';
+import WastageReport from './WastageReport';
 
 const TABS = [
   {
-    id:    'sales',
+    id: 'sales',
     label: 'Sales Performance',
-    desc:  'Revenue, staff performance, and top products',
+    desc: 'Revenue, staff performance, and top products',
   },
   {
-    id:    'inventory',
+    id: 'inventory',
     label: 'Inventory Status',
-    desc:  'Current stock levels and health overview',
+    desc: 'Current stock levels and health overview',
   },
   {
-    id:    'movement',
+    id: 'movement',
     label: 'Stock Movement',
-    desc:  'Consumption and stock changes over time',
+    desc: 'Consumption and stock changes over time',
   },
   {
-    id:    'wastage',
+    id: 'wastage',
     label: 'Wastage & Loss',
-    desc:  'Wasted materials and estimated cost impact',
+    desc: 'Wasted materials and estimated cost impact',
   },
 ];
 
 const Reports = () => {
   const [activeTab, setActiveTab] = useState('sales');
 
-  const currentTab = TABS.find(t => t.id === activeTab);
+  const currentTab = TABS.find((t) => t.id === activeTab);
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'sales':     return <SalesPerformanceReport />;
-      case 'inventory': return <InventoryStatusReport />;
-      case 'movement':  return <StockMovementReport />;
-      case 'wastage':   return <WastageReport />;
-      default:          return null;
+      case 'sales':
+        return <SalesPerformanceReport />;
+      case 'inventory':
+        return <InventoryStatusReport />;
+      case 'movement':
+        return <StockMovementReport />;
+      case 'wastage':
+        return <WastageReport />;
+      default:
+        return null;
     }
   };
 
   return (
-    <div className="p-4 md:p-8 pb-24 bg-gray-50 w-full flex flex-col min-h-full">
+    <div className="p-4 md:p-8 pb-24 bg-white w-full flex flex-col min-h-screen space-y-6">
       {/* Page Header */}
-      <div className="mb-6 shrink-0">
-        <h1 className="m-0 text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">Reports &amp; Analytics</h1>
-        <p className="m-0 mt-1 text-sm md:text-base text-gray-500 font-medium">
-          {currentTab?.desc} — generate, filter, export, or print.
-        </p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-zinc-200">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-extrabold text-zinc-900 tracking-tight m-0">
+            Reports &amp; Analytics
+          </h1>
+          <p className="text-sm text-zinc-500 font-medium mt-1 mb-0">
+            {currentTab?.desc} — generate, filter, export, or print.
+          </p>
+        </div>
       </div>
 
-      {/* Tab Navigation */}
-      <nav className="flex flex-wrap gap-2 mb-6 border-b border-gray-200 pb-2 shrink-0">
-        {TABS.map(tab => (
+      {/* Modern Executive Pill Tab Navigation */}
+      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
+        {TABS.map((tab) => (
           <button
             key={tab.id}
             id={`reports-tab-${tab.id}`}
-            className={`px-5 py-2.5 rounded-lg text-sm md:text-base font-bold uppercase tracking-wider transition-all border-b-2 -mb-[10px] ${ activeTab === tab.id ? 'bg-gray-900 text-white border-gray-900 shadow-sm' : 'bg-transparent text-gray-500 border-transparent hover:text-gray-900 hover:bg-gray-100' }`}
+            type="button"
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold tracking-tight transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === tab.id
+                ? 'bg-zinc-900 text-white shadow-2xs font-bold'
+                : 'bg-zinc-100 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/70'
+            }`}
             onClick={() => setActiveTab(tab.id)}
           >
             {tab.label}
           </button>
         ))}
-      </nav>
+      </div>
 
-      {/* Active Report */}
+      {/* Active Report Container */}
       <div className="flex-1 flex flex-col min-h-0">
         {renderContent()}
       </div>

@@ -71,12 +71,13 @@ const WastageReport = () => {
   }, [entries]);
 
   const filtered = useMemo(() => {
+    const term = (search || '').trim().toLowerCase();
     return entries
       .filter(e => {
-        const matchSearch = !search ||
-          (e.ingredients?.name || e.ingredient_name || '').toLowerCase().includes(search.toLowerCase()) ||
-          (e.reason || '').toLowerCase().includes(search.toLowerCase()) ||
-          (e.users?.name || e.reported_by_name || '').toLowerCase().includes(search.toLowerCase());
+        const matchSearch = !term ||
+          String(e.ingredients?.name || e.ingredient_name || '').toLowerCase().includes(term) ||
+          String(e.reason || '').toLowerCase().includes(term) ||
+          String(e.users?.name || e.reported_by_name || '').toLowerCase().includes(term);
         const matchReason = reasonFilter === 'ALL' || e.reason === reasonFilter;
         return matchSearch && matchReason;
       })
@@ -227,15 +228,27 @@ const WastageReport = () => {
                   {reasons.map(r => <option key={r} value={r}>{r === 'ALL' ? 'All Reasons' : r}</option>)}
                 </select>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="text-sm md:text-base font-bold text-gray-700 uppercase tracking-wider">Search</span>
+              <div className="relative w-full sm:w-60">
+                <svg className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                </svg>
                 <input
                   type="text"
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm md:text-base bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm w-48"
+                  className="w-full pl-9 pr-7 py-2 bg-zinc-50/70 border border-zinc-200 rounded-lg text-xs sm:text-sm text-zinc-800 placeholder-zinc-400 focus:outline-none focus:bg-white focus:border-zinc-400 transition-colors"
                   placeholder="Item, reason, staff..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                 />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => setSearch('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 text-xs cursor-pointer bg-transparent border-none"
+                    aria-label="Clear search"
+                  >
+                    ✕
+                  </button>
+                )}
               </div>
             </>
           )}

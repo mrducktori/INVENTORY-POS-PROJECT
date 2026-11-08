@@ -167,20 +167,54 @@ const SalesReceiptJournal = () => {
         if (statusScope === 'DISCOUNTED' && Number(sale.discount_amount || 0) <= 0) return false;
       }
 
-      // 3. Search query filter
+      // 3. Search query filter (strictly case-insensitive, matching receipt #, staff, items, add-ons, or notes)
       if (debouncedSearch) {
-        const q = debouncedSearch.toLowerCase().trim();
-        const receiptNo = String(sale.receipt_number || sale.id || '').toLowerCase();
+        const q = debouncedSearch.toLowerCase().trim().replace(/^#/, '');
+        const receiptNo = String(sale.receipt_number || '').toLowerCase();
+        const fullId = String(sale.id || '').toLowerCase();
+        const matchesId = q.length >= 6 && fullId.startsWith(q);
         const cashier = String(sale.users?.name || sale.users?.username || '').toLowerCase();
         const method = String(sale.payment_method || '').toLowerCase();
         const ref = String(sale.transaction_reference || '').toLowerCase();
-        const hasItem = (sale.sale_items || []).some((it) =>
-          String(it.products?.name || '').toLowerCase().includes(q)
-        );
+        const notes = String(sale.notes || '').toLowerCase();
 
-        if (!receiptNo.includes(q) && !cashier.includes(q) && !method.includes(q) && !ref.includes(q) && !hasItem) {
-          return false;
-        }
+        const matchesTop =
+          receiptNo.includes(q) ||
+          matchesId ||
+          cashier.includes(q) ||
+          method.includes(q) ||
+          ref.includes(q) ||
+          notes.includes(q);
+
+        if (matchesTop) return true;
+
+        const hasItem = (sale.sale_items || []).some((it) => {
+          const prodName = String(it.products?.name || it.name || '').toLowerCase();
+          const prodCat = String(it.products?.category || it.category || '').toLowerCase();
+          const cupSize = String(it.cup_size || '').toLowerCase();
+          const itemNotes = String(it.notes || '').toLowerCase();
+
+          let addOnsMatch = false;
+          if (Array.isArray(it.add_ons)) {
+            addOnsMatch = it.add_ons.some((ao) => {
+              let parsed = ao;
+              if (typeof ao === 'string') {
+                try { parsed = JSON.parse(ao); } catch { parsed = { name: ao }; }
+              }
+              return String(parsed?.name || '').toLowerCase().includes(q);
+            });
+          }
+
+          return (
+            prodName.includes(q) ||
+            prodCat.includes(q) ||
+            cupSize.includes(q) ||
+            itemNotes.includes(q) ||
+            addOnsMatch
+          );
+        });
+
+        if (!hasItem) return false;
       }
 
       return true;
