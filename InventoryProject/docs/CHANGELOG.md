@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [UI/Polish: Sticky Left-Anchored Name Columns Across Tables - 2026-11-08]
+- **Anchored Primary Name Columns on Horizontal Scroll**:
+  - Added `sticky left-0 z-10` with opaque background and subtle separator border shadow to the primary Name column across `ManageRawMaterials.jsx` (`Material Name`), `RawMaterialTracker.jsx` (`Ingredient`), `ManageProducts.jsx` (`Product Name`), `Products.jsx` (`Product`), `ProductStockTracker.jsx` (`Product`), `LowStockAlerts.jsx` (`Ingredient`), `ManageSuppliers.jsx` (`Supplier Name`), and `DemandForecasting.jsx` (`Ingredient` & `Menu Item`).
+  - Users can now scroll horizontally to reach right-hand action buttons without losing sight of which item row they are interacting with.
+
 ## [UI/Fix: Sales Receipt Journal Pagination Restored & Improved - 2026-11-08]
 - **Fixed Missing Pagination Condition**:
   - Updated `SalesReceiptJournal.jsx` and `server/routes/sales.js` so `totalCount` safely falls back to the loaded list length when `result.total` or Supabase `count` is omitted or returned as a raw array, preventing `totalCount > 0` from hiding the pagination footer.

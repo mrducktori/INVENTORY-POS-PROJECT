@@ -302,7 +302,7 @@ const ManageProducts = () => {
                       <thead>
                         <tr className="bg-gray-100/70 border-b border-gray-200">
                            <th 
-                             className="px-4 py-3.5 text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:text-gray-900 select-none group"
+                             className="px-4 py-3.5 text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:text-gray-900 select-none group sticky left-0 z-10 bg-gray-100 shadow-[1px_0_0_0_#e5e7eb]"
                              onClick={handleNameSort}
                              title="Click to sort alphabetically (A-Z, Z-A)"
                            >
@@ -357,8 +357,8 @@ const ManageProducts = () => {
                       </thead>
                       <tbody className="divide-y divide-gray-100">
                         {paginatedProductsList.map(p => (
-                          <tr key={p.id} className="hover:bg-gray-50/50 transition-colors">
-                            <td className="px-4 py-3.5 border-b border-gray-100">
+                          <tr key={p.id} className="hover:bg-gray-50/50 transition-colors group">
+                            <td className="px-4 py-3.5 border-b border-gray-100 sticky left-0 z-10 bg-white group-hover:bg-gray-50 transition-colors shadow-[1px_0_0_0_#f3f4f6]">
                               <div className="flex items-center gap-3">
                                 {p.image_url ? (
                                   <img src={p.image_url} alt={p.name} className="w-12 h-12 object-cover rounded-lg shadow-sm border border-gray-200 shrink-0 hidden sm:block" />

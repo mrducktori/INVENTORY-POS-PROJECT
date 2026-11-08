@@ -98,7 +98,7 @@ const LowStockAlerts = () => {
               <table className="w-full text-left border-collapse whitespace-nowrap">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Ingredient</th>
+                    <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider sticky left-0 z-10 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb]">Ingredient</th>
                     <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Unit</th>
                     <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Current Stock</th>
                     <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Alert Level</th>
@@ -112,8 +112,8 @@ const LowStockAlerts = () => {
                     const severity = getSeverity(alert.stock_quantity, alert.low_stock_alert);
 
                     return (
-                      <tr key={alert.id} className="hover:bg-gray-50/50 transition-colors">
-                        <td className="px-6 py-4"><strong className="text-sm font-bold text-gray-900">{alert.name}</strong></td>
+                      <tr key={alert.id} className="hover:bg-gray-50/50 transition-colors group">
+                        <td className="px-6 py-4 sticky left-0 z-10 bg-white group-hover:bg-gray-50 transition-colors shadow-[1px_0_0_0_#f3f4f6]"><strong className="text-sm font-bold text-gray-900">{alert.name}</strong></td>
                         <td className="px-6 py-4 text-sm text-gray-500 font-medium">{alert.unit}</td>
                         <td className="px-6 py-4 text-sm font-extrabold text-gray-900 text-right">{alert.stock_quantity}</td>
                         <td className="px-6 py-4 text-sm font-medium text-gray-500 text-right">{alert.low_stock_alert}</td>

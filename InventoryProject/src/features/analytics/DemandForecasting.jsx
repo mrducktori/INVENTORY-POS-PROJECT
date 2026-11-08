@@ -677,7 +677,7 @@ const DemandForecasting = () => {
                             className="rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900 cursor-pointer"
                           />
                         </th>
-                        <th className="py-3 px-4">Ingredient</th>
+                        <th className="py-3 px-4 sticky left-0 z-10 bg-zinc-50 shadow-[1px_0_0_0_#e4e4e7]">Ingredient</th>
                         <th className="py-3 px-4 text-right">On Hand</th>
                         <th className="py-3 px-4 text-right">Daily Usage</th>
                         <th className="py-3 px-4 text-center">Est. Time Left</th>
@@ -694,7 +694,7 @@ const DemandForecasting = () => {
                         return (
                           <tr
                             key={item.id}
-                            className={`transition-colors ${
+                            className={`transition-colors group ${
                               isSelected ? 'bg-zinc-50' : 'hover:bg-zinc-50/60'
                             }`}
                           >
@@ -708,7 +708,7 @@ const DemandForecasting = () => {
                             </td>
 
                             {/* Ingredient Name & Category */}
-                            <td className="py-3.5 px-4">
+                            <td className="py-3.5 px-4 sticky left-0 z-10 bg-white group-hover:bg-zinc-50 transition-colors shadow-[1px_0_0_0_#f4f4f5] whitespace-nowrap">
                               <div className="font-semibold text-zinc-900">{item.name}</div>
                               <div className="text-xs text-zinc-400">{item.category}</div>
                             </td>
@@ -933,7 +933,7 @@ const DemandForecasting = () => {
                   <table className="w-full text-left border-collapse text-xs sm:text-sm">
                     <thead>
                       <tr className="border-b border-zinc-200 bg-zinc-50/50 text-zinc-500 font-semibold">
-                        <th className="py-3 px-4">Menu Item</th>
+                        <th className="py-3 px-4 sticky left-0 z-10 bg-zinc-50 shadow-[1px_0_0_0_#e4e4e7]">Menu Item</th>
                         <th className="py-3 px-4">Category</th>
                         <th className="py-3 px-4 text-right">Daily Average</th>
                         <th className="py-3 px-4 text-right">Next 7 Days</th>
@@ -946,8 +946,8 @@ const DemandForecasting = () => {
                       {paginatedProducts.map((item) => {
                         const est30Days = Math.round((Number(item.predictedNext7Days) || 0) * 4.3);
                         return (
-                          <tr key={item.id} className="hover:bg-zinc-50/60 transition-colors">
-                            <td className="py-3.5 px-4 font-semibold text-zinc-900">
+                          <tr key={item.id} className="hover:bg-zinc-50/60 transition-colors group">
+                            <td className="py-3.5 px-4 font-semibold text-zinc-900 sticky left-0 z-10 bg-white group-hover:bg-zinc-50 transition-colors shadow-[1px_0_0_0_#f4f4f5] whitespace-nowrap">
                               {item.name}
                             </td>
                             <td className="py-3.5 px-4">

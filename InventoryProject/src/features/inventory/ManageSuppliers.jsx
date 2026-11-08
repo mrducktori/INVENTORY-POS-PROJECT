@@ -227,7 +227,7 @@ const ManageSuppliers = () => {
                 <table className="w-full text-left border-collapse whitespace-nowrap">
                   <thead>
                     <tr className="bg-zinc-50 border-b border-zinc-200 text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
-                      <th className="px-6 py-3.5">Supplier Name</th>
+                      <th className="px-6 py-3.5 sticky left-0 z-10 bg-zinc-50 shadow-[1px_0_0_0_#e4e4e7]">Supplier Name</th>
                       <th className="px-6 py-3.5">Contact Details</th>
                       <th className="px-6 py-3.5">Location / Address</th>
                       <th className="px-6 py-3.5 text-center">Items Offered</th>
@@ -238,8 +238,8 @@ const ManageSuppliers = () => {
                     {activeSuppliers.map((supp) => {
                       const itemsCount = supp.supplier_ingredients?.length || 0;
                       return (
-                        <tr key={supp.id} className="hover:bg-zinc-50/60 transition-colors">
-                          <td className="px-6 py-4">
+                        <tr key={supp.id} className="hover:bg-zinc-50/60 transition-colors group">
+                          <td className="px-6 py-4 sticky left-0 z-10 bg-white group-hover:bg-zinc-50 transition-colors shadow-[1px_0_0_0_#f4f4f5]">
                             <div className="flex items-center gap-2">
                               <span className="font-bold text-zinc-900 text-base">{supp.name}</span>
                               {supp.recent_price_updates?.changes_count > 0 && (

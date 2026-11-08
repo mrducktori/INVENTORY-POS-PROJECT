@@ -178,7 +178,7 @@ const RawMaterialTracker = () => {
               <table className="w-full text-left border-collapse whitespace-nowrap">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Ingredient</th>
+                    <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider sticky left-0 z-10 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb]">Ingredient</th>
                     <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Current Stock</th>
                     <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Alert Level</th>
                     <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Stock Level</th>
@@ -208,8 +208,8 @@ const RawMaterialTracker = () => {
                         const pct = getStockPercent(ing.stock_quantity, ing.low_stock_alert);
 
                         return (
-                          <tr key={ing.id} className="hover:bg-gray-50/50 transition-colors">
-                            <td className="px-6 py-4"><strong className="text-sm font-bold text-gray-900">{ing.name}</strong></td>
+                          <tr key={ing.id} className="hover:bg-gray-50/50 transition-colors group">
+                            <td className="px-6 py-4 sticky left-0 z-10 bg-white group-hover:bg-gray-50 transition-colors shadow-[1px_0_0_0_#f3f4f6]"><strong className="text-sm font-bold text-gray-900">{ing.name}</strong></td>
                             <td className="px-6 py-4 text-sm font-extrabold text-gray-900 text-right">{formatQuantity(ing.stock_quantity, ing.unit)}</td>
                             <td className="px-6 py-4 text-sm font-medium text-gray-500 text-right">{formatQuantity(ing.low_stock_alert, ing.unit)}</td>
                             <td className="px-6 py-4">

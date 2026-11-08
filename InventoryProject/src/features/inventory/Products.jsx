@@ -257,7 +257,7 @@ const Products = () => {
                   <thead>
                     <tr className="bg-zinc-50 border-b border-zinc-200">
                       <th 
-                        className="px-6 py-4 text-xs font-bold text-zinc-600 uppercase tracking-wider cursor-pointer hover:text-zinc-900 select-none group"
+                        className="px-6 py-4 text-xs font-bold text-zinc-600 uppercase tracking-wider cursor-pointer hover:text-zinc-900 select-none group sticky left-0 z-10 bg-zinc-50 shadow-[1px_0_0_0_#e4e4e7]"
                         onClick={handleNameSort}
                         title="Click to sort alphabetically (A-Z, Z-A)"
                       >
@@ -317,9 +317,9 @@ const Products = () => {
                   </thead>
                   <tbody className="divide-y divide-zinc-200">
                     {paginatedProducts.map(product => (
-                      <tr key={product.id} className="hover:bg-zinc-50/70 transition-colors">
+                      <tr key={product.id} className="hover:bg-zinc-50/70 transition-colors group">
                         {/* Product Name & Photo */}
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-4 sticky left-0 z-10 bg-white group-hover:bg-zinc-50 transition-colors shadow-[1px_0_0_0_#f4f4f5]">
                           <div className="flex items-center gap-3.5">
                             {product.image_url ? (
                               <img

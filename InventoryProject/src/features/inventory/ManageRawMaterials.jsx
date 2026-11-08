@@ -284,7 +284,7 @@ const ManageRawMaterials = () => {
                     <table className="w-full text-left border-collapse whitespace-nowrap">
                       <thead>
                         <tr className="bg-gray-50 border-b border-gray-200">
-                          <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Material Name</th>
+                          <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider sticky left-0 z-10 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb]">Material Name</th>
                           <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Category</th>
                           <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Current Stock</th>
                           <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Alert Level</th>
@@ -295,8 +295,8 @@ const ManageRawMaterials = () => {
                       </thead>
                       <tbody className="divide-y divide-gray-100">
                         {paginatedList.map(i => (
-                          <tr key={i.id} className="hover:bg-gray-50/50 transition-colors">
-                            <td className="px-6 py-4"><strong className="text-sm font-bold text-gray-900">{i.name}</strong></td>
+                          <tr key={i.id} className="hover:bg-gray-50/50 transition-colors group">
+                            <td className="px-6 py-4 sticky left-0 z-10 bg-white group-hover:bg-gray-50 transition-colors shadow-[1px_0_0_0_#f3f4f6]"><strong className="text-sm font-bold text-gray-900">{i.name}</strong></td>
                             <td className="px-6 py-4">
                               <span className="inline-flex px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200">
                                 {i.category || 'GENERAL'}
