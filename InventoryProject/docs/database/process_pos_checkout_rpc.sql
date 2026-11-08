@@ -138,7 +138,13 @@ BEGIN
             WHEN jsonb_typeof(elem) = 'string' THEN elem #>> '{}'
             ELSE elem::text 
           END
-          FROM jsonb_array_elements(COALESCE(v_item.add_ons, '[]'::jsonb)) AS elem
+          FROM jsonb_array_elements(
+            CASE 
+              WHEN v_item.add_ons IS NOT NULL AND jsonb_typeof(v_item.add_ons) = 'array' 
+              THEN v_item.add_ons 
+              ELSE '[]'::jsonb 
+            END
+          ) AS elem
         ),
         ARRAY[]::text[]
       ),
