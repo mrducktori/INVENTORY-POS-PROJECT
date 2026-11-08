@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Analytics/UI: 4-Year Multi-Seasonal Forecasting (2023–2026) & Materials List Sticky Actions - 2026-11-08]
+- **Expanded Historical Sales to 4 Full Years (`2023–2026`, `48,816` Orders) & Seasonal Matrix (`docs/database/seed_2023_2024_and_build_multiyear_summary.mjs`, `server/data/multiYearSalesSummary.json`)**:
+  - Seeded **23,148 orders** (**34,092 line items**) across `2023-01-01` – `2024-12-31` in Supabase to join the `2025–2026` dataset, bringing total historical coverage to **48,816 orders** across **47 months (2023–2026)**.
+  - Built `server/data/multiYearSalesSummary.json` containing each product's 47-month sales history, monthly **Seasonal Indices (`1..12`)**, **Yearly Daily Averages (`2023–2026`)**, and **Year-over-Year (`yoyGrowthPct`)** growth trajectories.
+- **Upgraded Forecasting Engine with Multi-Year Seasonality & YoY Growth (`server/services/aiForecastingService.js`, `server/routes/analytics.js`, `DemandForecasting.jsx`)**:
+  - Upgraded `GET /api/analytics/demand-forecast` and `POST /api/analytics/ai-forecast` to blend short-term counter velocity (`7-day` & `30-day`) with 4-year monthly seasonal indices ($S_m$), same-month Year-over-Year historical baselines (`2023–2026`), annual YoY growth rates, and calendar multipliers (weekends, `15th/30th` paydays, and Philippine holidays).
+  - Updated `DemandForecasting.jsx` with a `Seasonality (4-Yr)` column (`Peak` / `Norm` / `Low`), `30-Day Est.` sub-label, multi-year factors and same-month `2023–2026` historical breakdown in the `By Month` projection modal, and updated documentation in the `How Demand Forecasting Works` modal.
+- **Fixed Clipped Action Column in Materials List (`ManageRawMaterials.jsx`, `useManageRawMaterials.js`)**:
+  - Made the `Action` column (`Edit` / `Archive`) sticky on the right edge (`sticky right-0 z-10`) alongside the left-anchored `Material Name` column, and narrowed the left `Add New Raw Material` card (`lg:w-80 xl:w-96 shrink-0`) so the `Materials List` table has full breathing room and action buttons are never cut off.
+
 ## [Auth/Security: Inactivity Auto-Logout, Live Activity Tracking, Online Status Sync & Audit Logging - 2026-11-08]
 - **Inactivity Logout Now Clears Online Session & Writes Audit Log (`authUtils.js`, `client.js`, `App.jsx`, `server/routes/auth.js`)**:
   - Registered a session expiration callback (`registerSessionExpiredCallback`) invoked whenever `clearUserSession('expired')` runs so the frontend automatically calls `POST /api/auth/logout` with `{ reason: 'inactivity' }` before clearing local storage.

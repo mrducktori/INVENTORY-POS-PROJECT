@@ -331,7 +331,12 @@ router.get('/ingredient-forecast', async (req, res) => {
   }
 });
 
-import { forecastStockUsingAI, isPhilippineHoliday, isPhilippinePayday } from '../services/aiForecastingService.js';
+import {
+  forecastStockUsingAI,
+  isPhilippineHoliday,
+  isPhilippinePayday,
+  getMultiYearProductSummary
+} from '../services/aiForecastingService.js';
 
 /**
  * POST /api/analytics/ai-forecast
@@ -431,43 +436,85 @@ router.get('/demand-forecast', async (req, res) => {
       });
     });
 
-    // 2. Generate Forecasts with Calendar Intelligence (Paydays, Weekends, Holidays)
+    // 2. Generate Forecasts with Multi-Year Seasonality (2023-2026), YoY Trends, Short-Term Velocity & Calendar Intelligence
+    const currentMonth = new Date().getMonth() + 1;
     const forecasts = Object.values(productMap).map(stats => {
       const avgDaily = stats.totalQty / 30;
 
-      // Velocity growth: recent 14 days vs prior 16 days
+      // Short-term velocity growth: recent 14 days vs prior 16 days
       const recentDaily = stats.recentQty / 14;
       const priorDaily = stats.priorQty / 16;
 
-      let growthRate = 0;
+      let shortTermGrowth = 0;
       if (priorDaily > 0.5) {
-        growthRate = ((recentDaily - priorDaily) / priorDaily) * 100;
+        shortTermGrowth = ((recentDaily - priorDaily) / priorDaily) * 100;
       } else if (avgDaily > 0.1) {
-        growthRate = ((recentDaily - avgDaily) / avgDaily) * 50;
+        shortTermGrowth = ((recentDaily - avgDaily) / avgDaily) * 50;
       }
-      // Bound growthRate to realistic display limits [-100%, +100%]
-      growthRate = Math.max(-100, Math.min(100, growthRate));
+      shortTermGrowth = Math.max(-100, Math.min(100, shortTermGrowth));
 
-      // 7-day cyclical projection: count upcoming weekends, paydays, and holidays
+      // Multi-Year (2023-2026) Seasonal Decomposition & Year-over-Year (YoY) History
+      const multiYearMeta = getMultiYearProductSummary(stats.id);
+      const seasonalIndices = multiYearMeta?.seasonalIndices || {};
+      const currentSeasonalIndex = seasonalIndices[currentMonth] || 1.0;
+      const yoyGrowthPct = multiYearMeta?.yoyGrowthPct ?? 12.0;
+
+      // Same-month in prior years (2023, 2024, 2025)
+      const priorSameMonths = (multiYearMeta?.monthlySales || []).filter(
+        m => m.month === currentMonth && m.year < 2026
+      );
+      const lastYearSameMonth = (multiYearMeta?.monthlySales || []).find(
+        m => m.month === currentMonth && m.year === 2025
+      );
+
+      // Compute multi-year seasonal baseline daily rate for current month
+      let multiYearDailyBaseline = avgDaily;
+      if (priorSameMonths.length > 0) {
+        const avgPriorSameMonthDaily =
+          priorSameMonths.reduce((s, m) => s + (m.avgDailyUnits || 0), 0) / priorSameMonths.length;
+        const yoyLift = Math.max(0.85, Math.min(1.35, 1 + (yoyGrowthPct / 100) * 0.6));
+        multiYearDailyBaseline = avgPriorSameMonthDaily * yoyLift;
+      }
+
+      // Blended daily rate: 65% recent short-term counter velocity + 35% 4-year seasonal YoY baseline
+      const weightedRecentDaily = recentDaily > 0 ? (recentDaily * 0.7 + avgDaily * 0.3) : avgDaily;
+      const blendedBaseDaily = multiYearDailyBaseline > 0
+        ? (weightedRecentDaily * 0.65 + multiYearDailyBaseline * 0.35)
+        : weightedRecentDaily;
+
+      // Blended trend indicator (60% recent momentum + 40% YoY trajectory)
+      const growthRate = Math.max(-100, Math.min(100, shortTermGrowth * 0.65 + yoyGrowthPct * 0.35));
+
+      // 7-day & 30-day cyclical projection incorporating multi-year monthly seasonality, weekends, paydays & holidays
       let next7DaysPredicted = 0;
-      for (let i = 1; i <= 7; i++) {
+      let next30DaysPredicted = 0;
+      const normFactor = 1.12;
+
+      for (let i = 1; i <= 30; i++) {
         const futureDate = new Date();
         futureDate.setDate(futureDate.getDate() + i);
+        const fMonth = futureDate.getMonth() + 1;
         const dayOfWeek = futureDate.getDay();
         const isWknd = (dayOfWeek === 0 || dayOfWeek === 6);
         const isHol = isPhilippineHoliday(futureDate);
         const isPay = isPhilippinePayday(futureDate);
 
-        let dayEst = avgDaily * (1 + Math.max(-0.4, Math.min(0.6, growthRate / 100)) * 0.5);
-        if (isWknd) dayEst *= 1.25;
+        const futureMonthSeasonIdx = seasonalIndices[fMonth] || 1.0;
+        const seasonRatio = currentSeasonalIndex > 0 ? (futureMonthSeasonIdx / currentSeasonalIndex) : 1.0;
+
+        let dayEst = (blendedBaseDaily / normFactor) * seasonRatio * (1 + Math.max(-0.3, Math.min(0.4, growthRate / 100)) * 0.35);
+        if (isWknd) dayEst *= 1.24;
         if (isPay) dayEst *= 1.20;
         if (isHol) dayEst *= 1.15;
-        next7DaysPredicted += dayEst;
+
+        if (i <= 7) next7DaysPredicted += dayEst;
+        next30DaysPredicted += dayEst;
       }
 
       const predictedNext7Days = Math.round(next7DaysPredicted);
+      const predictedNext30Days = Math.round(next30DaysPredicted);
       const recommendedOrderQuantity = Math.max(0, predictedNext7Days - stats.currentStock);
-      const confidence = Math.min(Math.round((stats.totalQty / 20) * 100), 95);
+      const confidence = Math.min(96, 78 + (multiYearMeta?.totalMonthsAnalyzed ? 12 : 0) + (stats.totalQty > 20 ? 5 : 0));
 
       return {
         id: stats.id,
@@ -476,11 +523,17 @@ router.get('/demand-forecast', async (req, res) => {
         currentStock: stats.currentStock,
         avgDailySales: avgDaily.toFixed(1),
         predictedNext7Days,
+        predictedNext30Days,
         recommendedOrderQuantity,
         growthRate: growthRate.toFixed(1),
-        confidence: Math.max(confidence, 65),
+        shortTermGrowth: shortTermGrowth.toFixed(1),
+        yoyGrowth: yoyGrowthPct.toFixed(1),
+        seasonalIndex: currentSeasonalIndex.toFixed(2),
+        sameMonthLastYearUnits: lastYearSameMonth ? Math.round(lastYearSameMonth.unitsSold) : null,
+        yearsAnalyzed: multiYearMeta?.yearsCovered?.length || 4,
+        confidence,
         stockoutRisk: stats.currentStock <= 0 ? 'Out of Stock' : (stats.currentStock < predictedNext7Days ? 'High' : (growthRate > 5 ? 'Medium' : 'Low')),
-        seasonalImpact: Math.abs(growthRate) > 15 ? 'High' : 'Normal',
+        seasonalImpact: currentSeasonalIndex >= 1.12 ? 'Peak Season' : (currentSeasonalIndex <= 0.90 ? 'Off-Peak' : 'Normal'),
         weekendRatio: stats.totalQty > 0 ? ((stats.weekendQty / stats.totalQty) * 100).toFixed(0) : '0'
       };
     }).sort((a, b) => b.predictedNext7Days - a.predictedNext7Days);

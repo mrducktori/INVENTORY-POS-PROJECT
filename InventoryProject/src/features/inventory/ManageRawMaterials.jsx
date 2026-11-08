@@ -28,7 +28,8 @@ const ManageRawMaterials = () => {
     handleAddIngredient,
     handleArchiveToggle,
     handleUpdateIngredient,
-    handleSetModify
+    handleSetModify,
+    fetchIngredients
   } = useManageRawMaterials();
 
   // Pagination for Materials List Table
@@ -140,7 +141,7 @@ const ManageRawMaterials = () => {
       {viewMode === 'ADD' && (
         <div className="flex flex-col lg:flex-row items-start gap-6">
           {/* Add Material Card */}
-          <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden flex-1 max-w-xl w-full">
+          <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden w-full lg:w-80 xl:w-96 shrink-0">
             <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50">
               <h2 className="m-0 text-lg font-bold text-gray-900 tracking-tight">Add New Raw Material</h2>
             </div>
@@ -241,22 +242,22 @@ const ManageRawMaterials = () => {
           </div>
 
           {/* List beside form */}
-          <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden flex-[2] w-full">
-            <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+          <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden flex-1 min-w-0 w-full">
+            <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50 flex flex-col xl:flex-row xl:items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <h2 className="m-0 text-lg font-bold text-gray-900 tracking-tight shrink-0">Materials List</h2>
                 <span className="text-xs font-semibold text-gray-500">({filteredList.length})</span>
               </div>
-              <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
+              <div className="flex flex-col sm:flex-row gap-2.5 w-full xl:w-auto">
                 <input
                   type="text"
                   placeholder="Search materials..."
-                  className="w-full sm:w-48 px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
+                  className="w-full sm:w-44 px-3.5 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
                   value={searchTerm}
                   onChange={e => handleSearchChange(e.target.value)}
                 />
                 <select
-                  className="w-full sm:w-36 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
+                  className="w-full sm:w-34 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
                   value={statusFilter}
                   onChange={e => handleStatusChange(e.target.value)}
                 >
@@ -265,7 +266,7 @@ const ManageRawMaterials = () => {
                   <option value="ARCHIVED">Archived Only</option>
                 </select>
                 <select
-                  className="w-full sm:w-44 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
+                  className="w-full sm:w-40 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
                   value={categoryFilter}
                   onChange={e => handleCategoryChange(e.target.value)}
                 >
@@ -284,27 +285,27 @@ const ManageRawMaterials = () => {
                     <table className="w-full text-left border-collapse whitespace-nowrap">
                       <thead>
                         <tr className="bg-gray-50 border-b border-gray-200">
-                          <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider sticky left-0 z-10 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb]">Material Name</th>
-                          <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Category</th>
-                          <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Current Stock</th>
-                          <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Alert Level</th>
-                          <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Stock Status</th>
-                          <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">State</th>
-                          <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Action</th>
+                          <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider sticky left-0 z-10 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb]">Material Name</th>
+                          <th className="px-3.5 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Category</th>
+                          <th className="px-3.5 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Current Stock</th>
+                          <th className="px-3.5 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Alert Level</th>
+                          <th className="px-3.5 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Stock Status</th>
+                          <th className="px-3.5 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">State</th>
+                          <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right sticky right-0 z-10 bg-gray-50 shadow-[-1px_0_0_0_#e5e7eb]">Action</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
                         {paginatedList.map(i => (
                           <tr key={i.id} className="hover:bg-gray-50/50 transition-colors group">
-                            <td className="px-6 py-4 sticky left-0 z-10 bg-white group-hover:bg-gray-50 transition-colors shadow-[1px_0_0_0_#f3f4f6]"><strong className="text-sm font-bold text-gray-900">{i.name}</strong></td>
-                            <td className="px-6 py-4">
+                            <td className="px-4 py-3.5 sticky left-0 z-10 bg-white group-hover:bg-gray-50 transition-colors shadow-[1px_0_0_0_#f3f4f6]"><strong className="text-sm font-bold text-gray-900">{i.name}</strong></td>
+                            <td className="px-3.5 py-3.5">
                               <span className="inline-flex px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200">
                                 {i.category || 'GENERAL'}
                               </span>
                             </td>
-                            <td className="px-6 py-4 text-sm font-bold text-gray-900">{formatQuantity(i.stock_quantity, i.unit)}</td>
-                            <td className="px-6 py-4 text-sm text-gray-500">{formatQuantity(i.low_stock_alert, i.unit)}</td>
-                            <td className="px-6 py-4">
+                            <td className="px-3.5 py-3.5 text-sm font-bold text-gray-900">{formatQuantity(i.stock_quantity, i.unit)}</td>
+                            <td className="px-3.5 py-3.5 text-sm text-gray-500">{formatQuantity(i.low_stock_alert, i.unit)}</td>
+                            <td className="px-3.5 py-3.5">
                               <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                                 i.stock_quantity <= 0 ? 'bg-red-50 text-red-700 border border-red-200' :
                                 i.stock_quantity <= i.low_stock_alert ? 'bg-red-50 text-red-600 border border-red-100' :
@@ -315,23 +316,23 @@ const ManageRawMaterials = () => {
                                  i.stock_quantity <= i.low_stock_alert * 1.5 ? 'Running Low' : 'Well Stocked'}
                               </span>
                             </td>
-                            <td className="px-6 py-4">
+                            <td className="px-3.5 py-3.5">
                               <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${i.is_archived ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
                                 {i.is_archived ? 'ARCHIVED' : 'ACTIVE'}
                               </span>
                             </td>
-                            <td className="px-6 py-4 text-right">
-                              <div className="flex gap-2 justify-end">
+                            <td className="px-4 py-3.5 text-right sticky right-0 z-10 bg-white group-hover:bg-gray-50 transition-colors shadow-[-1px_0_0_0_#f3f4f6]">
+                              <div className="flex gap-1.5 justify-end">
                                 <button
                                   disabled={isProcessing}
-                                  className="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-bold uppercase tracking-wider rounded hover:bg-gray-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                                  className="px-2.5 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-bold uppercase tracking-wider rounded hover:bg-gray-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                                   onClick={() => handleSetModify(i)}
                                 >
                                   Edit
                                 </button>
                                 <button
                                   disabled={isProcessing}
-                                  className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1.5 ${i.is_archived ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'}`}
+                                  className={`px-2.5 py-1.5 text-xs font-bold uppercase tracking-wider rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1.5 ${i.is_archived ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'}`}
                                   onClick={() => handleArchiveToggle(i.id, i.is_archived)}
                                 >
                                   {processingId === i.id && (

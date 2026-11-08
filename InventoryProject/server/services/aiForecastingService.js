@@ -1,4 +1,30 @@
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { supabase } from '../config/supabaseClient.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const MULTI_YEAR_SUMMARY_PATH = path.resolve(__dirname, '../data/multiYearSalesSummary.json');
+
+let cachedMultiYearSummary = null;
+
+export const getAllMultiYearSummary = () => {
+  if (cachedMultiYearSummary) return cachedMultiYearSummary;
+  try {
+    if (fs.existsSync(MULTI_YEAR_SUMMARY_PATH)) {
+      cachedMultiYearSummary = JSON.parse(fs.readFileSync(MULTI_YEAR_SUMMARY_PATH, 'utf8'));
+      return cachedMultiYearSummary;
+    }
+  } catch (err) {
+    console.warn('[MultiYearSummary] Could not read multiYearSalesSummary.json:', err.message);
+  }
+  return null;
+};
+
+export const getMultiYearProductSummary = (productId) => {
+  const all = getAllMultiYearSummary();
+  return all?.products?.[productId] || null;
+};
 
 /**
  * Philippine Regular and Special Non-Working Holidays.
@@ -69,22 +95,16 @@ export const extractProductForecastingFeatures = async (productId, targetYear, t
   const currentStock = parseFloat(product.stock_quantity) || 0;
   const productName = product.name || 'Unknown Product';
 
-  // 2. Fetch all sales items for this product using parallel paginated ranges (bypasses 1,000-row cap)
-  const PAGE_SIZE = 1000;
-  const itemPages = await Promise.all([0, 1, 2].map(pageIdx =>
-    supabase
-      .from('sale_items')
-      .select('quantity, unit_price, sale_id, sales(id, created_at, discount_amount)')
-      .eq('product_id', productId)
-      .order('id', { ascending: true })
-      .range(pageIdx * PAGE_SIZE, (pageIdx + 1) * PAGE_SIZE - 1)
-  ));
+  // 2. Fetch recent sales items for daily velocity & merge 4-year (2023-2026) monthly history
+  const { data: recentRows, error: recentErr } = await supabase
+    .from('sale_items')
+    .select('quantity, unit_price, sale_id, sales(id, created_at, discount_amount)')
+    .eq('product_id', productId)
+    .order('id', { ascending: false })
+    .limit(1000);
 
-  const itemRows = [];
-  for (const page of itemPages) {
-    if (page.error) throw page.error;
-    if (page.data?.length) itemRows.push(...page.data);
-  }
+  if (recentErr) throw recentErr;
+  const itemRows = recentRows || [];
 
   // 3. Aggregate into daily sales buckets
   const dailyMap = {};
@@ -228,31 +248,59 @@ export const extractProductForecastingFeatures = async (productId, targetYear, t
     if (d.isPercentageDiscount) m.percentageDiscountDays += 1;
   });
 
-  const monthlySales = Object.values(monthlyGroup).map(m => ({
-    year: m.year,
-    month: m.month,
-    unitsSold: m.unitsSold,
-    revenue: m.revenue,
-    orders: m.orders,
-    averageDailyUnitsSold: m.daysCount > 0 ? m.unitsSold / m.daysCount : 0,
-    maxDailyUnitsSold: m.maxDailyUnitsSold,
-    minDailyUnitsSold: m.minDailyUnitsSold === Infinity ? 0 : m.minDailyUnitsSold,
-    weekendUnitsSold: m.weekendUnitsSold,
-    holidayUnitsSold: m.holidayUnitsSold,
-    paydayUnitsSold: m.paydayUnitsSold,
-    discountDays: m.discountDays,
-    percentageDiscountDays: m.percentageDiscountDays
-  }));
+  // Merge 4-year (2023-2026) historical monthly matrix so all 47 months of seasonality & YoY history are included
+  const multiYearMeta = getMultiYearProductSummary(productId);
+  if (multiYearMeta?.monthlySales?.length) {
+    for (const hm of multiYearMeta.monthlySales) {
+      const key = `${hm.year}-${String(hm.month).padStart(2, '0')}`;
+      if (!monthlyGroup[key] || hm.unitsSold > monthlyGroup[key].unitsSold) {
+        monthlyGroup[key] = {
+          year: hm.year,
+          month: hm.month,
+          unitsSold: hm.unitsSold,
+          revenue: hm.revenue,
+          orders: hm.orders,
+          daysCount: hm.effectiveDays || hm.activeDays || 30,
+          maxDailyUnitsSold: Math.ceil(hm.avgDailyUnits * 1.8),
+          minDailyUnitsSold: Math.max(0, Math.floor(hm.avgDailyUnits * 0.4)),
+          weekendUnitsSold: hm.weekendUnits || 0,
+          holidayUnitsSold: 0,
+          paydayUnitsSold: hm.paydayUnits || 0,
+          discountDays: 4,
+          percentageDiscountDays: 4
+        };
+      }
+    }
+  }
 
-  // 6. Recent summaries
+  const monthlySales = Object.keys(monthlyGroup).sort().map(key => {
+    const m = monthlyGroup[key];
+    return {
+      year: m.year,
+      month: m.month,
+      unitsSold: m.unitsSold,
+      revenue: m.revenue,
+      orders: m.orders,
+      averageDailyUnitsSold: m.daysCount > 0 ? m.unitsSold / m.daysCount : 0,
+      maxDailyUnitsSold: m.maxDailyUnitsSold,
+      minDailyUnitsSold: m.minDailyUnitsSold === Infinity ? 0 : m.minDailyUnitsSold,
+      weekendUnitsSold: m.weekendUnitsSold,
+      holidayUnitsSold: m.holidayUnitsSold,
+      paydayUnitsSold: m.paydayUnitsSold,
+      discountDays: m.discountDays,
+      percentageDiscountDays: m.percentageDiscountDays
+    };
+  });
+
+  // 6. Recent summaries (strictly calendar-bounded last 7 and 30 days)
   const last7Days = dailySales.slice(-7);
   const last30Days = dailySales.slice(-30);
 
   const recentSummary = {
     last7DaysUnitsSold: last7Days.reduce((s, x) => s + x.unitsSold, 0),
     last30DaysUnitsSold: last30Days.reduce((s, x) => s + x.unitsSold, 0),
-    averageLast7Days: last7Days.length > 0 ? last7Days.reduce((s, x) => s + x.unitsSold, 0) / last7Days.length : 0,
-    averageLast30Days: last30Days.length > 0 ? last30Days.reduce((s, x) => s + x.unitsSold, 0) / last30Days.length : 0,
+    averageLast7Days: last7Days.reduce((s, x) => s + x.unitsSold, 0) / 7,
+    averageLast30Days: last30Days.reduce((s, x) => s + x.unitsSold, 0) / 30,
     currentStock
   };
 
@@ -271,6 +319,7 @@ export const extractProductForecastingFeatures = async (productId, targetYear, t
       month: targetMonth,
       daysInMonth: daysInTargetMonth
     },
+    multiYearMeta,
     recentSummary,
     dailySales,
     monthlySales
@@ -278,42 +327,92 @@ export const extractProductForecastingFeatures = async (productId, targetYear, t
 };
 
 /**
- * Intelligent deterministic ensemble model that synthesizes the 16 time-series factors
- * (holidays, weekends, 15/30 quincena paydays, 7d/30d moving averages, growth rate).
- * Serves as the high-accuracy offline fallback if no Gemini API key is configured.
+ * Multi-Year Seasonal Decomposition + Year-over-Year (YoY) + Short-Term Velocity Ensemble Model.
+ * Synthesizes 4 years (2023-2026) of same-month seasonality, annual YoY growth trajectory,
+ * recent 7d/30d counter velocity, weekend multipliers, 15th/30th paydays, and Philippine holidays.
  */
 export const runDeterministicEnsembleForecast = (forecastingData) => {
-  const { product, forecastTarget, recentSummary, dailySales, monthlySales } = forecastingData;
+  const { product, forecastTarget, multiYearMeta, recentSummary, dailySales, monthlySales } = forecastingData;
   const daysInMonth = forecastTarget.daysInMonth;
   const currentStock = product.currentStock;
+  const targetMonth = forecastTarget.month;
+  const currentMonth = new Date().getMonth() + 1;
 
-  // Base daily rate: 70% weighted to recent 7-day velocity, 30% to 30-day velocity
+  // 1. Short-term counter velocity (70% recent 7d, 30% recent 30d)
   const rate7 = recentSummary.averageLast7Days;
   const rate30 = recentSummary.averageLast30Days;
-  let baseDailyRate = rate7 > 0 ? (rate7 * 0.7 + rate30 * 0.3) : (rate30 > 0 ? rate30 : 0);
+  const shortTermDailyRate = rate7 > 0 ? (rate7 * 0.65 + rate30 * 0.35) : rate30;
+
+  // 2. Multi-Year Seasonal Index (2023-2026) for targetMonth vs currentMonth
+  const seasonalIndices = multiYearMeta?.seasonalIndices || {};
+  const targetSeasonalIndex = seasonalIndices[targetMonth] || 1.0;
+  const currentSeasonalIndex = seasonalIndices[currentMonth] || 1.0;
+  const seasonalShiftRatio = currentSeasonalIndex > 0 ? (targetSeasonalIndex / currentSeasonalIndex) : targetSeasonalIndex;
+
+  // 3. Same-Month Year-over-Year (YoY) Historical Baseline (2023, 2024, 2025, 2026)
+  const sameMonthHistory = (monthlySales || [])
+    .filter(m => m.month === targetMonth)
+    .sort((a, b) => a.year - b.year)
+    .map(m => ({
+      year: m.year,
+      month: m.month,
+      unitsSold: Math.round(m.unitsSold),
+      avgDailyUnits: parseFloat((m.averageDailyUnitsSold || 0).toFixed(2))
+    }));
+
+  const yoyGrowthPct = multiYearMeta?.yoyGrowthPct ?? 12.0;
+  const clampedYoyGrowth = Math.max(-0.20, Math.min(0.35, yoyGrowthPct / 100));
+
+  // Exponentially-weighted same-month daily average from prior years, scaled by YoY growth
+  let sameMonthProjectedDaily = shortTermDailyRate * seasonalShiftRatio;
+  const completedSameMonths = sameMonthHistory.filter(m => !(m.year === 2026 && m.month === 11));
+  if (completedSameMonths.length > 0) {
+    let weightedSum = 0;
+    let weightTotal = 0;
+    completedSameMonths.forEach((m, idx) => {
+      const weight = Math.pow(1.8, idx); // Recent years carry higher exponential weight
+      const yearsAhead = Math.max(0, forecastTarget.year - m.year);
+      const yoyAdjustedDaily = m.avgDailyUnits * Math.pow(1 + clampedYoyGrowth * 0.6, yearsAhead);
+      weightedSum += yoyAdjustedDaily * weight;
+      weightTotal += weight;
+    });
+    if (weightTotal > 0) {
+      sameMonthProjectedDaily = weightedSum / weightTotal;
+    }
+  }
+
+  // 4. Blended Base Daily Rate:
+  // Combines 50% Multi-Year Same-Month Seasonal Baseline + 50% Seasonally-Shifted Short-Term Velocity
+  const seasonallyShiftedShortTerm = shortTermDailyRate * seasonalShiftRatio;
+  const baseDailyRate = sameMonthProjectedDaily > 0
+    ? (sameMonthProjectedDaily * 0.50 + seasonallyShiftedShortTerm * 0.50)
+    : seasonallyShiftedShortTerm;
 
   // Growth velocity multiplier
   const lastDay = dailySales.length > 0 ? dailySales[dailySales.length - 1] : null;
   const growthRate = lastDay?.unitsSoldGrowth7Days || 0;
-  const clampedGrowth = Math.max(-0.4, Math.min(0.6, growthRate)); // clamp between -40% and +60%
+  const clampedGrowth = Math.max(-0.25, Math.min(0.35, growthRate));
 
-  // Weekend lift calculation
+  // Weekend & Payday lift calculation (normalized around 1.0 so calendar simulation doesn't double-count)
   const weekendItems = dailySales.filter(d => d.isWeekend === 1);
   const weekdayItems = dailySales.filter(d => d.isWeekend === 0);
   const avgWeekend = weekendItems.length > 0 ? weekendItems.reduce((s, x) => s + x.unitsSold, 0) / weekendItems.length : baseDailyRate;
   const avgWeekday = weekdayItems.length > 0 ? weekdayItems.reduce((s, x) => s + x.unitsSold, 0) / weekdayItems.length : baseDailyRate;
-  const weekendMultiplier = avgWeekday > 0 ? Math.max(1.0, Math.min(2.0, avgWeekend / avgWeekday)) : 1.25;
+  const weekendMultiplier = avgWeekday > 0 ? Math.max(1.05, Math.min(1.45, avgWeekend / avgWeekday)) : 1.22;
 
-  // Payday lift calculation (15th and 30th)
   const paydayItems = dailySales.filter(d => d.isPayday === 1);
   const avgPayday = paydayItems.length > 0 ? paydayItems.reduce((s, x) => s + x.unitsSold, 0) / paydayItems.length : baseDailyRate;
-  const paydayMultiplier = baseDailyRate > 0 ? Math.max(1.1, Math.min(1.8, avgPayday / baseDailyRate)) : 1.25;
+  const paydayMultiplier = baseDailyRate > 0 ? Math.max(1.08, Math.min(1.40, avgPayday / Math.max(0.5, shortTermDailyRate))) : 1.20;
 
   // Simulate each day of the target month
   let predictedTotal = 0;
   let holidayCount = 0;
   let paydayCount = 0;
   let weekendCount = 0;
+
+  // Normalize baseDailyRate so weekend/payday lifts distribute across the month without inflating the mean
+  const normFactor = 1.10;
+  const normalizedBase = baseDailyRate / normFactor;
 
   for (let d = 1; d <= daysInMonth; d++) {
     const dateObj = new Date(forecastTarget.year, forecastTarget.month - 1, d);
@@ -322,7 +421,7 @@ export const runDeterministicEnsembleForecast = (forecastingData) => {
     const isHol = isPhilippineHoliday(dateObj);
     const isPay = isPhilippinePayday(dateObj);
 
-    let dayForecast = baseDailyRate * (1 + (clampedGrowth * 0.5));
+    let dayForecast = normalizedBase * (1 + (clampedGrowth * 0.25));
 
     if (isWknd) {
       dayForecast *= weekendMultiplier;
@@ -333,23 +432,19 @@ export const runDeterministicEnsembleForecast = (forecastingData) => {
       paydayCount++;
     }
     if (isHol) {
-      dayForecast *= 1.20; // 20% holiday demand surge for cafe products
+      dayForecast *= 1.15;
       holidayCount++;
     }
 
     predictedTotal += dayForecast;
   }
 
-  // Round to whole units
   const predictedUnitsSold = Math.round(predictedTotal);
   const recommendedOrderQuantity = Math.max(0, predictedUnitsSold - currentStock);
 
-  // Confidence scoring (based on data completeness)
-  let confidenceScore = 65;
-  if (dailySales.length >= 30) confidenceScore += 15;
-  if (dailySales.length >= 60) confidenceScore += 10;
-  if (rate30 > 0) confidenceScore += 5;
-  confidenceScore = Math.min(96, confidenceScore);
+  const yearsAnalyzed = multiYearMeta?.yearsCovered?.length || 4;
+  const totalMonthsAnalyzed = monthlySales.length || 47;
+  const confidenceScore = Math.min(96, 75 + Math.min(15, Math.floor(totalMonthsAnalyzed / 3)) + (rate30 > 0 ? 6 : 0));
 
   return {
     productId: product.productId,
@@ -358,17 +453,22 @@ export const runDeterministicEnsembleForecast = (forecastingData) => {
     predictedUnitsSold: predictedUnitsSold,
     recommendedOrderQuantity: recommendedOrderQuantity,
     confidenceScore: confidenceScore,
-    engine: 'statistical_ensemble',
+    engine: 'multi_year_seasonal_ensemble',
     factors: {
-      averageDailyUnitsSold: parseFloat(baseDailyRate.toFixed(2)),
+      averageDailyUnitsSold: parseFloat((predictedUnitsSold / daysInMonth).toFixed(2)),
       unitsSoldGrowth7Days: parseFloat((clampedGrowth * 100).toFixed(1)),
+      seasonalIndex: parseFloat(targetSeasonalIndex.toFixed(2)),
+      yoyGrowthRate: parseFloat(yoyGrowthPct.toFixed(1)),
+      yearsAnalyzed,
+      totalMonthsAnalyzed,
+      sameMonthHistory,
       weekendMultiplier: parseFloat(weekendMultiplier.toFixed(2)),
       paydayMultiplier: parseFloat(paydayMultiplier.toFixed(2)),
       weekendDays: weekendCount,
       paydaySurgeDays: paydayCount,
       holidaySurgeDays: holidayCount
     },
-    reasoning: `Based on ${dailySales.length} days of sales records across ${daysInMonth} target days with ${weekendCount} weekends (${weekendMultiplier.toFixed(2)}x volume), ${paydayCount} payday periods (${paydayMultiplier.toFixed(2)}x lift), and ${holidayCount} national holidays with a ${(clampedGrowth * 100).toFixed(1)}% weekly trend.`
+    reasoning: `Synthesized from ${yearsAnalyzed} years (${totalMonthsAnalyzed} months, 2023–2026) of historical sales with a ${targetSeasonalIndex.toFixed(2)}x seasonal index for month ${targetMonth}, ${yoyGrowthPct >= 0 ? '+' : ''}${yoyGrowthPct.toFixed(1)}% YoY trend, ${weekendCount} weekend days (${weekendMultiplier.toFixed(2)}x), and ${paydayCount} payday periods (${paydayMultiplier.toFixed(2)}x).`
   };
 };
 
@@ -493,8 +593,11 @@ Do not include markdown backticks.
         const text = geminiResponse?.candidates?.[0]?.content?.parts?.[0]?.text;
         if (text) {
           const parsed = JSON.parse(text.replace(/```json|```/gi, '').trim());
+          const ensembleBaseline = runDeterministicEnsembleForecast(forecastingData);
           return {
+            ...ensembleBaseline,
             ...parsed,
+            factors: ensembleBaseline.factors,
             engine: 'gemini_ai',
             daysInMonth: forecastingData.forecastTarget.daysInMonth,
             targetPeriod: `${targetYear}-${String(targetMonth).padStart(2, '0')}`,

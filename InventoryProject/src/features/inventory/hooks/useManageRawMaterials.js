@@ -273,6 +273,7 @@ export const useManageRawMaterials = () => {
     handleAddIngredient,
     handleArchiveToggle,
     handleUpdateIngredient,
-    handleSetModify
+    handleSetModify,
+    fetchIngredients
   };
 };

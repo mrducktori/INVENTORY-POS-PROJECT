@@ -976,14 +976,20 @@ const DemandForecasting = () => {
                         <th className="py-3 px-4 text-right">
                           <span className="inline-flex items-center justify-end gap-1">
                             <span>Next 7 Days</span>
-                            <InfoTip position="bottom" text="Projected orders for the upcoming 7 days, adjusted for recent growth, weekends, paydays, and holidays." />
+                            <InfoTip position="bottom" text="Projected orders for the upcoming 7 days blending recent 14d/30d counter velocity with 4-year (2023–2026) monthly seasonality, weekends, paydays, and holidays." />
                           </span>
                         </th>
                         <th className="py-3 px-4 text-right">Est. 30 Days</th>
                         <th className="py-3 px-4 text-center">
                           <span className="inline-flex items-center justify-center gap-1">
+                            <span>Seasonality (4-Yr)</span>
+                            <InfoTip position="bottom" text="Multi-year seasonal index (2023–2026) comparing this calendar month's historical demand against the annual average (above 1.0x = peak season)." />
+                          </span>
+                        </th>
+                        <th className="py-3 px-4 text-center">
+                          <span className="inline-flex items-center justify-center gap-1">
                             <span>Sales Trend</span>
-                            <InfoTip position="bottom" text="Compares sales pace from the last 14 days against the previous 16 days." />
+                            <InfoTip position="bottom" text="Blends recent 14-day vs. 16-day momentum with multi-year Year-over-Year (YoY) growth trajectory." />
                           </span>
                         </th>
                         <th className="py-3 px-4 text-right">Monthly View</th>
@@ -991,7 +997,8 @@ const DemandForecasting = () => {
                     </thead>
                     <tbody className="divide-y divide-zinc-100">
                       {paginatedProducts.map((item) => {
-                        const est30Days = Math.round((Number(item.predictedNext7Days) || 0) * 4.3);
+                        const est30Days = item.predictedNext30Days || Math.round((Number(item.predictedNext7Days) || 0) * 4.3);
+                        const sIdx = parseFloat(item.seasonalIndex) || 1.0;
                         return (
                           <tr key={item.id} className="hover:bg-zinc-50/60 transition-colors group">
                             <td className="py-3.5 px-4 font-semibold text-zinc-900 sticky left-0 z-10 bg-white group-hover:bg-zinc-50 transition-colors shadow-[1px_0_0_0_#f4f4f5] whitespace-nowrap">
@@ -1010,6 +1017,22 @@ const DemandForecasting = () => {
                             </td>
                             <td className="py-3.5 px-4 text-right font-mono text-zinc-700">
                               ~{est30Days} <span className="text-xs text-zinc-400">orders</span>
+                            </td>
+                            <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                              <span
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-mono font-semibold border ${
+                                  sIdx >= 1.12
+                                    ? 'bg-zinc-900 text-white border-zinc-900'
+                                    : sIdx <= 0.90
+                                    ? 'bg-zinc-50 text-zinc-500 border-zinc-200'
+                                    : 'bg-zinc-100 text-zinc-700 border-zinc-200'
+                                }`}
+                              >
+                                {sIdx.toFixed(2)}x
+                                <span className="font-sans text-[10px] font-medium opacity-80">
+                                  {sIdx >= 1.12 ? 'Peak' : sIdx <= 0.90 ? 'Low' : 'Norm'}
+                                </span>
+                              </span>
                             </td>
                             <td className="py-3.5 px-4 text-center">
                               {renderTrendBadge(item.growthRate)}
@@ -1302,7 +1325,7 @@ const DemandForecasting = () => {
                     }}
                     className="px-2.5 py-1.5 text-xs sm:text-sm font-medium border border-zinc-300 rounded-lg bg-white text-zinc-900 focus:outline-none"
                   >
-                    {[2025, 2026, 2027].map((yr) => (
+                    {[2023, 2024, 2025, 2026, 2027].map((yr) => (
                       <option key={yr} value={yr}>
                         {yr}
                       </option>
@@ -1311,7 +1334,7 @@ const DemandForecasting = () => {
                 </div>
 
                 <span className="text-xs text-zinc-500 font-medium">
-                  {aiLoading ? 'Updating...' : 'Auto-calculated'}
+                  {aiLoading ? 'Updating...' : '4-Yr Multi-Seasonal'}
                 </span>
               </div>
 
@@ -1340,7 +1363,28 @@ const DemandForecasting = () => {
                     </div>
 
                     <div className="border border-zinc-200 rounded-xl p-4 space-y-2 text-xs sm:text-sm">
-                      <div className="font-semibold text-zinc-900 mb-2">Calendar Adjustments Included</div>
+                      <div className="font-semibold text-zinc-900 mb-2">Multi-Year &amp; Calendar Factors</div>
+                      <div className="flex justify-between text-zinc-600">
+                        <span>Seasonal Index (2023–2026)</span>
+                        <span className="font-mono font-semibold text-zinc-900">
+                          {aiResult.factors?.seasonalIndex ? `${aiResult.factors.seasonalIndex}x` : '1.00x'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-zinc-600">
+                        <span>Year-over-Year (YoY) Trend</span>
+                        <span
+                          className={`font-mono font-semibold ${
+                            Number(aiResult.factors?.yoyGrowthRate || 0) > 0
+                              ? 'text-emerald-700'
+                              : Number(aiResult.factors?.yoyGrowthRate || 0) < 0
+                                ? 'text-amber-700'
+                                : 'text-zinc-900'
+                          }`}
+                        >
+                          {Number(aiResult.factors?.yoyGrowthRate || 0) >= 0 ? '+' : ''}
+                          {aiResult.factors?.yoyGrowthRate ?? 0}%
+                        </span>
+                      </div>
                       <div className="flex justify-between text-zinc-600">
                         <span>Weekend Demand Multiplier</span>
                         <span className="font-mono font-semibold text-zinc-900">
@@ -1348,7 +1392,7 @@ const DemandForecasting = () => {
                         </span>
                       </div>
                       <div className="flex justify-between text-zinc-600">
-                        <span>Payday Period Lift (15th & 30th)</span>
+                        <span>Payday Period Lift (15th &amp; 30th)</span>
                         <span className="font-mono font-semibold text-zinc-900">
                           {aiResult.factors?.paydayMultiplier ? `${aiResult.factors.paydayMultiplier}x` : '1.0x'}
                         </span>
@@ -1360,6 +1404,30 @@ const DemandForecasting = () => {
                         </span>
                       </div>
                     </div>
+
+                    {Array.isArray(aiResult.factors?.sameMonthHistory) &&
+                      aiResult.factors.sameMonthHistory.length > 0 && (
+                        <div className="border border-zinc-200 rounded-xl p-4 space-y-2 text-xs sm:text-sm bg-zinc-50/60">
+                          <div className="font-semibold text-zinc-900">
+                            Same-Month Historical Sales (2023–2026)
+                          </div>
+                          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 pt-1">
+                            {aiResult.factors.sameMonthHistory.map((h) => (
+                              <div
+                                key={h.year}
+                                className="bg-white border border-zinc-200 rounded-lg px-2.5 py-2 text-center"
+                              >
+                                <span className="text-[11px] font-semibold text-zinc-500 block">
+                                  {h.year}
+                                </span>
+                                <span className="text-xs sm:text-sm font-bold font-mono text-zinc-900">
+                                  {h.qty}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                   </>
                 ) : (
                   <div className="py-6 text-center text-sm text-zinc-500">
@@ -1408,7 +1476,7 @@ const DemandForecasting = () => {
                   <div>
                     <h3 className="m-0 text-base font-bold">How Demand Forecasting Works</h3>
                     <p className="m-0 text-xs text-zinc-400 mt-0.5">
-                      Plain-language overview of how restock and sales estimates are calculated
+                      Plain-language overview of how 4-year seasonality, YoY trends, and restock estimates work
                     </p>
                   </div>
                 </div>
@@ -1423,41 +1491,56 @@ const DemandForecasting = () => {
 
               {/* Body */}
               <div className="p-6 space-y-5 text-xs sm:text-sm text-zinc-600 leading-relaxed max-h-[calc(100vh-12rem)] overflow-y-auto">
-                {/* Section 1: Ingredient Restock */}
+                {/* Section 1: Multi-Year Seasonality */}
                 <div className="space-y-2.5">
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-zinc-900 shrink-0" />
                     <h4 className="m-0 text-sm font-bold text-zinc-900">
-                      1. Ingredient Restock & Runout Estimates
+                      1. Multi-Year Seasonality &amp; Year-over-Year (YoY) Trends (2023–2026)
                     </h4>
                   </div>
                   <div className="pl-4 space-y-2 border-l-2 border-zinc-100">
                     <p className="m-0">
-                      <span className="font-semibold text-zinc-900">Daily Usage:</span> Tracks every drink sold at the POS over the last 30 days and multiplies it by the item&apos;s recipe requirements. Recent orders from the last 14 days carry higher weight (70%) than older orders (30%) so sudden demand changes show up quickly.
+                      <span className="font-semibold text-zinc-900">4-Year Seasonal Index:</span> Analyzes 47 months of historical sales (2023–2026) to capture recurring annual patterns—such as April–May summer surges for Frappes and Fruit Drinks, school exam weeks, Valentine&apos;s/HAMAKA Fiesta in February, and November–December holiday peaks.
                     </p>
                     <p className="m-0">
-                      <span className="font-semibold text-zinc-900">Est. Time Left:</span> Divides your current stock on hand by the daily usage rate. Items with 3 days or less are marked <span className="font-semibold text-red-700">Critical</span>, 4 to 7 days as <span className="font-semibold text-amber-700">Low</span>, and over 7 days as <span className="font-semibold text-emerald-700">Healthy</span>.
-                    </p>
-                    <p className="m-0">
-                      <span className="font-semibold text-zinc-900">Suggested Order:</span> Recommends enough supplier units (such as bags, bottles, or boxes) to bring your inventory back up to a safe 14-day supply buffer.
+                      <span className="font-semibold text-zinc-900">Year-over-Year (YoY) Growth:</span> Compares each product&apos;s multi-year annual trajectory alongside same-month historical volumes (e.g., April 2023 vs. April 2024 vs. April 2025) so long-term store growth is factored into future monthly projections.
                     </p>
                   </div>
                 </div>
 
-                {/* Section 2: Menu Demand */}
+                {/* Section 2: Short-Term Velocity & Calendar Adjustments */}
                 <div className="space-y-2.5">
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-zinc-900 shrink-0" />
                     <h4 className="m-0 text-sm font-bold text-zinc-900">
-                      2. Menu Demand (7-Day & Monthly Projections)
+                      2. Short-Term Velocity &amp; Calendar Multipliers
                     </h4>
                   </div>
                   <div className="pl-4 space-y-2 border-l-2 border-zinc-100">
                     <p className="m-0">
-                      <span className="font-semibold text-zinc-900">Sales Trend:</span> Compares average daily sales from the last 14 days against the prior 16 days to identify whether a drink is trending upward, steady, or slowing down.
+                      <span className="font-semibold text-zinc-900">Blended Forecast:</span> Combines recent 14-to-30 day counter velocity with the 4-year seasonal baseline so both immediate customer momentum and annual calendar cycles are reflected.
                     </p>
                     <p className="m-0">
-                      <span className="font-semibold text-zinc-900">Calendar Adjustments:</span> Upcoming 7-day and monthly projections automatically account for higher cafe traffic on weekends (Saturdays and Sundays), Philippine payday periods (15th and 30th), and public holidays.
+                      <span className="font-semibold text-zinc-900">Calendar Adjustments:</span> Upcoming 7-day and monthly projections automatically account for higher cafe traffic on weekends, Philippine payday periods (15th and 30th), and public holidays.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Section 3: Ingredient Restock */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-zinc-900 shrink-0" />
+                    <h4 className="m-0 text-sm font-bold text-zinc-900">
+                      3. Ingredient Restock &amp; Runout Estimates
+                    </h4>
+                  </div>
+                  <div className="pl-4 space-y-2 border-l-2 border-zinc-100">
+                    <p className="m-0">
+                      <span className="font-semibold text-zinc-900">Daily Usage &amp; Est. Time Left:</span> Converts drink sales into raw material depletion via product recipes. Items with 3 days or less are marked <span className="font-semibold text-red-700">Critical</span>, 4 to 7 days as <span className="font-semibold text-amber-700">Low</span>, and over 7 days as <span className="font-semibold text-emerald-700">Healthy</span>.
+                    </p>
+                    <p className="m-0">
+                      <span className="font-semibold text-zinc-900">Suggested Order:</span> Recommends enough supplier units (bags, bottles, or boxes) to restore inventory to a safe 14-day supply buffer.
                     </p>
                   </div>
                 </div>
