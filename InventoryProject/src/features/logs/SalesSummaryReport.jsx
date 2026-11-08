@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getSalesReportByPeriod } from '../../api/logsApi';
+import { getSales } from '../../api/salesApi';
 
 const SalesSummaryReport = () => {
   const [period, setPeriod] = useState('daily'); // 'daily', 'weekly', 'monthly'
@@ -33,7 +34,7 @@ const SalesSummaryReport = () => {
     setAuditSearch('');
     setDetailsLoading(true);
     try {
-      const { getSales } = await import('../../api/salesApi');
+      // static import used at top
       const res = await getSales({ staff_id: staff.id, period }, 200, 1);
       const list = Array.isArray(res) ? res : (res?.data || []);
       setStaffSales(list);

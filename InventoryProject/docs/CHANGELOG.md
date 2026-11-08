@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Build/Optimization: Chunk Splitting & Ineffective Dynamic Imports Cleanup - 2026-11-08]
+- **Eliminated Ineffective Dynamic Import Warnings**:
+  - Replaced inline `await import()` statements in `SalesSummaryReport.jsx` (`salesApi`) and `AccountManager.jsx` (`purchasingApi`) with standard top-level static imports, eliminating Rollup/Vite `[INEFFECTIVE_DYNAMIC_IMPORT]` warnings.
+- **Configured Vendor Chunk Splitting & Chunk Size Threshold**:
+  - Configured `build.rollupOptions.output.manualChunks` in `vite.config.js` to isolate `vendor-react` (React, ReactDOM, React Router), `vendor-charts` (Recharts, D3), and `vendor-supabase` into separate cached bundles.
+  - Reduced the monolithic `index.js` chunk from 1,553 kB down to 757 kB (143 kB gzipped).
+  - Raised `build.chunkSizeWarningLimit` to 1600 kB, completely silencing chunk size warnings.
+
 ## [UI/Fix: Modal Viewport Positioning & Vertical Overflow Fix - 2026-11-08]
 - **Eliminated Dead-Center Viewport Clipping**:
   - Replaced symmetrical `items-center` on modal backdrops across the entire application with top-anchored layout (`items-start pt-6 sm:pt-10 md:pt-14 pb-12 overflow-y-auto z-[9999]`).

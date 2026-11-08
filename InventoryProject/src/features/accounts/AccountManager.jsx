@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getUsers, createUser, updateUser, updateUserStatus } from '../../api/usersApi';
 import { getCurrentUser } from '../../api/authApi';
+import { getSuppliers } from '../../api/purchasingApi';
 import { STAFF_DEFAULT_PERMISSIONS } from '../../utils/permissions';
 import AccountForm from './components/AccountForm';
 import UsersTable from './components/UsersTable';
@@ -39,7 +40,7 @@ const AccountManager = () => {
 
   const fetchSuppliers = async () => {
     try {
-      const { getSuppliers } = await import('../../api/purchasingApi.js');
+      // static import used at top
       const data = await getSuppliers();
       setSuppliers(data || []);
     } catch (err) {
