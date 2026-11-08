@@ -468,9 +468,7 @@ const ManageRawMaterials = () => {
                 type="button"
                 className="text-gray-400 hover:text-white transition-colors bg-transparent border-none text-2xl leading-none cursor-pointer p-0" 
                 onClick={() => setSelectedIngredient(null)}
-              >
-                ✕
-              </button>
+               aria-label="Clear"><svg className="w-3.5 h-3.5 text-zinc-400 hover:text-zinc-700" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
             </div>
             <div className="p-6">
               <form id="edit-material-form" onSubmit={handleUpdateIngredient} className="flex flex-col gap-5">

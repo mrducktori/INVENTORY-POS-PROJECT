@@ -327,7 +327,7 @@ const CMSDashboard = () => {
                       <div>
                         <div className="flex items-center gap-2 mb-2">
                           <span className="inline-block px-2.5 py-1 bg-amber-100 text-amber-900 rounded-md text-xs font-bold uppercase tracking-wider">
-                            ★ Promotions & Deals Manager
+                            Promotions & Deals Manager
                           </span>
                           <span className="text-xs text-gray-500 font-medium">
                             ({promos.length} active {promos.length === 1 ? 'promo' : 'promos'})
@@ -416,7 +416,7 @@ const CMSDashboard = () => {
                                       className="text-red-500 hover:text-red-700 text-xs font-bold uppercase px-2.5 py-1 rounded hover:bg-red-50 transition-colors shrink-0 cursor-pointer"
                                       title="Delete this promo"
                                     >
-                                      ✕ Remove
+                                      Remove
                                     </button>
                                   )}
                                 </div>

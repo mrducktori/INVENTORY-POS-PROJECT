@@ -27,7 +27,7 @@ const ExpandedLowStock = ({ loading, lowStockDetails, onCollapse }) => {
           className="bg-white border border-zinc-200 text-zinc-900 font-bold px-4 py-2 rounded-xl text-sm cursor-pointer transition-colors hover:bg-zinc-100 shadow-xs"
           onClick={onCollapse}
         >
-          ✕ Close List
+          Close List
         </button>
       </div>
 
@@ -53,7 +53,7 @@ const ExpandedLowStock = ({ loading, lowStockDetails, onCollapse }) => {
                 ))
               ) : (
                 <li className="text-center text-zinc-600 py-10 font-semibold text-base">
-                  ✓ All café inventory ingredients are currently above minimum threshold.
+                  All café inventory ingredients are currently above minimum threshold.
                 </li>
               )}
             </ul>

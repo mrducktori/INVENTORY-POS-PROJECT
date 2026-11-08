@@ -344,9 +344,7 @@ const SupplierPortal = () => {
                 type="button"
                 onClick={() => setSearchQuery('')}
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 text-xs cursor-pointer"
-              >
-                ✕
-              </button>
+               aria-label="Clear"><svg className="w-3.5 h-3.5 text-zinc-400 hover:text-zinc-700" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
             )}
           </div>
         </div>
@@ -591,7 +589,7 @@ const SupplierPortal = () => {
                                               <div>
                                                 {resp.status === 'AVAILABLE' && (
                                                   <span className="inline-flex px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                                                    ✓ Confirmed Available
+                                                    Confirmed Available
                                                   </span>
                                                 )}
                                                 {resp.status === 'PROPOSED_DATE' && (
@@ -618,7 +616,7 @@ const SupplierPortal = () => {
                                                 {resp.status === 'UNAVAILABLE' && (
                                                   <div className="flex flex-col gap-0.5">
                                                     <span className="inline-flex px-2 py-0.5 rounded text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
-                                                      ✕ Unavailable
+                                                      Unavailable
                                                     </span>
                                                     {resp.reason && (
                                                       <span className="text-[10px] text-zinc-500 font-medium">

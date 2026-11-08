@@ -510,7 +510,7 @@ const ManageProducts = () => {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)] flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
             <div className="bg-gray-900 text-white px-6 py-4 flex justify-between items-center shrink-0">
               <h2 className="m-0 text-lg md:text-xl font-bold tracking-wide">Modify Product: {selectedProduct.name}</h2>
-              <button className="text-gray-400 hover:text-white transition-colors bg-transparent border-none text-2xl leading-none cursor-pointer p-0" onClick={() => setSelectedProduct(null)}>✕</button>
+              <button className="text-gray-400 hover:text-white transition-colors bg-transparent border-none text-2xl leading-none cursor-pointer p-0" onClick={() => setSelectedProduct(null)} aria-label="Close"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
             </div>
             
             <div className="p-6 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200">
@@ -629,7 +629,7 @@ const ManageProducts = () => {
                                 <td className="px-3 py-2.5 text-sm md:text-base font-bold text-gray-900">{sz.name}</td>
                                 <td className="px-3 py-2.5 text-sm md:text-base font-semibold text-gray-700">+{sz.price_add}</td>
                                 <td className="px-3 py-2.5 text md:text-sm text-gray-600">{allIngredients.find(ing => ing.id === sz.ingredient_id)?.name || '-'}</td>
-                                <td className="px-3 py-2.5 text-right"><button type="button" className="text-gray-400 hover:text-red-600 transition-colors bg-transparent border-none cursor-pointer text-base font-bold" onClick={() => handleRemoveSize(i)}>✕</button></td>
+                                <td className="px-3 py-2.5 text-right"><button type="button" className="text-gray-400 hover:text-red-600 transition-colors bg-transparent border-none cursor-pointer text-base font-bold" onClick={() => handleRemoveSize(i)} aria-label="Close"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button></td>
                               </tr>
                             ))}
                           </tbody>
@@ -677,7 +677,7 @@ const ManageProducts = () => {
                                 <td className="px-3 py-2.5 text-sm md:text-base font-bold text-gray-900">{ao.name}</td>
                                 <td className="px-3 py-2.5 text-sm md:text-base font-semibold text-gray-700">+{ao.price}</td>
                                 <td className="px-3 py-2.5 text md:text-sm text-gray-600">{ao.quantity}{ao.unit} {allIngredients.find(ing => ing.id === ao.ingredient_id)?.name || '-'}</td>
-                                <td className="px-3 py-2.5 text-right"><button type="button" className="text-gray-400 hover:text-red-600 transition-colors bg-transparent border-none cursor-pointer text-base font-bold" onClick={() => handleRemoveAddOn(i)}>✕</button></td>
+                                <td className="px-3 py-2.5 text-right"><button type="button" className="text-gray-400 hover:text-red-600 transition-colors bg-transparent border-none cursor-pointer text-base font-bold" onClick={() => handleRemoveAddOn(i)} aria-label="Close"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button></td>
                               </tr>
                             ))}
                           </tbody>

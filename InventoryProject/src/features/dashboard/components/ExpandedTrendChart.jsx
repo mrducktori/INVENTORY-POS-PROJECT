@@ -148,7 +148,7 @@ const ExpandedTrendChart = ({
             className="bg-white border border-zinc-200 text-zinc-900 font-bold px-4 py-2 rounded-xl text-sm cursor-pointer transition-colors hover:bg-zinc-100 shadow-xs ml-2"
             onClick={onCollapse}
           >
-            ✕ Close View
+            Close View
           </button>
         </div>
       </div>

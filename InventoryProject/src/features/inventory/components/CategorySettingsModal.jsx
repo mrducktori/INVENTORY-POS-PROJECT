@@ -97,7 +97,7 @@ const CategorySettingsModal = ({ onClose, allIngredients }) => {
             <h2 className="m-0 text-lg md:text-xl font-bold tracking-wide">Add-on Defaults</h2>
             <p className="m-0 text-xs text-gray-300 font-medium mt-0.5">Category-wide standard sizes and add-ons configuration</p>
           </div>
-          <button className="text-gray-200 hover:text-white transition-colors bg-transparent border-none text-2xl leading-none cursor-pointer p-0" onClick={onClose}>✕</button>
+          <button className="text-gray-200 hover:text-white transition-colors bg-transparent border-none text-2xl leading-none cursor-pointer p-0" onClick={onClose} aria-label="Close"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
         </div>
         <div className="p-6 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200">
           {message && <div className={`p-4 mb-6 rounded-xl text-base font-bold flex items-center shadow-sm ${message.includes('saved') ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>{message}</div>}
@@ -136,7 +136,7 @@ const CategorySettingsModal = ({ onClose, allIngredients }) => {
                           <td className="px-3 py-2.5 text-sm md:text-base font-bold text-gray-900">{sz.name}</td>
                           <td className="px-3 py-2.5 text-sm md:text-base font-bold text-gray-800">+{sz.price_add}</td>
                           <td className="px-3 py-2.5 text-sm md:text-base text-gray-700 font-medium whitespace-normal break-words">{allIngredients.find(ing => ing.id === sz.ingredient_id)?.name || '-'}</td>
-                          <td className="px-3 py-2.5 text-right"><button type="button" className="text-gray-400 hover:text-red-600 transition-colors bg-transparent border-none cursor-pointer text-lg font-bold" onClick={() => handleRemoveSize(i)}>✕</button></td>
+                          <td className="px-3 py-2.5 text-right"><button type="button" className="text-gray-400 hover:text-red-600 transition-colors bg-transparent border-none cursor-pointer text-lg font-bold" onClick={() => handleRemoveSize(i)} aria-label="Close"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button></td>
                         </tr>
                       ))}
                     </tbody>
@@ -184,7 +184,7 @@ const CategorySettingsModal = ({ onClose, allIngredients }) => {
                           <td className="px-3 py-2.5 text-sm md:text-base font-bold text-gray-900">{ao.name}</td>
                           <td className="px-3 py-2.5 text-sm md:text-base font-bold text-gray-800">+{ao.price}</td>
                           <td className="px-3 py-2.5 text-sm md:text-base text-gray-700 font-medium whitespace-normal break-words">{ao.quantity}{ao.unit} {allIngredients.find(ing => ing.id === ao.ingredient_id)?.name || '-'}</td>
-                          <td className="px-3 py-2.5 text-right"><button type="button" className="text-gray-400 hover:text-red-600 transition-colors bg-transparent border-none cursor-pointer text-lg font-bold" onClick={() => handleRemoveAddOn(i)}>✕</button></td>
+                          <td className="px-3 py-2.5 text-right"><button type="button" className="text-gray-400 hover:text-red-600 transition-colors bg-transparent border-none cursor-pointer text-lg font-bold" onClick={() => handleRemoveAddOn(i)} aria-label="Close"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button></td>
                         </tr>
                       ))}
                     </tbody>

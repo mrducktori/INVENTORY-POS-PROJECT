@@ -287,7 +287,7 @@ const PurchaseOrderForm = ({ onClose, onSuccess }) => {
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col animate-[popIn_0.2s_ease-out]" onClick={e => e.stopPropagation()}>
           <div className="bg-gray-900 text-white px-6 py-4 flex justify-between items-center shrink-0">
             <h2 className="m-0 text-lg md:text-xl font-bold tracking-wide">Create Purchase Order</h2>
-            <button className="text-gray-400 hover:text-white transition-colors bg-transparent border-none text-xl leading-none cursor-pointer p-0" onClick={onClose}>✕</button>
+            <button className="text-gray-400 hover:text-white transition-colors bg-transparent border-none text-xl leading-none cursor-pointer p-0" onClick={onClose} aria-label="Close"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
           </div>
 
           <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden min-h-0">
@@ -453,9 +453,7 @@ const PurchaseOrderForm = ({ onClose, onSuccess }) => {
                 className="text-zinc-400 hover:text-white transition-colors bg-transparent border-none text-xl leading-none cursor-pointer p-0" 
                 onClick={() => setReviewData(null)}
                 disabled={saving}
-              >
-                ✕
-              </button>
+               aria-label="Close"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
             </div>
 
             <div className="p-6 overflow-y-auto flex-1 flex flex-col gap-4">

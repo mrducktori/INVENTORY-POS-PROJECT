@@ -137,9 +137,7 @@ const SupplierReviewPOModal = ({ isOpen, onClose, order, onSubmit }) => {
           <button
             onClick={onClose}
             className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
-          >
-            ✕
-          </button>
+           aria-label="Close"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
         </div>
 
         {/* Toolbar & Live Summary */}
@@ -147,16 +145,16 @@ const SupplierReviewPOModal = ({ isOpen, onClose, order, onSubmit }) => {
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-bold text-zinc-500 uppercase tracking-wider">Summary:</span>
             <span className="px-2.5 py-1 rounded-full font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-              ✓ {availableCount} Available
+              {availableCount} Available
             </span>
             {proposedCount > 0 && (
               <span className="px-2.5 py-1 rounded-full font-bold bg-amber-100 text-amber-800 border border-amber-200">
-                ⏳ {proposedCount} Proposed Date
+                {proposedCount} Proposed Date
               </span>
             )}
             {unavailableCount > 0 && (
               <span className="px-2.5 py-1 rounded-full font-bold bg-rose-100 text-rose-800 border border-rose-200">
-                ✕ {unavailableCount} Unavailable
+                {unavailableCount} Unavailable
               </span>
             )}
           </div>
@@ -166,7 +164,7 @@ const SupplierReviewPOModal = ({ isOpen, onClose, order, onSubmit }) => {
             onClick={handleMarkAllAvailable}
             className="font-bold text-zinc-700 hover:text-black hover:underline cursor-pointer flex items-center gap-1"
           >
-            <span>✓</span> Mark All Available
+            Mark All Available
           </button>
         </div>
 

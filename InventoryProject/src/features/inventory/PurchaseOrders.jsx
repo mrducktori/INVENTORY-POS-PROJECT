@@ -261,9 +261,7 @@ const PurchaseOrders = () => {
                 type="button"
                 onClick={() => setSearchQuery('')}
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 text-xs cursor-pointer"
-              >
-                ✕
-              </button>
+               aria-label="Clear"><svg className="w-3.5 h-3.5 text-zinc-400 hover:text-zinc-700" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
             )}
           </div>
         </div>
@@ -523,7 +521,7 @@ const PurchaseOrders = () => {
                                                   <div className="flex flex-col gap-1">
                                                     {resp.status === 'AVAILABLE' && (
                                                       <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                                                        ✓ Available
+                                                        Available
                                                       </span>
                                                     )}
                                                     {resp.status === 'PROPOSED_DATE' && (
@@ -546,7 +544,7 @@ const PurchaseOrders = () => {
                                                               onClick={() => handleProposalDecision(po.id, item.id, 'ACCEPTED', true)}
                                                               className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-bold cursor-pointer transition-colors shadow-2xs"
                                                             >
-                                                              {processingProposalId === item.id ? 'Saving...' : '✓ Accept Date (Backorder)'}
+                                                              {processingProposalId === item.id ? 'Saving...' : 'Accept Date (Backorder)'}
                                                             </button>
                                                             <button
                                                               type="button"
@@ -554,7 +552,7 @@ const PurchaseOrders = () => {
                                                               onClick={() => handleProposalDecision(po.id, item.id, 'DECLINED', false)}
                                                               className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded text-xs font-bold cursor-pointer transition-colors"
                                                             >
-                                                              ✕ Decline
+                                                              Decline
                                                             </button>
                                                           </div>
                                                         )}
@@ -566,7 +564,7 @@ const PurchaseOrders = () => {
                                                                 ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                                                                 : 'bg-rose-100 text-rose-800 border border-rose-200'
                                                             }`}>
-                                                              Shop: {dec.decision === 'ACCEPTED' ? '✓ Accepted (Backorder Created)' : '✕ Declined'}
+                                                              Shop: {dec.decision === 'ACCEPTED' ? 'Accepted (Backorder Created)' : 'Declined'}
                                                             </span>
                                                           </div>
                                                         )}
@@ -575,7 +573,7 @@ const PurchaseOrders = () => {
                                                     {resp.status === 'UNAVAILABLE' && (
                                                       <div className="flex flex-col gap-0.5 max-w-sm">
                                                         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-rose-100 text-rose-800 border border-rose-200">
-                                                          ✕ Unavailable
+                                                          Unavailable
                                                         </span>
                                                         {resp.reason && (
                                                           <span className="text-xs text-zinc-600 font-medium whitespace-normal">

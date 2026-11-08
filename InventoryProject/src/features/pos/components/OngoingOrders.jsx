@@ -63,19 +63,19 @@ const OngoingOrders = ({ orders, onComplete, onCancel, onEdit }) => (
                   className="py-3 text-sm md:text-base font-bold uppercase tracking-wider text-indigo-600 hover:bg-indigo-50 transition-colors"
                   onClick={() => onEdit(order.id)}
                 >
-                  ✎ Edit
+                  Edit
                 </button>
                 <button
                   className="py-3 text-sm md:text-base font-bold uppercase tracking-wider text-green-600 hover:bg-green-50 transition-colors"
                   onClick={() => onComplete(order.id)}
                 >
-                  ✓ Pay
+                  Pay
                 </button>
                 <button
                   className="py-3 text-sm md:text-base font-bold uppercase tracking-wider text-red-600 hover:bg-red-50 transition-colors"
                   onClick={() => onCancel(order.id)}
                 >
-                  ✕ Cancel
+                  Cancel
                 </button>
               </div>
             </div>

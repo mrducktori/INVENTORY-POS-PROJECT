@@ -234,7 +234,7 @@ const NotificationInbox = ({ onNavigate, lowStockItems = [], variant = 'default'
                       onClick={markAllAsRead}
                       className="text-zinc-700 hover:text-black font-bold flex items-center gap-1 cursor-pointer hover:underline"
                     >
-                      <span>✓</span> Mark all as read
+                      Mark all as read
                     </button>
                   )}
                 </div>

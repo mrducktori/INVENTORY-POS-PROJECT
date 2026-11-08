@@ -34,7 +34,7 @@ const LowStockAlerts = ({ loading, lowStockDetails, onExpand }) => {
                 ))
               ) : (
                 <li className="text-center text-zinc-600 py-6 text-sm font-medium">
-                  ✓ Stock levels healthy.
+                  Stock levels healthy.
                 </li>
               )}
             </ul>
