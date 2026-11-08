@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [UI/Forecasting: Refactor Toolbar Layout to Multi-Tier Structure & Add Interactive Column Sorting - 2026-11-09]
+- **Restructured Toolbars into Clean Multi-Tier Alignment (`DemandForecasting.jsx`)**:
+  - **Ingredient Restock Tab**:
+    - **Tier 1 (Controls & Actions)**: Full-width search bar on the left with instant clear button `✕`, paired cleanly with action buttons on the right (`Create PO` / `Reorder All Critical`, `Restock Guide`, `Refresh`).
+    - **Tier 2 (Category Filter Track)**: Full-width dedicated category container (`All Types`, `ADD-ONS`, `BEVERAGE ENHANCERS`, `COFFEE & TEA BASES`, `DAIRY & CREAMERS`, `FLAVORING POWDERS`, `PACKAGING & SUPPLIES`, `SINKERS & TOPPINGS`, `SWEETENERS & SYRUPS`), resolving awkward pill wrapping and collision with right-aligned action buttons.
+    - **Tier 3 (Status Scope Pills)**: Dedicated status filter container (`All`, `Critical`, `Low`, `Healthy`) with real-time counts.
+  - **Menu Demand Tab**:
+    - **Tier 1**: Search input on left, `Menu Forecast Guide` and `Refresh` on right.
+    - **Tier 2**: Full-width category pills (`All Categories`, `COFFEE`, `FRAPPE`, `FRUIT DRINKS`, `MILK TEA`, `PASTRIES`).
+- **Interactive Table Column Sorting with Clean Vector Indicators (`DemandForecasting.jsx`)**:
+  - **Menu Demand Table**: Enabled interactive column sorting for `Menu Item` (alphabetical), `Category` (alphabetical), `Daily Average` (numeric), `Next 7 Days` (numeric), `Est. 30 Days` (numeric), `Seasonality (4-Yr)` (numeric index), and `Sales Trend` (growth rate percentage).
+  - **Ingredient Restock Table**: Enabled interactive column sorting for `Ingredient` (alphabetical), `On Hand` (stock quantity), `Daily Usage` (burn rate), `Est. Time Left` (runout days, prioritizing critical stockouts first), `Suggested Order` (reorder quantity), and `Supplier` (alphabetical).
+  - Added minimalist vector SVG sort indicators (`SortIcon`: inactive dual chevrons, active ascending/descending bold chevrons) with strictly zero emojis per Rule 16.
+  - Reset pagination to page 1 automatically when changing sort field or direction.
+
+
 ## [Security/Cleanup: Purge Temporary Database Scratches & Production JSON Backups from `docs/` - 2026-11-09]
 - **Removed Sensitive Database Backups & Scratch Scripts (`docs/database/`, `.gitignore`)**:
   - Purged over 15+ MB of raw production sales and transaction database dumps (`sales_backup_2025-01-01_onward...json` and `sales_backup_pre_2025...json` in `docs/database/backups/`) to prevent leaking transaction history, staff user IDs, customer orders, and receipt serials.

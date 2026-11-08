@@ -5,6 +5,54 @@ import { getSuppliers, createPurchaseOrder } from '../../api/purchasingApi';
 import { TableSkeleton } from '../../components/shared/SkeletonLoader';
 import { InfoTip } from '../../components/shared/InfoTip';
 
+// Clean vector sort indicator (Strictly NO emojis per Rule 16)
+const SortIcon = ({ active, direction, className = '' }) => {
+  if (!active) {
+    return (
+      <svg
+        className={`w-3.5 h-3.5 text-zinc-300 group-hover:text-zinc-500 transition-colors shrink-0 ${className}`}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M7 15l5 5 5-5" />
+        <path d="M7 9l5-5 5 5" />
+      </svg>
+    );
+  }
+  if (direction === 'asc') {
+    return (
+      <svg
+        className={`w-3.5 h-3.5 text-zinc-900 transition-colors shrink-0 ${className}`}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M18 15l-6-6-6 6" />
+      </svg>
+    );
+  }
+  return (
+    <svg
+      className={`w-3.5 h-3.5 text-zinc-900 transition-colors shrink-0 ${className}`}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+};
+
 const DemandForecasting = () => {
   const [activeTab, setActiveTab] = useState('ingredients'); // 'ingredients' | 'products'
   const [infoModalOpen, setInfoModalOpen] = useState(false);
@@ -32,6 +80,8 @@ const DemandForecasting = () => {
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [selectedIngredientIds, setSelectedIngredientIds] = useState([]);
   const [ingPage, setIngPage] = useState(1);
+  const [ingSortField, setIngSortField] = useState('days_remaining');
+  const [ingSortDirection, setIngSortDirection] = useState('asc'); // critical runouts first
   const ING_PAGE_SIZE = 15;
 
   // Product Demand State
@@ -40,7 +90,35 @@ const DemandForecasting = () => {
   const [productSearch, setProductSearch] = useState('');
   const [productCategory, setProductCategory] = useState('ALL');
   const [prodPage, setProdPage] = useState(1);
+  const [prodSortField, setProdSortField] = useState('predictedNext7Days');
+  const [prodSortDirection, setProdSortDirection] = useState('desc'); // highest demand first
   const PROD_PAGE_SIZE = 15;
+
+  const handleIngSort = (field) => {
+    if (ingSortField === field) {
+      setIngSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setIngSortField(field);
+      if (field === 'days_remaining' || field === 'name' || field === 'supplier_name') {
+        setIngSortDirection('asc');
+      } else {
+        setIngSortDirection('desc');
+      }
+    }
+  };
+
+  const handleProdSort = (field) => {
+    if (prodSortField === field) {
+      setProdSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setProdSortField(field);
+      if (field === 'name' || field === 'category') {
+        setProdSortDirection('asc');
+      } else {
+        setProdSortDirection('desc');
+      }
+    }
+  };
 
   // Monthly Projection Modal State
   const [aiModalOpen, setAiModalOpen] = useState(false);
@@ -179,15 +257,59 @@ const DemandForecasting = () => {
     });
   }, [ingredientData.ingredients, statusFilter, selectedCategory, searchTerm]);
 
-  // Reset ingredient pagination when filter changes
+  // Reset ingredient pagination when filter or sort changes
   useEffect(() => {
     setIngPage(1);
-  }, [statusFilter, selectedCategory, searchTerm]);
+  }, [statusFilter, selectedCategory, searchTerm, ingSortField, ingSortDirection]);
+
+  // Sorted Ingredients
+  const sortedIngredients = useMemo(() => {
+    const list = [...filteredIngredients];
+    list.sort((a, b) => {
+      let aVal = a[ingSortField];
+      let bVal = b[ingSortField];
+
+      if (ingSortField === 'days_remaining') {
+        const aDays = aVal === null || aVal === undefined ? 999999 : Number(aVal);
+        const bDays = bVal === null || bVal === undefined ? 999999 : Number(bVal);
+        return ingSortDirection === 'asc' ? aDays - bDays : bDays - aDays;
+      }
+
+      if (ingSortField === 'suggested_purchase_qty') {
+        const aQty = Number(a.suggested_purchase_qty) || 0;
+        const bQty = Number(b.suggested_purchase_qty) || 0;
+        return ingSortDirection === 'asc' ? aQty - bQty : bQty - aQty;
+      }
+
+      if (ingSortField === 'avg_daily_burn_rate') {
+        const aBurn = Number(a.avg_daily_burn_rate) || 0;
+        const bBurn = Number(b.avg_daily_burn_rate) || 0;
+        return ingSortDirection === 'asc' ? aBurn - bBurn : bBurn - aBurn;
+      }
+
+      if (ingSortField === 'stock_quantity') {
+        const aStock = Number(a.stock_quantity) || 0;
+        const bStock = Number(b.stock_quantity) || 0;
+        return ingSortDirection === 'asc' ? aStock - bStock : bStock - aStock;
+      }
+
+      if (typeof aVal === 'string' && typeof bVal === 'string' && isNaN(Number(aVal))) {
+        return ingSortDirection === 'asc'
+          ? aVal.localeCompare(bVal)
+          : bVal.localeCompare(aVal);
+      }
+
+      const numA = Number(aVal) || 0;
+      const numB = Number(bVal) || 0;
+      return ingSortDirection === 'asc' ? numA - numB : numB - numA;
+    });
+    return list;
+  }, [filteredIngredients, ingSortField, ingSortDirection]);
 
   const paginatedIngredients = useMemo(() => {
     const start = (ingPage - 1) * ING_PAGE_SIZE;
-    return filteredIngredients.slice(start, start + ING_PAGE_SIZE);
-  }, [filteredIngredients, ingPage]);
+    return sortedIngredients.slice(start, start + ING_PAGE_SIZE);
+  }, [sortedIngredients, ingPage]);
 
   // Product Categories & Filtering
   const productCategories = useMemo(() => {
@@ -213,17 +335,69 @@ const DemandForecasting = () => {
 
   useEffect(() => {
     setProdPage(1);
-  }, [productCategory, productSearch]);
+  }, [productCategory, productSearch, prodSortField, prodSortDirection]);
+
+  // Sorted Products
+  const sortedProducts = useMemo(() => {
+    const list = [...filteredProducts];
+    list.sort((a, b) => {
+      if (prodSortField === 'predictedNext30Days') {
+        const a30 = a.predictedNext30Days || Math.round((Number(a.predictedNext7Days) || 0) * 4.3);
+        const b30 = b.predictedNext30Days || Math.round((Number(b.predictedNext7Days) || 0) * 4.3);
+        return prodSortDirection === 'asc' ? a30 - b30 : b30 - a30;
+      }
+
+      if (prodSortField === 'growthRate') {
+        const rateA = parseFloat(a.growthRate) || 0;
+        const rateB = parseFloat(b.growthRate) || 0;
+        return prodSortDirection === 'asc' ? rateA - rateB : rateB - rateA;
+      }
+
+      if (prodSortField === 'seasonalIndex') {
+        const sA = parseFloat(a.seasonalIndex) || 1.0;
+        const sB = parseFloat(b.seasonalIndex) || 1.0;
+        return prodSortDirection === 'asc' ? sA - sB : sB - sA;
+      }
+
+      if (prodSortField === 'avgDailySales') {
+        const aDaily = Number(a.avgDailySales) || 0;
+        const bDaily = Number(b.avgDailySales) || 0;
+        return prodSortDirection === 'asc' ? aDaily - bDaily : bDaily - aDaily;
+      }
+
+      if (prodSortField === 'predictedNext7Days') {
+        const a7 = Number(a.predictedNext7Days) || 0;
+        const b7 = Number(b.predictedNext7Days) || 0;
+        return prodSortDirection === 'asc' ? a7 - b7 : b7 - a7;
+      }
+
+      let aVal = a[prodSortField];
+      let bVal = b[prodSortField];
+
+      if (typeof aVal === 'string' && typeof bVal === 'string' && isNaN(Number(aVal))) {
+        return prodSortDirection === 'asc'
+          ? aVal.localeCompare(bVal)
+          : bVal.localeCompare(aVal);
+      }
+
+      const numA = Number(aVal) || 0;
+      const numB = Number(bVal) || 0;
+      return prodSortDirection === 'asc' ? numA - numB : numB - numA;
+    });
+    return list;
+  }, [filteredProducts, prodSortField, prodSortDirection]);
 
   const paginatedProducts = useMemo(() => {
     const start = (prodPage - 1) * PROD_PAGE_SIZE;
-    return filteredProducts.slice(start, start + PROD_PAGE_SIZE);
-  }, [filteredProducts, prodPage]);
+    return sortedProducts.slice(start, start + PROD_PAGE_SIZE);
+  }, [sortedProducts, prodPage]);
 
   // Product Summary Metrics
   const productSummary = useMemo(() => {
     const total7DayUnits = productForecasts.reduce((sum, p) => sum + (Number(p.predictedNext7Days) || 0), 0);
-    const topProduct = productForecasts.length > 0 ? productForecasts[0] : null;
+    const topProduct = productForecasts.length > 0
+      ? [...productForecasts].sort((a, b) => (Number(b.predictedNext7Days) || 0) - (Number(a.predictedNext7Days) || 0))[0]
+      : null;
     const trendingUpCount = productForecasts.filter((p) => parseFloat(p.growthRate) > 5).length;
     return { total7DayUnits, topProduct, trendingUpCount };
   }, [productForecasts]);
@@ -555,11 +729,12 @@ const DemandForecasting = () => {
 
           {/* Main Table Card */}
           <div className="bg-white border border-zinc-200/80 rounded-2xl shadow-2xs overflow-hidden">
-            {/* Compact Single-Line Toolbar */}
-            <div className="p-4 border-b border-zinc-100 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-2.5 flex-1">
+            {/* Structured Multi-Tier Toolbar */}
+            <div className="p-4 sm:p-5 border-b border-zinc-100 space-y-3.5">
+              {/* Row 1: Search Box on Left, Action Buttons on Right */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 {/* Search */}
-                <div className="relative w-full sm:w-64">
+                <div className="relative w-full sm:w-80">
                   <svg
                     className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
                     fill="none"
@@ -581,44 +756,95 @@ const DemandForecasting = () => {
                       type="button"
                       onClick={() => setSearchTerm('')}
                       className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 text-xs cursor-pointer bg-transparent border-none"
+                      aria-label="Clear search"
                     >
                       ✕
                     </button>
                   )}
                 </div>
 
-                {/* Category Filter Pills */}
-                {categories.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-1 bg-zinc-100 p-1 rounded-lg">
+                {/* Right Action Buttons */}
+                <div className="flex items-center gap-2 shrink-0">
+                  {selectedIngredientIds.length > 0 ? (
                     <button
                       type="button"
-                      onClick={() => setSelectedCategory('ALL')}
+                      onClick={handleOpenBatchPO}
+                      className="px-3.5 py-1.5 bg-zinc-900 hover:bg-black text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors cursor-pointer shadow-2xs"
+                    >
+                      Create PO ({selectedIngredientIds.length} selected)
+                    </button>
+                  ) : (
+                    ingredientData.summary.criticalCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleOrderAllCritical}
+                        className="px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors cursor-pointer shadow-2xs"
+                      >
+                        Reorder All Critical ({ingredientData.summary.criticalCount})
+                      </button>
+                    )
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => openInfoGuide('ingredients')}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-zinc-200 bg-zinc-50 hover:bg-zinc-100 text-zinc-700 rounded-lg text-xs sm:text-sm font-semibold transition-colors cursor-pointer"
+                  >
+                    <svg className="w-3.5 h-3.5 text-zinc-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="16" x2="12" y2="12" />
+                      <line x1="12" y1="8" x2="12.01" y2="8" />
+                    </svg>
+                    <span>Restock Guide</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={fetchIngredientForecast}
+                    disabled={loadingIngredients}
+                    className="p-1.5 border border-zinc-200 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 rounded-lg transition-colors disabled:opacity-40 cursor-pointer"
+                    title="Refresh ingredient forecast"
+                  >
+                    <svg className={`w-4 h-4 ${loadingIngredients ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* Row 2: Category Filter Pills spanning full width */}
+              {categories.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1 bg-zinc-100 p-1 rounded-lg">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCategory('ALL')}
+                    className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                      selectedCategory === 'ALL'
+                        ? 'bg-white text-zinc-900 shadow-2xs'
+                        : 'text-zinc-500 hover:text-zinc-800'
+                    }`}
+                  >
+                    All Types
+                  </button>
+                  {categories.map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setSelectedCategory(cat)}
                       className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
-                        selectedCategory === 'ALL'
+                        selectedCategory === cat
                           ? 'bg-white text-zinc-900 shadow-2xs'
                           : 'text-zinc-500 hover:text-zinc-800'
                       }`}
                     >
-                      All Types
+                      {cat}
                     </button>
-                    {categories.map((cat) => (
-                      <button
-                        key={cat}
-                        type="button"
-                        onClick={() => setSelectedCategory(cat)}
-                        className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
-                          selectedCategory === cat
-                            ? 'bg-white text-zinc-900 shadow-2xs'
-                            : 'text-zinc-500 hover:text-zinc-800'
-                        }`}
-                      >
-                        {cat}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                  ))}
+                </div>
+              )}
 
-                {/* Status Filter Pills */}
+              {/* Row 3: Status Filter Pills with dynamic counts */}
+              <div className="flex items-center justify-between gap-3 pt-0.5">
                 <div className="inline-flex items-center bg-zinc-100 p-0.5 rounded-lg border border-zinc-200/70">
                   {[
                     { id: 'ALL', label: 'All', count: ingredientData.ingredients.length },
@@ -640,54 +866,6 @@ const DemandForecasting = () => {
                     </button>
                   ))}
                 </div>
-              </div>
-
-              {/* Right Action Buttons */}
-              <div className="flex items-center gap-2">
-                {selectedIngredientIds.length > 0 ? (
-                  <button
-                    type="button"
-                    onClick={handleOpenBatchPO}
-                    className="px-3.5 py-1.5 bg-zinc-900 hover:bg-black text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors cursor-pointer"
-                  >
-                    Create PO ({selectedIngredientIds.length} selected)
-                  </button>
-                ) : (
-                  ingredientData.summary.criticalCount > 0 && (
-                    <button
-                      type="button"
-                      onClick={handleOrderAllCritical}
-                      className="px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors cursor-pointer"
-                    >
-                      Reorder All Critical ({ingredientData.summary.criticalCount})
-                    </button>
-                  )
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => openInfoGuide('ingredients')}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-zinc-200 bg-zinc-50 hover:bg-zinc-100 text-zinc-700 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
-                >
-                  <svg className="w-3.5 h-3.5 text-zinc-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="16" x2="12" y2="12" />
-                    <line x1="12" y1="8" x2="12.01" y2="8" />
-                  </svg>
-                  <span>Restock Guide</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={fetchIngredientForecast}
-                  disabled={loadingIngredients}
-                  className="p-1.5 border border-zinc-200 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 rounded-lg transition-colors disabled:opacity-40 cursor-pointer"
-                  title="Refresh"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                </button>
               </div>
             </div>
 
@@ -716,7 +894,7 @@ const DemandForecasting = () => {
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse text-xs sm:text-sm">
                     <thead>
-                      <tr className="border-b border-zinc-200 bg-zinc-50/50 text-zinc-500 font-semibold">
+                      <tr className="border-b border-zinc-200 bg-zinc-50/50 text-zinc-500 font-semibold select-none">
                         <th className="py-3 px-4 w-10 text-center">
                           <input
                             type="checkbox"
@@ -728,27 +906,75 @@ const DemandForecasting = () => {
                             className="rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900 cursor-pointer"
                           />
                         </th>
-                        <th className="py-3 px-4 sticky left-0 z-10 bg-zinc-50 shadow-[1px_0_0_0_#e4e4e7]">Ingredient</th>
-                        <th className="py-3 px-4 text-right">On Hand</th>
+                        <th className="py-3 px-4 sticky left-0 z-10 bg-zinc-50 shadow-[1px_0_0_0_#e4e4e7] whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={() => handleIngSort('name')}
+                            className="group inline-flex items-center gap-1.5 font-semibold text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer bg-transparent border-none p-0 text-xs sm:text-sm"
+                          >
+                            <span>Ingredient</span>
+                            <SortIcon active={ingSortField === 'name'} direction={ingSortDirection} />
+                          </button>
+                        </th>
                         <th className="py-3 px-4 text-right">
-                          <span className="inline-flex items-center justify-end gap-1">
-                            <span>Daily Usage</span>
+                          <button
+                            type="button"
+                            onClick={() => handleIngSort('stock_quantity')}
+                            className="group inline-flex items-center justify-end gap-1.5 font-semibold text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer bg-transparent border-none p-0 text-xs sm:text-sm ml-auto"
+                          >
+                            <span>On Hand</span>
+                            <SortIcon active={ingSortField === 'stock_quantity'} direction={ingSortDirection} />
+                          </button>
+                        </th>
+                        <th className="py-3 px-4 text-right">
+                          <div className="inline-flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleIngSort('avg_daily_burn_rate')}
+                              className="group inline-flex items-center gap-1.5 font-semibold text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer bg-transparent border-none p-0 text-xs sm:text-sm"
+                            >
+                              <span>Daily Usage</span>
+                              <SortIcon active={ingSortField === 'avg_daily_burn_rate'} direction={ingSortDirection} />
+                            </button>
                             <InfoTip position="bottom" text="Average daily consumption based on recipes sold over the last 30 days, weighted toward the most recent 14 days." />
-                          </span>
+                          </div>
                         </th>
                         <th className="py-3 px-4 text-center">
-                          <span className="inline-flex items-center justify-center gap-1">
-                            <span>Est. Time Left</span>
+                          <div className="inline-flex items-center justify-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleIngSort('days_remaining')}
+                              className="group inline-flex items-center gap-1.5 font-semibold text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer bg-transparent border-none p-0 text-xs sm:text-sm"
+                            >
+                              <span>Est. Time Left</span>
+                              <SortIcon active={ingSortField === 'days_remaining'} direction={ingSortDirection} />
+                            </button>
                             <InfoTip position="bottom" text="Estimated days until current stock runs out at your current daily usage rate." />
-                          </span>
+                          </div>
                         </th>
                         <th className="py-3 px-4">
-                          <span className="inline-flex items-center gap-1">
-                            <span>Suggested Order</span>
+                          <div className="inline-flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleIngSort('suggested_purchase_qty')}
+                              className="group inline-flex items-center gap-1.5 font-semibold text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer bg-transparent border-none p-0 text-xs sm:text-sm"
+                            >
+                              <span>Suggested Order</span>
+                              <SortIcon active={ingSortField === 'suggested_purchase_qty'} direction={ingSortDirection} />
+                            </button>
                             <InfoTip position="bottom" text="Recommended purchase quantity in supplier units to maintain a 14-day supply buffer." />
-                          </span>
+                          </div>
                         </th>
-                        <th className="py-3 px-4">Supplier</th>
+                        <th className="py-3 px-4">
+                          <button
+                            type="button"
+                            onClick={() => handleIngSort('supplier_name')}
+                            className="group inline-flex items-center gap-1.5 font-semibold text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer bg-transparent border-none p-0 text-xs sm:text-sm"
+                          >
+                            <span>Supplier</span>
+                            <SortIcon active={ingSortField === 'supplier_name'} direction={ingSortDirection} />
+                          </button>
+                        </th>
                         <th className="py-3 px-4 text-right">Action</th>
                       </tr>
                     </thead>
@@ -928,10 +1154,11 @@ const DemandForecasting = () => {
 
           {/* Product Demand Table Card */}
           <div className="bg-white border border-zinc-200/80 rounded-2xl shadow-2xs overflow-hidden">
-            {/* Toolbar */}
-            <div className="p-4 border-b border-zinc-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-2.5 flex-1">
-                <div className="relative w-full sm:w-64">
+            {/* Structured Multi-Tier Toolbar */}
+            <div className="p-4 sm:p-5 border-b border-zinc-100 space-y-3.5">
+              {/* Row 1: Search on Left, Action Buttons on Right */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="relative w-full sm:w-80">
                   <svg
                     className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
                     fill="none"
@@ -953,65 +1180,70 @@ const DemandForecasting = () => {
                       type="button"
                       onClick={() => setProductSearch('')}
                       className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 text-xs cursor-pointer bg-transparent border-none"
+                      aria-label="Clear search"
                     >
                       ✕
                     </button>
                   )}
                 </div>
 
-                {productCategories.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-1 bg-zinc-100 p-1 rounded-lg">
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => openInfoGuide('products')}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-zinc-200 bg-zinc-50 hover:bg-zinc-100 text-zinc-700 rounded-lg text-xs sm:text-sm font-semibold transition-colors cursor-pointer"
+                  >
+                    <svg className="w-3.5 h-3.5 text-zinc-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="16" x2="12" y2="12" />
+                      <line x1="12" y1="8" x2="12.01" y2="8" />
+                    </svg>
+                    <span>Menu Forecast Guide</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={fetchProductForecasts}
+                    disabled={loadingProducts}
+                    className="p-1.5 border border-zinc-200 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 rounded-lg transition-colors disabled:opacity-40 cursor-pointer"
+                    title="Refresh menu forecasts"
+                  >
+                    <svg className={`w-4 h-4 ${loadingProducts ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* Row 2: Category Filter Pills */}
+              {productCategories.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1 bg-zinc-100 p-1 rounded-lg">
+                  <button
+                    type="button"
+                    onClick={() => setProductCategory('ALL')}
+                    className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                      productCategory === 'ALL'
+                        ? 'bg-white text-zinc-900 shadow-2xs'
+                        : 'text-zinc-500 hover:text-zinc-800'
+                    }`}
+                  >
+                    All Categories
+                  </button>
+                  {productCategories.map((cat) => (
                     <button
+                      key={cat}
                       type="button"
-                      onClick={() => setProductCategory('ALL')}
+                      onClick={() => setProductCategory(cat)}
                       className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
-                        productCategory === 'ALL'
+                        productCategory === cat
                           ? 'bg-white text-zinc-900 shadow-2xs'
                           : 'text-zinc-500 hover:text-zinc-800'
                       }`}
                     >
-                      All Categories
+                      {cat}
                     </button>
-                    {productCategories.map((cat) => (
-                      <button
-                        key={cat}
-                        type="button"
-                        onClick={() => setProductCategory(cat)}
-                        className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
-                          productCategory === cat
-                            ? 'bg-white text-zinc-900 shadow-2xs'
-                            : 'text-zinc-500 hover:text-zinc-800'
-                        }`}
-                      >
-                        {cat}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2 self-start sm:self-auto">
-                <button
-                  type="button"
-                  onClick={() => openInfoGuide('products')}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-zinc-200 bg-zinc-50 hover:bg-zinc-100 text-zinc-700 rounded-lg text-xs sm:text-sm font-semibold transition-colors cursor-pointer"
-                >
-                  <svg className="w-3.5 h-3.5 text-zinc-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="16" x2="12" y2="12" />
-                    <line x1="12" y1="8" x2="12.01" y2="8" />
-                  </svg>
-                  <span>Menu Forecast Guide</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={fetchProductForecasts}
-                  disabled={loadingProducts}
-                  className="px-3.5 py-1.5 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-lg text-xs sm:text-sm font-semibold transition-colors disabled:opacity-40 cursor-pointer"
-                >
-                  {loadingProducts ? 'Refreshing...' : 'Refresh'}
-                </button>
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {loadingProducts ? (
@@ -1027,33 +1259,88 @@ const DemandForecasting = () => {
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse text-xs sm:text-sm">
                     <thead>
-                      <tr className="border-b border-zinc-200 bg-zinc-50/50 text-zinc-500 font-semibold">
-                        <th className="py-3 px-4 sticky left-0 z-10 bg-zinc-50 shadow-[1px_0_0_0_#e4e4e7]">Menu Item</th>
-                        <th className="py-3 px-4">Category</th>
+                      <tr className="border-b border-zinc-200 bg-zinc-50/50 text-zinc-500 font-semibold select-none">
+                        <th className="py-3 px-4 sticky left-0 z-10 bg-zinc-50 shadow-[1px_0_0_0_#e4e4e7] whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={() => handleProdSort('name')}
+                            className="group inline-flex items-center gap-1.5 font-semibold text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer bg-transparent border-none p-0 text-xs sm:text-sm"
+                          >
+                            <span>Menu Item</span>
+                            <SortIcon active={prodSortField === 'name'} direction={prodSortDirection} />
+                          </button>
+                        </th>
+                        <th className="py-3 px-4">
+                          <button
+                            type="button"
+                            onClick={() => handleProdSort('category')}
+                            className="group inline-flex items-center gap-1.5 font-semibold text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer bg-transparent border-none p-0 text-xs sm:text-sm"
+                          >
+                            <span>Category</span>
+                            <SortIcon active={prodSortField === 'category'} direction={prodSortDirection} />
+                          </button>
+                        </th>
                         <th className="py-3 px-4 text-right">
-                          <span className="inline-flex items-center justify-end gap-1">
-                            <span>Daily Average</span>
+                          <div className="inline-flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleProdSort('avgDailySales')}
+                              className="group inline-flex items-center gap-1.5 font-semibold text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer bg-transparent border-none p-0 text-xs sm:text-sm"
+                            >
+                              <span>Daily Average</span>
+                              <SortIcon active={prodSortField === 'avgDailySales'} direction={prodSortDirection} />
+                            </button>
                             <InfoTip position="bottom" text="Average cups or orders sold per day over the past 30 days." />
-                          </span>
+                          </div>
                         </th>
                         <th className="py-3 px-4 text-right">
-                          <span className="inline-flex items-center justify-end gap-1">
-                            <span>Next 7 Days</span>
+                          <div className="inline-flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleProdSort('predictedNext7Days')}
+                              className="group inline-flex items-center gap-1.5 font-semibold text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer bg-transparent border-none p-0 text-xs sm:text-sm"
+                            >
+                              <span>Next 7 Days</span>
+                              <SortIcon active={prodSortField === 'predictedNext7Days'} direction={prodSortDirection} />
+                            </button>
                             <InfoTip position="bottom" text="Projected orders for the upcoming 7 days blending recent 14d/30d counter velocity with 4-year (2023–2026) monthly seasonality, weekends, paydays, and holidays." />
-                          </span>
+                          </div>
                         </th>
-                        <th className="py-3 px-4 text-right">Est. 30 Days</th>
+                        <th className="py-3 px-4 text-right">
+                          <button
+                            type="button"
+                            onClick={() => handleProdSort('predictedNext30Days')}
+                            className="group inline-flex items-center justify-end gap-1.5 font-semibold text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer bg-transparent border-none p-0 text-xs sm:text-sm ml-auto"
+                          >
+                            <span>Est. 30 Days</span>
+                            <SortIcon active={prodSortField === 'predictedNext30Days'} direction={prodSortDirection} />
+                          </button>
+                        </th>
                         <th className="py-3 px-4 text-center">
-                          <span className="inline-flex items-center justify-center gap-1">
-                            <span>Seasonality (4-Yr)</span>
+                          <div className="inline-flex items-center justify-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleProdSort('seasonalIndex')}
+                              className="group inline-flex items-center gap-1.5 font-semibold text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer bg-transparent border-none p-0 text-xs sm:text-sm"
+                            >
+                              <span>Seasonality (4-Yr)</span>
+                              <SortIcon active={prodSortField === 'seasonalIndex'} direction={prodSortDirection} />
+                            </button>
                             <InfoTip position="bottom" text="Multi-year seasonal index (2023–2026) comparing this calendar month's historical demand against the annual average (above 1.0x = peak season)." />
-                          </span>
+                          </div>
                         </th>
                         <th className="py-3 px-4 text-center">
-                          <span className="inline-flex items-center justify-center gap-1">
-                            <span>Sales Trend</span>
+                          <div className="inline-flex items-center justify-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleProdSort('growthRate')}
+                              className="group inline-flex items-center gap-1.5 font-semibold text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer bg-transparent border-none p-0 text-xs sm:text-sm"
+                            >
+                              <span>Sales Trend</span>
+                              <SortIcon active={prodSortField === 'growthRate'} direction={prodSortDirection} />
+                            </button>
                             <InfoTip position="bottom" text="Blends recent 14-day vs. 16-day momentum with multi-year Year-over-Year (YoY) growth trajectory." />
-                          </span>
+                          </div>
                         </th>
                         <th className="py-3 px-4 text-right">Monthly View</th>
                       </tr>
