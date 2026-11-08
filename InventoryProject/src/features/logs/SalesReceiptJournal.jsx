@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getSales } from '../../api/salesApi';
-import { getSalesReceipt } from '../../api/logsApi';
+import SalesReceiptModal from '../../components/SalesReceiptModal';
 import ColumnVisibilityDropdown from '../../components/shared/ColumnVisibilityDropdown';
 
 // Available columns matching reference (Image 9)
@@ -528,100 +528,12 @@ const SalesReceiptJournal = () => {
         )}
       </div>
 
-      {/* Full Digital Receipt Modal on row click */}
+      {/* Official Centered Digital Receipt Modal */}
       {activeReceiptSaleId && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-[modalBackdropFadeIn_0.2s_ease-out]"
-          onClick={handleCloseReceipt}
-        >
-          <div
-            className="bg-white rounded-2xl shadow-2xl border border-zinc-200 w-full max-w-md max-h-[90vh] overflow-y-auto p-6 animate-[modalPopIn_0.2s_cubic-bezier(0.16,1,0.3,1)] relative"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between pb-3 border-b border-zinc-100 mb-4">
-              <span className="text-sm font-bold text-zinc-900 uppercase tracking-wider">
-                Transaction Receipt
-              </span>
-              <button
-                type="button"
-                onClick={handleCloseReceipt}
-                className="text-zinc-400 hover:text-zinc-800 text-lg font-bold cursor-pointer"
-               aria-label="Clear"><svg className="w-3.5 h-3.5 text-zinc-400 hover:text-zinc-700" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
-            </div>
-
-            {loadingReceipt ? (
-              <div className="py-12 text-center text-zinc-400">Loading receipt details...</div>
-            ) : receiptDetails ? (
-              <div className="text-zinc-800 text-sm space-y-4">
-                <div className="text-center">
-                  <h3 className="font-extrabold text-xl text-zinc-900 tracking-tight">COF/TEA CAFE</h3>
-                  <p className="text-xs text-zinc-500 font-medium">Main Branch • Store #001</p>
-                </div>
-
-                <div className="border-t border-b border-dashed border-zinc-200 py-2.5 text-xs text-zinc-600 space-y-1">
-                  <div className="flex justify-between">
-                    <span>Date:</span>
-                    <span className="font-medium text-zinc-900">{formatDateTime(receiptDetails.created_at)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Receipt No:</span>
-                    <span className="font-mono font-bold text-zinc-900">{receiptDetails.receipt_number || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Cashier:</span>
-                    <span className="font-medium text-zinc-900">{receiptDetails.users?.name || 'System'}</span>
-                  </div>
-                </div>
-
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="border-b border-zinc-200 text-zinc-500 font-semibold">
-                      <th className="py-1.5 text-left">Item</th>
-                      <th className="py-1.5 text-center">Qty</th>
-                      <th className="py-1.5 text-right">Price</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-100">
-                    {receiptDetails.sale_items?.map((item) => (
-                      <tr key={item.id} className="py-1.5">
-                        <td className="py-1.5 font-medium text-zinc-900">{item.products?.name}</td>
-                        <td className="py-1.5 text-center text-zinc-700">{item.quantity}</td>
-                        <td className="py-1.5 text-right font-medium text-zinc-900">
-                          ₱{(item.quantity * item.unit_price).toFixed(2)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                <div className="border-t border-zinc-200 pt-3 space-y-1 text-xs">
-                  <div className="flex justify-between text-zinc-600">
-                    <span>Subtotal</span>
-                    <span>₱{Number(receiptDetails.total_amount).toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-base font-extrabold text-zinc-900 pt-1 border-t border-zinc-900">
-                    <span>Total</span>
-                    <span>₱{Number(receiptDetails.total_amount).toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-zinc-600 pt-1">
-                    <span>Payment ({receiptDetails.payment_method || 'CASH'})</span>
-                    <span>₱{Number(receiptDetails.amount_received || receiptDetails.total_amount).toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-zinc-600">
-                    <span>Change</span>
-                    <span>₱{Number(receiptDetails.change_amount || 0).toFixed(2)}</span>
-                  </div>
-                </div>
-
-                <div className="pt-2 text-center text-[11px] text-zinc-400">
-                  Thank you for visiting Cof/Tea!
-                </div>
-              </div>
-            ) : (
-              <div className="py-6 text-center text-red-500">Failed to load receipt details.</div>
-            )}
-          </div>
-        </div>
+        <SalesReceiptModal
+          saleId={activeReceiptSaleId}
+          onClose={handleCloseReceipt}
+        />
       )}
     </div>
   );
