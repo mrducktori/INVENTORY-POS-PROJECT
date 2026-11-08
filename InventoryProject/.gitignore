@@ -32,3 +32,11 @@ desktop.ini
 .env
 .env.*
 !.env.example
+
+# Database backups, dumps, and scratch data
+docs/database/backups/
+docs/database/*.json
+*.dump
+*.bak
+*.sqlite
+

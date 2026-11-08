@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Security/Cleanup: Purge Temporary Database Scratches & Production JSON Backups from `docs/` - 2026-11-09]
+- **Removed Sensitive Database Backups & Scratch Scripts (`docs/database/`, `.gitignore`)**:
+  - Purged over 15+ MB of raw production sales and transaction database dumps (`sales_backup_2025-01-01_onward...json` and `sales_backup_pre_2025...json` in `docs/database/backups/`) to prevent leaking transaction history, staff user IDs, customer orders, and receipt serials.
+  - Removed obsolete one-off `.mjs` scratch scripts (`apply_product_images.mjs`, `audit_images_readonly.mjs`, `audit_ingredients_readonly.mjs`, `audit_products_readonly.mjs`, `backup_products_recipes.mjs`, `clear_test_image.mjs`, `download_images_readonly.mjs`, `restore_images.mjs`, `seed_recent_dashboard_forecasting.js`, etc.) that contained hardcoded local development paths and raw queries.
+  - Preserved pure, clean PostgreSQL DDL migrations and stored procedures (`process_pos_checkout_rpc.sql`, `migration_user_permissions.sql`, `migration_purchase_orders_columns.sql`, `categorize_raw_materials.sql`, `seed_all_supplier_materials.sql`) per Rule 15.
+  - Added strict exclusion patterns in `.gitignore` for `docs/database/backups/`, `docs/database/*.json`, `*.dump`, `*.bak`, and `*.sqlite` to permanently safeguard against accidental repository commits of database dumps.
+
+
 ## [UI/Receipts: Redesign Receipt Journal to Match Reference Filter Toolbar & KPI Stats - 2026-11-09]
 - **Redesigned Receipt Journal Filter Controls (`SalesReceiptJournal.jsx`)**:
   - Transformed the sales journal toolbar to match the reference layout from `DemandForecasting.jsx`:
