@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Purchasing: Supplier Price Protection & Price Change Notifications - 2026-11-08]
+- **Admin Supplier Pricing Access Protection**:
+  - Locked and read-only price fields in `SupplierFormModal.jsx` when editing existing suppliers; admins manage raw material mappings and packaging units, while official prices are controlled by the supplier.
+  - Replaced the "Update Prices" action in `SupplierCatalogModal.jsx` with a "Prices Managed by Supplier" verified status badge.
+  - Hardened backend `purchasingService.js` to preserve agreed supplier catalog prices during admin supplier profile edits.
+- **Supplier Price Change Tracking & Indicators**:
+  - Enhanced backend `updateSupplierOwnCatalog` in `purchasingController.js` to calculate old vs. new price differences on catalog submissions and record audit history.
+  - Added "Prices Updated" status badges in `ManageSuppliers.jsx` directory table.
+  - Added price adjustment alert banner and inline badges (`Was ₱X (▲ +₱Y)` / `Was ₱X (▼ -₱Y)`) inside `SupplierCatalogModal.jsx`.
+- **System Notification & Dashboard Integration**:
+  - Added supplier price change notifications into `useNotifications.js` and `NotificationInbox.jsx` with dedicated filter tab and deep-linking to the supplier catalog.
+
 ## [UI/UX: Full System "Unslop" & Human-Crafted Polish - 2026-11-08]
 - **Comprehensive AI Slop & Emoji Purge (0 Unicode Emojis Remaining in src/)**:
   - Replaced all raw Unicode symbols (✓, ✕, ✎, ⏳, ★) with clean, semantic SVG icons across POS, Purchasing, Low Stock, Dashboard, CMS, and Order queues.

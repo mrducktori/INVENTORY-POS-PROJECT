@@ -403,19 +403,29 @@ const SupplierFormModal = ({
                               />
                             </div>
 
-                            {/* Price */}
-                            <div className="flex items-center gap-1">
-                              <span className="text-[11px] font-bold text-zinc-700">₱</span>
-                              <input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={itemConfig.price || ''}
-                                onChange={(e) => handleFieldChange(ing.id, 'price', e.target.value)}
-                                placeholder="0.00"
-                                className="w-24 px-2 py-1 text-xs border border-zinc-300 rounded font-black bg-white focus:outline-none focus:ring-1 focus:ring-black font-mono text-zinc-950"
-                              />
-                            </div>
+                            {/* Price: Protected from admin edit when editing existing supplier */}
+                            {editingSupplier ? (
+                              <div className="flex items-center gap-1.5" title="Prices can only be modified by the supplier through their portal">
+                                <span className="text-[11px] font-bold text-zinc-500 uppercase">Price:</span>
+                                <div className="px-2 py-1 bg-zinc-100 border border-zinc-200 rounded font-mono font-bold text-xs text-zinc-800 flex items-center gap-1">
+                                  <span>₱{parseFloat(itemConfig.price || 0).toFixed(2)}</span>
+                                  <span className="text-[10px] text-zinc-400 font-sans font-normal">(Supplier)</span>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1">
+                                <span className="text-[11px] font-bold text-zinc-700">₱</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={itemConfig.price || ''}
+                                  onChange={(e) => handleFieldChange(ing.id, 'price', e.target.value)}
+                                  placeholder="0.00"
+                                  className="w-24 px-2 py-1 text-xs border border-zinc-300 rounded font-black bg-white focus:outline-none focus:ring-1 focus:ring-black font-mono text-zinc-950"
+                                />
+                              </div>
+                            )}
 
                             {/* Base unit calculation indicator */}
                             <div className="text-[11px] font-mono text-zinc-500 whitespace-nowrap hidden lg:block">

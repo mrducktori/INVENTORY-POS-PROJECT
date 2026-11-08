@@ -19,19 +19,68 @@ export const getSuppliers = async () => {
     .order("name");
 
   if (error) throw error;
-  return data;
+  if (!data || data.length === 0) return [];
+
+  try {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: priceLogs } = await supabase
+      .from('audit_logs')
+      .select('created_at, details')
+      .eq('action', 'SUPPLIER_CATALOG_PRICES_UPDATED')
+      .gte('created_at', thirtyDaysAgo)
+      .order('created_at', { ascending: false });
+
+    const updatesBySupplier = {};
+    (priceLogs || []).forEach(log => {
+      const details = typeof log.details === 'string' ? JSON.parse(log.details) : log.details;
+      const suppId = details?.supplier_id;
+      if (!suppId) return;
+
+      if (!updatesBySupplier[suppId]) {
+        updatesBySupplier[suppId] = {
+          last_updated_at: log.created_at,
+          changes_count: 0,
+          items: {}
+        };
+      }
+
+      if (Array.isArray(details.price_changes)) {
+        details.price_changes.forEach(ch => {
+          if (!updatesBySupplier[suppId].items[ch.ingredient_id]) {
+            updatesBySupplier[suppId].items[ch.ingredient_id] = ch;
+            updatesBySupplier[suppId].changes_count += 1;
+          }
+        });
+      }
+    });
+
+    return data.map(supp => ({
+      ...supp,
+      recent_price_updates: updatesBySupplier[supp.id] || null
+    }));
+  } catch (err) {
+    console.warn('Failed to attach recent price updates to suppliers:', err);
+    return data;
+  }
 };
 
 // Helper to build supplier ingredient mappings with prices, units, and conversion factors
-const buildSupplierIngredientMappings = async (supplierId, ingredientItems, ingredientIds) => {
+const buildSupplierIngredientMappings = async (supplierId, ingredientItems, ingredientIds, existingPriceMap = new Map()) => {
   if (Array.isArray(ingredientItems) && ingredientItems.length > 0) {
-    return ingredientItems.map(item => ({
-      supplier_id: supplierId,
-      ingredient_id: item.ingredient_id,
-      default_purchase_unit: item.default_purchase_unit || item.purchase_unit || 'Unit',
-      default_conversion_factor: parseFloat(item.default_conversion_factor || item.conversion_factor) || 1,
-      default_price: parseFloat(item.default_price ?? item.price ?? item.unit_price) || 0
-    }));
+    return ingredientItems.map(item => {
+      // If supplier already set an agreed price, preserve it from admin overwrites!
+      const finalPrice = existingPriceMap.has(item.ingredient_id)
+        ? existingPriceMap.get(item.ingredient_id)
+        : (parseFloat(item.default_price ?? item.price ?? item.unit_price) || 0);
+
+      return {
+        supplier_id: supplierId,
+        ingredient_id: item.ingredient_id,
+        default_purchase_unit: item.default_purchase_unit || item.purchase_unit || 'Unit',
+        default_conversion_factor: parseFloat(item.default_conversion_factor || item.conversion_factor) || 1,
+        default_price: parseFloat(finalPrice) || 0
+      };
+    });
   }
 
   if (Array.isArray(ingredientIds) && ingredientIds.length > 0) {
@@ -103,13 +152,20 @@ export const updateSupplier = async (id, supplierData) => {
   if (res.error) throw res.error;
   const data = res.data;
 
+  // Preserve existing supplier prices so admin edits do not overwrite prices set by supplier!
+  const { data: existingSupplierItems } = await supabase
+    .from("supplier_ingredients")
+    .select("ingredient_id, default_price")
+    .eq("supplier_id", id);
+  const existingPriceMap = new Map((existingSupplierItems || []).map(r => [r.ingredient_id, r.default_price]));
+
   // Delete existing mappings
   await supabase
     .from("supplier_ingredients")
     .delete()
     .eq("supplier_id", id);
 
-  const mappings = await buildSupplierIngredientMappings(id, ingredient_items, ingredient_ids);
+  const mappings = await buildSupplierIngredientMappings(id, ingredient_items, ingredient_ids, existingPriceMap);
   if (mappings.length > 0) {
     const { error: mappingError } = await supabase
       .from("supplier_ingredients")

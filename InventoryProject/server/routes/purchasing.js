@@ -6,6 +6,7 @@ const router = express.Router();
 
 // Suppliers
 router.get("/suppliers", purchasingController.getSuppliers);
+router.get("/price-updates", requireAuth, purchasingController.getSupplierPriceUpdates);
 router.post("/suppliers", purchasingController.createSupplier);
 router.put("/suppliers/:id", purchasingController.updateSupplier);
 router.delete("/suppliers/:id", requireAuth, requireRole("Admin", "Owner"), purchasingController.deleteSupplier);

@@ -1,7 +1,10 @@
 import React, { useState, useMemo } from 'react';
 
-const SupplierCatalogModal = ({ supplier, onClose, onEdit }) => {
+const SupplierCatalogModal = ({ supplier, onClose }) => {
   const [searchTerm, setSearchTerm] = useState('');
+
+  const recentUpdates = supplier?.recent_price_updates || null;
+  const recentItemsMap = recentUpdates?.items || {};
 
   const catalogItems = useMemo(() => {
     return (supplier?.supplier_ingredients || []).map((si) => {
@@ -11,6 +14,7 @@ const SupplierCatalogModal = ({ supplier, onClose, onEdit }) => {
       const conversionFactor = parseFloat(si.default_conversion_factor) || 1;
       const price = parseFloat(si.default_price) || 0;
       const costPerBaseUnit = conversionFactor > 0 ? price / conversionFactor : price;
+      const priceChange = recentItemsMap[si.ingredient_id] || null;
 
       return {
         id: si.ingredient_id,
@@ -19,10 +23,11 @@ const SupplierCatalogModal = ({ supplier, onClose, onEdit }) => {
         purchaseUnit,
         conversionFactor,
         price,
-        costPerBaseUnit
+        costPerBaseUnit,
+        priceChange
       };
     });
-  }, [supplier]);
+  }, [supplier, recentItemsMap]);
 
   const filteredItems = useMemo(() => {
     if (!searchTerm.trim()) return catalogItems;
@@ -54,9 +59,16 @@ const SupplierCatalogModal = ({ supplier, onClose, onEdit }) => {
               </svg>
             </div>
             <div>
-              <h3 className="m-0 text-lg font-black text-white tracking-tight">{supplier.name}</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="m-0 text-lg font-black text-white tracking-tight">{supplier.name}</h3>
+                {recentUpdates?.changes_count > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                    Price Changes
+                  </span>
+                )}
+              </div>
               <p className="m-0 text-xs text-zinc-400 mt-0.5">
-                Official Price List & Catalog &middot; {catalogItems.length} items supplied
+                Official Price List &middot; {catalogItems.length} items supplied
               </p>
             </div>
           </div>
@@ -72,7 +84,7 @@ const SupplierCatalogModal = ({ supplier, onClose, onEdit }) => {
           </button>
         </div>
 
-        {/* Contact Info Subheader */}
+        {/* Contact Info Subheader & Supplier Pricing Protection Badge */}
         <div className="p-4 bg-zinc-50 border-b border-zinc-200 flex flex-wrap items-center justify-between gap-4 text-xs">
           <div className="flex flex-wrap items-center gap-4 text-zinc-600">
             {supplier.contact_person && (
@@ -94,19 +106,28 @@ const SupplierCatalogModal = ({ supplier, onClose, onEdit }) => {
               </div>
             )}
           </div>
-          {onEdit && (
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                onEdit(supplier);
-              }}
-              className="px-3 py-1.5 bg-zinc-900 hover:bg-black text-white rounded-lg font-bold uppercase tracking-wider text-xs transition-colors cursor-pointer"
-            >
-              Update Prices
-            </button>
-          )}
+
+          {/* Supplier-Maintained Pricing Badge (No Admin Edit) */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 border border-zinc-200 rounded-lg text-xs font-semibold text-zinc-700">
+            <svg className="w-3.5 h-3.5 text-zinc-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+            </svg>
+            <span>Prices Managed by Supplier</span>
+          </div>
         </div>
+
+        {/* Notice Banner when Supplier recently updated prices */}
+        {recentUpdates?.changes_count > 0 && (
+          <div className="mx-6 mt-4 p-3 bg-amber-50/90 border border-amber-200 rounded-xl flex items-start gap-3 text-xs text-amber-900 animate-[fadeIn_0.2s_ease-out]">
+            <svg className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+            </svg>
+            <div>
+              <span className="font-bold">Supplier Price Adjustment Notice: </span>
+              {supplier.name} updated pricing for {recentUpdates.changes_count} raw material(s) on their portal. Adjusted items are indicated with badge highlights below.
+            </div>
+          </div>
+        )}
 
         {/* Search */}
         <div className="p-4 border-b border-zinc-100 flex items-center gap-3">
@@ -145,28 +166,56 @@ const SupplierCatalogModal = ({ supplier, onClose, onEdit }) => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 text-sm">
-                {filteredItems.map((item) => (
-                  <tr key={item.id} className="hover:bg-zinc-50/60 transition-colors">
-                    <td className="px-5 py-3.5">
-                      <div className="font-bold text-zinc-900">{item.name}</div>
-                      <div className="text-xs text-zinc-500">Base: {item.baseUnit}</div>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <span className="inline-flex px-2 py-0.5 rounded text-xs font-semibold bg-zinc-100 text-zinc-700 border border-zinc-200">
-                        {item.purchaseUnit}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3.5 text-right text-xs text-zinc-600 font-mono">
-                      1 {item.purchaseUnit} = {item.conversionFactor.toLocaleString()} {item.baseUnit}
-                    </td>
-                    <td className="px-5 py-3.5 text-right font-black font-mono text-zinc-950">
-                      ₱{item.price.toFixed(2)}
-                    </td>
-                    <td className="px-5 py-3.5 text-right text-xs font-semibold text-zinc-600 font-mono">
-                      ₱{item.costPerBaseUnit.toFixed(4)} / {item.baseUnit}
-                    </td>
-                  </tr>
-                ))}
+                {filteredItems.map((item) => {
+                  const change = item.priceChange;
+                  return (
+                    <tr
+                      key={item.id}
+                      className={`transition-colors ${
+                        change ? 'bg-amber-50/40 hover:bg-amber-50/70' : 'hover:bg-zinc-50/60'
+                      }`}
+                    >
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-zinc-900">{item.name}</span>
+                          {change && (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300">
+                              Updated
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-zinc-500">Base: {item.baseUnit}</div>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className="inline-flex px-2 py-0.5 rounded text-xs font-semibold bg-zinc-100 text-zinc-700 border border-zinc-200">
+                          {item.purchaseUnit}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5 text-right text-xs text-zinc-600 font-mono">
+                        1 {item.purchaseUnit} = {item.conversionFactor.toLocaleString()} {item.baseUnit}
+                      </td>
+                      <td className="px-5 py-3.5 text-right font-black font-mono text-zinc-950">
+                        <div>₱{item.price.toFixed(2)}</div>
+                        {change && (
+                          <div className="text-[10px] font-sans font-semibold mt-0.5">
+                            {change.difference > 0 ? (
+                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200">
+                                ▲ +₱{change.difference.toFixed(2)} (Was ₱{change.old_price.toFixed(2)})
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                ▼ -₱{Math.abs(change.difference).toFixed(2)} (Was ₱{change.old_price.toFixed(2)})
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-5 py-3.5 text-right text-xs font-semibold text-zinc-600 font-mono">
+                        ₱{item.costPerBaseUnit.toFixed(4)} / {item.baseUnit}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { getPurchaseOrders } from '../../api/purchasingApi';
+import { getPurchaseOrders, getSupplierPriceUpdates } from '../../api/purchasingApi';
 import { getDashboardStats } from '../../api/dashboardApi';
 import { supabase } from '../../config/supabaseClient';
 import { formatDisplayDate } from '../../utils/dateUtils';
@@ -37,6 +37,16 @@ export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK) => {
   const [internalLowStock, setInternalLowStock] = useState(() => 
     Array.isArray(lowStockItems) && lowStockItems.length > 0 ? lowStockItems : []
   );
+  const [priceUpdates, setPriceUpdates] = useState([]);
+
+  const fetchPriceUpdates = useCallback(async () => {
+    try {
+      const data = await getSupplierPriceUpdates();
+      setPriceUpdates(Array.isArray(data) ? data : []);
+    } catch {
+      // Graceful fallback
+    }
+  }, []);
   const [loading, setLoading] = useState(true);
 
   const lowStockFetchedRef = useRef(false);
@@ -129,6 +139,7 @@ export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK) => {
   // Realtime subscription setup
   useEffect(() => {
     fetchPOs(true);
+    fetchPriceUpdates();
 
     const channelName = `dashboard_inbox_sync_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const channel = supabase
@@ -138,6 +149,7 @@ export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK) => {
         { event: '*', schema: 'public', table: 'purchase_orders' },
         () => {
           fetchPOs(true);
+    fetchPriceUpdates();
         }
       )
       .on(
@@ -375,6 +387,34 @@ export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK) => {
       });
     }
 
+    // 3. Process Supplier Price Updates
+    if (Array.isArray(priceUpdates)) {
+      priceUpdates.forEach((up) => {
+        const id = `supp_price_${up.id}`;
+        if (dismissedSet.has(id)) return;
+        const count = up.price_changes?.length || up.items_count || 1;
+        const firstChange = up.price_changes?.[0];
+        const detailSnippet = firstChange 
+          ? ` (${firstChange.ingredient_name}: ₱${Number(firstChange.old_price).toFixed(2)} → ₱${Number(firstChange.new_price).toFixed(2)})`
+          : '';
+
+        list.push({
+          id,
+          category: 'SUPPLIER',
+          type: 'SUPPLIER_PRICE_UPDATE',
+          title: `Price Update — ${up.supplier_name}`,
+          message: `${up.supplier_name} updated catalog prices for ${count} raw material(s)${detailSnippet}. Click to inspect their catalog.`,
+          badgeText: 'Price Change',
+          badgeVariant: 'warning',
+          actionTab: 'ManageSuppliers',
+          actionLabel: 'Inspect Catalog',
+          timestamp: new Date(up.created_at).getTime(),
+          isRead: readSet.has(id),
+          supplierId: up.supplier_id
+        });
+      });
+    }
+
     // Sort newest / highest priority first
     return list.sort((a, b) => {
       // Critical stock always surfaces near the top if unread
@@ -382,7 +422,7 @@ export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK) => {
       if (!b.isRead && b.badgeVariant === 'danger' && (a.isRead || a.badgeVariant !== 'danger')) return 1;
       return b.timestamp - a.timestamp;
     });
-  }, [lowStockItems, internalLowStock, orders, readIds, dismissedIds]);
+  }, [lowStockItems, internalLowStock, orders, priceUpdates, readIds, dismissedIds]);
 
   // Derived counts
   const unreadCount = useMemo(() => {

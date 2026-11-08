@@ -240,7 +240,20 @@ const ManageSuppliers = () => {
                       return (
                         <tr key={supp.id} className="hover:bg-zinc-50/60 transition-colors">
                           <td className="px-6 py-4">
-                            <div className="font-bold text-zinc-900 text-base">{supp.name}</div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-zinc-900 text-base">{supp.name}</span>
+                              {supp.recent_price_updates?.changes_count > 0 && (
+                                <span
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-300"
+                                  title={`Supplier adjusted pricing for ${supp.recent_price_updates.changes_count} item(s)`}
+                                >
+                                  <svg className="w-3 h-3 text-amber-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  Prices Updated
+                                </span>
+                              )}
+                            </div>
                             {supp.email && (
                               <div className="text-xs text-zinc-500 font-medium">{supp.email}</div>
                             )}

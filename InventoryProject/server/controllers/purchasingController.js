@@ -387,24 +387,90 @@ export const updateSupplierOwnCatalog = async (req, res) => {
       return res.status(400).json({ error: 'Expected items array.' });
     }
 
+    // Fetch existing supplier_ingredients with ingredient names to detect price changes
+    const { data: existingRows } = await supabase
+      .from('supplier_ingredients')
+      .select('ingredient_id, default_price, default_purchase_unit, default_conversion_factor, ingredients(id, name)')
+      .eq('supplier_id', supplierId);
+
+    const existingMap = new Map((existingRows || []).map(r => [r.ingredient_id, r]));
+    const priceChanges = [];
+
     for (const item of items) {
+      const existing = existingMap.get(item.ingredient_id);
+      const oldPrice = parseFloat(existing?.default_price) || 0;
+      const newPrice = parseFloat(item.default_price ?? item.price) || 0;
+
+      if (existing && Math.abs(oldPrice - newPrice) > 0.001) {
+        priceChanges.push({
+          ingredient_id: item.ingredient_id,
+          ingredient_name: existing.ingredients?.name || 'Raw Material',
+          old_price: oldPrice,
+          new_price: newPrice,
+          difference: newPrice - oldPrice,
+          updated_at: new Date().toISOString()
+        });
+      }
+
       const { error: upErr } = await supabase
         .from('supplier_ingredients')
         .update({
-          default_price: parseFloat(item.default_price ?? item.price) || 0,
-          default_purchase_unit: item.default_purchase_unit || item.purchase_unit || 'Unit',
-          default_conversion_factor: parseFloat(item.default_conversion_factor || item.conversion_factor) || 1
+          default_price: newPrice,
+          default_purchase_unit: item.default_purchase_unit || item.purchase_unit || existing?.default_purchase_unit || 'Unit',
+          default_conversion_factor: parseFloat(item.default_conversion_factor || item.conversion_factor) || existing?.default_conversion_factor || 1
         })
         .match({ supplier_id: supplierId, ingredient_id: item.ingredient_id });
       if (upErr) throw upErr;
     }
 
+    // Fetch supplier name for audit details
+    const { data: supplierInfo } = await supabase
+      .from('suppliers')
+      .select('name')
+      .eq('id', supplierId)
+      .single();
+
+    const supplierName = supplierInfo?.name || 'Supplier';
+
     await logAudit('SUPPLIER_CATALOG_PRICES_UPDATED', req.user.id, {
       supplier_id: supplierId,
-      items_count: items.length
+      supplier_name: supplierName,
+      items_count: items.length,
+      price_changes: priceChanges
     });
 
-    res.json({ success: true, count: items.length });
+    res.json({ success: true, count: items.length, price_changes: priceChanges });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const getSupplierPriceUpdates = async (req, res) => {
+  try {
+    const { supabase } = await import("../config/supabaseClient.js");
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const { data, error } = await supabase
+      .from('audit_logs')
+      .select('id, created_at, details')
+      .eq('action', 'SUPPLIER_CATALOG_PRICES_UPDATED')
+      .gte('created_at', thirtyDaysAgo)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    const updates = (data || []).map(log => {
+      const details = typeof log.details === 'string' ? JSON.parse(log.details) : log.details;
+      return {
+        id: log.id,
+        created_at: log.created_at,
+        supplier_id: details?.supplier_id,
+        supplier_name: details?.supplier_name || 'Supplier',
+        items_count: details?.items_count || 0,
+        price_changes: details?.price_changes || []
+      };
+    });
+
+    res.json(updates);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

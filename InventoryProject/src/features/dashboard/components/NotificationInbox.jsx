@@ -58,8 +58,11 @@ const NotificationInbox = ({ onNavigate, lowStockItems = [], variant = 'default'
     if (activeTab === 'UNREAD') return !item.isRead;
     if (activeTab === 'PO') return item.category === 'PO';
     if (activeTab === 'STOCK') return item.category === 'STOCK';
+    if (activeTab === 'SUPPLIER') return item.category === 'SUPPLIER';
     return true;
   });
+
+  const supplierCount = notifications.filter((n) => n.category === 'SUPPLIER').length;
 
   const poCount = notifications.filter((n) => n.category === 'PO').length;
   const stockCount = notifications.filter((n) => n.category === 'STOCK').length;
@@ -103,6 +106,12 @@ const NotificationInbox = ({ onNavigate, lowStockItems = [], variant = 'default'
         return (
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+          </svg>
+        );
+      case 'SUPPLIER_PRICE_UPDATE':
+        return (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         );
       case 'STOCK_LOW':
@@ -281,6 +290,18 @@ const NotificationInbox = ({ onNavigate, lowStockItems = [], variant = 'default'
                   >
                     Stock Alerts ({stockCount})
                   </button>
+                  {supplierCount > 0 && (
+                    <button
+                      onClick={() => setActiveTab('SUPPLIER')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                        activeTab === 'SUPPLIER'
+                          ? 'bg-zinc-900 text-white shadow-xs'
+                          : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+                      }`}
+                    >
+                      Price Updates ({supplierCount})
+                    </button>
+                  )}
                 </div>
               </div>
 

@@ -121,3 +121,10 @@ export async function updateSupplierOwnCatalog(items) {
     body: JSON.stringify({ items })
   });
 }
+
+
+export async function getSupplierPriceUpdates() {
+  return apiCall("/purchasing/price-updates", {
+    method: "GET"
+  });
+}
