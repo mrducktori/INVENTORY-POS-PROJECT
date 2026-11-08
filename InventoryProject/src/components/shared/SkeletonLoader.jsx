@@ -75,8 +75,15 @@ export const CardGridSkeleton = ({ count = 8 }) => {
  * @param {number} count - Number of KPI cards (default 4)
  */
 export const StatCardsSkeleton = ({ count = 4 }) => {
+  const gridColsClass =
+    count === 5
+      ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-5'
+      : count === 3
+        ? 'grid-cols-1 sm:grid-cols-3'
+        : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4';
+
   return (
-    <div className={`grid grid-cols-2 md:grid-cols-${count} gap-4 animate-pulse`}>
+    <div className={`grid ${gridColsClass} gap-4 animate-pulse`}>
       {Array.from({ length: count }).map((_, idx) => (
         <div key={idx} className="bg-white border border-zinc-200 p-5 rounded-xl shadow-xs flex flex-col justify-center text-center space-y-2">
           <div className="h-3 bg-zinc-200 rounded w-2/3 mx-auto" />

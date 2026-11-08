@@ -16,6 +16,9 @@ All notable changes to this project will be documented in this file.
   - Added a **`Checkout & Pay Now`** button in the Cart panel to open the `Complete Payment` modal immediately (pre-filled with the selected discount), alongside **`Hold Order`** (which sends the order and its selected discount to `Ongoing Orders`).
 - **Hardened Server Audit & Actor Attribution Security (`products.js`, `inventoryController.js`, `purchasingController.js`, `posController.js`, `wastage.js`, `audit.js`)**:
   - Enforced `req.user?.id` from the JWT authentication middleware across all product, raw material, supplier, POS sale, wastage, and audit log write endpoints so client-supplied `user_id` / `staff_id` / `reported_by` fields cannot be spoofed.
+- **Fixed Overlapping Loading State & Cost Calculation in Wastage Report (`WastageReport.jsx`, `SkeletonLoader.jsx`, `wastageService.js`)**:
+  - Fixed a broken `{loading && (` wrapper in `WastageReport.jsx` that rendered both the skeleton loader and the report content inside an `h-64` centered flex container during loading (causing the skeleton to float over the header/filters) and hid the report once loading finished.
+  - Updated `wastageService.js` and `WastageReport.jsx` to compute estimated PHP cost loss per wasted ingredient and formatted `Overall Statistics` with clean labels and 2-decimal precision.
 
 ## [Auth/Security: Inactivity Auto-Logout, Live Activity Tracking, Online Status Sync & Audit Logging - 2026-11-08]
 - **Inactivity Logout Now Clears Online Session & Writes Audit Log (`authUtils.js`, `client.js`, `App.jsx`, `server/routes/auth.js`)**:

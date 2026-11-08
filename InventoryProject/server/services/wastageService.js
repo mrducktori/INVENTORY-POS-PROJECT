@@ -50,12 +50,32 @@ export const reportWastage = async ({ ingredient_id, quantity, reason, reported_
   return data;
 };
 
+const computeWastageEntryCost = (entry) => {
+  if (entry.estimated_cost !== undefined && entry.estimated_cost !== null && Number(entry.estimated_cost) > 0) {
+    return Math.round(Number(entry.estimated_cost) * 100) / 100;
+  }
+  const qty = parseFloat(entry.quantity) || 0;
+  const ing = entry.ingredients || {};
+  const purchaseCost = parseFloat(ing.cost_per_purchase_unit) || 0;
+  const conv = parseFloat(ing.conversion_factor) || 1;
+  if (purchaseCost > 0 && conv > 0) {
+    return Math.round((purchaseCost / conv) * qty * 100) / 100;
+  }
+  // Fallback unit cost estimate based on standard raw material unit (G, ML, PCS, KG, L)
+  const unit = String(ing.unit || '').toUpperCase();
+  const defaultUnitRate =
+    unit === 'KG' || unit === 'L' ? 180 :
+    unit === 'PCS' ? 2.5 :
+    unit === 'G' || unit === 'ML' ? 0.22 : 1.0;
+  return Math.round(qty * defaultUnitRate * 100) / 100;
+};
+
 export const getWastageHistory = async (filters = {}) => {
   let query = supabase
     .from("wastage")
     .select(`
       *,
-      ingredients(id, name, unit),
+      ingredients(id, name, unit, cost_per_purchase_unit, conversion_factor),
       users(id, name, username)
     `)
     .order("created_at", { ascending: false });
@@ -79,31 +99,36 @@ export const getWastageHistory = async (filters = {}) => {
   const { data, error } = await query;
 
   if (error) throw error;
-  return data;
+  return (data || []).map(row => ({
+    ...row,
+    estimated_cost: computeWastageEntryCost(row),
+  }));
 };
 
 export const getWastageStats = async () => {
   const { data, error } = await supabase
     .from("wastage")
-    .select("ingredient_id, quantity, created_at")
+    .select("ingredient_id, quantity, created_at, ingredients(id, name, unit, cost_per_purchase_unit, conversion_factor)")
     .order("created_at", { ascending: false })
-    .limit(100);
+    .limit(500);
 
   if (error) throw error;
 
   // Calculate stats
-  const totalWastage = data.reduce((sum, w) => sum + w.quantity, 0);
+  const totalWastage = Math.round(data.reduce((sum, w) => sum + (parseFloat(w.quantity) || 0), 0) * 100) / 100;
+  const totalEstimatedCost = Math.round(data.reduce((sum, w) => sum + computeWastageEntryCost(w), 0) * 100) / 100;
   const wastageByIngredient = {};
 
   data.forEach(w => {
     if (!wastageByIngredient[w.ingredient_id]) {
       wastageByIngredient[w.ingredient_id] = 0;
     }
-    wastageByIngredient[w.ingredient_id] += w.quantity;
+    wastageByIngredient[w.ingredient_id] = Math.round((wastageByIngredient[w.ingredient_id] + (parseFloat(w.quantity) || 0)) * 100) / 100;
   });
 
   return {
     totalWastage,
+    totalEstimatedCost,
     wastageByIngredient,
     recordCount: data.length
   };

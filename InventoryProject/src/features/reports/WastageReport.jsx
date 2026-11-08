@@ -94,9 +94,28 @@ const WastageReport = () => {
       });
   }, [entries, search, reasonFilter, sortKey, sortDir]);
 
+  // Helper to get estimated cost for an entry
+  const getEntryCost = (e) => {
+    const explicitCost = parseFloat(e.estimated_cost);
+    if (!isNaN(explicitCost) && explicitCost > 0) return explicitCost;
+    const qty = parseFloat(e.quantity) || 0;
+    const ing = e.ingredients || {};
+    const purchaseCost = parseFloat(ing.cost_per_purchase_unit) || 0;
+    const conv = parseFloat(ing.conversion_factor) || 1;
+    if (purchaseCost > 0 && conv > 0) {
+      return Math.round((purchaseCost / conv) * qty * 100) / 100;
+    }
+    const unit = String(ing.unit || e.unit || '').toUpperCase();
+    const defaultUnitRate =
+      unit === 'KG' || unit === 'L' ? 180 :
+      unit === 'PCS' ? 2.5 :
+      unit === 'G' || unit === 'ML' ? 0.22 : 1.0;
+    return Math.round(qty * defaultUnitRate * 100) / 100;
+  };
+
   // Summary aggregations
   const totalQuantity = filtered.reduce((s, e) => s + (parseFloat(e.quantity) || 0), 0);
-  const totalCost     = filtered.reduce((s, e) => s + (parseFloat(e.estimated_cost) || 0), 0);
+  const totalCost     = filtered.reduce((s, e) => s + getEntryCost(e), 0);
 
   // Group by reason for breakdown
   const byReason = useMemo(() => {
@@ -105,7 +124,7 @@ const WastageReport = () => {
       const r = e.reason || 'Unknown';
       if (!map[r]) map[r] = { count: 0, cost: 0 };
       map[r].count++;
-      map[r].cost += parseFloat(e.estimated_cost) || 0;
+      map[r].cost += getEntryCost(e);
     });
     return Object.entries(map).sort((a, b) => b[1].count - a[1].count);
   }, [entries]);
@@ -132,7 +151,7 @@ const WastageReport = () => {
         parseFloat(e.quantity || 0).toFixed(2),
         e.ingredients?.unit || e.unit || '—',
         e.reason || '—',
-        `₱${parseFloat(e.estimated_cost || 0).toFixed(2)}`,
+        `₱${getEntryCost(e).toFixed(2)}`,
         e.users?.name || e.reported_by_name || '—'
       ])
     ];
@@ -147,7 +166,7 @@ const WastageReport = () => {
         <td><strong>${e.ingredients?.name || e.ingredient_name || '—'}</strong></td>
         <td style="text-align:right">${parseFloat(e.quantity || 0).toFixed(2)} ${e.ingredients?.unit || e.unit || ''}</td>
         <td>${e.reason || '—'}</td>
-        <td style="text-align:right;color:#c62828;font-weight:bold">₱${parseFloat(e.estimated_cost || 0).toFixed(2)}</td>
+        <td style="text-align:right;color:#c62828;font-weight:bold">₱${getEntryCost(e).toFixed(2)}</td>
         <td>${e.users?.name || e.reported_by_name || '—'}</td>
       </tr>`).join('');
     const reasonRows = byReason.map(([reason, data]) =>
@@ -255,13 +274,14 @@ const WastageReport = () => {
       )}
 
       {loading && (
-        <div className="p-12 flex flex-col items-center justify-center text-gray-500 bg-white border border-gray-200 rounded-xl h-64 animate-pulse">
-      {loading && (
         <div className="flex flex-col gap-6">
           <StatCardsSkeleton count={4} />
           <TableSkeleton rows={8} cols={6} />
         </div>
       )}
+
+      {fetched && !loading && (
+        <div className="flex flex-col gap-6 animate-[fadeIn_0.3s_ease-out]">
           {/* KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-t-4 border-t-gray-900">
@@ -276,7 +296,7 @@ const WastageReport = () => {
             </div>
             <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-t-4 border-t-orange-500">
               <div className="text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider mb-2">Total Quantity Wasted</div>
-              <div className="text-2xl font-extrabold text-gray-900 mb-1">{totalQuantity.toFixed(2)}</div>
+              <div className="text-2xl font-extrabold text-gray-900 mb-1">{totalQuantity.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
               <div className="text-sm md:text-base font-medium text-gray-400">units lost</div>
             </div>
             <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-t-4 border-t-purple-500">
@@ -319,7 +339,7 @@ const WastageReport = () => {
                               </td>
                               <td className="px-6 py-4 text-sm md:text-base font-extrabold text-gray-900 text-center">{data.count}</td>
                               <td className="px-6 py-4 text-sm md:text-base font-bold font-mono text-red-700 text-right">
-                                ₱{data.cost.toFixed(2)}
+                                ₱{data.cost.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </td>
                               <td className="px-6 py-4">
                                 <div className="flex items-center gap-3">
@@ -346,18 +366,29 @@ const WastageReport = () => {
                   </div>
                   <div className="p-6">
                     <div className="flex flex-col divide-y divide-gray-100">
-                      {Object.entries(stats).map(([k, v]) => (
-                        <div key={k} className="py-3 flex justify-between items-center text-sm md:text-base">
-                          <span className="text-gray-500 font-medium capitalize">{k.replace(/_/g, ' ')}</span>
-                          <span className="font-bold text-gray-900 font-mono">
-                            {k === 'wastageByIngredient' 
-                              ? Object.keys(v).length + ' items' 
-                              : (typeof v === 'number' && k.toLowerCase().includes('cost'))
-                                ? `₱${parseFloat(v).toFixed(2)}`
-                                : v}
-                          </span>
-                        </div>
-                      ))}
+                      {Object.entries(stats).map(([k, v]) => {
+                        const labelMap = {
+                          totalWastage: 'Total Wastage Volume',
+                          totalEstimatedCost: 'Estimated Total Loss',
+                          wastageByIngredient: 'Affected Ingredients',
+                          recordCount: 'Total Records Logged',
+                        };
+                        const label = labelMap[k] || k.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ');
+                        let formattedVal = v;
+                        if (k === 'wastageByIngredient' && v && typeof v === 'object') {
+                          formattedVal = `${Object.keys(v).length} items`;
+                        } else if (typeof v === 'number' && k.toLowerCase().includes('cost')) {
+                          formattedVal = `₱${Number(v).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                        } else if (typeof v === 'number' && k === 'totalWastage') {
+                          formattedVal = Number(v).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                        }
+                        return (
+                          <div key={k} className="py-3 flex justify-between items-center text-sm md:text-base">
+                            <span className="text-gray-500 font-medium capitalize">{label}</span>
+                            <span className="font-bold text-gray-900 font-mono">{formattedVal}</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -410,7 +441,7 @@ const WastageReport = () => {
                               : <span className="text-gray-300">—</span>}
                           </td>
                           <td className="px-6 py-4 text-sm md:text-base font-bold font-mono text-red-700 text-right">
-                            ₱{parseFloat(e.estimated_cost || 0).toFixed(2)}
+                            ₱{getEntryCost(e).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
                           <td className="px-6 py-4 text-sm md:text-base font-medium text-gray-600">
                             {e.users?.name || e.reported_by_name || '—'}
