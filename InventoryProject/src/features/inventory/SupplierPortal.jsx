@@ -377,7 +377,17 @@ const SupplierPortal = () => {
                       <tr className="hover:bg-gray-50/50 transition-colors cursor-pointer" onClick={() => toggleExpand(po.id)}>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
-                            <span className={`text-[10px] transition-transform ${expandedId === po.id ? 'rotate-180' : ''}`}>▼</span>
+                            <svg
+                              className={`w-4 h-4 text-zinc-400 transition-transform duration-200 shrink-0 ${
+                                expandedId === po.id ? 'rotate-90 text-zinc-900' : 'group-hover:text-zinc-700'
+                              }`}
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                            </svg>
                             <span className="text-sm font-bold text-gray-900">#{po.id.substring(0, 8).toUpperCase()}</span>
                             {po.has_proposals && (
                               <span className="px-2 py-0.5 rounded text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-300">
@@ -464,7 +474,7 @@ const SupplierPortal = () => {
                               onClick={() => setReviewModal({ show: true, order: po })} 
                               className="px-3.5 py-1.5 bg-zinc-900 hover:bg-black text-white rounded text-xs font-extrabold uppercase tracking-wider transition-colors cursor-pointer shadow-xs"
                             >
-                              Review & Accept Items →
+                              <span className="inline-flex items-center gap-1.5">Review & Accept Items <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg></span>
                             </button>
                           </div>
                         )}
@@ -558,7 +568,7 @@ const SupplierPortal = () => {
                                     onClick={() => setReviewModal({ show: true, order: po })}
                                     className="text-xs font-bold text-zinc-900 hover:underline cursor-pointer"
                                   >
-                                    Review / Change Availability →
+                                    <span className="inline-flex items-center gap-1.5">Review / Change Availability <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg></span>
                                   </button>
                                 )}
                               </div>

@@ -262,7 +262,17 @@ const Navbar = ({ activeTab, onTabChange }) => {
                     {ICONS[item.label] || ICONS['Default']}
                     <span>{item.label}</span>
                   </div>
-                  <span className={`text-[10px] transition-transform duration-200 ${effectiveExpanded === item.label ? 'rotate-180' : ''}`}>▼</span>
+                  <svg
+                    className={`w-4 h-4 text-zinc-400 transition-transform duration-200 shrink-0 ${
+                      effectiveExpanded === item.label ? 'rotate-180 text-white' : ''
+                    }`}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
                 </div>
                 {effectiveExpanded === item.label && (
                   <ul className="list-none p-1 m-0 space-y-1 pl-4">

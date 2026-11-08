@@ -49,7 +49,20 @@ const WastageReport = () => {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
     else { setSortKey(key); setSortDir('desc'); }
   };
-  const arrow = key => sortKey !== key ? ' ↕' : sortDir === 'asc' ? ' ↑' : ' ↓';
+  const arrow = key => {
+    const isCurrent = sortKey === key;
+    return (
+      <svg className={`w-3.5 h-3.5 inline ml-1 ${isCurrent ? 'text-zinc-900' : 'text-zinc-300'}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+        {isCurrent && sortDir === 'asc' ? (
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+        ) : isCurrent && sortDir === 'desc' ? (
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        ) : (
+          <path strokeLinecap="round" strokeLinejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+        )}
+      </svg>
+    );
+  };
 
   // Unique reasons for filter dropdown
   const reasons = useMemo(() => {

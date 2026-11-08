@@ -382,7 +382,7 @@ const NotificationInbox = ({ onNavigate, lowStockItems = [], variant = 'default'
                                 className="inline-flex items-center gap-1.5 text-xs font-bold text-zinc-900 hover:text-blue-600 cursor-pointer transition-colors"
                               >
                                 <span>{n.actionLabel || 'View Details'}</span>
-                                <span className="text-[11px]">→</span>
+                                <svg className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
                               </button>
 
                               <div className="flex items-center gap-1.5">

@@ -81,7 +81,7 @@ const DashboardOverview = ({ onNavigate }) => {
               onClick={() => onNavigate('POS')}
               className="px-5 py-2.5 bg-zinc-900 hover:bg-black text-white text-sm font-bold rounded-xl shadow-sm hover:shadow transition-all cursor-pointer"
             >
-              Open POS Register →
+              <span className="inline-flex items-center gap-1.5">Open POS Register <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg></span>
             </button>
           )}
         </div>

@@ -798,7 +798,7 @@ function LandingPage() {
                       </div>
                       <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-zinc-950 text-white text-xs sm:text-sm font-bold uppercase tracking-wider group-hover:bg-amber-400 group-hover:text-zinc-950 transition-colors shadow">
                         <span>Open Menu</span>
-                        <span className="text-xs transition-transform group-hover:translate-x-0.5">→</span>
+                        <svg className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
                       </div>
                     </button>
                   </div>

@@ -141,7 +141,7 @@ const ReceivePOModal = ({ po, onClose, onSubmit }) => {
                     : 'bg-zinc-200 text-zinc-400 cursor-not-allowed border border-zinc-300'
                 }`}
               >
-                Review Receipt ({itemsToSubmit.length} items) →
+                <span className="inline-flex items-center gap-1">Review Receipt ({itemsToSubmit.length} items) <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg></span>
               </button>
             </div>
           </form>
@@ -222,7 +222,7 @@ const ReceivePOModal = ({ po, onClose, onSubmit }) => {
                 onClick={() => setIsReviewStep(false)}
                 disabled={saving}
               >
-                ← Back to Edit
+                <span className="inline-flex items-center gap-1"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg> Back to Edit</span>
               </button>
               <button 
                 type="button" 

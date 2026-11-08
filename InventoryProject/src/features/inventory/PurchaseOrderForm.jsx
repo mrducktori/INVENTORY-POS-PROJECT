@@ -527,7 +527,7 @@ const PurchaseOrderForm = ({ onClose, onSuccess }) => {
                 disabled={saving}
                 className="px-4 py-2.5 bg-white border border-zinc-300 text-zinc-700 hover:bg-zinc-100 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
               >
-                ← Back to Edit
+                <span className="inline-flex items-center gap-1"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg> Back to Edit</span>
               </button>
               <button
                 type="button"

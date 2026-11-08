@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [UI/Polish: Elimination of Raw Unicode Triangle/Arrow Glyphs - 2026-11-08]
+- **Unified Chevron & Expandable Row Icons**:
+  - Replaced raw `▶` and `▼` characters in expandable table rows (`PurchaseOrders.jsx`, `SupplierPortal.jsx`) that were rendering as Windows blue emoji play buttons with sleek, animated Lucide SVG chevron icons that rotate smoothly on expand.
+  - Replaced raw triangle characters in `Navbar.jsx` with minimalist SVG chevrons.
+- **Table Sorting & Status Arrows**:
+  - Upgraded table column sorting indicators in `AuditLogs.jsx`, `TransactionLogs.jsx`, `InventoryStatusReport.jsx`, `SalesPerformanceReport.jsx`, `WastageReport.jsx`, and `TopSalesGrid.jsx` to clean vector SVG chevrons/arrows.
+  - Replaced raw `▲`/`▼` trend indicators in `DemandForecasting.jsx` and `SupplierCatalogModal.jsx` with semantic Lucide trend icons.
+- **Action & Navigation Arrows**:
+  - Replaced raw `→` and `←` text arrows across `NotificationInbox.jsx`, `LandingPage.jsx`, `LoginPage.jsx`, `StatCards.jsx`, `DashboardOverview.jsx`, `ReceivePOModal.jsx`, `PurchaseOrderForm.jsx`, `SupplierReviewPOModal.jsx`, and `ViewRequests.jsx` with consistent vector stroke SVGs.
+
 ## [Purchasing: Supplier Price Protection & Price Change Notifications - 2026-11-08]
 - **Admin Supplier Pricing Access Protection**:
   - Locked and read-only price fields in `SupplierFormModal.jsx` when editing existing suppliers; admins manage raw material mappings and packaging units, while official prices are controlled by the supplier.

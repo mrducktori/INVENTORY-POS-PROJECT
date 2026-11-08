@@ -200,11 +200,11 @@ const SupplierCatalogModal = ({ supplier, onClose }) => {
                           <div className="text-[10px] font-sans font-semibold mt-0.5">
                             {change.difference > 0 ? (
                               <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200">
-                                ▲ +₱{change.difference.toFixed(2)} (Was ₱{change.old_price.toFixed(2)})
+                                <svg className="w-2.5 h-2.5 text-amber-700 inline shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" /></svg> +₱{change.difference.toFixed(2)} (Was ₱{change.old_price.toFixed(2)})
                               </span>
                             ) : (
                               <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
-                                ▼ -₱{Math.abs(change.difference).toFixed(2)} (Was ₱{change.old_price.toFixed(2)})
+                                <svg className="w-2.5 h-2.5 text-emerald-700 inline shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg> -₱{Math.abs(change.difference).toFixed(2)} (Was ₱{change.old_price.toFixed(2)})
                               </span>
                             )}
                           </div>

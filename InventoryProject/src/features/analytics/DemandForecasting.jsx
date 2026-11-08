@@ -869,7 +869,11 @@ const DemandForecasting = () => {
                           <td className="px-6 py-4 text-base font-black font-mono text-blue-800 text-right">{item.predictedNext7Days} units</td>
                           <td className="px-6 py-4">
                             <span className={`inline-flex items-center gap-1 font-black font-mono text-sm ${parseFloat(item.growthRate) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                              {parseFloat(item.growthRate) >= 0 ? '↑' : '↓'} {Math.abs(item.growthRate)}%
+                              {parseFloat(item.growthRate) >= 0 ? (
+                                <svg className="w-3.5 h-3.5 text-emerald-600 inline shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
+                              ) : (
+                                <svg className="w-3.5 h-3.5 text-rose-600 inline shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
+                              )} {Math.abs(item.growthRate)}%
                             </span>
                           </td>
                           <td className="px-6 py-4">

@@ -84,7 +84,9 @@ const TopSalesGrid = ({
               className="px-3.5 py-2 rounded-xl border border-zinc-200 hover:bg-zinc-100 text-xs md:text-sm font-bold text-zinc-700 cursor-pointer transition-colors flex items-center gap-1.5 shadow-2xs"
               title={areAllCompacted ? 'Expand all categories' : 'Collapse all categories'}
             >
-              <span>{areAllCompacted ? '▼' : '▲'}</span>
+              <svg className="w-3.5 h-3.5 text-zinc-600 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d={areAllCompacted ? "M19 9l-7 7-7-7" : "M5 15l7-7 7 7"} />
+              </svg>
               <span>{areAllCompacted ? 'Open All' : 'Compact All'}</span>
             </button>
           )}
@@ -160,7 +162,12 @@ const TopSalesGrid = ({
             className="px-3.5 py-2 rounded-xl border border-zinc-200 hover:bg-zinc-50 text-xs md:text-sm font-bold text-zinc-700 cursor-pointer transition-colors"
             onClick={onToggleSort}
           >
-            {sortAsc ? 'Lowest First ↑' : 'Highest First ↓'}
+            <div className="flex items-center gap-1.5">
+              <span>{sortAsc ? 'Lowest First' : 'Highest First'}</span>
+              <svg className="w-3.5 h-3.5 text-zinc-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d={sortAsc ? "M5 10l7-7m0 0l7 7m-7-7v18" : "M19 14l-7 7m0 0l-7-7m7 7V3"} />
+              </svg>
+            </div>
           </button>
         </div>
       </div>
@@ -250,7 +257,9 @@ const TopSalesGrid = ({
                             : 'bg-zinc-200/80 text-zinc-700 border-zinc-300 hover:bg-zinc-300'
                         }`}
                       >
-                        <span>{isCompacted ? '▼' : '▲'}</span>
+                        <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d={isCompacted ? "M19 9l-7 7-7-7" : "M5 15l7-7 7 7"} />
+                        </svg>
                         <span>{isCompacted ? 'Open' : 'Compact'}</span>
                       </button>
                     </div>
@@ -272,7 +281,7 @@ const TopSalesGrid = ({
                         Total Units: <strong className="text-zinc-900 font-black">{totalCategorySold} sold</strong>
                       </span>
                       <span className="font-bold text-zinc-800 flex items-center gap-1">
-                        Click to view items <span>▼</span>
+                        Click to view items <svg className="w-3.5 h-3.5 text-zinc-500 inline-block" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
                       </span>
                     </div>
                   ) : (

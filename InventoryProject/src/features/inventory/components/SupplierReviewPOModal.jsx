@@ -318,7 +318,7 @@ const SupplierReviewPOModal = ({ isOpen, onClose, order, onSubmit }) => {
               disabled={isSubmitting}
               className="px-6 py-2.5 bg-zinc-900 hover:bg-black text-white rounded-xl text-xs font-extrabold uppercase tracking-wider shadow-sm transition-all cursor-pointer disabled:opacity-50"
             >
-              {isSubmitting ? 'Submitting...' : 'Submit Availability Response →'}
+              {isSubmitting ? 'Submitting...' : <span className="inline-flex items-center gap-1.5">Submit Availability Response <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg></span>}
             </button>
           </div>
         </form>

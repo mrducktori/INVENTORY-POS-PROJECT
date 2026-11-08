@@ -115,7 +115,7 @@ const ViewRequests = () => {
                             <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-medium text-gray-700 flex items-center gap-2">
                               <span className="font-bold text-gray-900 uppercase tracking-wider text-[10px]">Price Change:</span> 
                               <span className="line-through text-gray-400">₱{req.details.old_price}</span> 
-                              <span className="text-gray-400">→</span> 
+                              <svg className="w-3 h-3 text-zinc-400 inline" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg> 
                               <span className="font-bold text-green-600">₱{req.details.proposed_price}</span>
                             </div>
                           )}

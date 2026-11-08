@@ -67,7 +67,7 @@ function LoginPage() {
               className="text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer mb-6 hover:text-white transition-colors inline-block m-0 bg-transparent border-none" 
               onClick={() => navigate('/')}
             >
-              ← Back to Home
+              <span className="inline-flex items-center gap-1.5"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg> Back to Home</span>
             </button>
             
             <div className="flex items-center gap-3.5 mb-6 pb-6 border-b border-zinc-800/80">

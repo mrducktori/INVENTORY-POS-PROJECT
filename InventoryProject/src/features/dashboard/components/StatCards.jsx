@@ -78,7 +78,7 @@ const StatCards = ({ cards, loading }) => {
 
               {card.clickable && (
                 <span className="font-bold text-zinc-900 hover:text-black underline underline-offset-4">
-                  View Items →
+                  <span className="inline-flex items-center gap-1">View Items <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg></span>
                 </span>
               )}
             </div>
