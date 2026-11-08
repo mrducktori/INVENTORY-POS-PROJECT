@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [UI/Polish: Compacted Log Filter Toolbars - 2026-11-08]
+- **Audit Logs & Transaction Logs Toolbar Compaction**:
+  - Replaced the massive, stacked 4-tier filter card (~260px tall) in `AuditLogs.jsx` and `TransactionLogs.jsx` with a streamlined, minimalist single-card bar (~56px tall).
+  - Integrated segmented date preset chips (`Today`, `7 Days`, `This Month`, `All Time`) and an inline date range pill alongside the Category dropdown and Search bar.
+  - Eliminated repetitive uppercase form labels, restoring over 200px of vertical screen real estate directly to the data table.
+
 ## [Archiving & POS: Supplier Archiving, Dedicated Archive Sections, Sales Journal Overhaul, & Post-Payment Digital Receipts - 2026-11-08]
 - **Supplier Soft-Delete & Foreign Key Protection**:
   - Replaced dangerous hard-deletes on `suppliers` table with soft-deleting (`is_archived`), preventing PostgreSQL foreign key violations on `users_supplier_id_fkey` and historical purchase orders.
