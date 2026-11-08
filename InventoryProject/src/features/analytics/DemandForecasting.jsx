@@ -3,9 +3,11 @@ import { createPortal } from 'react-dom';
 import { getDemandForecast, getIngredientDepletionForecast, getAIForecast } from '../../api/analyticsApi';
 import { getSuppliers, createPurchaseOrder } from '../../api/purchasingApi';
 import { TableSkeleton } from '../../components/shared/SkeletonLoader';
+import { InfoTip } from '../../components/shared/InfoTip';
 
 const DemandForecasting = () => {
   const [activeTab, setActiveTab] = useState('ingredients'); // 'ingredients' | 'products'
+  const [infoModalOpen, setInfoModalOpen] = useState(false);
 
   // Ingredient Depletion State
   const [ingredientData, setIngredientData] = useState({
@@ -454,9 +456,24 @@ const DemandForecasting = () => {
       {/* Page Header & Tab Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-200">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-900 tracking-tight m-0">
-            Demand Forecasting
-          </h1>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-2xl font-bold text-zinc-900 tracking-tight m-0">
+              Demand Forecasting
+            </h1>
+            <button
+              type="button"
+              onClick={() => setInfoModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-100 hover:bg-zinc-200/80 text-zinc-700 hover:text-zinc-900 text-xs font-semibold border border-zinc-200/80 transition-colors cursor-pointer"
+              title="Learn how forecasting is calculated"
+            >
+              <svg className="w-3.5 h-3.5 text-zinc-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="16" x2="12" y2="12" />
+                <line x1="12" y1="8" x2="12.01" y2="8" />
+              </svg>
+              <span>How it works</span>
+            </button>
+          </div>
           <p className="text-sm text-zinc-500 mt-1 mb-0">
             Monitor raw material runout estimates and upcoming 7-day menu demand.
           </p>
@@ -679,9 +696,24 @@ const DemandForecasting = () => {
                         </th>
                         <th className="py-3 px-4 sticky left-0 z-10 bg-zinc-50 shadow-[1px_0_0_0_#e4e4e7]">Ingredient</th>
                         <th className="py-3 px-4 text-right">On Hand</th>
-                        <th className="py-3 px-4 text-right">Daily Usage</th>
-                        <th className="py-3 px-4 text-center">Est. Time Left</th>
-                        <th className="py-3 px-4">Suggested Order</th>
+                        <th className="py-3 px-4 text-right">
+                          <span className="inline-flex items-center justify-end gap-1">
+                            <span>Daily Usage</span>
+                            <InfoTip position="bottom" text="Average daily consumption based on recipes sold over the last 30 days, weighted toward the most recent 14 days." />
+                          </span>
+                        </th>
+                        <th className="py-3 px-4 text-center">
+                          <span className="inline-flex items-center justify-center gap-1">
+                            <span>Est. Time Left</span>
+                            <InfoTip position="bottom" text="Estimated days until current stock runs out at your current daily usage rate." />
+                          </span>
+                        </th>
+                        <th className="py-3 px-4">
+                          <span className="inline-flex items-center gap-1">
+                            <span>Suggested Order</span>
+                            <InfoTip position="bottom" text="Recommended purchase quantity in supplier units to maintain a 14-day supply buffer." />
+                          </span>
+                        </th>
                         <th className="py-3 px-4">Supplier</th>
                         <th className="py-3 px-4 text-right">Action</th>
                       </tr>
@@ -935,10 +967,25 @@ const DemandForecasting = () => {
                       <tr className="border-b border-zinc-200 bg-zinc-50/50 text-zinc-500 font-semibold">
                         <th className="py-3 px-4 sticky left-0 z-10 bg-zinc-50 shadow-[1px_0_0_0_#e4e4e7]">Menu Item</th>
                         <th className="py-3 px-4">Category</th>
-                        <th className="py-3 px-4 text-right">Daily Average</th>
-                        <th className="py-3 px-4 text-right">Next 7 Days</th>
+                        <th className="py-3 px-4 text-right">
+                          <span className="inline-flex items-center justify-end gap-1">
+                            <span>Daily Average</span>
+                            <InfoTip position="bottom" text="Average cups or orders sold per day over the past 30 days." />
+                          </span>
+                        </th>
+                        <th className="py-3 px-4 text-right">
+                          <span className="inline-flex items-center justify-end gap-1">
+                            <span>Next 7 Days</span>
+                            <InfoTip position="bottom" text="Projected orders for the upcoming 7 days, adjusted for recent growth, weekends, paydays, and holidays." />
+                          </span>
+                        </th>
                         <th className="py-3 px-4 text-right">Est. 30 Days</th>
-                        <th className="py-3 px-4 text-center">Sales Trend</th>
+                        <th className="py-3 px-4 text-center">
+                          <span className="inline-flex items-center justify-center gap-1">
+                            <span>Sales Trend</span>
+                            <InfoTip position="bottom" text="Compares sales pace from the last 14 days against the previous 16 days." />
+                          </span>
+                        </th>
                         <th className="py-3 px-4 text-right">Monthly View</th>
                       </tr>
                     </thead>
@@ -1328,6 +1375,102 @@ const DemandForecasting = () => {
                   className="px-4 py-1.5 bg-zinc-900 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-black cursor-pointer"
                 >
                   Close
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {/* =====================================================================
+          HOW FORECASTING WORKS MODAL (Portaled & Clean)
+      ===================================================================== */}
+      {infoModalOpen &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[99999] overflow-y-auto flex justify-center items-start pt-8 sm:pt-12 md:pt-16 pb-12 p-4 bg-black/60 backdrop-blur-xs animate-[modalBackdropFadeIn_0.2s_ease-out]"
+            onMouseDown={(e) => {
+              if (e.target === e.currentTarget) setInfoModalOpen(false);
+            }}
+          >
+            <div
+              className="bg-white rounded-2xl shadow-2xl border border-zinc-200 w-full max-w-xl overflow-hidden flex flex-col animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="px-6 py-4 bg-zinc-900 text-white flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <svg className="w-5 h-5 text-zinc-300 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="16" x2="12" y2="12" />
+                    <line x1="12" y1="8" x2="12.01" y2="8" />
+                  </svg>
+                  <div>
+                    <h3 className="m-0 text-base font-bold">How Demand Forecasting Works</h3>
+                    <p className="m-0 text-xs text-zinc-400 mt-0.5">
+                      Plain-language overview of how restock and sales estimates are calculated
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setInfoModalOpen(false)}
+                  className="text-zinc-400 hover:text-white p-1 cursor-pointer bg-transparent border-none text-lg leading-none"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-6 space-y-5 text-xs sm:text-sm text-zinc-600 leading-relaxed max-h-[calc(100vh-12rem)] overflow-y-auto">
+                {/* Section 1: Ingredient Restock */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-zinc-900 shrink-0" />
+                    <h4 className="m-0 text-sm font-bold text-zinc-900">
+                      1. Ingredient Restock & Runout Estimates
+                    </h4>
+                  </div>
+                  <div className="pl-4 space-y-2 border-l-2 border-zinc-100">
+                    <p className="m-0">
+                      <span className="font-semibold text-zinc-900">Daily Usage:</span> Tracks every drink sold at the POS over the last 30 days and multiplies it by the item&apos;s recipe requirements. Recent orders from the last 14 days carry higher weight (70%) than older orders (30%) so sudden demand changes show up quickly.
+                    </p>
+                    <p className="m-0">
+                      <span className="font-semibold text-zinc-900">Est. Time Left:</span> Divides your current stock on hand by the daily usage rate. Items with 3 days or less are marked <span className="font-semibold text-red-700">Critical</span>, 4 to 7 days as <span className="font-semibold text-amber-700">Low</span>, and over 7 days as <span className="font-semibold text-emerald-700">Healthy</span>.
+                    </p>
+                    <p className="m-0">
+                      <span className="font-semibold text-zinc-900">Suggested Order:</span> Recommends enough supplier units (such as bags, bottles, or boxes) to bring your inventory back up to a safe 14-day supply buffer.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Section 2: Menu Demand */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-zinc-900 shrink-0" />
+                    <h4 className="m-0 text-sm font-bold text-zinc-900">
+                      2. Menu Demand (7-Day & Monthly Projections)
+                    </h4>
+                  </div>
+                  <div className="pl-4 space-y-2 border-l-2 border-zinc-100">
+                    <p className="m-0">
+                      <span className="font-semibold text-zinc-900">Sales Trend:</span> Compares average daily sales from the last 14 days against the prior 16 days to identify whether a drink is trending upward, steady, or slowing down.
+                    </p>
+                    <p className="m-0">
+                      <span className="font-semibold text-zinc-900">Calendar Adjustments:</span> Upcoming 7-day and monthly projections automatically account for higher cafe traffic on weekends (Saturdays and Sundays), Philippine payday periods (15th and 30th), and public holidays.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="px-6 py-3.5 bg-zinc-50 border-t border-zinc-200 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setInfoModalOpen(false)}
+                  className="px-4 py-1.5 bg-zinc-900 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-black cursor-pointer"
+                >
+                  Got it
                 </button>
               </div>
             </div>

@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [UI/Feature: Forecasting Info Icon & "How It Works" Modal - 2026-11-08]
+- **Added "How it works" Info Pill & Guide Modal (`DemandForecasting.jsx`)**:
+  - Added a clean `(i) How it works` button next to the `Demand Forecasting` title that opens a concise, plain-language guide modal explaining how `Daily Usage`, `Est. Time Left`, `Suggested Order`, `Sales Trend`, and `Calendar Adjustments` (weekends, paydays, holidays) are calculated.
+- **Added Inline Column & Card Info Tooltips (`InfoTip.jsx`, `DemandForecasting.jsx`, `PredictiveInsights.jsx`)**:
+  - Enhanced `InfoTip` with `position="bottom"` support so table header tooltips are never clipped by scroll containers.
+  - Added hover/focus info icons to key forecasting table columns (`Daily Usage`, `Est. Time Left`, `Suggested Order`, `Daily Average`, `Next 7 Days`, `Sales Trend`) and Dashboard Overview forecast cards.
+
 ## [Performance: Full-Stack Load Speed Optimization (Frontend & Backend) - 2026-11-08]
 - **Eliminated 3× Duplicate Notification Fetches & WebSocket Channels (`useNotifications.js`)**:
   - `Navbar.jsx` and two `<NotificationInbox />` instances previously initialized 3 separate `useNotifications()` states on Dashboard load, firing 3× `GET /api/purchasing`, 3× `GET /api/purchasing/price-updates`, 2× `GET /api/dashboard/stats`, and 3× Supabase Realtime subscriptions simultaneously.

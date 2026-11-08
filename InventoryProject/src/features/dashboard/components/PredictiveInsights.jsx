@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getIngredientDepletionForecast, getDemandForecast } from '../../../api/analyticsApi';
+import { InfoTip } from '../../../components/shared/InfoTip';
 
 const PredictiveInsights = ({ onNavigate }) => {
   const [depletionItems, setDepletionItems] = useState([]);
@@ -39,8 +40,9 @@ const PredictiveInsights = ({ onNavigate }) => {
         <div>
           <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-100">
             <div>
-              <h3 className="text-lg font-bold text-zinc-900 m-0">
-                7-Day Demand Forecast
+              <h3 className="text-lg font-bold text-zinc-900 m-0 inline-flex items-center gap-1.5">
+                <span>7-Day Demand Forecast</span>
+                <InfoTip text="Projects upcoming 7-day orders using the last 30 days of POS sales, adjusted for recent growth, weekends, paydays, and holidays." />
               </h3>
               <p className="text-xs text-zinc-500 m-0 mt-0.5">Projected retail volume by product</p>
             </div>
@@ -124,8 +126,9 @@ const PredictiveInsights = ({ onNavigate }) => {
         <div>
           <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-100">
             <div>
-              <h3 className="text-lg font-bold text-zinc-900 m-0">
-                Stock Depletion Timeline
+              <h3 className="text-lg font-bold text-zinc-900 m-0 inline-flex items-center gap-1.5">
+                <span>Stock Depletion Timeline</span>
+                <InfoTip text="Estimates days remaining by dividing current stock by your weighted 30-day recipe consumption rate." />
               </h3>
               <p className="text-xs text-zinc-500 m-0 mt-0.5">Estimated runout based on actual recipe usage</p>
             </div>
