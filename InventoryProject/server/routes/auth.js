@@ -4,7 +4,12 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { supabase } from "../config/supabaseClient.js";
 import { logAudit } from "../utils/auditHelper.js";
-import { invalidateUserAuthCache } from "../middleware/authMiddleware.js";
+import {
+  invalidateUserAuthCache,
+  touchUserServerActivity,
+  clearUserServerActivity,
+  reapInactiveUserSessions
+} from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
@@ -115,6 +120,15 @@ router.post("/login", async (req, res) => {
     // Successful login — clear any previous failure record
     resetLockout(username);
 
+    // Reap any stale inactive sessions before checking if a live session is being replaced
+    await reapInactiveUserSessions(true);
+    const { data: freshUser } = await supabase
+      .from("users")
+      .select("current_session_id")
+      .eq("id", data.id)
+      .single();
+    const hadActiveSession = Boolean(freshUser?.current_session_id);
+
     // Single active session: a new login replaces the previous session,
     // which signs out any other device using this account.
     const sessionId = crypto.randomUUID();
@@ -133,9 +147,10 @@ router.post("/login", async (req, res) => {
       console.warn("Notice: session tracking update failed:", sErr.message);
     }
 
-    if (sessionTracked && data.current_session_id) {
+    if (sessionTracked && hadActiveSession) {
       await logAudit("SESSION_REPLACED", data.id, { username: data.username });
     }
+    touchUserServerActivity(data.id);
     invalidateUserAuthCache(data.id);
     await logAudit("LOGIN", data.id, { username: data.username, role: data.role });
 
@@ -159,6 +174,23 @@ router.post("/login", async (req, res) => {
   }
 });
 
+// ACTIVITY — Lightweight heartbeat that updates the user's server-side last-active timestamp.
+router.post("/activity", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
+    if (!token) return res.status(401).json({ error: "No token" });
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret-key-change-me');
+    if (decoded?.userId) {
+      touchUserServerActivity(decoded.userId);
+    }
+    res.json({ ok: true });
+  } catch {
+    res.status(401).json({ error: "Invalid token" });
+  }
+});
+
 // LOGOUT — identity comes from the token, never from the request body.
 // Always responds 200 so the client can finish signing out locally.
 router.post("/logout", async (req, res) => {
@@ -169,10 +201,13 @@ router.post("/logout", async (req, res) => {
 
     let decoded;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret-key-change-me');
+      // Allow ignoreExpiration so an inactivity-expired token still clears current_session_id and logs out cleanly
+      decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret-key-change-me', { ignoreExpiration: true });
     } catch {
       return res.json({ success: true });
     }
+
+    const isInactivity = req.body?.reason === "inactivity";
 
     // Only clear the session if this token is still the active one,
     // so an old device logging out cannot sign out the newer device.
@@ -184,8 +219,13 @@ router.post("/logout", async (req, res) => {
       .select("id, username, role");
 
     if (data && data.length > 0) {
+      clearUserServerActivity(data[0].id);
       invalidateUserAuthCache(data[0].id);
-      await logAudit("LOGOUT", data[0].id, { username: data[0].username, role: data[0].role });
+      await logAudit("LOGOUT", data[0].id, {
+        username: data[0].username,
+        role: data[0].role,
+        ...(isInactivity ? { reason: "Inactivity timeout" } : {})
+      });
     }
     res.json({ success: true });
   } catch (err) {

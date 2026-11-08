@@ -2,7 +2,7 @@ import express from 'express';
 import bcrypt from 'bcrypt';
 import { supabase } from '../config/supabaseClient.js';
 import { logAudit } from '../utils/auditHelper.js';
-import { requireAuth, requireRole, invalidateUserAuthCache } from '../middleware/authMiddleware.js';
+import { requireAuth, requireRole, invalidateUserAuthCache, reapInactiveUserSessions } from '../middleware/authMiddleware.js';
 import { normalizeAccessFields } from '../utils/permissions.js';
 
 const router = express.Router();
@@ -13,6 +13,8 @@ const ALLOWED_ROLES = ['Admin', 'Owner', 'Staff', 'Supplier', 'Custom'];
 // Get all users — requires authentication
 router.get('/', requireAuth, async (req, res) => {
   try {
+    await reapInactiveUserSessions(false);
+
     let query = supabase
       .from('users')
       .select('id, name, username, role, status, created_at, supplier_id, permissions, custom_role_name, current_session_id')

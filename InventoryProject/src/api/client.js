@@ -6,6 +6,7 @@ import {
   isSessionExpired,
   clearUserSession,
   touchSessionActivity,
+  registerSessionExpiredCallback,
   USER_STORAGE_KEY
 } from "../utils/authUtils.js";
 
@@ -100,8 +101,9 @@ export async function apiCall(endpoint, options = {}) {
       throw err;
     }
 
-    // Refresh activity timestamp on successful authenticated action
-    if (!isPublic) {
+    // Refresh activity timestamp on explicit user-initiated mutating actions (not background GET polls)
+    const method = (options.method || "GET").toUpperCase();
+    if (!isPublic && method !== "GET" && endpoint !== "/auth/logout") {
       touchSessionActivity();
     }
 
@@ -111,3 +113,20 @@ export async function apiCall(endpoint, options = {}) {
     throw error;
   }
 }
+
+// Automatically notify the backend whenever a session expires due to inactivity
+// so users.current_session_id is cleared (Offline in Account Manager) and LOGOUT is recorded in audit_logs.
+registerSessionExpiredCallback((expiringUser) => {
+  if (!expiringUser) return;
+  apiCall("/auth/logout", {
+    method: "POST",
+    keepalive: true,
+    headers: expiringUser.token ? { Authorization: `Bearer ${expiringUser.token}` } : {},
+    body: JSON.stringify({
+      reason: "inactivity",
+      user_id: expiringUser.id,
+      username: expiringUser.username,
+      role: expiringUser.role
+    })
+  }).catch(() => {});
+});

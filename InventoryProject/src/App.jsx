@@ -2,7 +2,7 @@ import React, { useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import LandingPage from './features/auth/LandingPage';
 import PageLoader from './features/auth/PageLoader/PageLoader';
-import { getCurrentUser } from './api/authApi';
+import { getCurrentUser, pingUserActivity } from './api/authApi';
 import { isSessionExpired, clearUserSession, touchSessionActivity, USER_STORAGE_KEY } from './utils/authUtils';
 
 const LoginPage = lazy(() => import('./features/auth/LoginPage'));
@@ -20,29 +20,48 @@ function SessionTimeoutWatcher() {
 
   useEffect(() => {
     let lastThrottledTouch = 0;
+    let lastServerPing = 0;
+
+    const checkAndExpireIfNeeded = () => {
+      const hasUser = !!localStorage.getItem(USER_STORAGE_KEY);
+      if (hasUser && isSessionExpired()) {
+        clearUserSession('expired');
+        navigate('/coftealoginpageforstaff', { replace: true });
+        return true;
+      }
+      return false;
+    };
 
     const handleUserActivity = () => {
+      if (!localStorage.getItem(USER_STORAGE_KEY)) return;
+      // Check if session already expired while tab/device was asleep before refreshing timestamp
+      if (checkAndExpireIfNeeded()) return;
+
       const now = Date.now();
-      // Throttle touches so localStorage is only updated at most once every 15 seconds
+      // Throttle localStorage updates to once every 15 seconds
       if (now - lastThrottledTouch > 15000) {
         lastThrottledTouch = now;
-        if (localStorage.getItem(USER_STORAGE_KEY)) {
-          touchSessionActivity();
-        }
+        touchSessionActivity();
+      }
+      // Throttle backend activity heartbeat to once every 60 seconds
+      if (now - lastServerPing > 60000) {
+        lastServerPing = now;
+        pingUserActivity();
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        checkAndExpireIfNeeded();
       }
     };
 
     const activityEvents = ['mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
     activityEvents.forEach(evt => window.addEventListener(evt, handleUserActivity, { passive: true }));
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     // Periodically check every 15 seconds if session timed out while tab was idle
-    const interval = setInterval(() => {
-      const hasUser = !!localStorage.getItem(USER_STORAGE_KEY);
-      if (hasUser && isSessionExpired()) {
-        clearUserSession('expired');
-        navigate('/coftealoginpageforstaff', { replace: true });
-      }
-    }, 15000);
+    const interval = setInterval(checkAndExpireIfNeeded, 15000);
 
     // Cross-tab synchronization: if logged out or expired in another tab
     const handleStorageChange = (e) => {
@@ -54,6 +73,7 @@ function SessionTimeoutWatcher() {
 
     return () => {
       activityEvents.forEach(evt => window.removeEventListener(evt, handleUserActivity));
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       clearInterval(interval);
       window.removeEventListener('storage', handleStorageChange);
     };

@@ -31,7 +31,13 @@ const formatAuditDescription = (action, rawDetails) => {
     case 'LOGIN':
       return `${d.username || 'Unknown user'} (${d.role || 'Unknown role'}) logged in successfully.`;
     case 'LOGOUT':
-      return `${d.username || 'Unknown user'} (${d.role || 'Unknown role'}) logged out.`;
+    case 'LOGOUT_INACTIVE':
+      if (action === 'LOGOUT_INACTIVE' || (d.reason && d.reason.toLowerCase().includes('inactivity'))) {
+        return `${d.username || 'Unknown user'} (${d.role || 'Unknown role'}) was automatically logged out due to inactivity.`;
+      }
+      return `${d.username || 'Unknown user'} (${d.role || 'Unknown role'}) logged out${d.reason ? ` (${d.reason})` : ''}.`;
+    case 'SESSION_REPLACED':
+      return `${d.username || 'Unknown user'} signed in on a new device; previous active session was terminated.`;
     case 'LOGIN_FAILED':
       return `Failed login attempt for "${d.username || 'unknown'}". Reason: ${d.reason || 'Unknown'}.`;
 

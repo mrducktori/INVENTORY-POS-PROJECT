@@ -57,7 +57,7 @@ const Dashboard = () => {
         (payload) => {
           const updated = payload.new;
           if (updated && (updated.status === 'INACTIVE' || updated.current_session_id === null)) {
-            clearUserSession('deactivated');
+            clearUserSession(updated.status === 'INACTIVE' ? 'deactivated' : 'expired');
             window.location.href = '/coftealoginpageforstaff';
           }
         }
@@ -74,7 +74,7 @@ const Dashboard = () => {
           .eq('id', user.id)
           .single();
         if (!error && data && (data.status === 'INACTIVE' || data.current_session_id === null)) {
-          clearUserSession('deactivated');
+          clearUserSession(data.status === 'INACTIVE' ? 'deactivated' : 'expired');
           window.location.href = '/coftealoginpageforstaff';
         }
       } catch {

@@ -4,6 +4,16 @@ export const USER_STORAGE_KEY = "user";
 export const LAST_ACTIVITY_KEY = "session_last_activity";
 export const EXPIRED_MSG_KEY = "session_expired_msg";
 
+let onSessionExpiredCallback = null;
+
+/**
+ * Registers a callback invoked with the expiring user object before localStorage is cleared
+ * so the backend can clear current_session_id and write an inactivity LOGOUT audit log.
+ */
+export const registerSessionExpiredCallback = (cb) => {
+  onSessionExpiredCallback = cb;
+};
+
 /**
  * Updates the last recorded activity timestamp to now
  */
@@ -41,9 +51,27 @@ export const isSessionExpired = () => {
  */
 export const clearUserSession = (reason = null) => {
   try {
+    let expiringUser = null;
+    if (reason === "expired") {
+      try {
+        const raw = localStorage.getItem(USER_STORAGE_KEY);
+        if (raw) expiringUser = JSON.parse(raw);
+      } catch {
+        expiringUser = null;
+      }
+    }
+
     localStorage.removeItem(USER_STORAGE_KEY);
     localStorage.removeItem(LAST_ACTIVITY_KEY);
+
     if (reason === "expired") {
+      if (expiringUser && typeof onSessionExpiredCallback === "function") {
+        try {
+          onSessionExpiredCallback(expiringUser);
+        } catch {
+          // Ignore callback errors
+        }
+      }
       sessionStorage.setItem(
         EXPIRED_MSG_KEY,
         JSON.stringify({

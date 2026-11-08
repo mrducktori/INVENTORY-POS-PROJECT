@@ -66,3 +66,14 @@ export function saveUser(user) {
     // Ignore storage errors
   }
 }
+
+/**
+ * Lightweight heartbeat to notify the server that the current user is actively interacting.
+ */
+export async function pingUserActivity() {
+  try {
+    await apiCall("/auth/activity", { method: "POST" });
+  } catch {
+    // Ignore transient network errors
+  }
+}

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { getUsers, createUser, updateUser, updateUserStatus } from '../../api/usersApi';
 import { getCurrentUser } from '../../api/authApi';
 import { getSuppliers } from '../../api/purchasingApi';
+import { supabase } from '../../config/supabaseClient';
 import { STAFF_DEFAULT_PERMISSIONS } from '../../utils/permissions';
 import AccountForm from './components/AccountForm';
 import UsersTable from './components/UsersTable';
@@ -36,11 +37,50 @@ const AccountManager = () => {
   useEffect(() => {
     fetchUsers();
     fetchSuppliers();
+
+    // Live-update online/offline and account status changes in real time
+    const channel = supabase
+      .channel('account_manager_users_sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'users' },
+        (payload) => {
+          if (payload.eventType === 'UPDATE' && payload.new) {
+            setUsers((prev) =>
+              prev.map((u) =>
+                u.id === payload.new.id
+                  ? {
+                      ...u,
+                      status: payload.new.status ?? u.status,
+                      current_session_id: payload.new.current_session_id,
+                      name: payload.new.name ?? u.name,
+                      username: payload.new.username ?? u.username,
+                      role: payload.new.role ?? u.role
+                    }
+                  : u
+              )
+            );
+          } else {
+            fetchUsers(true);
+          }
+        }
+      )
+      .subscribe();
+
+    // Periodic silent refresh every 30s while visible so server-side inactivity reaper updates online badges
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      fetchUsers(true);
+    }, 30000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
   }, []);
 
   const fetchSuppliers = async () => {
     try {
-      // static import used at top
       const data = await getSuppliers();
       setSuppliers(data || []);
     } catch (err) {
@@ -48,15 +88,15 @@ const AccountManager = () => {
     }
   };
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const data = await getUsers();
       setUsers(data || []);
     } catch (err) {
       console.error('Failed to load users:', err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 

@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Auth/Security: Inactivity Auto-Logout, Live Activity Tracking, Online Status Sync & Audit Logging - 2026-11-08]
+- **Inactivity Logout Now Clears Online Session & Writes Audit Log (`authUtils.js`, `client.js`, `App.jsx`, `server/routes/auth.js`)**:
+  - Registered a session expiration callback (`registerSessionExpiredCallback`) invoked whenever `clearUserSession('expired')` runs so the frontend automatically calls `POST /api/auth/logout` with `{ reason: 'inactivity' }` before clearing local storage.
+  - Updated `POST /api/auth/logout` to verify tokens with `ignoreExpiration: true`, set `users.current_session_id = null` (updating the user's status to **Offline** in Account Manager), and record `LOGOUT` (`reason: 'Inactivity timeout'`) in `audit_logs`.
+  - Fixed `SessionTimeoutWatcher` in `App.jsx` to check `isSessionExpired()` *before* refreshing activity on mouse/keyboard/visibility wakeup, and restricted `apiCall` in `client.js` so background `GET` polling requests no longer reset the user's inactivity clock.
+- **Server-Side Activity Heartbeat & Automatic Stale Session Reaper (`server/middleware/authMiddleware.js`, `server/routes/users.js`, `authApi.js`)**:
+  - Added `POST /api/auth/activity` (throttled once per 60s during active user interaction) and server-side activity tracking (`touchUserServerActivity`).
+  - Added `reapInactiveUserSessions()` (running every 60s and before `GET /api/users` / `POST /api/auth/login`) so even if a user closes their browser or loses connection without logging out, any session inactive past the 2-hour timeout automatically has `current_session_id` cleared to `null` (`Offline`) and a `LOGOUT (Inactivity timeout)` entry written to `audit_logs`.
+- **Real-Time Online/Offline Sync in Account Manager & Audit Log Formatting (`AccountManager.jsx`, `AuditLogs.jsx`, `Dashboard.jsx`)**:
+  - Added a Supabase Realtime listener on `public.users` and a 30s silent refresh in `AccountManager.jsx` so `Online` / `Offline` badges update live without page reloads.
+  - Updated `AuditLogs.jsx` to display `"<user> (<role>) was automatically logged out due to inactivity."` for inactivity logouts.
+
 ## [Data/Analytics: 2025–2026 Cof/Tea Historical Sales Dataset, Stock Calibration & Analytics Query Optimization - 2026-11-08]
 - **Generated Realistic Historical Sales Dataset (`2025-01-01` – `2026-11-08`) (`docs/database/generate_historical_sales.mjs`, `docs/database/restore_sales_backup.mjs`)**:
   - Backed up legacy sales records to `docs/database/backups/` and seeded **25,668 orders** (**45,166 line items**, **₱3.19M revenue**) across **677 continuous days** tailored to **Cof/Tea Cafe** in Taytay, Rizal (Elwood & Kapalaran branch patterns).
