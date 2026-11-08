@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { getAllProducts } from '../../api/productsApi';
 import { getRecipesByProduct } from '../../api/recipesApi';
 import Pagination from '../../components/shared/Pagination';
@@ -502,17 +503,17 @@ const Products = () => {
       </div>
 
       {/* Recipe Modal */}
-      {selectedProduct && (
+      {selectedProduct && createPortal(
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-[modalBackdropFadeIn_0.2s_ease-out]" 
+          className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[9999] p-4 flex justify-center items-start pt-6 sm:pt-10 md:pt-14 pb-12 animate-[modalBackdropFadeIn_0.2s_ease-out]" 
           onMouseDown={(e) => { if (e.target === e.currentTarget) setSelectedProduct(null); }}
         >
           <div 
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)]"
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[calc(100vh-5rem)] md:max-h-[calc(100vh-6rem)] animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)]"
             onClick={e => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="bg-zinc-900 text-white p-5 flex justify-between items-center">
+            <div className="bg-zinc-900 text-white p-5 flex justify-between items-center shrink-0">
               <div className="flex items-center gap-3">
                 {selectedProduct.image_url && (
                   <img
@@ -586,7 +587,7 @@ const Products = () => {
             </div>
 
             {/* Modal Footer */}
-            <div className="px-6 py-4 border-t border-zinc-200 bg-zinc-50 flex justify-end">
+            <div className="px-6 py-4 border-t border-zinc-200 bg-zinc-50 flex justify-end shrink-0">
               <button 
                 type="button"
                 className="px-6 py-2.5 bg-zinc-900 hover:bg-black text-white rounded-xl text-sm md:text-base font-bold transition-colors cursor-pointer" 
@@ -596,7 +597,8 @@ const Products = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

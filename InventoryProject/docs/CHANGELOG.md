@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [UI/Fix: Modal Viewport Positioning & Vertical Overflow Fix - 2026-11-08]
+- **Eliminated Dead-Center Viewport Clipping**:
+  - Replaced symmetrical `items-center` on modal backdrops across the entire application with top-anchored layout (`items-start pt-6 sm:pt-10 md:pt-14 pb-12 overflow-y-auto z-[9999]`).
+  - Fixed the flexbox vertical overflow bug where tall modals (such as the Digital Receipt, Recipe Breakdown, Purchase Order Form, Receive PO, and Supplier Catalog) had their headers, close buttons, or bottom action buttons pushed outside the viewport into unreachable negative scroll space on standard screens.
+- **Enabled Root Document Body Portals**:
+  - Portaled `SalesReceiptModal.jsx` and `Products.jsx` (Recipe Modal) directly into `document.body` via `createPortal`, preventing parent scroll containers and CSS transforms from trapping the dialogs.
+  - Set dynamic maximum heights (`max-h-[calc(100vh-5rem)] md:max-h-[calc(100vh-6rem)]`) with internal scrolling on modal cards, guaranteeing that dialog headers and action buttons are always within view and fully operable.
+
 ## [UI/Fix: Official Sales Receipt Modal Restored & Centered - 2026-11-08]
 - **Replaced Hand-Rolled Modal with Official Component**: Replaced the duplicate, inlined receipt modal in SalesReceiptJournal.jsx with the official SalesReceiptModal.jsx component.
 - **Resolved Viewport Alignment Clipping**: Integrated React createPortal directly to document.body, ensuring the receipt modal is always dead-center in the viewport window regardless of table scroll position.

@@ -280,7 +280,7 @@ const AccountManager = () => {
 
       {/* Confirmation / Warning Modal */}
       {showConfirmModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-[fadeIn_0.2s_ease-out]">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[9999] p-4 flex justify-center items-start pt-6 sm:pt-10 md:pt-14 pb-12 animate-[modalBackdropFadeIn_0.2s_ease-out]">
           <div className="bg-white rounded-2xl p-6 md:p-8 w-full max-w-md shadow-2xl animate-[slideUp_0.3s_ease-out]">
             {confirmAction === 'status' && statusTarget?.isOnline && statusTarget?.currentStatus === 'ACTIVE' ? (
               <div>

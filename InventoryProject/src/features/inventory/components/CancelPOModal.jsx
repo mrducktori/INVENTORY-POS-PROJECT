@@ -40,11 +40,11 @@ const CancelPOModal = ({ po, onClose, onConfirm, loading = false }) => {
 
   return (
     <div 
-      className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-[modalBackdropFadeIn_0.2s_ease-out]"
+      className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[9999] p-4 flex justify-center items-start pt-6 sm:pt-10 md:pt-14 pb-12 animate-[modalBackdropFadeIn_0.2s_ease-out]"
       onMouseDown={(e) => { if (e.target === e.currentTarget && !loading) onClose(); }}
     >
       <div 
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col border border-zinc-200 animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)]"
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col border border-zinc-200 max-h-[calc(100vh-5rem)] md:max-h-[calc(100vh-6rem)] animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)]"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}

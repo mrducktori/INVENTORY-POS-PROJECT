@@ -694,7 +694,7 @@ const SupplierPortal = () => {
 
       {/* Decline Order Modal */}
       {declineModal.show && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setDeclineModal({ show: false, orderId: null, reason: '' })}>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[9999] p-4 flex justify-center items-start pt-6 sm:pt-10 md:pt-14 pb-12 animate-[modalBackdropFadeIn_0.2s_ease-out]" onClick={() => setDeclineModal({ show: false, orderId: null, reason: '' })}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 md:p-8" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600 shrink-0">
@@ -749,7 +749,7 @@ const SupplierPortal = () => {
 
       {/* Postpone Modal */}
       {postponeModal.show && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setPostponeModal({ show: false, orderId: null, date: '' })}>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[9999] p-4 flex justify-center items-start pt-6 sm:pt-10 md:pt-14 pb-12 animate-[modalBackdropFadeIn_0.2s_ease-out]" onClick={() => setPostponeModal({ show: false, orderId: null, date: '' })}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 md:p-8" onClick={e => e.stopPropagation()}>
             <h3 className="m-0 text-xl md:text-2xl font-black text-gray-900 mb-2">Postpone Order</h3>
             <p className="m-0 text-sm md:text-base text-gray-600 mb-6 font-medium">Select a new expected delivery date for this order.</p>

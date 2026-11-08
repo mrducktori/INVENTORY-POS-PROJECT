@@ -283,8 +283,8 @@ const PurchaseOrderForm = ({ onClose, onSuccess }) => {
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col animate-[popIn_0.2s_ease-out]" onClick={e => e.stopPropagation()}>
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[9999] p-4 flex justify-center items-start pt-6 sm:pt-10 md:pt-14 pb-12 animate-[modalBackdropFadeIn_0.2s_ease-out]" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[calc(100vh-5rem)] md:max-h-[calc(100vh-6rem)] overflow-hidden flex flex-col animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)]" onClick={e => e.stopPropagation()}>
           <div className="bg-gray-900 text-white px-6 py-4 flex justify-between items-center shrink-0">
             <h2 className="m-0 text-lg md:text-xl font-bold tracking-wide">Create Purchase Order</h2>
             <button className="text-gray-400 hover:text-white transition-colors bg-transparent border-none text-xl leading-none cursor-pointer p-0" onClick={onClose} aria-label="Close"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
@@ -429,7 +429,7 @@ const PurchaseOrderForm = ({ onClose, onSuccess }) => {
       </div>
       {reviewData && (
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-[fadeIn_0.15s_ease-out]"
+          className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[10000] p-4 flex justify-center items-start pt-6 sm:pt-10 md:pt-14 pb-12 animate-[modalBackdropFadeIn_0.2s_ease-out]"
           onMouseDown={(e) => { if (e.target === e.currentTarget && !saving) setReviewData(null); }}
         >
           <div 

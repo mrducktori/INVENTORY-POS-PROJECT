@@ -114,10 +114,10 @@ const SupplierReviewPOModal = ({ isOpen, onClose, order, onSubmit }) => {
   const minDateStr = tomorrow.toISOString().split('T')[0];
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col border border-gray-200 animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-[9999] overflow-y-auto bg-black/60 backdrop-blur-xs flex justify-center items-start pt-6 sm:pt-10 md:pt-14 pb-12 p-4 animate-[modalBackdropFadeIn_0.2s_ease-out]">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[calc(100vh-5rem)] md:max-h-[calc(100vh-6rem)] flex flex-col border border-gray-200 animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)]">
         {/* Header */}
-        <div className="p-6 border-b border-gray-100 flex items-start justify-between bg-zinc-900 text-white rounded-t-2xl">
+        <div className="p-6 border-b border-gray-100 flex items-start justify-between bg-zinc-900 text-white rounded-t-2xl shrink-0">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">Review Purchase Order</span>

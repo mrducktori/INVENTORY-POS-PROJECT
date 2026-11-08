@@ -46,8 +46,8 @@ const ReceivePOModal = ({ po, onClose, onSubmit }) => {
   const poRef = po.id ? po.id.substring(0, 8).toUpperCase() : '';
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-[modalBackdropFadeIn_0.2s_ease-out]" onMouseDown={(e) => { if (e.target === e.currentTarget && !saving) onClose(); }}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)]" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[9999] p-4 flex justify-center items-start pt-6 sm:pt-10 md:pt-14 pb-12 animate-[modalBackdropFadeIn_0.2s_ease-out]" onMouseDown={(e) => { if (e.target === e.currentTarget && !saving) onClose(); }}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[calc(100vh-5rem)] md:max-h-[calc(100vh-6rem)] overflow-hidden flex flex-col animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)]" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="bg-zinc-900 text-white px-6 py-4 flex justify-between items-center shrink-0">
           <div className="flex items-center gap-2.5">

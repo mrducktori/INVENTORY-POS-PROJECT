@@ -223,8 +223,8 @@ const SalesSummaryReport = () => {
 
       {/* Detail Modal */}
       {selectedStaff && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm" onClick={() => setSelectedStaff(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-[popIn_0.2s_ease-out]" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[9999] overflow-y-auto flex justify-center items-start pt-6 sm:pt-10 md:pt-14 pb-12 p-4 bg-gray-900/60 backdrop-blur-sm animate-[modalBackdropFadeIn_0.2s_ease-out]" onClick={() => setSelectedStaff(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[calc(100vh-5rem)] md:max-h-[calc(100vh-6rem)] flex flex-col overflow-hidden animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)]" onClick={e => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gray-50">
               <h2 className="m-0 text-xl font-black text-gray-900">Sales Audit: {selectedStaff.name}</h2>
               <div className="flex items-center gap-3">
