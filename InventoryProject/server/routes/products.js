@@ -62,7 +62,7 @@ router.post('/', async (req, res) => {
       .single();
     if (error) throw error;
 
-    await logAudit('PRODUCT_CREATED', user_id || null, {
+    await logAudit('PRODUCT_CREATED', req.user?.id || user_id || null, {
       product_id: data.id,
       name: data.name,
       category: data.category,
@@ -100,7 +100,7 @@ router.put('/:id', async (req, res) => {
       .single();
     if (error) throw error;
 
-    await logAudit('PRODUCT_UPDATED', user_id || null, {
+    await logAudit('PRODUCT_UPDATED', req.user?.id || user_id || null, {
       product_id: req.params.id,
       name,
       category,
@@ -125,7 +125,7 @@ router.put('/:id/archive', async (req, res) => {
       .single();
     if (error) throw error;
 
-    await logAudit('PRODUCT_ARCHIVED', user_id || null, {
+    await logAudit('PRODUCT_ARCHIVED', req.user?.id || user_id || null, {
       product_id: req.params.id,
       name: data.name
     });
@@ -148,7 +148,7 @@ router.put('/:id/restore', async (req, res) => {
       .single();
     if (error) throw error;
 
-    await logAudit('PRODUCT_RESTORED', user_id || null, {
+    await logAudit('PRODUCT_RESTORED', req.user?.id || user_id || null, {
       product_id: req.params.id,
       name: data.name
     });
@@ -188,7 +188,7 @@ router.post('/:id/receive', async (req, res) => {
       .single();
     if (updateError) throw updateError;
 
-    await logAudit('PRODUCT_STOCK_RECEIVED', user_id || null, {
+    await logAudit('PRODUCT_STOCK_RECEIVED', req.user?.id || user_id || null, {
       product_id: productId,
       name: product.name,
       quantity_added: parsedQty,

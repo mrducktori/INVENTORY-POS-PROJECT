@@ -58,7 +58,10 @@ export const createSale = async (req, res) => {
       }
     }
 
-    const sale = await posService.createSale(req.body);
+    const sale = await posService.createSale({
+      ...req.body,
+      staff_id: req.user?.id || req.body?.staff_id || null,
+    });
     res.json({ message: "Sale completed", sale });
   } catch (err) {
     res.status(500).json({ error: err.message });

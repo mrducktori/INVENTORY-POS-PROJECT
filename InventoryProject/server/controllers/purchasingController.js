@@ -17,7 +17,7 @@ export const createSupplier = async (req, res) => {
     const data = await purchasingService.createSupplier(body);
     
     // Log audit
-    await logAudit('SUPPLIER_CREATED', user_id || null, {
+    await logAudit('SUPPLIER_CREATED', req.user?.id || user_id || null, {
       supplier_id: data.id,
       name: data.name
     });
@@ -34,7 +34,7 @@ export const updateSupplier = async (req, res) => {
     const { user_id, ...body } = req.body;
     const data = await purchasingService.updateSupplier(id, body);
     
-    await logAudit('SUPPLIER_UPDATED', user_id || null, {
+    await logAudit('SUPPLIER_UPDATED', req.user?.id || user_id || null, {
       supplier_id: data.id,
       name: data.name
     });

@@ -14,6 +14,8 @@ All notable changes to this project will be documented in this file.
 - **Added Direct Discount Selector & "Checkout & Pay Now" in POS Cart Panel (`Cart.jsx`, `POS.jsx`, `usePOS.js`, `OngoingOrders.jsx`, `PaymentModal.jsx`)**:
   - Added the **Discount Type** selector (`No Discount`, `Senior Citizen 20%`, `PWD 20%`, `Student / Promo 10%`, `Employee / Staff 15%`, and `Custom % / ₱`) directly inside the right-hand **Transaction (Cart)** checkout summary panel (`Cart.jsx`), updating `Subtotal`, `Discount`, `VAT`, and `Total Amount Due` live.
   - Added a **`Checkout & Pay Now`** button in the Cart panel to open the `Complete Payment` modal immediately (pre-filled with the selected discount), alongside **`Hold Order`** (which sends the order and its selected discount to `Ongoing Orders`).
+- **Hardened Server Audit & Actor Attribution Security (`products.js`, `inventoryController.js`, `purchasingController.js`, `posController.js`, `wastage.js`, `audit.js`)**:
+  - Enforced `req.user?.id` from the JWT authentication middleware across all product, raw material, supplier, POS sale, wastage, and audit log write endpoints so client-supplied `user_id` / `staff_id` / `reported_by` fields cannot be spoofed.
 
 ## [Auth/Security: Inactivity Auto-Logout, Live Activity Tracking, Online Status Sync & Audit Logging - 2026-11-08]
 - **Inactivity Logout Now Clears Online Session & Writes Audit Log (`authUtils.js`, `client.js`, `App.jsx`, `server/routes/auth.js`)**:

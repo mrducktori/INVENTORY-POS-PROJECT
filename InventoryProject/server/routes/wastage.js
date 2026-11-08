@@ -6,7 +6,10 @@ const router = express.Router();
 // Report wastage
 router.post("/", async (req, res) => {
   try {
-    const wastage = await wastageService.reportWastage(req.body);
+    const wastage = await wastageService.reportWastage({
+      ...req.body,
+      reported_by: req.user?.id || req.body?.reported_by || null,
+    });
     res.status(201).json(wastage);
   } catch (err) {
     res.status(500).json({ error: err.message });

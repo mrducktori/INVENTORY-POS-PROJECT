@@ -24,7 +24,7 @@ export const createIngredient = async (req, res) => {
     const { user_id, ...body } = req.body;
     const data = await inventoryService.createIngredient(body);
 
-    await logAudit('RAW_MATERIAL_CREATED', user_id || null, {
+    await logAudit('RAW_MATERIAL_CREATED', req.user?.id || user_id || null, {
       ingredient_id: data.id,
       name: data.name,
       unit: data.unit
@@ -44,7 +44,7 @@ export const updateIngredient = async (req, res) => {
     const { user_id, ...body } = req.body;
     const data = await inventoryService.updateIngredient(req.params.id, body);
 
-    await logAudit('RAW_MATERIAL_UPDATED', user_id || null, {
+    await logAudit('RAW_MATERIAL_UPDATED', req.user?.id || user_id || null, {
       ingredient_id: req.params.id,
       name: data.name,
       unit: data.unit,
@@ -59,7 +59,7 @@ export const updateIngredient = async (req, res) => {
 
 export const deleteIngredient = async (req, res) => {
   try {
-    const user_id = req.body?.user_id || null;
+    const user_id = req.user?.id || req.body?.user_id || null;
     // Fetch name before deleting for the log
     const existing = await inventoryService.getIngredientById(req.params.id).catch(() => null);
     await inventoryService.deleteIngredient(req.params.id);
@@ -82,7 +82,7 @@ export const receiveStock = async (req, res) => {
     const existing = await inventoryService.getIngredientById(req.params.id).catch(() => null);
     const data = await inventoryService.receiveStock(req.params.id, parseFloat(quantity));
 
-    await logAudit('RAW_MATERIAL_STOCK_RECEIVED', user_id || null, {
+    await logAudit('RAW_MATERIAL_STOCK_RECEIVED', req.user?.id || user_id || null, {
       ingredient_id: req.params.id,
       name: existing?.name || 'Unknown',
       quantity_added: parseFloat(quantity),
@@ -106,7 +106,7 @@ export const getLowStockAlerts = async (req, res) => {
 
 export const archiveIngredient = async (req, res) => {
   try {
-    const user_id = req.body?.user_id || null;
+    const user_id = req.user?.id || req.body?.user_id || null;
     const data = await inventoryService.archiveIngredient(req.params.id);
 
     await logAudit('RAW_MATERIAL_ARCHIVED', user_id, {
@@ -122,7 +122,7 @@ export const archiveIngredient = async (req, res) => {
 
 export const restoreIngredient = async (req, res) => {
   try {
-    const user_id = req.body?.user_id || null;
+    const user_id = req.user?.id || req.body?.user_id || null;
     const data = await inventoryService.restoreIngredient(req.params.id);
 
     await logAudit('RAW_MATERIAL_RESTORED', user_id, {

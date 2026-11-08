@@ -46,9 +46,10 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { action, user_id, details } = req.body;
+    const authUserId = req.user?.id || user_id || null;
     const { data, error } = await supabase
       .from('audit_logs')
-      .insert([{ action, user_id, details }])
+      .insert([{ action, user_id: authUserId, details }])
       .select()
       .single();
     if (error) throw error;
