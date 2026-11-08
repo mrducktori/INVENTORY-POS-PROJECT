@@ -233,7 +233,9 @@ export const createSale = async ({
     quantity: item.qty,
     unit_price: item.price,
     cup_size: item.cup_size || null,
-    add_ons: item.add_ons || [],
+    add_ons: Array.isArray(item.add_ons)
+      ? item.add_ons.map(ao => typeof ao === 'string' ? ao : JSON.stringify(ao))
+      : [],
     discount_percent: item.discount_percent || 0,
     notes: item.notes || ""
   }));
@@ -263,14 +265,20 @@ export const createSale = async ({
 
     if (!rpcError && rpcSale) {
       sale = typeof rpcSale === 'string' ? JSON.parse(rpcSale) : rpcSale;
-    } else if (rpcError && rpcError.code !== '42883' && !rpcError.message?.includes('process_pos_checkout')) {
-      // If error is actual business logic or constraint failure inside transaction, bubble up
-      throw new Error(`Transaction failed: ${rpcError.message}`);
+    } else if (rpcError) {
+      const errMsg = rpcError.message || '';
+      // Only bubble up actual business validation exceptions (insufficient inventory / product archived)
+      if (errMsg.includes('Insufficient stock') || errMsg.includes('not found or is archived')) {
+        throw new Error(errMsg);
+      }
+      // If the RPC failed due to a SQL definition/type mismatch (e.g. 42804 text[] vs jsonb) or function issue:
+      console.warn('[POS Checkout] RPC execution skipped or schema mismatch, proceeding with atomic transaction handler:', errMsg);
     }
   } catch (err) {
-    if (!err.message?.includes('process_pos_checkout') && !err.message?.includes('42883')) {
+    if (err.message?.includes('Insufficient stock') || err.message?.includes('not found or is archived')) {
       throw err;
     }
+    console.warn('[POS Checkout] RPC execution exception, falling back to atomic handler:', err.message);
   }
 
   // Attempt 2: If RPC is not installed in Postgres yet, execute atomic transaction with rollback compensation

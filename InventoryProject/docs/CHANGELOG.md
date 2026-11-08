@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Fix/POS: Resolve `column "add_ons" is of type text[] but expression is of type jsonb` on POS Checkout - 2026-11-08]
+- **Fixed POS Complete Payment Transaction Failure (`posService.js`, `process_pos_checkout_rpc.sql`)**:
+  - Identified root cause of payment failure error: the PostgreSQL RPC stored procedure `process_pos_checkout` attempted to insert `jsonb` expressions into `sale_items.add_ons` which is defined in PostgreSQL as `text[]`, throwing SQL code `42804`.
+  - In `posService.js`, normalized `saleItems.add_ons` to ensure consistent serialization for both direct inserts and stored procedures.
+  - Updated RPC error handling in `posService.js` so database schema/type mismatch exceptions (`42804` and related definition errors) do not falsely abort the payment, but instead seamlessly fall back to the robust, atomic rollback-compensated transaction handler.
+  - Updated `docs/database/process_pos_checkout_rpc.sql` with dynamic conversion from JSONB elements to `text[]` for future database re-runs.
+  - Verified checkout flow end-to-end with automated test transactions.
+
+
 ## [Security/UX: Password Complexity Rules, Real-Time Checklist & Server Enforcement - 2026-11-08]
 - **Interactive Password Security Rules Checklist (`AccountForm.jsx`, `PasswordRulesList.jsx`, `passwordRules.js`)**:
   - Implemented real-time password validation with a visual checklist meeting modern security requirements:

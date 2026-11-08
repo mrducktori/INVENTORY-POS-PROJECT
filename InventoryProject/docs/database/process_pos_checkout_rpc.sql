@@ -132,7 +132,16 @@ BEGIN
       v_item.quantity,
       v_item.unit_price,
       v_item.cup_size,
-      COALESCE(v_item.add_ons, '[]'::JSONB),
+      COALESCE(
+        ARRAY(
+          SELECT CASE 
+            WHEN jsonb_typeof(elem) = 'string' THEN elem #>> '{}'
+            ELSE elem::text 
+          END
+          FROM jsonb_array_elements(COALESCE(v_item.add_ons, '[]'::jsonb)) AS elem
+        ),
+        ARRAY[]::text[]
+      ),
       COALESCE(v_item.discount_percent, 0),
       COALESCE(v_item.notes, '')
     );
