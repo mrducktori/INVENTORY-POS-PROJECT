@@ -8,6 +8,12 @@ import { InfoTip } from '../../components/shared/InfoTip';
 const DemandForecasting = () => {
   const [activeTab, setActiveTab] = useState('ingredients'); // 'ingredients' | 'products'
   const [infoModalOpen, setInfoModalOpen] = useState(false);
+  const [infoGuideTab, setInfoGuideTab] = useState('ingredients'); // 'ingredients' | 'products'
+
+  const openInfoGuide = (tabKey) => {
+    setInfoGuideTab(tabKey || activeTab);
+    setInfoModalOpen(true);
+  };
 
   // Ingredient Depletion State
   const [ingredientData, setIngredientData] = useState({
@@ -462,7 +468,7 @@ const DemandForecasting = () => {
             </h1>
             <button
               type="button"
-              onClick={() => setInfoModalOpen(true)}
+              onClick={() => openInfoGuide(activeTab)}
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-100 hover:bg-zinc-200/80 text-zinc-700 hover:text-zinc-900 text-xs font-semibold border border-zinc-200/80 transition-colors cursor-pointer"
               title="Learn how forecasting is calculated"
             >
@@ -581,20 +587,35 @@ const DemandForecasting = () => {
                   )}
                 </div>
 
-                {/* Category Select */}
+                {/* Category Filter Pills */}
                 {categories.length > 0 && (
-                  <select
-                    value={selectedCategory}
-                    onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="px-3 py-1.5 bg-zinc-50/70 border border-zinc-200 rounded-lg text-xs sm:text-sm font-medium text-zinc-700 focus:outline-none focus:bg-white focus:border-zinc-400 cursor-pointer"
-                  >
-                    <option value="ALL">All Categories</option>
+                  <div className="flex flex-wrap items-center gap-1 bg-zinc-100 p-1 rounded-lg">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCategory('ALL')}
+                      className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                        selectedCategory === 'ALL'
+                          ? 'bg-white text-zinc-900 shadow-2xs'
+                          : 'text-zinc-500 hover:text-zinc-800'
+                      }`}
+                    >
+                      All Types
+                    </button>
                     {categories.map((cat) => (
-                      <option key={cat} value={cat}>
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => setSelectedCategory(cat)}
+                        className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                          selectedCategory === cat
+                            ? 'bg-white text-zinc-900 shadow-2xs'
+                            : 'text-zinc-500 hover:text-zinc-800'
+                        }`}
+                      >
                         {cat}
-                      </option>
+                      </button>
                     ))}
-                  </select>
+                  </div>
                 )}
 
                 {/* Status Filter Pills */}
@@ -642,6 +663,19 @@ const DemandForecasting = () => {
                     </button>
                   )
                 )}
+
+                <button
+                  type="button"
+                  onClick={() => openInfoGuide('ingredients')}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-zinc-200 bg-zinc-50 hover:bg-zinc-100 text-zinc-700 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                >
+                  <svg className="w-3.5 h-3.5 text-zinc-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="16" x2="12" y2="12" />
+                    <line x1="12" y1="8" x2="12.01" y2="8" />
+                  </svg>
+                  <span>Restock Guide</span>
+                </button>
 
                 <button
                   type="button"
@@ -926,29 +960,58 @@ const DemandForecasting = () => {
                 </div>
 
                 {productCategories.length > 0 && (
-                  <select
-                    value={productCategory}
-                    onChange={(e) => setProductCategory(e.target.value)}
-                    className="px-3 py-1.5 bg-zinc-50/70 border border-zinc-200 rounded-lg text-xs sm:text-sm font-medium text-zinc-700 focus:outline-none focus:bg-white focus:border-zinc-400 cursor-pointer"
-                  >
-                    <option value="ALL">All Categories</option>
+                  <div className="flex flex-wrap items-center gap-1 bg-zinc-100 p-1 rounded-lg">
+                    <button
+                      type="button"
+                      onClick={() => setProductCategory('ALL')}
+                      className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                        productCategory === 'ALL'
+                          ? 'bg-white text-zinc-900 shadow-2xs'
+                          : 'text-zinc-500 hover:text-zinc-800'
+                      }`}
+                    >
+                      All Categories
+                    </button>
                     {productCategories.map((cat) => (
-                      <option key={cat} value={cat}>
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => setProductCategory(cat)}
+                        className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                          productCategory === cat
+                            ? 'bg-white text-zinc-900 shadow-2xs'
+                            : 'text-zinc-500 hover:text-zinc-800'
+                        }`}
+                      >
                         {cat}
-                      </option>
+                      </button>
                     ))}
-                  </select>
+                  </div>
                 )}
               </div>
 
-              <button
-                type="button"
-                onClick={fetchProductForecasts}
-                disabled={loadingProducts}
-                className="px-3.5 py-1.5 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-lg text-xs sm:text-sm font-semibold transition-colors disabled:opacity-40 cursor-pointer self-start sm:self-auto"
-              >
-                {loadingProducts ? 'Refreshing...' : 'Refresh'}
-              </button>
+              <div className="flex items-center gap-2 self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => openInfoGuide('products')}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-zinc-200 bg-zinc-50 hover:bg-zinc-100 text-zinc-700 rounded-lg text-xs sm:text-sm font-semibold transition-colors cursor-pointer"
+                >
+                  <svg className="w-3.5 h-3.5 text-zinc-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="16" x2="12" y2="12" />
+                    <line x1="12" y1="8" x2="12.01" y2="8" />
+                  </svg>
+                  <span>Menu Forecast Guide</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={fetchProductForecasts}
+                  disabled={loadingProducts}
+                  className="px-3.5 py-1.5 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-lg text-xs sm:text-sm font-semibold transition-colors disabled:opacity-40 cursor-pointer"
+                >
+                  {loadingProducts ? 'Refreshing...' : 'Refresh'}
+                </button>
+              </div>
             </div>
 
             {loadingProducts ? (
@@ -1135,18 +1198,25 @@ const DemandForecasting = () => {
                     <label className="block text-xs font-semibold text-zinc-700 mb-1.5">
                       Supplier *
                     </label>
-                    <select
-                      value={poTargetSupplierId}
-                      onChange={(e) => setPoTargetSupplierId(e.target.value)}
-                      className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm text-zinc-900 font-medium focus:outline-none focus:border-zinc-900"
-                    >
-                      <option value="">Select Supplier</option>
-                      {suppliers.map((sup) => (
-                        <option key={sup.id} value={sup.id}>
-                          {sup.name}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-1 border border-zinc-200 rounded-lg bg-zinc-50/60">
+                      {suppliers.map((sup) => {
+                        const isSelected = String(poTargetSupplierId) === String(sup.id);
+                        return (
+                          <button
+                            key={sup.id}
+                            type="button"
+                            onClick={() => setPoTargetSupplierId(sup.id)}
+                            className={`px-2.5 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                              isSelected
+                                ? 'bg-zinc-900 text-white shadow-2xs'
+                                : 'bg-white hover:bg-zinc-100 text-zinc-700 border border-zinc-200'
+                            }`}
+                          >
+                            {sup.name}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
 
                   <div>
@@ -1294,48 +1364,59 @@ const DemandForecasting = () => {
                 </button>
               </div>
 
-              {/* Month/Year Selector */}
-              <div className="p-4 bg-zinc-50 border-b border-zinc-200 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <select
-                    value={aiTargetMonth}
-                    onChange={(e) => {
-                      const m = parseInt(e.target.value, 10);
-                      setAiTargetMonth(m);
-                      runMonthlyForecast(aiSelectedProduct?.id, aiTargetYear, m);
-                    }}
-                    className="px-2.5 py-1.5 text-xs sm:text-sm font-medium border border-zinc-300 rounded-lg bg-white text-zinc-900 focus:outline-none"
-                  >
-                    {[
-                      'January', 'February', 'March', 'April', 'May', 'June',
-                      'July', 'August', 'September', 'October', 'November', 'December',
-                    ].map((mName, idx) => (
-                      <option key={idx + 1} value={idx + 1}>
-                        {mName}
-                      </option>
-                    ))}
-                  </select>
-
-                  <select
-                    value={aiTargetYear}
-                    onChange={(e) => {
-                      const y = parseInt(e.target.value, 10);
-                      setAiTargetYear(y);
-                      runMonthlyForecast(aiSelectedProduct?.id, y, aiTargetMonth);
-                    }}
-                    className="px-2.5 py-1.5 text-xs sm:text-sm font-medium border border-zinc-300 rounded-lg bg-white text-zinc-900 focus:outline-none"
-                  >
+              {/* Month/Year Selector (Custom Pill Grid — No Native Select) */}
+              <div className="p-4 bg-zinc-50 border-b border-zinc-200 space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="inline-flex bg-zinc-200/70 p-0.5 rounded-lg">
                     {[2023, 2024, 2025, 2026, 2027].map((yr) => (
-                      <option key={yr} value={yr}>
+                      <button
+                        key={yr}
+                        type="button"
+                        onClick={() => {
+                          setAiTargetYear(yr);
+                          runMonthlyForecast(aiSelectedProduct?.id, yr, aiTargetMonth);
+                        }}
+                        className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                          aiTargetYear === yr
+                            ? 'bg-zinc-900 text-white shadow-2xs'
+                            : 'text-zinc-600 hover:text-zinc-900'
+                        }`}
+                      >
                         {yr}
-                      </option>
+                      </button>
                     ))}
-                  </select>
+                  </div>
+                  <span className="text-[11px] text-zinc-500 font-medium">
+                    {aiLoading ? 'Updating...' : '4-Yr Multi-Seasonal'}
+                  </span>
                 </div>
 
-                <span className="text-xs text-zinc-500 font-medium">
-                  {aiLoading ? 'Updating...' : '4-Yr Multi-Seasonal'}
-                </span>
+                <div className="grid grid-cols-6 gap-1">
+                  {[
+                    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+                  ].map((mShort, idx) => {
+                    const mNum = idx + 1;
+                    const isSelected = aiTargetMonth === mNum;
+                    return (
+                      <button
+                        key={mNum}
+                        type="button"
+                        onClick={() => {
+                          setAiTargetMonth(mNum);
+                          runMonthlyForecast(aiSelectedProduct?.id, aiTargetYear, mNum);
+                        }}
+                        className={`py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-zinc-900 text-white shadow-2xs'
+                            : 'bg-white border border-zinc-200/80 text-zinc-700 hover:bg-zinc-100'
+                        }`}
+                      >
+                        {mShort}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Body */}
@@ -1474,9 +1555,9 @@ const DemandForecasting = () => {
                     <line x1="12" y1="8" x2="12.01" y2="8" />
                   </svg>
                   <div>
-                    <h3 className="m-0 text-base font-bold">How Demand Forecasting Works</h3>
+                    <h3 className="m-0 text-base font-bold">Forecasting Reference Guide</h3>
                     <p className="m-0 text-xs text-zinc-400 mt-0.5">
-                      Plain-language overview of how 4-year seasonality, YoY trends, and restock estimates work
+                      How Ingredient Restock and Menu Demand projections are calculated
                     </p>
                   </div>
                 </div>
@@ -1489,61 +1570,152 @@ const DemandForecasting = () => {
                 </button>
               </div>
 
+              {/* Modal Guide Switcher Tabs */}
+              <div className="px-6 pt-3.5 pb-2 bg-zinc-50 border-b border-zinc-200 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setInfoGuideTab('ingredients')}
+                  className={`flex-1 py-2 px-3 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+                    infoGuideTab === 'ingredients'
+                      ? 'bg-zinc-900 text-white shadow-2xs'
+                      : 'bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-100'
+                  }`}
+                >
+                  Ingredient Restock Guide
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInfoGuideTab('products')}
+                  className={`flex-1 py-2 px-3 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+                    infoGuideTab === 'products'
+                      ? 'bg-zinc-900 text-white shadow-2xs'
+                      : 'bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-100'
+                  }`}
+                >
+                  Menu Demand Guide
+                </button>
+              </div>
+
               {/* Body */}
-              <div className="p-6 space-y-5 text-xs sm:text-sm text-zinc-600 leading-relaxed max-h-[calc(100vh-12rem)] overflow-y-auto">
-                {/* Section 1: Multi-Year Seasonality */}
-                <div className="space-y-2.5">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-zinc-900 shrink-0" />
-                    <h4 className="m-0 text-sm font-bold text-zinc-900">
-                      1. Multi-Year Seasonality &amp; Year-over-Year (YoY) Trends (2023–2026)
-                    </h4>
-                  </div>
-                  <div className="pl-4 space-y-2 border-l-2 border-zinc-100">
-                    <p className="m-0">
-                      <span className="font-semibold text-zinc-900">4-Year Seasonal Index:</span> Analyzes 47 months of historical sales (2023–2026) to capture recurring annual patterns—such as April–May summer surges for Frappes and Fruit Drinks, school exam weeks, Valentine&apos;s/HAMAKA Fiesta in February, and November–December holiday peaks.
-                    </p>
-                    <p className="m-0">
-                      <span className="font-semibold text-zinc-900">Year-over-Year (YoY) Growth:</span> Compares each product&apos;s multi-year annual trajectory alongside same-month historical volumes (e.g., April 2023 vs. April 2024 vs. April 2025) so long-term store growth is factored into future monthly projections.
-                    </p>
-                  </div>
-                </div>
+              <div className="p-6 space-y-5 text-xs sm:text-sm text-zinc-600 leading-relaxed max-h-[calc(100vh-14rem)] overflow-y-auto">
+                {infoGuideTab === 'ingredients' ? (
+                  <>
+                    {/* Ingredient Section 1 */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-zinc-900 shrink-0" />
+                        <h4 className="m-0 text-sm font-bold text-zinc-900">
+                          1. Recipe-Based Daily Usage (Burn Rate)
+                        </h4>
+                      </div>
+                      <div className="pl-4 space-y-1.5 border-l-2 border-zinc-100">
+                        <p className="m-0">
+                          Every drink sold at the POS is mapped to its bill of materials (grams of coffee beans or powders, milliliters of milk or syrup, and packaging pieces).
+                        </p>
+                        <p className="m-0">
+                          <span className="font-semibold text-zinc-900">Weighted Velocity:</span> Daily usage blends the last 30 days of recipe consumption with extra weight on the most recent 14 days so sudden shifts in drink popularity are reflected immediately.
+                        </p>
+                      </div>
+                    </div>
 
-                {/* Section 2: Short-Term Velocity & Calendar Adjustments */}
-                <div className="space-y-2.5">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-zinc-900 shrink-0" />
-                    <h4 className="m-0 text-sm font-bold text-zinc-900">
-                      2. Short-Term Velocity &amp; Calendar Multipliers
-                    </h4>
-                  </div>
-                  <div className="pl-4 space-y-2 border-l-2 border-zinc-100">
-                    <p className="m-0">
-                      <span className="font-semibold text-zinc-900">Blended Forecast:</span> Combines recent 14-to-30 day counter velocity with the 4-year seasonal baseline so both immediate customer momentum and annual calendar cycles are reflected.
-                    </p>
-                    <p className="m-0">
-                      <span className="font-semibold text-zinc-900">Calendar Adjustments:</span> Upcoming 7-day and monthly projections automatically account for higher cafe traffic on weekends, Philippine payday periods (15th and 30th), and public holidays.
-                    </p>
-                  </div>
-                </div>
+                    {/* Ingredient Section 2 */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-zinc-900 shrink-0" />
+                        <h4 className="m-0 text-sm font-bold text-zinc-900">
+                          2. Estimated Time Left &amp; Urgency Status
+                        </h4>
+                      </div>
+                      <div className="pl-4 space-y-2 border-l-2 border-zinc-100">
+                        <p className="m-0">
+                          <span className="font-semibold text-zinc-900">Est. Time Left:</span> Compares current on-hand stock against the daily usage rate to estimate how many operating days remain before stock runs out.
+                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+                          <div className="p-2.5 rounded-lg bg-red-50/70 border border-red-200/80">
+                            <span className="text-xs font-bold text-red-700 block">Critical (≤ 3 days)</span>
+                            <span className="text-[11px] text-red-900/80">Immediate reorder needed or below alert threshold.</span>
+                          </div>
+                          <div className="p-2.5 rounded-lg bg-amber-50/70 border border-amber-200/80">
+                            <span className="text-xs font-bold text-amber-700 block">Low Supply (4–7 days)</span>
+                            <span className="text-[11px] text-amber-900/80">Approaching reorder point for this week&apos;s delivery.</span>
+                          </div>
+                          <div className="p-2.5 rounded-lg bg-emerald-50/70 border border-emerald-200/80">
+                            <span className="text-xs font-bold text-emerald-700 block">Healthy (&gt; 7 days)</span>
+                            <span className="text-[11px] text-emerald-900/80">Sufficient raw material buffer on hand.</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
 
-                {/* Section 3: Ingredient Restock */}
-                <div className="space-y-2.5">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-zinc-900 shrink-0" />
-                    <h4 className="m-0 text-sm font-bold text-zinc-900">
-                      3. Ingredient Restock &amp; Runout Estimates
-                    </h4>
-                  </div>
-                  <div className="pl-4 space-y-2 border-l-2 border-zinc-100">
-                    <p className="m-0">
-                      <span className="font-semibold text-zinc-900">Daily Usage &amp; Est. Time Left:</span> Converts drink sales into raw material depletion via product recipes. Items with 3 days or less are marked <span className="font-semibold text-red-700">Critical</span>, 4 to 7 days as <span className="font-semibold text-amber-700">Low</span>, and over 7 days as <span className="font-semibold text-emerald-700">Healthy</span>.
-                    </p>
-                    <p className="m-0">
-                      <span className="font-semibold text-zinc-900">Suggested Order:</span> Recommends enough supplier units (bags, bottles, or boxes) to restore inventory to a safe 14-day supply buffer.
-                    </p>
-                  </div>
-                </div>
+                    {/* Ingredient Section 3 */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-zinc-900 shrink-0" />
+                        <h4 className="m-0 text-sm font-bold text-zinc-900">
+                          3. Suggested Order &amp; Supplier Unit Conversion
+                        </h4>
+                      </div>
+                      <div className="pl-4 space-y-1.5 border-l-2 border-zinc-100">
+                        <p className="m-0">
+                          <span className="font-semibold text-zinc-900">14-Day Target Buffer:</span> When an ingredient needs restocking, the system calculates how much stock is needed to cover a full 14-day supply window.
+                        </p>
+                        <p className="m-0">
+                          <span className="font-semibold text-zinc-900">Purchase Units:</span> Raw gram/milliliter deficits are automatically rounded up into supplier ordering units (such as 1 kg bags, 750 ml syrup bottles, or 1 L milk cartons) for one-click Purchase Order creation.
+                        </p>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Menu Demand Section 1 */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-zinc-900 shrink-0" />
+                        <h4 className="m-0 text-sm font-bold text-zinc-900">
+                          1. Multi-Year Seasonality &amp; YoY Growth (2023–2026)
+                        </h4>
+                      </div>
+                      <div className="pl-4 space-y-1.5 border-l-2 border-zinc-100">
+                        <p className="m-0">
+                          <span className="font-semibold text-zinc-900">4-Year Seasonal Index:</span> Evaluates 47 months of Cof/Tea sales history (2023–2026) to measure how each calendar month performs relative to the annual average—capturing April–May summer surges for iced drinks, February HAMAKA Fiesta &amp; Valentine&apos;s week, school exam periods, and November–December holiday peaks.
+                        </p>
+                        <p className="m-0">
+                          <span className="font-semibold text-zinc-900">Year-over-Year (YoY) Trajectory:</span> Compares same-month sales across consecutive years (2023 through 2026) so long-term store growth is factored into upcoming projections.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Menu Demand Section 2 */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-zinc-900 shrink-0" />
+                        <h4 className="m-0 text-sm font-bold text-zinc-900">
+                          2. Recent Counter Velocity (7-Day &amp; 30-Day)
+                        </h4>
+                      </div>
+                      <div className="pl-4 space-y-1.5 border-l-2 border-zinc-100">
+                        <p className="m-0">
+                          <span className="font-semibold text-zinc-900">Daily Average &amp; Momentum:</span> Tracks each menu item&apos;s recent 14-day and 30-day order pace and blends it with the 4-year seasonal index so both newly trending drinks and established bestsellers are accurately projected.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Menu Demand Section 3 */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-zinc-900 shrink-0" />
+                        <h4 className="m-0 text-sm font-bold text-zinc-900">
+                          3. Philippine Calendar, Weekend &amp; Payday Multipliers
+                        </h4>
+                      </div>
+                      <div className="pl-4 space-y-1.5 border-l-2 border-zinc-100">
+                        <p className="m-0">
+                          <span className="font-semibold text-zinc-900">7-Day &amp; Monthly View:</span> Projections adjust for higher Friday–Sunday foot traffic, bi-monthly payday windows (15th and 30th of the month), and national/local holidays. Click <span className="font-semibold text-zinc-900">By Month</span> on any drink to inspect its month-by-month breakdown and 2023–2026 historical comparison.
+                        </p>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Footer */}

@@ -5,6 +5,7 @@ import { requireAuth, requireRole } from "../middleware/authMiddleware.js";
 const router = express.Router();
 
 router.get("/", cmsController.getCmsContent);
+router.post("/upload-image", requireAuth, requireRole("Admin", "Owner"), cmsController.uploadCmsImage);
 router.get("/:section_key", cmsController.getCmsSection);
 router.put("/:section_key", requireAuth, requireRole("Admin", "Owner"), cmsController.updateCmsContent);
 

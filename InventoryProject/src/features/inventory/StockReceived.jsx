@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getIngredients, receiveStock } from '../../api/inventoryApi';
 import { getAllProducts, receiveProductStock } from '../../api/productsApi';
 import { formatQuantity } from '../../utils/productUtils';
+import SearchableIngredientSelect from '../../components/shared/SearchableIngredientSelect';
 
 
 const StockReceived = () => {
@@ -102,28 +103,12 @@ const StockReceived = () => {
           <form onSubmit={handleReceiveStock} className="flex flex-col gap-6">
             <div className="flex flex-col gap-2">
               <label className="text-sm font-bold text-gray-700">Select Item (Ingredient or Product)</label>
-              <select
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
+              <SearchableIngredientSelect
+                ingredients={allItems}
                 value={selectedId}
-                onChange={(e) => setSelectedId(e.target.value)}
-                required
-              >
-                <option value="">-- Choose an item --</option>
-                <optgroup label="Ingredients (Raw Materials)">
-                  {activeIngredients.map(ing => (
-                    <option key={`ing-${ing.id}`} value={ing.id}>
-                      {ing.name} — {formatQuantity(ing.stock_quantity, ing.unit)}
-                    </option>
-                  ))}
-                </optgroup>
-                <optgroup label="Products (Direct Tracking)">
-                  {trackableProducts.map(p => (
-                    <option key={`prod-${p.id}`} value={p.id}>
-                      {p.name} — {p.stock_quantity} pcs
-                    </option>
-                  ))}
-                </optgroup>
-              </select>
+                onChange={(id) => setSelectedId(id)}
+                placeholder="Search or select ingredient or product..."
+              />
             </div>
 
             {selectedItem && (

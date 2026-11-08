@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [CMS/UI/Forecasting: Editable Browser Tab Title & Favicon, Clean CMS Redesign, Dual Forecasting Guides & Searchable Comboboxes - 2026-11-08]
+- **Editable Browser Tab Title & Favicon (`browser_tab` & `brand_logo`) + Clean Human-Crafted CMS UI (`CMSDashboard.jsx`, `App.jsx`, `Navbar.jsx`, `cmsApi.js`, `cms.js`, `cmsController.js`, `cmsService.js`)**:
+  - Added `BrowserTabBrandingSync` in `App.jsx` and live `'cms:updated'` event synchronization in `cmsApi.js` and `Navbar.jsx` so editing the **Browser Tab Title** or **Browser Tab Icon (Favicon)** in `CMSDashboard.jsx` immediately updates `document.title`, `<link rel="icon">`, and the sidebar brand header across the application.
+  - Added a live interactive Browser Tab preview bar inside `CMSDashboard.jsx` and wired authenticated backend image uploads (`POST /api/cms/upload-image` in `cms.js` / `cmsController.js` / `cmsService.js`).
+  - Redesigned `CMSDashboard.jsx` into 4 clean, focused tabs (`Brand & Browser Tab`, `Hero & Menu Header`, `Promotions`, `Location & Footer`), removing the noisy gradient banner, repetitive uppercase badges, and raw file inputs.
+- **Dedicated Guides for Both Ingredient Restock & Menu Demand Forecasting (`DemandForecasting.jsx`)**:
+  - Added contextual `Restock Guide` and `Menu Forecast Guide` buttons on each forecasting tab and upgraded the `Forecasting Reference Guide` modal with dedicated switchable tabs (`Ingredient Restock Guide` and `Menu Demand Guide`) explaining recipe-based daily burn rate, runout days (`Critical ≤ 3d`, `Low 4–7d`, `Healthy > 7d`), 14-day supplier unit conversion, and 4-year (`2023–2026`) seasonal indices, YoY growth, and Philippine calendar/payday multipliers.
+  - Replaced native `<select>` filters and month/year dropdowns in `DemandForecasting.jsx` with clean pill selectors.
+- **Replaced Native `<select>` Ingredient Dropdowns with `SearchableIngredientSelect` (`ReportWastage.jsx`, `SearchableIngredientSelect.jsx`, `StockReceived.jsx`, `RequestProduct.jsx`)**:
+  - Replaced the long native HTML `<select>` raw material dropdown and reason selector in `ReportWastage.jsx` with the searchable combobox `SearchableIngredientSelect` (with category filter pills and live on-hand stock display) and interactive reason buttons.
+  - Replaced native ingredient `<select>` lists in `StockReceived.jsx` and `RequestProduct.jsx` with `SearchableIngredientSelect`.
+
 ## [Analytics/UI: 4-Year Multi-Seasonal Forecasting (2023–2026) & Materials List Sticky Actions - 2026-11-08]
 - **Expanded Historical Sales to 4 Full Years (`2023–2026`, `48,816` Orders) & Seasonal Matrix (`docs/database/seed_2023_2024_and_build_multiyear_summary.mjs`, `server/data/multiYearSalesSummary.json`)**:
   - Seeded **23,148 orders** (**34,092 line items**) across `2023-01-01` – `2024-12-31` in Supabase to join the `2025–2026` dataset, bringing total historical coverage to **48,816 orders** across **47 months (2023–2026)**.

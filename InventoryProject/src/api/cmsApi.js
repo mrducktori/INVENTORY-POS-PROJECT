@@ -85,5 +85,39 @@ export async function updateCmsContent(section_key, updates) {
   cmsCache = null;
   cacheTimestamp = 0;
 
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("cms:updated", { detail: { section_key, data: result } }));
+  }
+
   return result;
+}
+
+/**
+ * Uploads an image file to the public 'cms-images' Supabase Storage bucket
+ * via the authenticated backend endpoint and returns its public URL.
+ */
+export async function uploadCmsImage(file, prefix = "cms") {
+  if (!file) return null;
+
+  const base64Data = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("Failed to read image file."));
+    reader.readAsDataURL(file);
+  });
+
+  const ext = (file.name.split(".").pop() || "png").toLowerCase();
+  const safePrefix = String(prefix).replace(/[^a-z0-9_-]/gi, "_");
+  const fileName = `${safePrefix}_${Date.now()}.${ext}`;
+
+  const res = await apiCall("/cms/upload-image", {
+    method: "POST",
+    body: JSON.stringify({
+      fileName,
+      mimeType: file.type || "image/png",
+      base64Data
+    })
+  });
+
+  return res?.publicUrl || null;
 }

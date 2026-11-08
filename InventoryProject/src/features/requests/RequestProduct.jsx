@@ -4,6 +4,7 @@ import { getCurrentUser } from '../../api/authApi';
 import { getProducts } from '../../api/posApi';
 import { getIngredients } from '../../api/inventoryApi';
 import { getRecipesByProduct } from '../../api/recipesApi';
+import SearchableIngredientSelect from '../../components/shared/SearchableIngredientSelect';
 
 
 const RequestProduct = () => {
@@ -346,16 +347,14 @@ const RequestProduct = () => {
                     </div>
                     
                     <div className="p-4 bg-gray-50 border-t border-gray-200 flex flex-wrap gap-3 items-center">
-                      <select 
-                        className="flex-1 min-w-[200px] px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 cursor-pointer shadow-sm"
-                        value={newRecipeItem.ingredient_id} 
-                        onChange={e => setNewRecipeItem({...newRecipeItem, ingredient_id: e.target.value})}
-                      >
-                        <option value="">+ Add Ingredient</option>
-                        {ingredients.filter(ing => !proposedRecipe.some(p => p.ingredient_id === ing.id)).map(ing => (
-                          <option key={ing.id} value={ing.id}>{ing.name}</option>
-                        ))}
-                      </select>
+                      <div className="flex-1 min-w-[220px]">
+                        <SearchableIngredientSelect
+                          ingredients={ingredients.filter(ing => !proposedRecipe.some(p => p.ingredient_id === ing.id))}
+                          value={newRecipeItem.ingredient_id}
+                          onChange={(id) => setNewRecipeItem({ ...newRecipeItem, ingredient_id: id })}
+                          placeholder="Search ingredient to add..."
+                        />
+                      </div>
                       <input 
                         type="number" 
                         placeholder="Qty" 

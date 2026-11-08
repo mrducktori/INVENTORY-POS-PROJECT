@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'r
 import LandingPage from './features/auth/LandingPage';
 import PageLoader from './features/auth/PageLoader/PageLoader';
 import { getCurrentUser, pingUserActivity } from './api/authApi';
+import { getCmsMap, isValidImageUrl } from './api/cmsApi';
 import { isSessionExpired, clearUserSession, touchSessionActivity, USER_STORAGE_KEY } from './utils/authUtils';
 
 const LoginPage = lazy(() => import('./features/auth/LoginPage'));
@@ -82,9 +83,72 @@ function SessionTimeoutWatcher() {
   return null;
 }
 
+// Dynamically syncs Browser Tab Title (document.title) and Tab Icon (<link rel="icon">)
+// with CMS settings ('browser_tab' and 'brand_logo') on load and whenever CMS is updated.
+function BrowserTabBrandingSync() {
+  useEffect(() => {
+    let isMounted = true;
+
+    const applyTabBranding = async (force = false) => {
+      try {
+        const map = await getCmsMap(force);
+        if (!isMounted || !map) return;
+
+        const tabSection = map.browser_tab;
+        const brandSection = map.brand_logo;
+
+        const resolvedTitle =
+          (tabSection?.title && tabSection.title.trim()) ||
+          (brandSection?.title && brandSection.title.trim()) ||
+          'CofTea';
+
+        const candidateIcon =
+          (tabSection?.image_url && tabSection.image_url.trim()) ||
+          (brandSection?.image_url && brandSection.image_url.trim()) ||
+          '';
+
+        const resolvedIcon = isValidImageUrl(candidateIcon) ? candidateIcon : '/favicon.svg';
+
+        if (document.title !== resolvedTitle) {
+          document.title = resolvedTitle;
+        }
+
+        let iconLink = document.querySelector("link[rel='icon']");
+        if (!iconLink) {
+          iconLink = document.createElement('link');
+          iconLink.setAttribute('rel', 'icon');
+          document.head.appendChild(iconLink);
+        }
+        if (iconLink.getAttribute('href') !== resolvedIcon) {
+          iconLink.setAttribute('href', resolvedIcon);
+          if (resolvedIcon.endsWith('.svg')) {
+            iconLink.setAttribute('type', 'image/svg+xml');
+          } else {
+            iconLink.removeAttribute('type');
+          }
+        }
+      } catch {
+        // Ignore network errors and keep default title/icon
+      }
+    };
+
+    applyTabBranding(false);
+
+    const handleCmsUpdated = () => applyTabBranding(true);
+    window.addEventListener('cms:updated', handleCmsUpdated);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('cms:updated', handleCmsUpdated);
+    };
+  }, []);
+
+  return null;
+}
+
 function App() {
   return (
     <Router>
+      <BrowserTabBrandingSync />
       <SessionTimeoutWatcher />
       <Suspense fallback={<PageLoader />}>
         <Routes>

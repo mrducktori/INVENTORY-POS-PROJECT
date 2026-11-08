@@ -55,3 +55,29 @@ export const updateCmsContent = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+export const uploadCmsImage = async (req, res) => {
+  try {
+    const { fileName, mimeType, base64Data } = req.body || {};
+    if (!base64Data || typeof base64Data !== 'string') {
+      return res.status(400).json({ error: "Missing image data." });
+    }
+
+    const publicUrl = await cmsService.uploadCmsImageToStorage({
+      fileName: fileName || 'image.png',
+      mimeType: mimeType || 'image/png',
+      base64Data
+    });
+
+    const userId = req.user?.id || null;
+    await logAudit('CMS_IMAGE_UPLOADED', userId, {
+      file_name: fileName,
+      public_url: publicUrl,
+      uploaded_by: req.user?.name
+    });
+
+    res.json({ publicUrl });
+  } catch (err) {
+    res.status(500).json({ error: err.message || "Failed to upload image." });
+  }
+};

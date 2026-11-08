@@ -301,7 +301,7 @@ const SearchableIngredientSelect = ({
                         )}
                       </div>
                       <span className="text-xs text-gray-500 font-medium">
-                        Unit: {ing.unit} {ing.current_stock !== undefined ? `• On Hand: ${ing.current_stock} ${ing.unit}` : ''}
+                        Unit: {ing.unit} {(ing.stock_quantity !== undefined || ing.current_stock !== undefined) ? `• On Hand: ${ing.stock_quantity ?? ing.current_stock} ${ing.unit}` : ''}
                       </span>
                     </div>
 

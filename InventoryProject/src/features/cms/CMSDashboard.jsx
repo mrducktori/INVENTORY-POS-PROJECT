@@ -1,102 +1,311 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../config/supabaseClient';
-import { getCmsContent, updateCmsContent } from '../../api/cmsApi';
+import { getCmsContent, updateCmsContent, uploadCmsImage } from '../../api/cmsApi';
 
-const CMSDashboard = () => {
-  const [content, setContent] = useState([]);
+const DEFAULT_SECTIONS = [
+  {
+    section_key: 'browser_tab',
+    title: 'CofTea Cafe — Elwood Branch',
+    description: 'Browser tab title and favicon icon',
+    image_url: '/favicon.svg'
+  },
+  {
+    section_key: 'brand_logo',
+    title: 'CofTea Cafe',
+    description: 'Elwood Branch',
+    image_url: ''
+  },
+  {
+    section_key: 'landing_hero',
+    title: 'COF/TEA CAFÉ | ELWOOD BRANCH',
+    description: 'Freshly brewed coffee, signature milk teas, and handcrafted frappes.',
+    image_url: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?q=80&w=2047&auto=format&fit=crop'
+  },
+  {
+    section_key: 'menu_section',
+    title: 'Menu Board',
+    description: 'Browse Our',
+    image_url: ''
+  },
+  {
+    section_key: 'promo_section',
+    title: 'Featured Promotions',
+    description: '[]',
+    image_url: ''
+  },
+  {
+    section_key: 'location_info',
+    title: 'Location',
+    description: '2nd flr, 4JCayton Bldg, 144 L. Wood Rd, Taytay, 1920 Rizal',
+    image_url: 'https://maps.app.goo.gl/3gUeunPoZJfubcFd8'
+  },
+  {
+    section_key: 'social_links',
+    title: 'https://www.facebook.com/cofteacafeelwood',
+    description: 'https://www.instagram.com/coftea.cafe_elwood/',
+    image_url: ''
+  },
+  {
+    section_key: 'footer_info',
+    title: '© 2026 Cof/tea Cafe. All rights reserved.',
+    description: 'All rights reserved.',
+    image_url: ''
+  }
+];
+
+const NAV_TABS = [
+  { id: 'branding', label: 'Brand & Browser Tab' },
+  { id: 'hero', label: 'Hero & Menu Header' },
+  { id: 'promos', label: 'Promotions' },
+  { id: 'details', label: 'Location & Footer' }
+];
+
+function parsePromosFromDescription(section) {
+  if (!section) return [];
+  if (section.description) {
+    try {
+      const parsed = JSON.parse(section.description);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+    } catch {
+      // Fallback for legacy plain text description
+    }
+  }
+  if (section.image_url || section.title) {
+    return [
+      {
+        id: 'promo_1',
+        title: section.title || 'Featured Promotion',
+        description: section.description || '',
+        image_url: section.image_url || ''
+      }
+    ];
+  }
+  return [];
+}
+
+function ImageUploadField({ label, value, onChange, onUpload, uploading, placeholder = 'https://...', previewShape = 'wide', hint }) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <label className="block text-xs font-semibold text-zinc-700">{label}</label>
+        {value && (
+          <button
+            type="button"
+            onClick={() => onChange('')}
+            className="text-xs font-medium text-red-600 hover:text-red-700 cursor-pointer bg-transparent border-none"
+          >
+            Remove image
+          </button>
+        )}
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-3 items-start">
+        {value && (
+          <div
+            className={`shrink-0 bg-zinc-100 border border-zinc-200 rounded-xl overflow-hidden flex items-center justify-center ${
+              previewShape === 'icon'
+                ? 'w-14 h-14 p-2'
+                : previewShape === 'square'
+                ? 'w-20 h-20 p-1.5'
+                : 'w-full sm:w-40 h-24'
+            }`}
+          >
+            <img
+              src={value}
+              alt={label}
+              className={`w-full h-full ${
+                previewShape === 'icon' || previewShape === 'square' ? 'object-contain' : 'object-cover'
+              }`}
+            />
+          </div>
+        )}
+
+        <div className="flex-1 w-full space-y-2">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={value || ''}
+              onChange={(e) => onChange(e.target.value)}
+              placeholder={placeholder}
+              className="flex-1 px-3 py-2 bg-white border border-zinc-300 rounded-lg text-xs sm:text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-900 transition-colors"
+            />
+            <label
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold border border-zinc-300 bg-zinc-50 hover:bg-zinc-100 text-zinc-800 transition-colors shrink-0 ${
+                uploading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+              }`}
+            >
+              <svg className="w-3.5 h-3.5 text-zinc-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+              </svg>
+              <span>{uploading ? 'Uploading...' : 'Upload'}</span>
+              <input
+                type="file"
+                accept="image/*"
+                disabled={uploading}
+                onChange={onUpload}
+                className="hidden"
+              />
+            </label>
+          </div>
+          {hint && <p className="m-0 text-[11px] text-zinc-500">{hint}</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function CMSDashboard() {
+  const [sections, setSections] = useState({});
+  const [promos, setPromos] = useState([]);
+  const [activeTab, setActiveTab] = useState('branding');
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  
-  const [editing, setEditing] = useState(null);
-  const [formData, setFormData] = useState({ title: '', description: '', image_url: '' });
-  const [uploading, setUploading] = useState(false);
-  
-  // State for multiple promos in promo_section
-  const [promoList, setPromoList] = useState([]);
-  const [uploadingPromoIdx, setUploadingPromoIdx] = useState(null);
+  const [savingKey, setSavingKey] = useState(null);
+  const [uploadingKey, setUploadingKey] = useState(null);
+  const [notice, setNotice] = useState({ text: '', type: '' });
 
-  const fetchContent = async () => {
+  useEffect(() => {
+    fetchCMSData();
+  }, []);
+
+  const showNotice = (text, type = 'success') => {
+    setNotice({ text, type });
+    setTimeout(() => {
+      setNotice((prev) => (prev.text === text ? { text: '', type: '' } : prev));
+    }, 3500);
+  };
+
+  const fetchCMSData = async () => {
     try {
       setLoading(true);
-      const data = await getCmsContent();
-      
-      const defaultSections = [
-        { section_key: 'brand_logo', title: 'CofTea Cafe', description: 'Elwood Branch', image_url: '' },
-        { section_key: 'promo_section', title: 'Featured Promotions', description: 'Ask our baristas about daily specials and seasonal drinks!', image_url: '' },
-        { section_key: 'landing_hero', title: '', description: '', image_url: '' },
-        { section_key: 'menu_section', title: '', description: '', image_url: '' },
-        { section_key: 'location_info', title: 'Location', description: '2nd flr, 4JCayton Bldg, 144 L. Wood Rd, Taytay, 1920 Rizal', image_url: 'https://maps.app.goo.gl/3gUeunPoZJfubcFd8' },
-        { section_key: 'footer_info', title: '', description: '', image_url: '' },
-        { section_key: 'social_links', title: '', description: '', image_url: '' }
-      ];
-      
-      const mergedContent = defaultSections.map(def => {
-        const found = (data || []).find(d => d.section_key === def.section_key);
-        return found || def;
+      const data = await getCmsContent(true);
+      const byKey = {};
+      if (Array.isArray(data)) {
+        data.forEach((s) => {
+          if (s && s.section_key) {
+            byKey[s.section_key] = s;
+          }
+        });
+      }
+
+      const merged = {};
+      DEFAULT_SECTIONS.forEach((def) => {
+        merged[def.section_key] = byKey[def.section_key]
+          ? { ...def, ...byKey[def.section_key] }
+          : { ...def };
       });
-      
-      setContent(mergedContent);
+
+      // If browser_tab hasn't been customized yet, seed its defaults from brand_logo
+      if (!byKey.browser_tab && byKey.brand_logo) {
+        merged.browser_tab = {
+          section_key: 'browser_tab',
+          title: byKey.brand_logo.title || 'CofTea Cafe',
+          description: byKey.brand_logo.description || 'Browser tab title and icon',
+          image_url: byKey.brand_logo.image_url || '/favicon.svg'
+        };
+      }
+
+      setSections(merged);
+      setPromos(parsePromosFromDescription(merged.promo_section));
     } catch (err) {
-      console.error(err);
-      setError('Failed to load CMS content.');
+      showNotice('Failed to load content: ' + err.message, 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchContent();
-  }, []);
-
-  const parsePromos = (item) => {
-    if (!item) return [];
-    if (item.description) {
-      try {
-        const parsed = JSON.parse(item.description);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
-        }
-      } catch {
-        // legacy non-JSON description
+  const updateField = (sectionKey, field, value) => {
+    setSections((prev) => ({
+      ...prev,
+      [sectionKey]: {
+        ...(prev[sectionKey] || { section_key: sectionKey }),
+        [field]: value
       }
-    }
-    if (item.image_url || item.title) {
-      return [{
-        id: 'promo_default',
-        title: item.title || 'Featured Promotion',
-        description: item.description || '',
-        image_url: item.image_url || ''
-      }];
-    }
-    return [];
+    }));
   };
 
-  const handleEdit = (item) => {
-    setEditing(item.section_key);
-    setFormData({
-      title: item.title || '',
-      description: item.description || '',
-      image_url: item.image_url || ''
-    });
-
-    if (item.section_key === 'promo_section') {
-      const list = parsePromos(item);
-      setPromoList(list.length > 0 ? list : [{ id: 'promo_' + Date.now(), title: '', description: '', image_url: '' }]);
+  const handleSaveSection = async (sectionKey, customLabel = 'Changes') => {
+    const sec = sections[sectionKey];
+    if (!sec) return;
+    try {
+      setSavingKey(sectionKey);
+      await updateCmsContent(sectionKey, {
+        title: sec.title || '',
+        description: sec.description || '',
+        image_url: sec.image_url || ''
+      });
+      showNotice(`${customLabel} saved.`);
+    } catch (err) {
+      showNotice(`Failed to save: ${err.message}`, 'error');
+    } finally {
+      setSavingKey(null);
     }
   };
 
-  const handleCancel = () => {
-    setEditing(null);
-    setFormData({ title: '', description: '', image_url: '' });
-    setPromoList([]);
-    setUploadingPromoIdx(null);
+  const handleSaveBrandingAndTab = async () => {
+    try {
+      setSavingKey('branding_all');
+      const tabSec = sections.browser_tab || {};
+      const brandSec = sections.brand_logo || {};
+
+      await Promise.all([
+        updateCmsContent('browser_tab', {
+          title: tabSec.title || brandSec.title || 'CofTea',
+          description: tabSec.description || '',
+          image_url: tabSec.image_url || brandSec.image_url || '/favicon.svg'
+        }),
+        updateCmsContent('brand_logo', {
+          title: brandSec.title || 'CofTea Cafe',
+          description: brandSec.description || '',
+          image_url: brandSec.image_url || ''
+        })
+      ]);
+      showNotice('Brand identity and browser tab updated.');
+    } catch (err) {
+      showNotice(`Failed to save branding: ${err.message}`, 'error');
+    } finally {
+      setSavingKey(null);
+    }
   };
 
-  const handleAddPromoItem = () => {
-    setPromoList(prev => [
+  const handleFileUpload = async (sectionKey, e, label = 'Image') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploadingKey(sectionKey);
+      const publicUrl = await uploadCmsImage(file, sectionKey);
+      if (!publicUrl) throw new Error('No public URL returned.');
+
+      const currentSec = sections[sectionKey] || { section_key: sectionKey };
+      const updatedSec = { ...currentSec, image_url: publicUrl };
+
+      setSections((prev) => ({
+        ...prev,
+        [sectionKey]: updatedSec
+      }));
+
+      await updateCmsContent(sectionKey, {
+        title: updatedSec.title || '',
+        description: updatedSec.description || '',
+        image_url: publicUrl
+      });
+
+      showNotice(`${label} uploaded and saved.`);
+    } catch (err) {
+      showNotice(`Upload failed: ${err.message}`, 'error');
+    } finally {
+      setUploadingKey(null);
+      e.target.value = '';
+    }
+  };
+
+  // Promo carousel handlers
+  const handleAddPromo = () => {
+    setPromos((prev) => [
       ...prev,
       {
-        id: 'promo_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+        id: `promo_${Date.now()}`,
         title: '',
         description: '',
         image_url: ''
@@ -104,476 +313,636 @@ const CMSDashboard = () => {
     ]);
   };
 
-  const handleRemovePromoItem = (index) => {
-    setPromoList(prev => prev.filter((_, i) => i !== index));
+  const handleRemovePromo = (index) => {
+    setPromos((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleUpdatePromoItem = (index, field, value) => {
-    setPromoList(prev => {
-      const next = [...prev];
-      next[index] = { ...next[index], [field]: value };
-      return next;
-    });
+  const handlePromoChange = (index, field, value) => {
+    setPromos((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, [field]: value } : item))
+    );
   };
 
-  const handlePromoItemImageUpload = async (index, file) => {
+  const handlePromoImageUpload = async (index, e) => {
+    const file = e.target.files?.[0];
     if (!file) return;
+
     try {
-      setUploadingPromoIdx(index);
-      const fileExt = file.name.split('.').pop();
-      const fileName = `promo-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.${fileExt}`;
-      const filePath = `public/${fileName}`;
+      setUploadingKey(`promo_${index}`);
+      const publicUrl = await uploadCmsImage(file, `promo_${index}`);
+      const updatedPromos = promos.map((item, i) =>
+        i === index ? { ...item, image_url: publicUrl } : item
+      );
+      setPromos(updatedPromos);
 
-      const { error: uploadError } = await supabase.storage
-        .from('cms-images')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data } = supabase.storage
-        .from('cms-images')
-        .getPublicUrl(filePath);
-
-      const newImageUrl = data.publicUrl;
-      setPromoList(prev => {
-        const next = [...prev];
-        next[index] = { ...next[index], image_url: newImageUrl };
-        return next;
+      await updateCmsContent('promo_section', {
+        title: 'Featured Promotions',
+        description: JSON.stringify(updatedPromos),
+        image_url: updatedPromos[0]?.image_url || ''
       });
+      showNotice(`Promotion #${index + 1} image uploaded and saved.`);
     } catch (err) {
-      console.error(err);
-      setError('Error uploading promo image. Ensure cms-images storage bucket exists and is public.');
-      setTimeout(() => setError(null), 5000);
+      showNotice(`Promo upload failed: ${err.message}`, 'error');
     } finally {
-      setUploadingPromoIdx(null);
+      setUploadingKey(null);
+      e.target.value = '';
     }
   };
 
   const handleSavePromos = async () => {
     try {
-      setUploading(true);
-      const cleaned = promoList.filter(p => p.title || p.description || p.image_url);
-      const firstImg = cleaned.find(p => p.image_url)?.image_url || '';
-      const payload = {
-        title: formData.title || 'Featured Promotions',
-        description: JSON.stringify(cleaned),
-        image_url: firstImg
-      };
-      await updateCmsContent('promo_section', payload);
-      setEditing(null);
-      fetchContent();
+      setSavingKey('promo_section');
+      await updateCmsContent('promo_section', {
+        title: 'Featured Promotions',
+        description: JSON.stringify(promos),
+        image_url: promos[0]?.image_url || ''
+      });
+      showNotice('Promotions saved.');
     } catch (err) {
-      console.error(err);
-      setError('Failed to update promotions.');
-      setTimeout(() => setError(null), 5000);
+      showNotice(`Failed to save promotions: ${err.message}`, 'error');
     } finally {
-      setUploading(false);
+      setSavingKey(null);
     }
   };
 
-  const handleImageUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  if (loading) {
+    return (
+      <div className="p-4 sm:p-6 md:p-8 max-w-5xl mx-auto w-full space-y-4">
+        <div className="h-8 w-56 bg-zinc-200/70 rounded-lg animate-pulse" />
+        <div className="h-10 w-full max-w-md bg-zinc-200/60 rounded-xl animate-pulse" />
+        <div className="h-80 w-full bg-white border border-zinc-200 rounded-2xl animate-pulse" />
+      </div>
+    );
+  }
 
-    try {
-      setUploading(true);
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${editing}-${Math.random()}.${fileExt}`;
-      const filePath = `public/${fileName}`;
+  const browserTab = sections.browser_tab || {};
+  const brandLogo = sections.brand_logo || {};
+  const landingHero = sections.landing_hero || {};
+  const menuSection = sections.menu_section || {};
+  const locationInfo = sections.location_info || {};
+  const socialLinks = sections.social_links || {};
+  const footerInfo = sections.footer_info || {};
 
-      const { error: uploadError } = await supabase.storage
-        .from('cms-images')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data } = supabase.storage
-        .from('cms-images')
-        .getPublicUrl(filePath);
-
-      const newImageUrl = data.publicUrl;
-      setFormData(prev => ({ ...prev, image_url: newImageUrl }));
-      
-      // Auto-save immediately to remove the friction of having to click 'Save Changes'
-      await updateCmsContent(editing, { ...formData, image_url: newImageUrl });
-      fetchContent();
-    } catch (err) {
-      console.error(err);
-      setError('Error uploading image. Make sure the cms-images bucket exists and is public.');
-      setTimeout(() => setError(null), 5000);
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      await updateCmsContent(editing, formData);
-      setEditing(null);
-      fetchContent();
-    } catch (err) {
-      console.error(err);
-      setError('Failed to update content.');
-      setTimeout(() => setError(null), 5000);
-    }
-  };
+  const liveTabTitle = (browserTab.title || brandLogo.title || 'CofTea').trim();
+  const liveTabIcon = (browserTab.image_url || brandLogo.image_url || '/favicon.svg').trim();
 
   return (
-    <div className="p-4 md:p-8 flex-1 bg-gray-50 overflow-y-auto w-full">
-      <div className="mb-8">
-        <h1 className="m-0 text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">Content Management</h1>
-        <p className="m-0 mt-1 text-sm md:text-base text-gray-500 font-medium">Update text and images for the public landing page.</p>
+    <div className="p-4 sm:p-6 md:p-8 max-w-5xl mx-auto w-full space-y-6">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-200">
+        <div>
+          <h1 className="m-0 text-xl sm:text-2xl font-bold text-zinc-900 tracking-tight">
+            Website &amp; Brand Settings
+          </h1>
+          <p className="m-0 mt-1 text-xs sm:text-sm text-zinc-500">
+            Manage browser tab branding, landing page visuals, promotions, and store details.
+          </p>
+        </div>
+
+        <a
+          href="/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-zinc-300 bg-white hover:bg-zinc-50 text-zinc-800 text-xs sm:text-sm font-semibold transition-colors self-start sm:self-auto no-underline"
+        >
+          <span>View Live Page</span>
+          <svg className="w-3.5 h-3.5 text-zinc-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          </svg>
+        </a>
       </div>
 
-      {error && <div className="mb-6 p-4 bg-red-50 text-red-800 border border-red-200 rounded-xl text-sm md:text-base font-bold">{error}</div>}
+      {/* Status Notice */}
+      {notice.text && (
+        <div
+          className={`px-4 py-3 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-between border ${
+            notice.type === 'error'
+              ? 'bg-red-50 text-red-800 border-red-200'
+              : 'bg-zinc-900 text-white border-zinc-900'
+          }`}
+        >
+          <span>{notice.text}</span>
+          <button
+            type="button"
+            onClick={() => setNotice({ text: '', type: '' })}
+            className="text-xs opacity-75 hover:opacity-100 cursor-pointer bg-transparent border-none text-current ml-4"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
-      {loading ? (
-        <div className="text-center text-gray-500 font-medium p-8">Loading content...</div>
-      ) : (
-        <div className="grid grid-cols-1 gap-6">
-          <div className="bg-gradient-to-r from-gray-900 to-gray-800 text-white rounded-xl p-6 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4 mb-2">
-            <div>
-              <h3 className="text-lg font-bold m-0 flex items-center gap-2">
-                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
-                Looking for Menu Items?
-              </h3>
-              <p className="text-gray-300 text-sm md:text-base mt-1 mb-0">
-                Menu products, prices, and their pictures are managed directly in the <strong>Manage Products</strong> tab inside Inventory to keep them synced with your Point of Sale.
-              </p>
-            </div>
-            <div className="shrink-0">
-              <div className="px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-sm md:text-base font-bold uppercase tracking-wider text-white">
-                Go to: Product Management &gt; Manage Products
+      {/* Navigation Tabs */}
+      <div className="flex flex-wrap gap-1.5 bg-zinc-100 p-1 rounded-xl w-fit">
+        {NAV_TABS.map((t) => {
+          const isActive = activeTab === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setActiveTab(t.id)}
+              className={`px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+                isActive
+                  ? 'bg-white text-zinc-900 shadow-2xs'
+                  : 'text-zinc-600 hover:text-zinc-900'
+              }`}
+            >
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* =====================================================================
+          TAB 1: BRAND & BROWSER TAB
+      ===================================================================== */}
+      {activeTab === 'branding' && (
+        <div className="space-y-6">
+          {/* Card 1: Browser Tab Title & Favicon */}
+          <div className="bg-white border border-zinc-200 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-zinc-100">
+              <div>
+                <h2 className="m-0 text-base font-bold text-zinc-900">Browser Tab (Title &amp; Icon)</h2>
+                <p className="m-0 mt-0.5 text-xs text-zinc-500">
+                  Controls the title text and icon shown in the web browser tab across the entire app.
+                </p>
               </div>
+
+              {/* Live Browser Tab Mockup Preview */}
+              <div className="bg-zinc-200/80 pt-1.5 px-2 rounded-t-xl border border-zinc-300/80 flex items-end self-start sm:self-auto">
+                <div className="bg-white px-3 py-1.5 rounded-t-lg shadow-2xs flex items-center gap-2 max-w-[240px] border-t border-x border-zinc-200">
+                  <img
+                    src={liveTabIcon}
+                    alt="Tab icon"
+                    className="w-4 h-4 object-contain shrink-0 rounded-xs"
+                    onError={(e) => {
+                      e.currentTarget.src = '/favicon.svg';
+                    }}
+                  />
+                  <span className="text-xs font-medium text-zinc-800 truncate">
+                    {liveTabTitle}
+                  </span>
+                  <span className="text-[10px] text-zinc-400 ml-1">✕</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold text-zinc-700">
+                    Browser Tab Title
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateField('browser_tab', 'title', brandLogo.title || 'CofTea Cafe');
+                      updateField('browser_tab', 'image_url', brandLogo.image_url || '/favicon.svg');
+                    }}
+                    className="text-[11px] font-medium text-zinc-500 hover:text-zinc-900 underline cursor-pointer bg-transparent border-none"
+                  >
+                    Copy from Brand Logo
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={browserTab.title || ''}
+                  onChange={(e) => updateField('browser_tab', 'title', e.target.value)}
+                  placeholder="e.g. CofTea Cafe — Elwood Branch"
+                  className="w-full px-3.5 py-2 bg-white border border-zinc-300 rounded-lg text-sm text-zinc-900 focus:outline-none focus:border-zinc-900"
+                />
+                <p className="m-0 text-[11px] text-zinc-500">
+                  Appears on the browser tab and bookmarks.
+                </p>
+              </div>
+
+              <ImageUploadField
+                label="Browser Tab Icon (Favicon)"
+                value={browserTab.image_url || ''}
+                onChange={(val) => updateField('browser_tab', 'image_url', val)}
+                onUpload={(e) => handleFileUpload('browser_tab', e, 'Browser tab icon')}
+                uploading={uploadingKey === 'browser_tab'}
+                previewShape="icon"
+                placeholder="/favicon.svg or https://..."
+                hint="Square PNG, SVG, or ICO recommended."
+              />
             </div>
           </div>
 
-          {content.length === 0 && (
-            <div className="text-center p-8 bg-white border border-gray-200 rounded-xl text-gray-500 italic text-sm md:text-base">
-              No CMS content found. Please run the initial database setup.
+          {/* Card 2: Brand Logo & Name (Sidebar + Landing Header) */}
+          <div className="bg-white border border-zinc-200 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-5">
+            <div className="pb-4 border-b border-zinc-100">
+              <h2 className="m-0 text-base font-bold text-zinc-900">Brand Logo &amp; Store Name</h2>
+              <p className="m-0 mt-0.5 text-xs text-zinc-500">
+                Displayed in the navigation sidebar, login screen, and landing page header.
+              </p>
             </div>
-          )}
-          
-          {content.map(item => {
-            const schema = {
-              brand_logo: {
-                name: 'Brand Logo & Navigation Identity',
-                fields: [
-                  { key: 'title', label: 'Brand Name (e.g. CofTea Cafe)', type: 'text' },
-                  { key: 'description', label: 'Branch / Tagline (e.g. Elwood Branch)', type: 'text' },
-                  { key: 'image_url', label: 'Logo Image (PNG / SVG / JPG)', type: 'image' }
-                ]
-              },
-              promo_section: {
-                name: 'Promotions & Featured Deals Banner',
-                fields: [
-                  { key: 'title', label: 'Promo Title (e.g. Featured Promotions)', type: 'text' },
-                  { key: 'description', label: 'Promo Details / Caption', type: 'textarea' },
-                  { key: 'image_url', label: 'Promo Photo / Banner Image (JPG / PNG / WebP)', type: 'image' }
-                ]
-              },
-              landing_hero: {
-                name: 'Landing Page Hero Section',
-                fields: [
-                  { key: 'title', label: 'Main Brand & Location', type: 'text' },
-                  { key: 'description', label: 'Hero Subtext', type: 'textarea' },
-                  { key: 'image_url', label: 'Background Image', type: 'image' }
-                ]
-              },
-              menu_section: {
-                name: 'Menu Board Header',
-                fields: [
-                  { key: 'title', label: 'Main Title (e.g. Menu Board)', type: 'text' },
-                  { key: 'description', label: 'Subtitle (e.g. Browse Our)', type: 'text' }
-                ]
-              },
-              location_info: {
-                name: 'Location Information',
-                fields: [
-                  { key: 'title', label: 'Title (e.g. Location)', type: 'text' },
-                  { key: 'description', label: 'Address', type: 'textarea' },
-                  { key: 'image_url', label: 'Google Maps Link', type: 'text' }
-                ]
-              },
-              footer_info: {
-                name: 'Footer Information',
-                fields: [
-                  { key: 'title', label: 'Copyright Text', type: 'text' }
-                ]
-              },
-              social_links: {
-                name: 'Social Media URLs',
-                fields: [
-                  { key: 'title', label: 'Facebook URL', type: 'text' },
-                  { key: 'description', label: 'Instagram URL', type: 'text' }
-                ]
-              }
-            }[item.section_key] || {
-              name: `Section: ${item.section_key}`,
-              fields: [
-                { key: 'title', label: 'Title', type: 'text' },
-                { key: 'description', label: 'Description', type: 'textarea' },
-                { key: 'image_url', label: 'Image', type: 'image' }
-              ]
-            };
 
-            if (item.section_key === 'promo_section') {
-              const promos = parsePromos(item);
-              return (
-                <div key={item.section_key} className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
-                  <div className="p-6">
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="inline-block px-2.5 py-1 bg-amber-100 text-amber-900 rounded-md text-xs font-bold uppercase tracking-wider">
-                            Promotions & Deals Manager
-                          </span>
-                          <span className="text-xs text-gray-500 font-medium">
-                            ({promos.length} active {promos.length === 1 ? 'promo' : 'promos'})
-                          </span>
-                        </div>
-                        <h2 className="m-0 text-xl font-bold text-gray-900">{item.title || 'Featured Promotions'}</h2>
-                      </div>
-                      {editing !== item.section_key && (
-                        <button 
-                          className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm md:text-base font-bold uppercase tracking-wider hover:bg-gray-800 transition-colors shadow-sm"
-                          onClick={() => handleEdit(item)}
-                        >
-                          Manage Promos
-                        </button>
-                      )}
-                    </div>
-
-                    {editing === item.section_key ? (
-                      <div className="flex flex-col gap-6 mt-4 border-t border-gray-100 pt-5 animate-[popIn_0.2s_ease-out]">
-                        <div className="flex flex-col gap-1.5">
-                          <label className="text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider">Section Heading</label>
-                          <input 
-                            type="text" 
-                            className="px-4 py-2 border border-gray-300 rounded-lg text-sm md:text-base focus:outline-none focus:ring-2 focus:ring-gray-900 max-w-md"
-                            value={formData.title}
-                            onChange={e => setFormData({ ...formData, title: e.target.value })}
-                            placeholder="e.g. Featured Promotions"
-                          />
-                        </div>
-
-                        <div className="flex flex-col gap-4">
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm font-bold text-gray-800 uppercase tracking-wider">Active Promo Banners ({promoList.length})</span>
-                            <button
-                              type="button"
-                              onClick={handleAddPromoItem}
-                              className="px-3.5 py-1.5 bg-amber-400 hover:bg-amber-500 text-zinc-950 font-bold text-xs uppercase tracking-wider rounded-lg transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer"
-                            >
-                              <span>+ Add Another Promo</span>
-                            </button>
-                          </div>
-
-                          {promoList.map((promo, idx) => (
-                            <div key={promo.id || idx} className="p-4 sm:p-5 border border-gray-200 bg-gray-50/80 rounded-xl flex flex-col md:flex-row gap-5 relative">
-                              <div className="w-full md:w-56 shrink-0 flex flex-col gap-2">
-                                <span className="text-xs font-bold text-gray-700 uppercase">Promo Photo #{idx + 1}</span>
-                                <div className="w-full aspect-[16/9] bg-gray-200 rounded-lg overflow-hidden relative border border-gray-300 flex items-center justify-center">
-                                  {promo.image_url ? (
-                                    <img src={promo.image_url} alt="Promo" className="w-full h-full object-cover" />
-                                  ) : (
-                                    <span className="text-xs text-gray-400 font-medium">No photo uploaded</span>
-                                  )}
-                                  {uploadingPromoIdx === idx && (
-                                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-xs font-bold animate-pulse">
-                                      Uploading...
-                                    </div>
-                                  )}
-                                </div>
-                                <label className="cursor-pointer text-center px-3 py-1.5 bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 rounded-md text-xs font-bold uppercase transition-colors shadow-sm">
-                                  {promo.image_url ? 'Replace Photo' : 'Upload Photo'}
-                                  <input 
-                                    type="file" 
-                                    accept="image/*" 
-                                    className="hidden" 
-                                    onChange={(e) => e.target.files[0] && handlePromoItemImageUpload(idx, e.target.files[0])}
-                                  />
-                                </label>
-                              </div>
-
-                              <div className="flex-1 flex flex-col gap-3">
-                                <div className="flex justify-between items-start">
-                                  <div className="flex-1 mr-3">
-                                    <label className="text-xs font-bold text-gray-700 uppercase block mb-1">Promo Title</label>
-                                    <input 
-                                      type="text" 
-                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                                      value={promo.title || ''}
-                                      onChange={e => handleUpdatePromoItem(idx, 'title', e.target.value)}
-                                      placeholder="e.g. Buy 1 Take 1 Milk Tea"
-                                    />
-                                  </div>
-                                  {promoList.length > 1 && (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleRemovePromoItem(idx)}
-                                      className="text-red-500 hover:text-red-700 text-xs font-bold uppercase px-2.5 py-1 rounded hover:bg-red-50 transition-colors shrink-0 cursor-pointer"
-                                      title="Delete this promo"
-                                    >
-                                      Remove
-                                    </button>
-                                  )}
-                                </div>
-
-                                <div>
-                                  <label className="text-xs font-bold text-gray-700 uppercase block mb-1">Details / Caption / Terms</label>
-                                  <textarea 
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm min-h-[70px] resize-none focus:outline-none focus:ring-2 focus:ring-gray-900"
-                                    value={promo.description || ''}
-                                    onChange={e => handleUpdatePromoItem(idx, 'description', e.target.value)}
-                                    placeholder="e.g. Available every Monday from 2 PM to 5 PM."
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-
-                        <div className="flex justify-end gap-3 pt-3 border-t border-gray-200">
-                          <button 
-                            type="button" 
-                            className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-gray-50 cursor-pointer" 
-                            onClick={handleCancel}
-                          >
-                            Cancel
-                          </button>
-                          <button 
-                            type="button" 
-                            className="px-5 py-2 bg-gray-900 text-white rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-gray-800 shadow-sm cursor-pointer"
-                            onClick={handleSavePromos}
-                            disabled={uploading || uploadingPromoIdx !== null}
-                          >
-                            Save All Promos
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-3">
-                        {promos.length === 0 ? (
-                          <p className="text-sm text-gray-500 italic col-span-full">No active promos yet. Click "Manage Promos" to add promotions.</p>
-                        ) : (
-                          promos.map((p, i) => (
-                            <div key={p.id || i} className="border border-gray-200 rounded-xl overflow-hidden bg-gray-50 flex flex-col">
-                              {p.image_url ? (
-                                <div className="w-full aspect-[16/9] bg-gray-100 overflow-hidden">
-                                  <img src={p.image_url} alt={p.title} className="w-full h-full object-cover" />
-                                </div>
-                              ) : (
-                                <div className="w-full aspect-[16/9] bg-gray-200 flex items-center justify-center text-xs text-gray-400">
-                                  No Photo
-                                </div>
-                              )}
-                              <div className="p-3.5 flex-1 flex flex-col justify-between">
-                                <div>
-                                  <span className="text-[10px] font-bold text-amber-700 uppercase tracking-widest block mb-0.5">Promo #{i + 1}</span>
-                                  <h4 className="text-sm font-bold text-gray-900 m-0 line-clamp-1">{p.title || 'Untitled Promo'}</h4>
-                                  {p.description && <p className="text-xs text-gray-500 mt-1 line-clamp-2 m-0">{p.description}</p>}
-                                </div>
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    )}
-                  </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-zinc-700">Brand Name</label>
+                  <input
+                    type="text"
+                    value={brandLogo.title || ''}
+                    onChange={(e) => updateField('brand_logo', 'title', e.target.value)}
+                    placeholder="e.g. CofTea Cafe"
+                    className="w-full px-3.5 py-2 bg-white border border-zinc-300 rounded-lg text-sm text-zinc-900 focus:outline-none focus:border-zinc-900"
+                  />
                 </div>
-              );
-            }
 
-            return (
-            <div key={item.section_key} className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden flex flex-col md:flex-row">
-              {item.image_url && schema.fields.some(f => f.key === 'image_url' && f.type === 'image') && (
-                <div className="w-full md:w-64 h-48 md:h-auto bg-gray-100 shrink-0">
-                  <img src={item.image_url} alt={item.title} className="w-full h-full object-cover" />
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-zinc-700">Branch / Subtitle</label>
+                  <input
+                    type="text"
+                    value={brandLogo.description || ''}
+                    onChange={(e) => updateField('brand_logo', 'description', e.target.value)}
+                    placeholder="e.g. Elwood Branch"
+                    className="w-full px-3.5 py-2 bg-white border border-zinc-300 rounded-lg text-sm text-zinc-900 focus:outline-none focus:border-zinc-900"
+                  />
                 </div>
-              )}
-              
-              <div className="p-6 flex-1 flex flex-col">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <span className="inline-block px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs md:text-sm font-bold uppercase tracking-wider mb-2">{schema.name}</span>
-                    <h2 className="m-0 text-xl font-bold text-gray-900">{item.title}</h2>
-                  </div>
-                  {editing !== item.section_key && (
-                    <button 
-                      className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm md:text-base font-bold uppercase tracking-wider hover:bg-gray-800 transition-colors shadow-sm"
-                      onClick={() => handleEdit(item)}
-                    >
-                      Edit
-                    </button>
-                  )}
-                </div>
-                
-                {editing === item.section_key ? (
-                  <form onSubmit={handleSubmit} className="flex flex-col gap-4 mt-2 border-t border-gray-100 pt-4 animate-[popIn_0.2s_ease-out]">
-                    
-                    {schema.fields.map(field => (
-                      <div key={field.key} className="flex flex-col gap-2">
-                        <label className="text-sm md:text-base font-bold text-gray-700 uppercase tracking-wider">{field.label}</label>
-                        
-                        {field.type === 'text' && (
-                          <input 
-                            type="text" 
-                            className="px-4 py-2 border border-gray-300 rounded-lg text-sm md:text-base focus:outline-none focus:ring-2 focus:ring-gray-900"
-                            value={formData[field.key] || ''}
-                            onChange={e => setFormData({...formData, [field.key]: e.target.value})}
-                          />
-                        )}
-                        
-                        {field.type === 'textarea' && (
-                          <textarea 
-                            className="px-4 py-2 border border-gray-300 rounded-lg text-sm md:text-base min-h-[100px] resize-none focus:outline-none focus:ring-2 focus:ring-gray-900"
-                            value={formData[field.key] || ''}
-                            onChange={e => setFormData({...formData, [field.key]: e.target.value})}
-                          />
-                        )}
+              </div>
 
-                        {field.type === 'image' && (
-                          <>
-                            <div className="flex items-center gap-4">
-                              <input 
-                                type="file" 
-                                accept="image/*"
-                                onChange={handleImageUpload}
-                                disabled={uploading}
-                                className="text-sm md:text-base text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 cursor-pointer"
-                              />
-                              {uploading && <span className="text-sm md:text-base text-blue-600 font-bold animate-pulse">Uploading...</span>}
-                            </div>
-                            {formData.image_url && !uploading && (
-                              <div className="mt-3 relative w-full sm:w-64 h-32 md:h-40 rounded-lg overflow-hidden border border-gray-200 shadow-sm">
-                                <img src={formData.image_url} alt="Preview" className="w-full h-full object-cover" />
-                                <div className="absolute inset-0 ring-1 ring-inset ring-black/10 rounded-lg"></div>
-                                <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/60 backdrop-blur-sm text-white text-[10px] font-bold uppercase tracking-widest rounded">New Preview</div>
-                              </div>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    ))}
-                    
-                    <div className="flex justify-end gap-3 mt-2">
-                      <button type="button" className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm md:text-base font-bold uppercase tracking-wider hover:bg-gray-50" onClick={handleCancel}>Cancel</button>
-                      <button type="submit" className="px-4 py-2 bg-gray-900 text-white border-none rounded-lg text-sm md:text-base font-bold uppercase tracking-wider hover:bg-gray-800 shadow-sm" disabled={uploading}>Save Changes</button>
-                    </div>
-                  </form>
-                ) : (
-                  <p className="text-sm md:text-base text-gray-600 mt-2 whitespace-pre-wrap">{item.description}</p>
-                )}
+              <ImageUploadField
+                label="Brand Logo Image"
+                value={brandLogo.image_url || ''}
+                onChange={(val) => updateField('brand_logo', 'image_url', val)}
+                onUpload={(e) => handleFileUpload('brand_logo', e, 'Brand logo')}
+                uploading={uploadingKey === 'brand_logo'}
+                previewShape="square"
+                placeholder="https://..."
+                hint="Displayed in the top-left header and dashboard sidebar."
+              />
+            </div>
+
+            <div className="pt-3 border-t border-zinc-100 flex justify-end">
+              <button
+                type="button"
+                onClick={handleSaveBrandingAndTab}
+                disabled={savingKey === 'branding_all'}
+                className="px-5 py-2.5 bg-zinc-900 hover:bg-black text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                {savingKey === 'branding_all' ? 'Saving...' : 'Save Brand & Tab Settings'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =====================================================================
+          TAB 2: HERO & MENU HEADER
+      ===================================================================== */}
+      {activeTab === 'hero' && (
+        <div className="space-y-6">
+          {/* Hero Section */}
+          <div className="bg-white border border-zinc-200 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-5">
+            <div className="pb-4 border-b border-zinc-100">
+              <h2 className="m-0 text-base font-bold text-zinc-900">Landing Page Hero</h2>
+              <p className="m-0 mt-0.5 text-xs text-zinc-500">
+                Main headline, subtext, and background image on the public home page.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-zinc-700">
+                    Headline (use | to split main title and branch)
+                  </label>
+                  <input
+                    type="text"
+                    value={landingHero.title || ''}
+                    onChange={(e) => updateField('landing_hero', 'title', e.target.value)}
+                    placeholder="COF/TEA CAFÉ | ELWOOD BRANCH"
+                    className="w-full px-3.5 py-2 bg-white border border-zinc-300 rounded-lg text-sm text-zinc-900 focus:outline-none focus:border-zinc-900"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-zinc-700">Tagline / Subtext</label>
+                  <textarea
+                    rows={3}
+                    value={landingHero.description || ''}
+                    onChange={(e) => updateField('landing_hero', 'description', e.target.value)}
+                    placeholder="Optional welcome message..."
+                    className="w-full px-3.5 py-2 bg-white border border-zinc-300 rounded-lg text-sm text-zinc-900 focus:outline-none focus:border-zinc-900 resize-y"
+                  />
+                </div>
+              </div>
+
+              <ImageUploadField
+                label="Hero Background Image"
+                value={landingHero.image_url || ''}
+                onChange={(val) => updateField('landing_hero', 'image_url', val)}
+                onUpload={(e) => handleFileUpload('landing_hero', e, 'Hero background')}
+                uploading={uploadingKey === 'landing_hero'}
+                previewShape="wide"
+                hint="Landscape photo recommended (1920×1080)."
+              />
+            </div>
+
+            <div className="pt-3 border-t border-zinc-100 flex justify-end">
+              <button
+                type="button"
+                onClick={() => handleSaveSection('landing_hero', 'Hero section')}
+                disabled={savingKey === 'landing_hero'}
+                className="px-5 py-2 bg-zinc-900 hover:bg-black text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                {savingKey === 'landing_hero' ? 'Saving...' : 'Save Hero Section'}
+              </button>
+            </div>
+          </div>
+
+          {/* Menu Board Heading */}
+          <div className="bg-white border border-zinc-200 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-5">
+            <div className="pb-4 border-b border-zinc-100">
+              <h2 className="m-0 text-base font-bold text-zinc-900">Menu Board Header</h2>
+              <p className="m-0 mt-0.5 text-xs text-zinc-500">
+                Customizes the button label and heading for the public Menu Board drawer. Individual drink prices and photos are managed in Manage Products.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-zinc-700">Small Subtitle</label>
+                <input
+                  type="text"
+                  value={menuSection.description || ''}
+                  onChange={(e) => updateField('menu_section', 'description', e.target.value)}
+                  placeholder="Browse Our"
+                  className="w-full px-3.5 py-2 bg-white border border-zinc-300 rounded-lg text-sm text-zinc-900 focus:outline-none focus:border-zinc-900"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-zinc-700">Main Menu Title</label>
+                <input
+                  type="text"
+                  value={menuSection.title || ''}
+                  onChange={(e) => updateField('menu_section', 'title', e.target.value)}
+                  placeholder="Menu Board"
+                  className="w-full px-3.5 py-2 bg-white border border-zinc-300 rounded-lg text-sm text-zinc-900 focus:outline-none focus:border-zinc-900"
+                />
               </div>
             </div>
-            );
-          })}
+
+            <div className="pt-3 border-t border-zinc-100 flex justify-end">
+              <button
+                type="button"
+                onClick={() => handleSaveSection('menu_section', 'Menu header')}
+                disabled={savingKey === 'menu_section'}
+                className="px-5 py-2 bg-zinc-900 hover:bg-black text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                {savingKey === 'menu_section' ? 'Saving...' : 'Save Menu Header'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =====================================================================
+          TAB 3: PROMOTIONS CAROUSEL
+      ===================================================================== */}
+      {activeTab === 'promos' && (
+        <div className="bg-white border border-zinc-200 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-zinc-100">
+            <div>
+              <h2 className="m-0 text-base font-bold text-zinc-900">Promotions Carousel</h2>
+              <p className="m-0 mt-0.5 text-xs text-zinc-500">
+                Add seasonal posters or announcements shown on the landing page carousel.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleAddPromo}
+              className="px-3.5 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-900 rounded-lg text-xs font-semibold transition-colors cursor-pointer self-start sm:self-auto"
+            >
+              + Add Slide
+            </button>
+          </div>
+
+          {promos.length === 0 ? (
+            <div className="py-10 text-center border border-dashed border-zinc-200 rounded-xl space-y-2">
+              <p className="m-0 text-sm font-medium text-zinc-600">No active promotions</p>
+              <p className="m-0 text-xs text-zinc-400">
+                When empty, the promotions carousel is hidden on the public page.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {promos.map((promo, idx) => (
+                <div
+                  key={promo.id || idx}
+                  className="p-4 border border-zinc-200 rounded-xl bg-zinc-50/50 space-y-4"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-zinc-700">
+                      Slide #{idx + 1}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemovePromo(idx)}
+                      className="text-xs font-medium text-red-600 hover:text-red-700 cursor-pointer bg-transparent border-none"
+                    >
+                      Remove
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-3">
+                      <div className="space-y-1">
+                        <label className="block text-xs font-semibold text-zinc-700">Title</label>
+                        <input
+                          type="text"
+                          value={promo.title || ''}
+                          onChange={(e) => handlePromoChange(idx, 'title', e.target.value)}
+                          placeholder="e.g. Buy 1 Take 1 Matcha Series"
+                          className="w-full px-3 py-2 bg-white border border-zinc-300 rounded-lg text-xs sm:text-sm text-zinc-900 focus:outline-none focus:border-zinc-900"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="block text-xs font-semibold text-zinc-700">Caption</label>
+                        <textarea
+                          rows={2}
+                          value={promo.description || ''}
+                          onChange={(e) => handlePromoChange(idx, 'description', e.target.value)}
+                          placeholder="Promo mechanics or dates..."
+                          className="w-full px-3 py-2 bg-white border border-zinc-300 rounded-lg text-xs sm:text-sm text-zinc-900 focus:outline-none focus:border-zinc-900 resize-y"
+                        />
+                      </div>
+                    </div>
+
+                    <ImageUploadField
+                      label="Poster Image"
+                      value={promo.image_url || ''}
+                      onChange={(val) => handlePromoChange(idx, 'image_url', val)}
+                      onUpload={(e) => handlePromoImageUpload(idx, e)}
+                      uploading={uploadingKey === `promo_${idx}`}
+                      previewShape="wide"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="pt-3 border-t border-zinc-100 flex justify-end">
+            <button
+              type="button"
+              onClick={handleSavePromos}
+              disabled={savingKey === 'promo_section'}
+              className="px-5 py-2 bg-zinc-900 hover:bg-black text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              {savingKey === 'promo_section' ? 'Saving...' : 'Save Promotions'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* =====================================================================
+          TAB 4: LOCATION, SOCIALS & FOOTER
+      ===================================================================== */}
+      {activeTab === 'details' && (
+        <div className="space-y-6">
+          {/* Location Info */}
+          <div className="bg-white border border-zinc-200 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-4">
+            <div className="pb-3 border-b border-zinc-100">
+              <h2 className="m-0 text-base font-bold text-zinc-900">Store Location</h2>
+              <p className="m-0 mt-0.5 text-xs text-zinc-500">
+                Address and Google Maps link displayed on the landing page.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-zinc-700">Section Heading</label>
+                <input
+                  type="text"
+                  value={locationInfo.title || ''}
+                  onChange={(e) => updateField('location_info', 'title', e.target.value)}
+                  placeholder="Location"
+                  className="w-full px-3.5 py-2 bg-white border border-zinc-300 rounded-lg text-sm text-zinc-900 focus:outline-none focus:border-zinc-900"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-zinc-700">Google Maps Link</label>
+                <input
+                  type="text"
+                  value={locationInfo.image_url || ''}
+                  onChange={(e) => updateField('location_info', 'image_url', e.target.value)}
+                  placeholder="https://maps.app.goo.gl/..."
+                  className="w-full px-3.5 py-2 bg-white border border-zinc-300 rounded-lg text-sm text-zinc-900 focus:outline-none focus:border-zinc-900"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-zinc-700">Street Address</label>
+              <input
+                type="text"
+                value={locationInfo.description || ''}
+                onChange={(e) => updateField('location_info', 'description', e.target.value)}
+                placeholder="2nd flr, 4JCayton Bldg, 144 L. Wood Rd, Taytay, 1920 Rizal"
+                className="w-full px-3.5 py-2 bg-white border border-zinc-300 rounded-lg text-sm text-zinc-900 focus:outline-none focus:border-zinc-900"
+              />
+            </div>
+
+            <div className="pt-3 border-t border-zinc-100 flex justify-end">
+              <button
+                type="button"
+                onClick={() => handleSaveSection('location_info', 'Location details')}
+                disabled={savingKey === 'location_info'}
+                className="px-5 py-2 bg-zinc-900 hover:bg-black text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                {savingKey === 'location_info' ? 'Saving...' : 'Save Location'}
+              </button>
+            </div>
+          </div>
+
+          {/* Social Links & Footer */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white border border-zinc-200 rounded-2xl p-5 sm:p-6 shadow-2xs flex flex-col justify-between space-y-4">
+              <div className="space-y-4">
+                <div className="pb-3 border-b border-zinc-100">
+                  <h2 className="m-0 text-base font-bold text-zinc-900">Social Media Links</h2>
+                  <p className="m-0 mt-0.5 text-xs text-zinc-500">
+                    Facebook and Instagram links in the footer.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-zinc-700">Facebook URL</label>
+                  <input
+                    type="text"
+                    value={socialLinks.title || ''}
+                    onChange={(e) => updateField('social_links', 'title', e.target.value)}
+                    placeholder="https://facebook.com/..."
+                    className="w-full px-3.5 py-2 bg-white border border-zinc-300 rounded-lg text-sm text-zinc-900 focus:outline-none focus:border-zinc-900"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-zinc-700">Instagram URL</label>
+                  <input
+                    type="text"
+                    value={socialLinks.description || ''}
+                    onChange={(e) => updateField('social_links', 'description', e.target.value)}
+                    placeholder="https://instagram.com/..."
+                    className="w-full px-3.5 py-2 bg-white border border-zinc-300 rounded-lg text-sm text-zinc-900 focus:outline-none focus:border-zinc-900"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-zinc-100 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => handleSaveSection('social_links', 'Social links')}
+                  disabled={savingKey === 'social_links'}
+                  className="px-4 py-2 bg-zinc-900 hover:bg-black text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  {savingKey === 'social_links' ? 'Saving...' : 'Save Social Links'}
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-white border border-zinc-200 rounded-2xl p-5 sm:p-6 shadow-2xs flex flex-col justify-between space-y-4">
+              <div className="space-y-4">
+                <div className="pb-3 border-b border-zinc-100">
+                  <h2 className="m-0 text-base font-bold text-zinc-900">Footer Copyright</h2>
+                  <p className="m-0 mt-0.5 text-xs text-zinc-500">
+                    Copyright notice at the bottom of the landing page.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-zinc-700">Copyright Text</label>
+                  <input
+                    type="text"
+                    value={footerInfo.title || ''}
+                    onChange={(e) => updateField('footer_info', 'title', e.target.value)}
+                    placeholder="© 2026 Cof/tea Cafe. All rights reserved."
+                    className="w-full px-3.5 py-2 bg-white border border-zinc-300 rounded-lg text-sm text-zinc-900 focus:outline-none focus:border-zinc-900"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-zinc-100 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => handleSaveSection('footer_info', 'Footer copyright')}
+                  disabled={savingKey === 'footer_info'}
+                  className="px-4 py-2 bg-zinc-900 hover:bg-black text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  {savingKey === 'footer_info' ? 'Saving...' : 'Save Footer'}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
   );
-};
-
-export default CMSDashboard;
+}

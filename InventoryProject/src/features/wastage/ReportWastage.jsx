@@ -4,6 +4,7 @@ import { reportWastage, getWastageHistory } from '../../api/wastageApi';
 import { formatQuantity } from '../../utils/productUtils';
 import { getCurrentUser } from '../../api/authApi';
 import { TableSkeleton } from '../../components/shared/SkeletonLoader';
+import SearchableIngredientSelect from '../../components/shared/SearchableIngredientSelect';
 
 const REASON_COLORS = {
   'Expiry': 'bg-amber-50 text-amber-800 border-amber-200/80',
@@ -215,20 +216,14 @@ const ReportWastage = () => {
               <label className="block text-sm font-bold text-zinc-800 uppercase tracking-wide">
                 Raw Material Ingredient *
               </label>
-              <select
-                name="ingredient_id"
+              <SearchableIngredientSelect
+                ingredients={ingredients}
                 value={formData.ingredient_id}
-                onChange={handleInputChange}
-                required
-                className="w-full px-4 py-3 bg-zinc-50 hover:bg-white focus:bg-white border border-zinc-300 rounded-xl text-base text-zinc-900 font-medium focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all cursor-pointer shadow-xs"
-              >
-                <option value="">-- Choose ingredient --</option>
-                {ingredients.map((ing) => (
-                  <option key={ing.id} value={ing.id}>
-                    {ing.name} ({ing.unit})
-                  </option>
-                ))}
-              </select>
+                onChange={(selectedId) =>
+                  setFormData((prev) => ({ ...prev, ingredient_id: selectedId }))
+                }
+                placeholder="Search or select raw material..."
+              />
             </div>
 
             {/* Live Stock Context Chip */}
@@ -301,21 +296,27 @@ const ReportWastage = () => {
               <label className="block text-sm font-bold text-zinc-800 uppercase tracking-wide">
                 Reason *
               </label>
-              <select
-                name="reason"
-                value={formData.reason}
-                onChange={handleInputChange}
-                required
-                className="w-full px-4 py-3 bg-zinc-50 hover:bg-white focus:bg-white border border-zinc-300 rounded-xl text-base text-zinc-900 font-medium focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all cursor-pointer shadow-xs"
-              >
-                <option value="">-- Select reason --</option>
-                <option value="Expiry">Expiry</option>
-                <option value="Spoilage">Spoilage</option>
-                <option value="Damage">Damage</option>
-                <option value="Spillage">Spillage</option>
-                <option value="Quality Issue">Quality Issue</option>
-                <option value="Other">Other</option>
-              </select>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {['Expiry', 'Spoilage', 'Damage', 'Spillage', 'Quality Issue', 'Other'].map((reasonOption) => {
+                  const isActive = formData.reason === reasonOption;
+                  return (
+                    <button
+                      key={reasonOption}
+                      type="button"
+                      onClick={() =>
+                        setFormData((prev) => ({ ...prev, reason: reasonOption }))
+                      }
+                      className={`px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer text-center ${
+                        isActive
+                          ? 'bg-zinc-900 text-white border-zinc-900 shadow-xs'
+                          : 'bg-zinc-50 hover:bg-zinc-100 text-zinc-700 border-zinc-200'
+                      }`}
+                    >
+                      {reasonOption}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Submit Button */}

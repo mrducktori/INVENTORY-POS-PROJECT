@@ -192,20 +192,26 @@ const Navbar = ({ activeTab, onTabChange }) => {
 
   useEffect(() => {
     let isMounted = true;
-    getCmsMap()
-      .then((map) => {
-        if (!isMounted || !map) return;
-        const brand = map.brand_logo;
-        if (brand) {
-          setBrandInfo({
-            name: brand.title || 'CofTea Cafe',
-            logo: brand.image_url || ''
-          });
-        }
-      })
-      .catch(() => {});
+    const loadBrand = (force = false) => {
+      getCmsMap(force)
+        .then((map) => {
+          if (!isMounted || !map) return;
+          const brand = map.brand_logo;
+          if (brand) {
+            setBrandInfo({
+              name: brand.title || 'CofTea Cafe',
+              logo: brand.image_url || ''
+            });
+          }
+        })
+        .catch(() => {});
+    };
+    loadBrand(false);
+    const handleCmsUpdate = () => loadBrand(true);
+    window.addEventListener('cms:updated', handleCmsUpdate);
     return () => {
       isMounted = false;
+      window.removeEventListener('cms:updated', handleCmsUpdate);
     };
   }, []);
 
