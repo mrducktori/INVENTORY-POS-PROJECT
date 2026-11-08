@@ -6,6 +6,39 @@ import { toManilaStartOfDay, toManilaEndOfDay, getManilaDateOnly } from '../util
 const router = express.Router();
 
 /**
+ * Fetches bounded sales records bypassing PostgREST's 1,000-row single-query limit when needed.
+ */
+async function fetchBoundedSales(boundStart, boundEnd, selectCols) {
+  const PAGE_SIZE = 1000;
+  const firstPage = await supabase
+    .from('sales')
+    .select(selectCols)
+    .gte('created_at', boundStart)
+    .lte('created_at', boundEnd)
+    .order('created_at', { ascending: true })
+    .range(0, PAGE_SIZE - 1);
+
+  if (firstPage.error) throw firstPage.error;
+  const rows = firstPage.data || [];
+  if (rows.length < PAGE_SIZE) return rows;
+
+  const extraPages = await Promise.all([1, 2, 3].map(idx =>
+    supabase
+      .from('sales')
+      .select(selectCols)
+      .gte('created_at', boundStart)
+      .lte('created_at', boundEnd)
+      .order('created_at', { ascending: true })
+      .range(idx * PAGE_SIZE, (idx + 1) * PAGE_SIZE - 1)
+  ));
+  for (const p of extraPages) {
+    if (p.error) throw p.error;
+    if (p.data?.length) rows.push(...p.data);
+  }
+  return rows;
+}
+
+/**
  * GET /api/dashboard/stats
  * Aggregate dashboard metrics strictly bounded by startDate / endDate (or period),
  * and calculates low stock using configurable (max_stock * 0.5) thresholds.
@@ -52,17 +85,17 @@ router.get('/stats', async (req, res) => {
 
     // 2. Execute all independent dashboard queries concurrently via Promise.all
     const [
-      { data: boundedSales, error: salesError },
+      boundedSales,
       { count: productCount },
       ingredients,
       { data: lowStockProductsData },
       trendHistoryRes
     ] = await Promise.all([
-      supabase
-        .from('sales')
-        .select('id, total_amount, created_at, sale_items(quantity, unit_price, products(id, name, category))')
-        .gte('created_at', boundStart)
-        .lte('created_at', boundEnd),
+      fetchBoundedSales(
+        boundStart,
+        boundEnd,
+        'id, total_amount, created_at, sale_items(quantity, unit_price, products(id, name, category))'
+      ),
       supabase
         .from('products')
         .select('*', { count: 'exact', head: true })
@@ -81,8 +114,6 @@ router.get('/stats', async (req, res) => {
             .lte('created_at', boundEnd)
         : Promise.resolve({ data: null })
     ]);
-
-    if (salesError) throw salesError;
 
     // 3. Basic metrics from bounded sales
     const salesList = boundedSales || [];

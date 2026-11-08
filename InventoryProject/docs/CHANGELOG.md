@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Data/Analytics: 2025–2026 Cof/Tea Historical Sales Dataset, Stock Calibration & Analytics Query Optimization - 2026-11-08]
+- **Generated Realistic Historical Sales Dataset (`2025-01-01` – `2026-11-08`) (`docs/database/generate_historical_sales.mjs`, `docs/database/restore_sales_backup.mjs`)**:
+  - Backed up legacy sales records to `docs/database/backups/` and seeded **25,668 orders** (**45,166 line items**, **₱3.19M revenue**) across **677 continuous days** tailored to **Cof/Tea Cafe** in Taytay, Rizal (Elwood & Kapalaran branch patterns).
+  - Modeled realistic customer and local calendar factors: student weekday dismissal rushes (`2:30 PM – 6:30 PM`), Midterm/Final Exam study weeks (`Oct`, `Dec`, `Mar`, `May`), Taytay Tiangge peak shopping days (`Thu/Sat` & `Nov–Dec` season), Philippine holidays (`Valentine's Day`, `Taytay HAMAKA Fiesta`, `Holy Week`, `Undas`, `Christmas Ber-months`, `New Year`), `15th/30th` quincena paydays, rainy/habagat typhoon slow days (`Jul–Sep`), hot dry-season Frappe/Fruit Tea surges (`Mar–May`), cool Ber-month Coffee/Milk Tea surges, and diverse discount/order channels (`dine_in`, `take_out`, `foodpanda`, `grab`, `Student 10%`, `Senior/PWD 20%`, `Employee 15%`).
+- **Calibrated Product & Ingredient Stock Quantities**:
+  - Updated active product `stock_quantity` values across all 42 menu items to reflect realistic inventory distribution (`26` Healthy/Medium, `14` High Risk needing restock, `2` Out of Stock) instead of having 41/42 products at `0 PCS`.
+  - Calibrated key zero-stock ingredients (`Tapioca Pearls`, `Boba Straws`, `Dome Lids`, `Flat Lids`, `Evaporated Milk`, `Fresh Milk`) so the Ingredient Restock forecast shows realistic burn rates and days remaining (`60` Healthy, `3` Low Stock, `7` Critical, `2` Out of Stock).
+- **Analytics & Dashboard Query Pagination & Caching (`server/routes/analytics.js`, `server/services/aiForecastingService.js`, `server/routes/dashboard.js`)**:
+  - Replaced single unpaginated `.select()` calls (which were silently capped at 1,000 rows by PostgREST and slow due to lateral joins) with fast indexed two-step range queries (`fetchSalesSince`, `fetchBoundedSales`) and a shared 45-second in-memory cache with in-flight promise deduplication.
+
 ## [POS/Feature: Discount Type Selector & Post-Checkout Digital Receipt Popup - 2026-11-08]
 - **Added Discount Type Options on POS Checkout (`PaymentModal.jsx`, `usePOS.js`, `posController.js`)**:
   - Added selectable discount options during checkout: `No Discount (0%)`, `Senior Citizen (20% OFF)`, `PWD (20% OFF)`, `Student / Promo (10% OFF)`, `Employee / Staff (15% OFF)`, and `Custom (% or ₱)`.

@@ -69,14 +69,21 @@ export const extractProductForecastingFeatures = async (productId, targetYear, t
   const currentStock = parseFloat(product.stock_quantity) || 0;
   const productName = product.name || 'Unknown Product';
 
-  // 2. Fetch sales items for this product using indexed product_id lookup
-  const { data: itemRows, error: salesErr } = await supabase
-    .from('sale_items')
-    .select('quantity, unit_price, sale_id, sales(id, created_at, discount_amount)')
-    .eq('product_id', productId);
+  // 2. Fetch all sales items for this product using parallel paginated ranges (bypasses 1,000-row cap)
+  const PAGE_SIZE = 1000;
+  const itemPages = await Promise.all([0, 1, 2].map(pageIdx =>
+    supabase
+      .from('sale_items')
+      .select('quantity, unit_price, sale_id, sales(id, created_at, discount_amount)')
+      .eq('product_id', productId)
+      .order('id', { ascending: true })
+      .range(pageIdx * PAGE_SIZE, (pageIdx + 1) * PAGE_SIZE - 1)
+  ));
 
-  if (salesErr) {
-    throw salesErr;
+  const itemRows = [];
+  for (const page of itemPages) {
+    if (page.error) throw page.error;
+    if (page.data?.length) itemRows.push(...page.data);
   }
 
   // 3. Aggregate into daily sales buckets

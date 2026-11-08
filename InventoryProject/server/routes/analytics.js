@@ -4,6 +4,91 @@ import { convertToBaseUnit } from '../utils/unitUtils.js';
 
 const router = express.Router();
 
+let cached30DaySales = null;
+let cached30DayAt = 0;
+let inflight30DayPromise = null;
+const SALES_CACHE_TTL_MS = 45 * 1000;
+
+export function invalidateAnalyticsCache() {
+  cached30DaySales = null;
+  cached30DayAt = 0;
+}
+
+/**
+ * Fetches all 30-day sales with their sale_items using indexed two-step queries
+ * (avoiding slow lateral joins and bypassing PostgREST's 1,000-row single-query cap)
+ * with a shared 45-second cache and in-flight request deduplication.
+ */
+async function fetchSalesSince(sinceIso) {
+  const now = Date.now();
+  if (cached30DaySales && now - cached30DayAt < SALES_CACHE_TTL_MS) {
+    return cached30DaySales;
+  }
+  if (inflight30DayPromise) {
+    return inflight30DayPromise;
+  }
+
+  inflight30DayPromise = (async () => {
+    try {
+      const PAGE_SIZE = 1000;
+      const [s1, s2, s3] = await Promise.all([
+        supabase.from('sales').select('id, created_at').gte('created_at', sinceIso).order('id', { ascending: true }).range(0, PAGE_SIZE - 1),
+        supabase.from('sales').select('id, created_at').gte('created_at', sinceIso).order('id', { ascending: true }).range(PAGE_SIZE, PAGE_SIZE * 2 - 1),
+        supabase.from('sales').select('id, created_at').gte('created_at', sinceIso).order('id', { ascending: true }).range(PAGE_SIZE * 2, PAGE_SIZE * 3 - 1)
+      ]);
+
+      if (s1.error) throw s1.error;
+      if (s2.error) throw s2.error;
+      if (s3.error) throw s3.error;
+
+      const sales = [...(s1.data || []), ...(s2.data || []), ...(s3.data || [])];
+      if (sales.length === 0) {
+        cached30DaySales = [];
+        cached30DayAt = Date.now();
+        return [];
+      }
+
+      const CHUNK = 350;
+      const chunks = [];
+      for (let i = 0; i < sales.length; i += CHUNK) {
+        chunks.push(sales.slice(i, i + CHUNK).map(s => s.id));
+      }
+
+      const itemPages = await Promise.all(
+        chunks.map(ids =>
+          supabase.from('sale_items').select('sale_id, product_id, quantity, unit_price').in('sale_id', ids)
+        )
+      );
+
+      const itemsBySale = new Map();
+      for (const page of itemPages) {
+        if (page.error) throw page.error;
+        for (const item of page.data || []) {
+          let arr = itemsBySale.get(item.sale_id);
+          if (!arr) {
+            arr = [];
+            itemsBySale.set(item.sale_id, arr);
+          }
+          arr.push(item);
+        }
+      }
+
+      const result = sales.map(s => ({
+        created_at: s.created_at,
+        sale_items: itemsBySale.get(s.id) || []
+      }));
+
+      cached30DaySales = result;
+      cached30DayAt = Date.now();
+      return result;
+    } finally {
+      inflight30DayPromise = null;
+    }
+  })();
+
+  return inflight30DayPromise;
+}
+
 /**
  * GET /api/analytics/inventory-depletion
  * Computes predictive inventory depletion data based on last 30 days usage.
@@ -64,20 +149,17 @@ router.get('/ingredient-forecast', async (req, res) => {
       { data: ingredients, error: ingErr },
       { data: recipes, error: recErr },
       { data: supplierMappings, error: supErr },
-      { data: salesWithItems, error: salesErr }
+      salesWithItems
     ] = await Promise.all([
       supabase.from('ingredients').select('*').eq('is_archived', false),
       supabase.from('recipes').select('product_id, ingredient_id, quantity_used, recipe_unit'),
       supabase.from('supplier_ingredients').select('*, suppliers(id, name)'),
-      supabase.from('sales')
-        .select('created_at, sale_items(product_id, quantity)')
-        .gte('created_at', thirtyDaysAgo.toISOString())
+      fetchSalesSince(thirtyDaysAgo.toISOString(), 'created_at, sale_items(product_id, quantity)')
     ]);
 
     if (ingErr) throw ingErr;
     if (recErr) throw recErr;
     if (supErr) throw supErr;
-    if (salesErr) throw salesErr;
 
     // Map recipes by product_id
     const recipeMap = {};
@@ -283,20 +365,16 @@ router.get('/demand-forecast', async (req, res) => {
 
     // 1. Fetch sale items and products with current stock in parallel
     const [
-      { data: salesWithItems, error: salesError },
+      salesWithItems,
       { data: allProducts, error: prodError }
     ] = await Promise.all([
-      supabase
-        .from('sales')
-        .select('created_at, sale_items(product_id, quantity, unit_price)')
-        .gte('created_at', thirtyDaysAgo.toISOString()),
+      fetchSalesSince(thirtyDaysAgo.toISOString(), 'created_at, sale_items(product_id, quantity, unit_price)'),
       supabase
         .from('products')
         .select('id, name, category, price, stock_quantity')
         .eq('is_archived', false)
     ]);
 
-    if (salesError) throw salesError;
     if (prodError) throw prodError;
 
     const productMap = {};
