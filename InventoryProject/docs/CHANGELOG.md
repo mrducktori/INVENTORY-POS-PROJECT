@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [UI/Receipts: Redesign Receipt Journal to Match Reference Filter Toolbar & KPI Stats - 2026-11-09]
+- **Redesigned Receipt Journal Filter Controls (`SalesReceiptJournal.jsx`)**:
+  - Transformed the sales journal toolbar to match the reference layout from `DemandForecasting.jsx`:
+    - **Search Bar**: Debounced search supporting receipt numbers, cashier names, order items, and transaction references with instant clear button `✕`.
+    - **Row 1 Category & Tender Pills**: `All Types`, `COFFEE`, `MILK TEA`, `FRAPPE`, `FRUIT DRINKS`, `PASTRIES`, `CASH`, `GCASH`, and `DISCOUNTED`.
+    - **Row 2 Status Scope Pills with Dynamic Counts**: `All ({total})`, `Today ({todayCount})`, `Cash ({cashCount})`, `GCash ({gcashCount})`, and `Discounted ({discountedCount})`.
+    - **Action Buttons**: Added one-click **`Export CSV`** button for financial reports, a **`Receipt Guide`** button with reference modal, and an animated **`Refresh`** button.
+- **Added KPI Summary Cards & Digital Receipt Integration (`SalesReceiptJournal.jsx`, `SalesReceiptModal.jsx`)**:
+  - Added real-time operational KPI metric cards at the top of the journal: `Total Receipts`, `Journal Revenue` (₱), and `Average Ticket` (₱).
+  - Integrated full digital thermal receipt inspection via `SalesReceiptModal` with one-click print and BIR VAT breakdown upon row click.
+  - Added an interactive **`Receipt & Audit Reference Guide`** modal detailing receipt serial standards (`RCP-YYYYMMDD-XXXXXX`), statutory 20% Senior/PWD discounts, 12% VAT calculations, and electronic GCash reconciliation.
+
+
 ## [Notifications/RBAC: Role-Based Notification Filtering & User-Scoped Alert Inbox - 2026-11-08]
 - **Role-Based Notification Delivery Policy (`useNotifications.js`, `NotificationInbox.jsx`, `permissions.js`)**:
   - Implemented strict role and permission-based delivery so users only receive notifications relevant to their duties:
