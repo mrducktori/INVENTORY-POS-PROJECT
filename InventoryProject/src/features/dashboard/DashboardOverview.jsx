@@ -73,6 +73,7 @@ const DashboardOverview = ({ onNavigate }) => {
           <NotificationInbox 
             onNavigate={onNavigate} 
             lowStockItems={stats?.lowStockDetails || stats?.lowStockItemsDetails || []} 
+            user={user}
           />
 
           {user?.role === 'Staff' && (

@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Notifications/RBAC: Role-Based Notification Filtering & User-Scoped Alert Inbox - 2026-11-08]
+- **Role-Based Notification Delivery Policy (`useNotifications.js`, `NotificationInbox.jsx`, `permissions.js`)**:
+  - Implemented strict role and permission-based delivery so users only receive notifications relevant to their duties:
+    - **Staff (Cashiers / Baristas / Kitchen Crew)**: Exclusively receives critical Out of Stock (`STOCK_OUT`) and Low Stock (`STOCK_LOW`) inventory alerts so they know what cannot be brewed or punched at POS. Sensitive procurement data—including wholesale purchase order amounts, supplier negotiation proposals, and supplier catalog price updates—is strictly hidden.
+    - **Owner & Admin**: Retains full 360-degree operational visibility across all Stock alerts, Purchase Order updates, and Supplier price changes.
+    - **Custom Accounts**: Dynamically evaluated against granted page permissions (`canAccess(user, page)`): PO updates require `PurchaseOrders`, Supplier catalog updates require `ManageSuppliers`, and Stock alerts require access to any inventory or sales console.
+    - **External Suppliers**: Only sees PO notifications specifically assigned to their `supplier_id`. Internal cafe stock levels and other suppliers' price shifts are strictly hidden.
+- **Adaptive Drawer Tabs & Smart Action Navigation (`NotificationInbox.jsx`, `Navbar.jsx`, `DashboardOverview.jsx`)**:
+  - Notification drawer tabs adapt dynamically: the `PO Updates` and `Price Updates` filter tabs are completely hidden from Staff users, eliminating empty or inaccessible tabs.
+  - Added role indicator badge in drawer header (`Staff • Live Stock Alerts`, `Executive`, `Admin`, etc.).
+  - Added smart action resolver (`resolveNotificationAction`): verifies user permission before showing action buttons, preventing broken buttons leading to unauthorized tabs.
+  - Optimized network transfer: Staff sessions skip unneeded PO and Supplier Price API requests and websocket subscriptions.
+  - Implemented user-scoped persistence in `localStorage` (`coftea_inbox_read_${userId}_v2`), ensuring one user marking alerts as read or dismissed does not inadvertently dismiss alerts for other staff or owners.
+
+
 ## [Fix/POS: Resolve `column "add_ons" is of type text[] but expression is of type jsonb` on POS Checkout - 2026-11-08]
 - **Fixed POS Complete Payment Transaction Failure (`posService.js`, `process_pos_checkout_rpc.sql`)**:
   - Identified root cause of payment failure error: the PostgreSQL RPC stored procedure `process_pos_checkout` attempted to insert `jsonb` expressions into `sale_items.add_ons` which is defined in PostgreSQL as `text[]`, throwing SQL code `42804`.

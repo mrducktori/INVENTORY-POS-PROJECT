@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { logoutUser, getCurrentUser } from '../api/authApi';
-import { useNotifications } from '../features/dashboard/useNotifications';
+import { useNotifications, EMPTY_LOW_STOCK } from '../features/dashboard/useNotifications';
 import { getCmsMap } from '../api/cmsApi';
 import NotificationInbox from '../features/dashboard/components/NotificationInbox';
 import { PERMISSION_GROUPS, getUserPermissions, usesPagePermissions, getRoleLabel } from '../utils/permissions';
@@ -184,7 +184,7 @@ const Navbar = ({ activeTab, onTabChange }) => {
   });
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
-  const { unreadCount } = useNotifications();
+  const { unreadCount } = useNotifications(EMPTY_LOW_STOCK, currentUser);
   const [brandInfo, setBrandInfo] = useState({
     name: 'CofTea Cafe',
     logo: ''
@@ -431,7 +431,7 @@ const Navbar = ({ activeTab, onTabChange }) => {
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          <NotificationInbox onNavigate={selectMenuItem} variant="navbar" />
+          <NotificationInbox onNavigate={selectMenuItem} variant="navbar" user={currentUser} />
         </div>
       </header>
 
@@ -518,6 +518,7 @@ const Navbar = ({ activeTab, onTabChange }) => {
               <NotificationInbox
                 onNavigate={selectMenuItem}
                 variant="navbar"
+                user={currentUser}
               />
               <button
                 type="button"

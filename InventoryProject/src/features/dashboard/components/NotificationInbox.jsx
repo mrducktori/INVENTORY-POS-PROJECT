@@ -19,9 +19,9 @@ const ICON_BG = {
   neutral: 'bg-zinc-50 text-zinc-600 border-zinc-200',
 };
 
-const NotificationInbox = ({ onNavigate, lowStockItems = [], variant = 'default' }) => {
+const NotificationInbox = ({ onNavigate, lowStockItems = [], variant = 'default', user = null }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('ALL'); // 'ALL' | 'UNREAD' | 'PO' | 'STOCK'
+  const [activeTab, setActiveTab] = useState('ALL'); // 'ALL' | 'UNREAD' | 'PO' | 'STOCK' | 'SUPPLIER'
   const drawerRef = useRef(null);
 
   const {
@@ -29,12 +29,23 @@ const NotificationInbox = ({ onNavigate, lowStockItems = [], variant = 'default'
     unreadCount,
     criticalCount,
     loading,
+    currentUser,
+    canViewStock,
+    canViewPOs,
+    canViewSuppliers,
     markAsRead,
     markAsUnread,
     markAllAsRead,
     dismissNotification,
     clearReadNotifications
-  } = useNotifications(lowStockItems);
+  } = useNotifications(lowStockItems, user);
+
+  // Tab safety on role permission switches
+  useEffect(() => {
+    if (activeTab === 'PO' && !canViewPOs) setActiveTab('ALL');
+    if (activeTab === 'SUPPLIER' && !canViewSuppliers) setActiveTab('ALL');
+    if (activeTab === 'STOCK' && !canViewStock) setActiveTab('ALL');
+  }, [activeTab, canViewPOs, canViewSuppliers, canViewStock]);
 
   // Close drawer on ESC
   useEffect(() => {
@@ -205,11 +216,28 @@ const NotificationInbox = ({ onNavigate, lowStockItems = [], variant = 'default'
                       </svg>
                     </div>
                     <div>
-                      <h2 className="text-lg font-extrabold text-zinc-900 m-0 tracking-tight leading-none">
-                        Inbox & Notifications
-                      </h2>
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-lg font-extrabold text-zinc-900 m-0 tracking-tight leading-none">
+                          Notifications
+                        </h2>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-zinc-100 text-zinc-700 border border-zinc-200">
+                          {currentUser?.role === 'Owner'
+                            ? 'Executive'
+                            : currentUser?.role === 'Admin'
+                            ? 'Admin'
+                            : currentUser?.role === 'Staff'
+                            ? 'Staff'
+                            : currentUser?.role === 'Supplier'
+                            ? 'Supplier'
+                            : currentUser?.custom_role_name || 'Custom'}
+                        </span>
+                      </div>
                       <span className="text-xs text-zinc-500 font-medium">
-                        Live inventory stock & purchase order updates
+                        {currentUser?.role === 'Staff'
+                          ? 'Operational stock alerts & raw material levels'
+                          : currentUser?.role === 'Supplier'
+                          ? 'Assigned purchase orders and delivery tracking'
+                          : 'Live inventory stock & purchase order updates'}
                       </span>
                     </div>
                   </div>
@@ -270,27 +298,31 @@ const NotificationInbox = ({ onNavigate, lowStockItems = [], variant = 'default'
                   >
                     Unread ({unreadCount})
                   </button>
-                  <button
-                    onClick={() => setActiveTab('PO')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                      activeTab === 'PO'
-                        ? 'bg-zinc-900 text-white shadow-xs'
-                        : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
-                    }`}
-                  >
-                    PO Updates ({poCount})
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('STOCK')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                      activeTab === 'STOCK'
-                        ? 'bg-zinc-900 text-white shadow-xs'
-                        : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
-                    }`}
-                  >
-                    Stock Alerts ({stockCount})
-                  </button>
-                  {supplierCount > 0 && (
+                  {canViewStock && (
+                    <button
+                      onClick={() => setActiveTab('STOCK')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                        activeTab === 'STOCK'
+                          ? 'bg-zinc-900 text-white shadow-xs'
+                          : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+                      }`}
+                    >
+                      Stock Alerts ({stockCount})
+                    </button>
+                  )}
+                  {canViewPOs && (
+                    <button
+                      onClick={() => setActiveTab('PO')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                        activeTab === 'PO'
+                          ? 'bg-zinc-900 text-white shadow-xs'
+                          : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+                      }`}
+                    >
+                      PO Updates ({poCount})
+                    </button>
+                  )}
+                  {canViewSuppliers && supplierCount > 0 && (
                     <button
                       onClick={() => setActiveTab('SUPPLIER')}
                       className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
@@ -377,13 +409,17 @@ const NotificationInbox = ({ onNavigate, lowStockItems = [], variant = 'default'
 
                             {/* Actions row */}
                             <div className="flex items-center justify-between gap-2 mt-3 pt-2.5 border-t border-gray-100">
-                              <button
-                                onClick={() => handleActionClick(n)}
-                                className="inline-flex items-center gap-1.5 text-xs font-bold text-zinc-900 hover:text-blue-600 cursor-pointer transition-colors"
-                              >
-                                <span>{n.actionLabel || 'View Details'}</span>
-                                <svg className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-                              </button>
+                              {n.actionTab ? (
+                                <button
+                                  onClick={() => handleActionClick(n)}
+                                  className="inline-flex items-center gap-1.5 text-xs font-bold text-zinc-900 hover:text-blue-600 cursor-pointer transition-colors"
+                                >
+                                  <span>{n.actionLabel || 'View Details'}</span>
+                                  <svg className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                                </button>
+                              ) : (
+                                <span className="text-[11px] text-zinc-400 font-medium">Informational</span>
+                              )}
 
                               <div className="flex items-center gap-1.5">
                                 <button
