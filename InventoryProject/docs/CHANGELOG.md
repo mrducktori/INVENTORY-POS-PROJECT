@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [UI/Fix: Sales Receipt Journal Pagination Restored & Improved - 2026-11-08]
+- **Fixed Missing Pagination Condition**:
+  - Updated `SalesReceiptJournal.jsx` and `server/routes/sales.js` so `totalCount` safely falls back to the loaded list length when `result.total` or Supabase `count` is omitted or returned as a raw array, preventing `totalCount > 0` from hiding the pagination footer.
+- **Added Numbered Page Buttons & Per-Page Selector**:
+  - Changed default page size from 25 down to 10 (with a `Per page: 10 / 25 / 50` selector) so the pagination bar sits cleanly in view without requiring long vertical scrolling.
+  - Added numbered page buttons (`1`, `2`, `3`, `...`) alongside `Previous` and `Next` controls.
+
 ## [UI/Redesign: Demand Forecasting De-Slopped & Simplified - 2026-11-08]
 - **Eliminated Clutter & AI Slop (Rule 16)**:
   - Removed the verbose 3-column "Ingredient Burn Rate & Depletion Methodology / Formula Specification" essay block at the bottom of the page.

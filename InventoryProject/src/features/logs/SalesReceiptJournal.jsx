@@ -28,7 +28,7 @@ const SalesReceiptJournal = () => {
   const [loading, setLoading] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [pageSize, setPageSize] = useState(25);
+  const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
@@ -50,7 +50,7 @@ const SalesReceiptJournal = () => {
     return () => clearTimeout(timer);
   }, [searchInput]);
 
-  // Fetch sales
+  // Fetch sales (compatible with both { data, total } and raw array responses)
   useEffect(() => {
     const fetchSales = async () => {
       try {
@@ -62,8 +62,10 @@ const SalesReceiptJournal = () => {
           pageSize,
           currentPage
         );
-        setSales(result.data || []);
-        setTotalCount(result.total || 0);
+        const list = Array.isArray(result) ? result : (result?.data || []);
+        const total = Math.max(Number(result?.total) || 0, list.length);
+        setSales(list);
+        setTotalCount(total);
       } catch (err) {
         console.error('Failed to load sales:', err);
       } finally {
@@ -95,7 +97,7 @@ const SalesReceiptJournal = () => {
 
   const handleSort = (field) => {
     if (sortField === field) {
-      setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'));
+      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
     } else {
       setSortField(field);
       setSortOrder('asc');
@@ -130,6 +132,39 @@ const SalesReceiptJournal = () => {
     return list;
   }, [sales, sortField, sortOrder]);
 
+  // If the server returned an un-sliced full array, slice client-side; otherwise use server page
+  const displayedSales = useMemo(() => {
+    if (sortedSales.length > pageSize) {
+      const start = (currentPage - 1) * pageSize;
+      return sortedSales.slice(start, start + pageSize);
+    }
+    return sortedSales;
+  }, [sortedSales, currentPage, pageSize]);
+
+  const effectiveTotal = Math.max(totalCount, sortedSales.length);
+  const totalPages = Math.max(1, Math.ceil(effectiveTotal / pageSize));
+  const startEntry = effectiveTotal === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const endEntry = Math.min(currentPage * pageSize, effectiveTotal);
+
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5;
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      let start = Math.max(2, currentPage - 1);
+      let end = Math.min(totalPages - 1, currentPage + 1);
+      if (currentPage <= 3) end = 4;
+      else if (currentPage >= totalPages - 2) start = totalPages - 3;
+      if (start > 2) pages.push('ellipsis-start');
+      for (let i = start; i <= end; i++) pages.push(i);
+      if (end < totalPages - 1) pages.push('ellipsis-end');
+      pages.push(totalPages);
+    }
+    return pages;
+  };
+
   return (
     <div className="p-4 md:p-8 flex-1 bg-white min-h-screen overflow-y-auto w-full">
       {/* Top Header Card */}
@@ -141,7 +176,7 @@ const SalesReceiptJournal = () => {
             </h1>
           </div>
 
-          {/* Right Toolbar: Search only (no column filter dropdown) */}
+          {/* Right Toolbar: Search */}
           <div className="flex items-center gap-3">
             <div className="relative w-64 md:w-80">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-400">
@@ -260,8 +295,8 @@ const SalesReceiptJournal = () => {
                     <td className="py-4 px-3"><div className="h-4 w-36 bg-zinc-200/70 rounded-md animate-pulse" /></td>
                   </tr>
                 ))
-              ) : sortedSales.length > 0 ? (
-                sortedSales.map((sale) => {
+              ) : displayedSales.length > 0 ? (
+                displayedSales.map((sale) => {
                   const items = sale.sale_items || [];
                   const orderNo = sale.receipt_number
                     ? `ORD-${String(sale.receipt_number).padStart(13, '0')}`
@@ -377,34 +412,73 @@ const SalesReceiptJournal = () => {
           </table>
         </div>
 
-        {/* Pagination matching reference */}
-        {!loading && totalCount > 0 && (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-6 pt-4 border-t border-zinc-100 text-xs md:text-sm text-zinc-500">
-            <div>
-              Showing <span className="font-semibold text-zinc-900">{(currentPage - 1) * pageSize + 1}</span> to{' '}
-              <span className="font-semibold text-zinc-900">{Math.min(currentPage * pageSize, totalCount)}</span> of{' '}
-              <span className="font-semibold text-zinc-900">{totalCount}</span> entries
+        {/* Always-visible Pagination Bar when entries exist */}
+        {!loading && effectiveTotal > 0 && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-6 pt-4 border-t border-zinc-100 text-xs md:text-sm text-zinc-600">
+            <div className="flex items-center gap-3">
+              <span>
+                Showing <strong className="font-semibold text-zinc-900">{startEntry}</strong> to{' '}
+                <strong className="font-semibold text-zinc-900">{endEntry}</strong> of{' '}
+                <strong className="font-semibold text-zinc-900">{effectiveTotal}</strong> entries
+              </span>
+
+              <div className="flex items-center gap-1.5 border-l border-zinc-200 pl-3">
+                <span className="text-zinc-500 text-xs">Per page:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="px-2 py-1 bg-zinc-50 border border-zinc-200 rounded-md text-xs font-semibold text-zinc-800 focus:outline-none focus:border-zinc-400 cursor-pointer"
+                >
+                  {[10, 25, 50].map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <button
                 type="button"
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage <= 1}
-                className="px-3 py-1.5 rounded-lg border border-zinc-200 bg-white hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer font-medium"
+                className="px-3 py-1.5 rounded-lg border border-zinc-200 bg-white hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer font-medium text-zinc-700"
               >
                 Previous
               </button>
-              <span className="px-2 font-semibold text-zinc-800">
-                {currentPage} of {Math.max(1, Math.ceil(totalCount / pageSize))}
-              </span>
+
+              <div className="flex items-center gap-1">
+                {getPageNumbers().map((page, idx) =>
+                  page === 'ellipsis-start' || page === 'ellipsis-end' ? (
+                    <span key={`el-${idx}`} className="px-2 py-1 text-zinc-400 font-semibold">
+                      ...
+                    </span>
+                  ) : (
+                    <button
+                      key={page}
+                      type="button"
+                      onClick={() => setCurrentPage(page)}
+                      className={`min-w-8 h-8 px-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                        currentPage === page
+                          ? 'bg-zinc-900 text-white shadow-xs'
+                          : 'text-zinc-700 hover:bg-zinc-100 border border-transparent hover:border-zinc-200'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  )
+                )}
+              </div>
+
               <button
                 type="button"
-                onClick={() =>
-                  setCurrentPage((p) => Math.min(Math.max(1, Math.ceil(totalCount / pageSize)), p + 1))
-                }
-                disabled={currentPage >= Math.ceil(totalCount / pageSize)}
-                className="px-3 py-1.5 rounded-lg border border-zinc-200 bg-white hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer font-medium"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages}
+                className="px-3 py-1.5 rounded-lg border border-zinc-200 bg-white hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer font-medium text-zinc-700"
               >
                 Next
               </button>

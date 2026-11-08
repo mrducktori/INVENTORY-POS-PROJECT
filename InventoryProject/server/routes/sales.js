@@ -77,7 +77,7 @@ router.get('/', async (req, res) => {
     if (error) throw error;
 
     let filteredData = data || [];
-    let total = count || 0;
+    let total = Math.max(count || 0, filteredData.length);
 
     if (categoryParam) {
       filteredData = filteredData.filter(sale =>
