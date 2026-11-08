@@ -5,6 +5,7 @@ import PageLoader from './features/auth/PageLoader/PageLoader';
 import { getCurrentUser, pingUserActivity } from './api/authApi';
 import { getCmsMap, isValidImageUrl } from './api/cmsApi';
 import { isSessionExpired, clearUserSession, touchSessionActivity, USER_STORAGE_KEY } from './utils/authUtils';
+import ErrorBoundary from './components/shared/ErrorBoundary';
 
 const LoginPage = lazy(() => import('./features/auth/LoginPage'));
 const Dashboard = lazy(() => import('./features/dashboard/Dashboard'));
@@ -147,26 +148,28 @@ function BrowserTabBrandingSync() {
 
 function App() {
   return (
-    <Router>
-      <BrowserTabBrandingSync />
-      <SessionTimeoutWatcher />
-      <Suspense fallback={<PageLoader />}>
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/coftealoginpageforstaff" element={<LoginPage />} />
-          <Route 
-            path="/dashboard/*" 
-            element={
-              <PrivateRoute>
-                <Dashboard />
-              </PrivateRoute>
-            } 
-          />
-          {/* Fallback route */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Suspense>
-    </Router>
+    <ErrorBoundary>
+      <Router>
+        <BrowserTabBrandingSync />
+        <SessionTimeoutWatcher />
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/coftealoginpageforstaff" element={<LoginPage />} />
+            <Route 
+              path="/dashboard/*" 
+              element={
+                <PrivateRoute>
+                  <Dashboard />
+                </PrivateRoute>
+              } 
+            />
+            {/* Fallback route */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
+      </Router>
+    </ErrorBoundary>
   );
 }
 

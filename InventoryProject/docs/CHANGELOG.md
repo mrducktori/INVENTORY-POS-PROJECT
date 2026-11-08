@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Reliability/UX: React ErrorBoundary, WSOD Prevention & Chunk Recovery - 2026-11-08]
+- **React ErrorBoundary & White Screen of Death (WSOD) Elimination (`ErrorBoundary.jsx`, `App.jsx`, `Dashboard.jsx`)**:
+  - Created [`ErrorBoundary.jsx`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/components/shared/ErrorBoundary.jsx) to catch unhandled JavaScript exceptions in the React tree so unexpected data or render crashes never wipe the DOM to a blank white screen.
+  - Wrapped global routing in [`App.jsx`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/App.jsx) and wrapped tab content inside [`Dashboard.jsx`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/dashboard/Dashboard.jsx) with `<ErrorBoundary key={activeTab} level="tab">`.
+  - Added automatic recovery for `ChunkLoadError` / `Failed to fetch dynamically imported module` (caused by visiting after a new build / deployment) and a clean recovery card with "Try Again", "Reload Page", and collapsible technical diagnostics.
+
 ## [CMS/UI/Forecasting: Editable Browser Tab Title & Favicon, Clean CMS Redesign, Dual Forecasting Guides & Searchable Comboboxes - 2026-11-08]
 - **Editable Browser Tab Title & Favicon (`browser_tab` & `brand_logo`) + Clean Human-Crafted CMS UI (`CMSDashboard.jsx`, `App.jsx`, `Navbar.jsx`, `cmsApi.js`, `cms.js`, `cmsController.js`, `cmsService.js`)**:
   - Added `BrowserTabBrandingSync` in `App.jsx` and live `'cms:updated'` event synchronization in `cmsApi.js` and `Navbar.jsx` so editing the **Browser Tab Title** or **Browser Tab Icon (Favicon)** in `CMSDashboard.jsx` immediately updates `document.title`, `<link rel="icon">`, and the sidebar brand header across the application.

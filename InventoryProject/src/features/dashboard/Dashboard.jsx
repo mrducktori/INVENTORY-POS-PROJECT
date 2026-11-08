@@ -5,6 +5,7 @@ import { canAccess, getUserPermissions } from '../../utils/permissions';
 
 import Navbar from '../../components/Navbar';
 import DashboardOverview from './DashboardOverview';
+import ErrorBoundary from '../../components/shared/ErrorBoundary';
 
 // Lazy-load secondary dashboard modules so initial bundle load is fast and light
 const POS = lazy(() => import('../pos/POS'));
@@ -171,17 +172,19 @@ const Dashboard = () => {
         <Navbar activeTab={activeTab} onTabChange={setActiveTab} />
         <main className="flex-1 overflow-y-auto bg-[#f8fafc] scrollbar-thin scrollbar-thumb-zinc-300 hover:scrollbar-thumb-zinc-400">
           <div key={activeTab} className="tab-pane-transition min-h-full">
-            <Suspense
-              fallback={
-                <div className="p-8 space-y-4">
-                  <div className="h-8 w-56 bg-zinc-200/80 rounded-lg animate-pulse" />
-                  <div className="h-4 w-80 bg-zinc-100 rounded animate-pulse" />
-                  <div className="h-64 w-full bg-white border border-zinc-200 rounded-2xl animate-pulse mt-6" />
-                </div>
-              }
-            >
-              {renderContent()}
-            </Suspense>
+            <ErrorBoundary key={activeTab} level="tab">
+              <Suspense
+                fallback={
+                  <div className="p-8 space-y-4">
+                    <div className="h-8 w-56 bg-zinc-200/80 rounded-lg animate-pulse" />
+                    <div className="h-4 w-80 bg-zinc-100 rounded animate-pulse" />
+                    <div className="h-64 w-full bg-white border border-zinc-200 rounded-2xl animate-pulse mt-6" />
+                  </div>
+                }
+              >
+                {renderContent()}
+              </Suspense>
+            </ErrorBoundary>
           </div>
         </main>
       </div>
