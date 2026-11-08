@@ -23,7 +23,8 @@ export default class ErrorBoundary extends React.Component {
     if (
       msg.includes('Failed to fetch dynamically imported module') ||
       msg.includes('Loading chunk') ||
-      msg.includes('error loading dynamically imported module')
+      msg.includes('error loading dynamically imported module') ||
+      msg.includes('disallowed MIME type')
     ) {
       const now = Date.now();
       const lastReload = Number(sessionStorage.getItem('last_chunk_reload') || 0);

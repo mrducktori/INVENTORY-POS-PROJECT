@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Fix: Stale Chunk Preload Recovery & Supabase Navigator Lock Error - 2026-11-08]
+- **Fixed Stale Chunk / Disallowed MIME Type (`text/html`) White Screen (`main.jsx`, `ErrorBoundary.jsx`)**:
+  - Added global listeners for `vite:preloadError` and dynamic import module failures in `main.jsx` and `ErrorBoundary.jsx`. When an outdated browser session requests an old hashed JS chunk (e.g. `ProductStockTracker-B1R0fw9O.js`) that no longer exists after a new deployment, the browser automatically refreshes once to fetch the latest asset manifest instead of failing with a white screen.
+- **Fixed Supabase Navigator LockManager Acquisition Failure (`supabaseClient.js`)**:
+  - Configured custom auth client options on the frontend Supabase client (`persistSession: false`, `autoRefreshToken: false`, `detectSessionInUrl: false`, `lock: async () => fn()`). This bypasses the native Web Locks API (`navigator.locks`) which was causing `Uncaught (in promise) Error: Acquiring an exclusive Navigator LockManager lock failed` across multiple tabs and backgrounded sessions.
+
 ## [Reliability/UX: React ErrorBoundary, WSOD Prevention & Chunk Recovery - 2026-11-08]
 - **React ErrorBoundary & White Screen of Death (WSOD) Elimination (`ErrorBoundary.jsx`, `App.jsx`, `Dashboard.jsx`)**:
   - Created [`ErrorBoundary.jsx`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/components/shared/ErrorBoundary.jsx) to catch unhandled JavaScript exceptions in the React tree so unexpected data or render crashes never wipe the DOM to a blank white screen.
