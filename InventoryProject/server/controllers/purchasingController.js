@@ -1,5 +1,6 @@
 import * as purchasingService from "../services/purchasingService.js";
 import { logAudit } from "../utils/auditHelper.js";
+import { invalidateAnalyticsCache } from "../routes/analytics.js";
 
 // === Suppliers ===
 export const getSuppliers = async (req, res) => {
@@ -186,6 +187,7 @@ export const updatePurchaseOrderStatus = async (req, res) => {
           purchase_qty: item.quantity_received_now
         });
       }
+      invalidateAnalyticsCache();
     }
 
     res.json(data);
@@ -448,6 +450,20 @@ export const updateSupplierOwnCatalog = async (req, res) => {
         })
         .match({ supplier_id: supplierId, ingredient_id: item.ingredient_id });
       if (upErr) throw upErr;
+
+      // Sync the ingredient's cost_per_purchase_unit and unit_cost in the database
+      if (newPrice > 0) {
+        const convFactor = parseFloat(item.default_conversion_factor || item.conversion_factor) || existing?.default_conversion_factor || 1;
+        const unitCost = Math.round((newPrice / convFactor) * 10000) / 10000;
+        await supabase
+          .from('ingredients')
+          .update({
+            cost_per_purchase_unit: newPrice,
+            conversion_factor: convFactor,
+            unit_cost: unitCost
+          })
+          .eq('id', item.ingredient_id);
+      }
     }
 
     // Fetch supplier name for audit details

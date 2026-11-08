@@ -6,7 +6,10 @@ const router = express.Router();
 // Create request
 router.post("/", async (req, res) => {
   try {
-    const request = await requestsService.createRequest(req.body);
+    const request = await requestsService.createRequest({
+      ...req.body,
+      requested_by: req.user?.id || req.body?.requested_by || null
+    });
     res.status(201).json(request);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -53,7 +56,7 @@ router.get("/stats", async (req, res) => {
 router.put("/:id/status", async (req, res) => {
   try {
     const { status } = req.body;
-    const request = await requestsService.updateRequestStatus(req.params.id, status);
+    const request = await requestsService.updateRequestStatus(req.params.id, status, req.user?.id || null);
     res.json(request);
   } catch (err) {
     res.status(500).json({ error: err.message });

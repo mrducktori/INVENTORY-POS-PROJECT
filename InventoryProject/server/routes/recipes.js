@@ -1,5 +1,7 @@
 import express from "express";
 import * as recipesService from "../services/recipesService.js";
+import { logAudit } from "../utils/auditHelper.js";
+import { invalidateAnalyticsCache } from "./analytics.js";
 
 const router = express.Router();
 
@@ -27,6 +29,14 @@ router.get("/product/:product_id", async (req, res) => {
 router.post("/", async (req, res) => {
   try {
     const recipe = await recipesService.createRecipe(req.body);
+    invalidateAnalyticsCache();
+    await logAudit("RECIPE_CREATED", req.user?.id || null, {
+      recipe_id: recipe.id,
+      product_id: recipe.product_id,
+      ingredient_id: recipe.ingredient_id,
+      quantity_used: recipe.quantity_used,
+      recipe_unit: recipe.recipe_unit
+    });
     res.status(201).json(recipe);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -37,6 +47,14 @@ router.post("/", async (req, res) => {
 router.put("/:id", async (req, res) => {
   try {
     const recipe = await recipesService.updateRecipe(req.params.id, req.body);
+    invalidateAnalyticsCache();
+    await logAudit("RECIPE_UPDATED", req.user?.id || null, {
+      recipe_id: recipe.id,
+      product_id: recipe.product_id,
+      ingredient_id: recipe.ingredient_id,
+      quantity_used: recipe.quantity_used,
+      recipe_unit: recipe.recipe_unit
+    });
     res.json(recipe);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -46,7 +64,12 @@ router.put("/:id", async (req, res) => {
 // Delete recipe
 router.delete("/:id", async (req, res) => {
   try {
-    await recipesService.deleteRecipe(req.params.id);
+    const result = await recipesService.deleteRecipe(req.params.id);
+    invalidateAnalyticsCache();
+    await logAudit("RECIPE_DELETED", req.user?.id || null, {
+      recipe_id: req.params.id,
+      ...(result?.deleted || {})
+    });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

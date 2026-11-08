@@ -24,24 +24,24 @@ export async function createSale(saleData) {
 }
 
 /**
- * Get inventory items (if available)
+ * Get inventory items (raw materials)
  * @returns {Promise<Array>} Array of inventory items
  */
 export async function getInventory() {
-  return apiCall("/pos/inventory", {
+  return apiCall("/inventory/ingredients", {
     method: "GET"
   });
 }
 
 /**
- * Update inventory item quantity
- * @param {string} itemId Product ID
- * @param {number} quantity New quantity
+ * Receive/add inventory item quantity
+ * @param {string} itemId Ingredient ID
+ * @param {number} quantity Quantity to add
  * @returns {Promise<Object>} Updated item object
  */
 export async function updateInventory(itemId, quantity) {
-  return apiCall("/pos/inventory", {
-    method: "PUT",
-    body: JSON.stringify({ itemId, quantity })
+  return apiCall(`/inventory/ingredients/${itemId}/receive`, {
+    method: "POST",
+    body: JSON.stringify({ quantity })
   });
 }

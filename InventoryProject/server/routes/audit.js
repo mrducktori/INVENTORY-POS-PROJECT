@@ -1,6 +1,7 @@
 import express from 'express';
 import { supabase } from '../config/supabaseClient.js';
 import { toManilaStartOfDay, toManilaEndOfDay } from '../utils/dateUtils.js';
+import { logAudit } from '../utils/auditLogger.js';
 
 const router = express.Router();
 
@@ -45,15 +46,16 @@ router.get('/', async (req, res) => {
 // Create audit log entry
 router.post('/', async (req, res) => {
   try {
-    const { action, user_id, details } = req.body;
+    const { action, user_id, details, entity_type, entity_id } = req.body;
     const authUserId = req.user?.id || user_id || null;
-    const { data, error } = await supabase
-      .from('audit_logs')
-      .insert([{ action, user_id: authUserId, details }])
-      .select()
-      .single();
-    if (error) throw error;
-    res.status(201).json(data);
+    await logAudit({
+      action: action || 'CUSTOM_AUDIT',
+      user_id: authUserId,
+      details: details || {},
+      entity_type,
+      entity_id
+    });
+    res.status(201).json({ success: true, action, user_id: authUserId });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

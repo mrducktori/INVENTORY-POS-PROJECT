@@ -3,7 +3,9 @@ import bcrypt from 'bcrypt';
 import { supabase } from '../config/supabaseClient.js';
 import { logAudit } from '../utils/auditHelper.js';
 import { requireAuth, requireRole, invalidateUserAuthCache, reapInactiveUserSessions } from '../middleware/authMiddleware.js';
+import { userManagementLimiter } from '../middleware/rateLimiter.js';
 import { normalizeAccessFields } from '../utils/permissions.js';
+import { toManilaStartOfDay, toManilaEndOfDay } from '../utils/dateUtils.js';
 
 const router = express.Router();
 
@@ -32,7 +34,7 @@ router.get('/', requireAuth, async (req, res) => {
 });
 
 // Create a new user — FIX #6: requires Admin or Owner role
-router.post('/', requireAuth, requireRole('Admin', 'Owner'), async (req, res) => {
+router.post('/', requireAuth, requireRole('Admin', 'Owner'), userManagementLimiter, async (req, res) => {
   try {
     const { name, username, password, role, supplier_id, permissions, custom_role_name } = req.body;
     if (!name || !username || !password || !role) {
@@ -108,7 +110,7 @@ router.post('/', requireAuth, requireRole('Admin', 'Owner'), async (req, res) =>
 });
 
 // Update user status (activate/deactivate) — requires Admin or Owner
-router.put('/:id/status', requireAuth, requireRole('Admin', 'Owner'), async (req, res) => {
+router.put('/:id/status', requireAuth, requireRole('Admin', 'Owner'), userManagementLimiter, async (req, res) => {
   try {
     const { status } = req.body;
     if (!['ACTIVE', 'INACTIVE'].includes(status)) {
@@ -157,7 +159,7 @@ router.put('/:id/status', requireAuth, requireRole('Admin', 'Owner'), async (req
 });
 
 // Update a user (name, username, password, role) — FIX #7: requires Admin or Owner
-router.put('/:id', requireAuth, requireRole('Admin', 'Owner'), async (req, res) => {
+router.put('/:id', requireAuth, requireRole('Admin', 'Owner'), userManagementLimiter, async (req, res) => {
   try {
     const { name, username, password, role, supplier_id, permissions, custom_role_name } = req.body;
     if (!name || !username || !role) {
@@ -257,20 +259,86 @@ router.put('/:id', requireAuth, requireRole('Admin', 'Owner'), async (req, res) 
   }
 });
 
+let hasEmployeeShiftsTable = null;
+
 // Get employee shifts for a given date — requires authentication
 router.get('/shifts', requireAuth, async (req, res) => {
   try {
     const date = req.query.date || new Date().toISOString().split('T')[0];
-    const { data, error } = await supabase
-      .from('employee_shifts')
-      .select(`
-        *,
-        users(id, name, username, role)
-      `)
-      .eq('shift_date', date)
-      .order('clock_in', { ascending: true });
-    if (error) throw error;
-    res.json(data);
+
+    if (hasEmployeeShiftsTable !== false) {
+      const { data, error } = await supabase
+        .from('employee_shifts')
+        .select(`
+          *,
+          users(id, name, username, role)
+        `)
+        .eq('shift_date', date)
+        .order('clock_in', { ascending: true });
+
+      if (!error) {
+        hasEmployeeShiftsTable = true;
+        return res.json(data);
+      }
+
+      const msg = String(error.message || '').toLowerCase();
+      if (!msg.includes('could not find the table') && !msg.includes('relation') && error.code !== '42P01' && error.code !== 'PGRST205') {
+        throw error;
+      }
+      hasEmployeeShiftsTable = false;
+    }
+
+    // Fallback: reconstruct employee shifts for the date from LOGIN / LOGOUT audit_logs
+    const startIso = toManilaStartOfDay(date);
+    const endIso = toManilaEndOfDay(date);
+
+    const { data: logs, error: logErr } = await supabase
+      .from('audit_logs')
+      .select(`id, action, user_id, created_at, users(id, name, username, role, current_session_id)`)
+      .in('action', ['LOGIN', 'LOGOUT'])
+      .gte('created_at', startIso)
+      .lte('created_at', endIso)
+      .order('created_at', { ascending: true });
+
+    if (logErr) throw logErr;
+
+    const shifts = [];
+    const openShiftByUser = new Map();
+
+    for (const log of logs || []) {
+      const uid = log.user_id;
+      if (!uid) continue;
+
+      if (log.action === 'LOGIN') {
+        const shiftObj = {
+          id: log.id,
+          user_id: uid,
+          shift_date: date,
+          clock_in: log.created_at,
+          clock_out: null,
+          users: log.users || { id: uid, name: 'Staff', role: 'Staff' }
+        };
+        shifts.push(shiftObj);
+        openShiftByUser.set(uid, shiftObj);
+      } else if (log.action === 'LOGOUT') {
+        const openShift = openShiftByUser.get(uid);
+        if (openShift && !openShift.clock_out) {
+          openShift.clock_out = log.created_at;
+          openShiftByUser.delete(uid);
+        } else {
+          shifts.push({
+            id: log.id,
+            user_id: uid,
+            shift_date: date,
+            clock_in: null,
+            clock_out: log.created_at,
+            users: log.users || { id: uid, name: 'Staff', role: 'Staff' }
+          });
+        }
+      }
+    }
+
+    res.json(shifts);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

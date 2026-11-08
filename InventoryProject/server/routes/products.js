@@ -1,6 +1,9 @@
 import express from 'express';
 import { supabase } from "../config/supabaseClient.js";
 import { logAudit } from "../utils/auditHelper.js";
+import { findSimilarName } from "../utils/stringHelper.js";
+import { recalculateProductEstimatedCost } from "../services/recipesService.js";
+import { invalidateAnalyticsCache } from "./analytics.js";
 
 const router = express.Router();
 
@@ -17,8 +20,6 @@ router.get('/', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
-import { findSimilarName } from "../utils/stringHelper.js";
 
 // Create new product
 router.post('/', async (req, res) => {
@@ -43,12 +44,15 @@ router.post('/', async (req, res) => {
       }
     }
 
+    const estimated_cost = Math.round((parseFloat(price) || 0) * 0.38 * 100) / 100;
+
     const { data, error } = await supabase
       .from('products')
       .insert([{
         name,
         category,
         price,
+        estimated_cost,
         description,
         image_url,
         is_archived: false,
@@ -61,6 +65,8 @@ router.post('/', async (req, res) => {
       .select()
       .single();
     if (error) throw error;
+
+    invalidateAnalyticsCache();
 
     await logAudit('PRODUCT_CREATED', req.user?.id || user_id || null, {
       product_id: data.id,
@@ -100,6 +106,9 @@ router.put('/:id', async (req, res) => {
       .single();
     if (error) throw error;
 
+    await recalculateProductEstimatedCost(req.params.id);
+    invalidateAnalyticsCache();
+
     await logAudit('PRODUCT_UPDATED', req.user?.id || user_id || null, {
       product_id: req.params.id,
       name,
@@ -125,6 +134,8 @@ router.put('/:id/archive', async (req, res) => {
       .single();
     if (error) throw error;
 
+    invalidateAnalyticsCache();
+
     await logAudit('PRODUCT_ARCHIVED', req.user?.id || user_id || null, {
       product_id: req.params.id,
       name: data.name
@@ -147,6 +158,8 @@ router.put('/:id/restore', async (req, res) => {
       .select()
       .single();
     if (error) throw error;
+
+    invalidateAnalyticsCache();
 
     await logAudit('PRODUCT_RESTORED', req.user?.id || user_id || null, {
       product_id: req.params.id,
@@ -187,6 +200,8 @@ router.post('/:id/receive', async (req, res) => {
       .select()
       .single();
     if (updateError) throw updateError;
+
+    invalidateAnalyticsCache();
 
     await logAudit('PRODUCT_STOCK_RECEIVED', req.user?.id || user_id || null, {
       product_id: productId,

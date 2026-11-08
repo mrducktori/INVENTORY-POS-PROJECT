@@ -1,6 +1,7 @@
 import { supabase } from "../config/supabaseClient.js";
 import { convertToBaseUnit } from "../utils/unitUtils.js";
 import { logAudit } from "../utils/auditHelper.js";
+import { invalidateAnalyticsCache } from "../routes/analytics.js";
 
 export const getProducts = async () => {
   // 1. Fetch active products, recipes, and ingredients concurrently for maximum speed
@@ -385,15 +386,16 @@ export const createSale = async ({
     });
   }
 
-  await supabase.from("audit_logs").insert([{
+  await logAudit({
     action: "SALE",
-    action_type: "SALE",
     entity_type: "SALE",
     entity_id: sale.id,
     user_id: staff_id,
     details: `Completed sale of ${cart.length} items for ₱${total}. Inventory deducted atomically.`,
     new_value: { sale_id: sale.id, items: cart.length, total: total }
-  }]);
+  });
+
+  invalidateAnalyticsCache();
 
   return sale;
 };

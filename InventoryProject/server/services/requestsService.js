@@ -1,74 +1,203 @@
 import { supabase } from "../config/supabaseClient.js";
+import { logAudit } from "../utils/auditHelper.js";
+import { getManilaISOString } from "../utils/dateUtils.js";
+
+let hasRequestsTable = null; // null = unknown, true = exists, false = use audit_logs fallback
+
+const isMissingTableError = (error) => {
+  if (!error) return false;
+  const msg = String(error.message || "").toLowerCase();
+  return (
+    error.code === "42P01" ||
+    error.code === "PGRST205" ||
+    msg.includes("could not find the table") ||
+    msg.includes("relation")
+  );
+};
+
+const parseAuditRequestRow = (row) => {
+  let payload = {};
+  if (row.new_value && typeof row.new_value === "object") {
+    payload = row.new_value;
+  } else if (row.details) {
+    try {
+      payload = typeof row.details === "string" ? JSON.parse(row.details) : row.details;
+    } catch {
+      payload = { description: String(row.details) };
+    }
+  }
+  return {
+    id: row.id,
+    type: payload.type || "OTHER",
+    status: payload.status || "PENDING",
+    details: payload.details || payload,
+    requested_by: row.user_id,
+    created_at: row.created_at,
+    users: row.users || null
+  };
+};
 
 export const createRequest = async ({ type, details, requested_by }) => {
-  const { data, error } = await supabase
-    .from("requests")
+  if (hasRequestsTable !== false) {
+    const { data, error } = await supabase
+      .from("requests")
+      .insert([{
+        type,
+        details,
+        status: "PENDING",
+        requested_by
+      }])
+      .select()
+      .single();
+
+    if (!error) {
+      hasRequestsTable = true;
+      await logAudit("STAFF_REQUEST_CREATED", requested_by, {
+        request_id: data.id,
+        type,
+        details
+      });
+      return data;
+    }
+
+    if (!isMissingTableError(error)) throw error;
+    hasRequestsTable = false;
+  }
+
+  // Fallback: store in audit_logs with action='STAFF_REQUEST' and entity_type='REQUEST'
+  const payload = {
+    type: type || "OTHER",
+    status: "PENDING",
+    details: details || {},
+    requested_by
+  };
+
+  const { data: logRow, error: logErr } = await supabase
+    .from("audit_logs")
     .insert([{
-      type,
-      details,
-      status: "PENDING",
-      requested_by
+      action: "STAFF_REQUEST",
+      action_type: "STAFF_REQUEST",
+      entity_type: "REQUEST",
+      user_id: requested_by,
+      details: JSON.stringify(payload),
+      new_value: payload,
+      created_at: getManilaISOString()
     }])
-    .select()
+    .select(`*, users(id, name, username, role)`)
     .single();
 
-  if (error) throw error;
-  return data;
+  if (logErr) throw logErr;
+  return parseAuditRequestRow(logRow);
 };
 
 export const getRequests = async (filters = {}) => {
-  let query = supabase
-    .from("requests")
-    .select(`
-      *,
-      users(id, name, username, role)
-    `)
+  if (hasRequestsTable !== false) {
+    let query = supabase
+      .from("requests")
+      .select(`
+        *,
+        users(id, name, username, role)
+      `)
+      .order("created_at", { ascending: false });
+
+    if (filters.status) query = query.eq("status", filters.status);
+    if (filters.type) query = query.eq("type", filters.type);
+    if (filters.requested_by) query = query.eq("requested_by", filters.requested_by);
+
+    const { data, error } = await query;
+    if (!error) {
+      hasRequestsTable = true;
+      return data;
+    }
+    if (!isMissingTableError(error)) throw error;
+    hasRequestsTable = false;
+  }
+
+  let fallbackQuery = supabase
+    .from("audit_logs")
+    .select(`*, users(id, name, username, role)`)
+    .eq("action", "STAFF_REQUEST")
     .order("created_at", { ascending: false });
 
-  if (filters.status) {
-    query = query.eq("status", filters.status);
-  }
-
-  if (filters.type) {
-    query = query.eq("type", filters.type);
-  }
-
   if (filters.requested_by) {
-    query = query.eq("requested_by", filters.requested_by);
+    fallbackQuery = fallbackQuery.eq("user_id", filters.requested_by);
   }
 
-  const { data, error } = await query;
+  const { data: rows, error: fbErr } = await fallbackQuery;
+  if (fbErr) throw fbErr;
 
-  if (error) throw error;
-  return data;
+  return (rows || [])
+    .map(parseAuditRequestRow)
+    .filter(r => (!filters.status || r.status === filters.status) && (!filters.type || r.type === filters.type));
 };
 
 export const getPendingRequests = async () => {
   return getRequests({ status: "PENDING" });
 };
 
-export const updateRequestStatus = async (id, status) => {
+export const updateRequestStatus = async (id, status, updatedBy = null) => {
   if (!["PENDING", "APPROVED", "REJECTED"].includes(status)) {
     throw new Error("Invalid status. Must be PENDING, APPROVED, or REJECTED");
   }
 
-  const { data, error } = await supabase
-    .from("requests")
-    .update({ status })
-    .eq("id", id)
-    .select()
-    .single();
+  if (hasRequestsTable !== false) {
+    const { data, error } = await supabase
+      .from("requests")
+      .update({ status })
+      .eq("id", id)
+      .select()
+      .single();
 
-  if (error) throw error;
-  return data;
+    if (!error) {
+      hasRequestsTable = true;
+      await logAudit("STAFF_REQUEST_STATUS_UPDATED", updatedBy, {
+        request_id: id,
+        new_status: status
+      });
+      return data;
+    }
+    if (!isMissingTableError(error)) throw error;
+    hasRequestsTable = false;
+  }
+
+  const { data: existing, error: fetchErr } = await supabase
+    .from("audit_logs")
+    .select(`*, users(id, name, username, role)`)
+    .eq("id", id)
+    .single();
+  if (fetchErr) throw fetchErr;
+
+  const parsed = parseAuditRequestRow(existing);
+  const updatedPayload = {
+    type: parsed.type,
+    status,
+    details: parsed.details,
+    requested_by: parsed.requested_by,
+    reviewed_by: updatedBy,
+    reviewed_at: getManilaISOString()
+  };
+
+  const { data: updatedRow, error: upErr } = await supabase
+    .from("audit_logs")
+    .update({
+      details: JSON.stringify(updatedPayload),
+      new_value: updatedPayload
+    })
+    .eq("id", id)
+    .select(`*, users(id, name, username, role)`)
+    .single();
+  if (upErr) throw upErr;
+
+  await logAudit("STAFF_REQUEST_STATUS_UPDATED", updatedBy, {
+    request_id: id,
+    new_status: status
+  });
+
+  return parseAuditRequestRow(updatedRow);
 };
 
 export const getRequestStats = async () => {
-  const { data, error } = await supabase
-    .from("requests")
-    .select("status, type");
-
-  if (error) throw error;
+  const data = await getRequests({});
 
   const stats = {
     total: data.length,
@@ -79,7 +208,8 @@ export const getRequestStats = async () => {
   };
 
   data.forEach(req => {
-    stats[req.status.toLowerCase()]++;
+    const key = String(req.status || "PENDING").toLowerCase();
+    if (stats[key] !== undefined) stats[key]++;
     if (!stats.byType[req.type]) {
       stats.byType[req.type] = 0;
     }

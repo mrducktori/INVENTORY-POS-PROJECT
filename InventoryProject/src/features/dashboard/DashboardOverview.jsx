@@ -6,7 +6,6 @@ import useDashboardStats from './useDashboardStats';
 import RevenueSnapshot from './components/RevenueSnapshot';
 import StatCards from './components/StatCards';
 import TopSalesGrid from './components/TopSalesGrid';
-import LowStockAlerts from './components/LowStockAlerts';
 import ExpandedLowStock from './components/ExpandedLowStock';
 import ExpandedTrendChart from './components/ExpandedTrendChart';
 import QuickActions from './components/QuickActions';

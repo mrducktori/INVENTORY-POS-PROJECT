@@ -1,8 +1,32 @@
 import { supabase } from "../config/supabaseClient.js";
-import { getIngredientById } from "./inventoryService.js";
-import { updateStock } from "./inventoryService.js";
+import { getIngredientById, updateStock } from "./inventoryService.js";
 import { logAudit } from "../utils/auditHelper.js";
 import { toManilaStartOfDay, toManilaEndOfDay } from "../utils/dateUtils.js";
+import { invalidateAnalyticsCache } from "../routes/analytics.js";
+
+const computeWastageEntryCost = (entry) => {
+  if (entry.estimated_cost !== undefined && entry.estimated_cost !== null && Number(entry.estimated_cost) > 0) {
+    return Math.round(Number(entry.estimated_cost) * 100) / 100;
+  }
+  const qty = parseFloat(entry.quantity) || 0;
+  const ing = entry.ingredients || entry.ingredient || {};
+  const explicitUnitCost = parseFloat(ing.unit_cost) || 0;
+  if (explicitUnitCost > 0) {
+    return Math.round(explicitUnitCost * qty * 100) / 100;
+  }
+  const purchaseCost = parseFloat(ing.cost_per_purchase_unit) || 0;
+  const conv = parseFloat(ing.conversion_factor) || 1;
+  if (purchaseCost > 0 && conv > 0) {
+    return Math.round((purchaseCost / conv) * qty * 100) / 100;
+  }
+  // Fallback unit cost estimate based on standard raw material unit (G, ML, PCS, KG, L)
+  const unit = String(ing.unit || '').toUpperCase();
+  const defaultUnitRate =
+    unit === 'KG' || unit === 'L' ? 180 :
+    unit === 'PCS' ? 2.5 :
+    unit === 'G' || unit === 'ML' ? 0.22 : 1.0;
+  return Math.round(qty * defaultUnitRate * 100) / 100;
+};
 
 // FIX #3 & #13: Added a stock sufficiency check BEFORE logging the wastage record.
 // This prevents the audit log from being created if the deduction would fail,
@@ -25,6 +49,11 @@ export const reportWastage = async ({ ingredient_id, quantity, reason, reported_
   // Deduct from stock first (most important step)
   await updateStock(ingredient_id, qty, "subtract");
 
+  const estimated_cost = computeWastageEntryCost({
+    quantity: qty,
+    ingredient
+  });
+
   // Only log the wastage record AFTER the deduction succeeds
   const { data, error } = await supabase
     .from("wastage")
@@ -32,42 +61,26 @@ export const reportWastage = async ({ ingredient_id, quantity, reason, reported_
       ingredient_id,
       quantity: qty,
       reason,
-      reported_by
+      reported_by,
+      estimated_cost
     }])
     .select()
     .single();
 
   if (error) throw error;
 
+  invalidateAnalyticsCache();
+
   // Create an audit log so it shows up in AuditLogs correctly
   await logAudit("WASTAGE", reported_by, {
     ingredient_id,
     ingredient_name: ingredient.name,
     quantity: qty,
+    estimated_cost,
     reason
   });
 
   return data;
-};
-
-const computeWastageEntryCost = (entry) => {
-  if (entry.estimated_cost !== undefined && entry.estimated_cost !== null && Number(entry.estimated_cost) > 0) {
-    return Math.round(Number(entry.estimated_cost) * 100) / 100;
-  }
-  const qty = parseFloat(entry.quantity) || 0;
-  const ing = entry.ingredients || {};
-  const purchaseCost = parseFloat(ing.cost_per_purchase_unit) || 0;
-  const conv = parseFloat(ing.conversion_factor) || 1;
-  if (purchaseCost > 0 && conv > 0) {
-    return Math.round((purchaseCost / conv) * qty * 100) / 100;
-  }
-  // Fallback unit cost estimate based on standard raw material unit (G, ML, PCS, KG, L)
-  const unit = String(ing.unit || '').toUpperCase();
-  const defaultUnitRate =
-    unit === 'KG' || unit === 'L' ? 180 :
-    unit === 'PCS' ? 2.5 :
-    unit === 'G' || unit === 'ML' ? 0.22 : 1.0;
-  return Math.round(qty * defaultUnitRate * 100) / 100;
 };
 
 export const getWastageHistory = async (filters = {}) => {

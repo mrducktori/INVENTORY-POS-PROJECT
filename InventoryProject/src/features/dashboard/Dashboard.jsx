@@ -14,14 +14,19 @@ const RawMaterialTracker = lazy(() => import('../inventory/RawMaterialTracker'))
 const ManageRawMaterials = lazy(() => import('../inventory/ManageRawMaterials'));
 const LowStockAlerts = lazy(() => import('../inventory/LowStockAlerts'));
 const ProductStockTracker = lazy(() => import('../inventory/ProductStockTracker'));
+const StockReceived = lazy(() => import('../inventory/StockReceived'));
 const PurchaseOrders = lazy(() => import('../inventory/PurchaseOrders'));
 const ManageSuppliers = lazy(() => import('../inventory/ManageSuppliers'));
 const AuditLogs = lazy(() => import('../logs/AuditLogs'));
+const AdminLogs = lazy(() => import('../logs/AdminLogs'));
 const TransactionLogs = lazy(() => import('../logs/TransactionLogs'));
 const SalesReceiptJournal = lazy(() => import('../logs/SalesReceiptJournal'));
 const SalesSummaryReport = lazy(() => import('../logs/SalesSummaryReport'));
 const AccountManager = lazy(() => import('../accounts/AccountManager'));
+const EmployeeTracker = lazy(() => import('../accounts/EmployeeTracker'));
 const ReportWastage = lazy(() => import('../wastage/ReportWastage'));
+const RequestProduct = lazy(() => import('../requests/RequestProduct'));
+const ViewRequests = lazy(() => import('../requests/ViewRequests'));
 const DemandForecasting = lazy(() => import('../analytics/DemandForecasting'));
 const Reports = lazy(() => import('../reports/Reports'));
 const CMSDashboard = lazy(() => import('../cms/CMSDashboard'));
@@ -118,6 +123,7 @@ const Dashboard = () => {
       case 'RawMaterialTracker': return <RawMaterialTracker />;
       case 'ProductStockTracker': return <ProductStockTracker />;
       case 'ManageRawMaterials': return <ManageRawMaterials />;
+      case 'StockReceived':     return <StockReceived />;
 
       case 'LowStockAlerts':    return <LowStockAlerts />;
       case 'PurchaseOrders':    return <PurchaseOrders />;
@@ -125,12 +131,16 @@ const Dashboard = () => {
 
       // Logs & Reports
       case 'AuditLogs':         return <AuditLogs />;
+      case 'AdminLogs':         return <AdminLogs />;
       case 'TransactionLogs':   return <TransactionLogs />;
       case 'SalesReceiptJournal': return <SalesReceiptJournal />;
       case 'SalesSummaryReport': return <SalesSummaryReport />;
 
-      // Account Management
+      // Account Management & Staff Requests
       case 'AccountManager':    return <AccountManager />;
+      case 'EmployeeTracker':   return <EmployeeTracker />;
+      case 'RequestProduct':    return <RequestProduct />;
+      case 'ViewRequests':      return <ViewRequests />;
 
       // Analytics
       case 'Forecasting':       return <DemandForecasting />;

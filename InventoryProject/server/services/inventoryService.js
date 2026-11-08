@@ -24,7 +24,36 @@ export const getIngredientById = async (id) => {
 
 import { findSimilarName } from "../utils/stringHelper.js";
 
-export const createIngredient = async ({ name, unit, category, stock_quantity, low_stock_alert, image_url, force_create }) => {
+const computeUnitCost = ({ unit, unit_cost, cost_per_purchase_unit, conversion_factor }) => {
+  const purchaseCost = parseFloat(cost_per_purchase_unit);
+  const conv = parseFloat(conversion_factor) || 1;
+  if (!isNaN(purchaseCost) && purchaseCost > 0 && conv > 0) {
+    return Math.round((purchaseCost / conv) * 10000) / 10000;
+  }
+  const explicitUnitCost = parseFloat(unit_cost);
+  if (!isNaN(explicitUnitCost) && explicitUnitCost > 0) {
+    return Math.round(explicitUnitCost * 10000) / 10000;
+  }
+  const u = String(unit || '').toUpperCase();
+  if (u === 'KG' || u === 'L') return 180;
+  if (u === 'PCS') return 2.5;
+  if (u === 'G' || u === 'ML') return 0.22;
+  return 1.0;
+};
+
+export const createIngredient = async ({
+  name,
+  unit,
+  category,
+  stock_quantity,
+  low_stock_alert,
+  image_url,
+  purchase_unit,
+  conversion_factor,
+  cost_per_purchase_unit,
+  unit_cost,
+  force_create
+}) => {
   // Check for duplicates
   if (!force_create) {
     const { data: existingIngredients } = await supabase.from("ingredients").select("name");
@@ -40,16 +69,25 @@ export const createIngredient = async ({ name, unit, category, stock_quantity, l
     }
   }
 
+  const computedUnitCost = computeUnitCost({ unit, unit_cost, cost_per_purchase_unit, conversion_factor });
+
+  const insertPayload = {
+    name,
+    unit,
+    category: category || null,
+    image_url,
+    stock_quantity: stock_quantity || 0,
+    low_stock_alert: low_stock_alert || 10,
+    purchase_unit: purchase_unit || 'Unit',
+    conversion_factor: parseFloat(conversion_factor) || 1,
+    cost_per_purchase_unit: parseFloat(cost_per_purchase_unit) || 0,
+    unit_cost: computedUnitCost,
+    is_archived: false
+  };
+
   const { data, error } = await supabase
     .from("ingredients")
-    .insert([{
-      name,
-      unit,
-      image_url,
-      stock_quantity: stock_quantity || 0,
-      low_stock_alert: low_stock_alert || 10,
-      is_archived: false
-    }])
+    .insert([insertPayload])
     .select()
     .single();
 
@@ -59,14 +97,17 @@ export const createIngredient = async ({ name, unit, category, stock_quantity, l
 
 // FIX #2: stock_quantity is intentionally excluded — stock must only be changed
 // through receiveStock() (add) or the POS/wastage flow (subtract).
-export const updateIngredient = async (id, { name, unit, category, low_stock_alert, image_url, purchase_unit, conversion_factor, cost_per_purchase_unit }) => {
+export const updateIngredient = async (id, { name, unit, category, low_stock_alert, image_url, purchase_unit, conversion_factor, cost_per_purchase_unit, unit_cost }) => {
   const updatePayload = { name, unit, low_stock_alert, image_url };
   if (category !== undefined) updatePayload.category = category || null;
   
-  // Include PO defaults if provided
+  // Include PO defaults if provided and keep unit_cost synced
   if (purchase_unit !== undefined) updatePayload.purchase_unit = purchase_unit;
   if (conversion_factor !== undefined) updatePayload.conversion_factor = conversion_factor;
   if (cost_per_purchase_unit !== undefined) updatePayload.cost_per_purchase_unit = cost_per_purchase_unit;
+  if (cost_per_purchase_unit !== undefined || conversion_factor !== undefined || unit_cost !== undefined) {
+    updatePayload.unit_cost = computeUnitCost({ unit, unit_cost, cost_per_purchase_unit, conversion_factor });
+  }
   
   const { data, error } = await supabase
     .from("ingredients")

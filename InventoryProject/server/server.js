@@ -37,7 +37,7 @@ import categorySettingsRoutes from './routes/categorySettings.js';
 import purchasingRoutes from './routes/purchasing.js';
 import cmsRoutes from './routes/cms.js';
 import { requireAuth } from './middleware/authMiddleware.js';
-import { generalLimiter, authLimiter } from './middleware/rateLimiter.js';
+import { generalLimiter, authLimiter, looseLimiter, createLimiter } from './middleware/rateLimiter.js';
 
 const app = express();
 
@@ -128,11 +128,11 @@ app.use('/api/auth', authLimiter, authRoutes);
 // ==========================================
 // PROTECTED ROUTES
 // ==========================================
-app.use('/api/pos', posRoutes); // pos.js applies its own auth for protected routes like sales
+app.use('/api/pos', looseLimiter, posRoutes); // pos.js applies its own auth for protected routes like sales
 app.use('/api/inventory', requireAuth, inventoryRoutes);
 app.use('/api/recipes', requireAuth, recipesRoutes);
-app.use('/api/requests', requireAuth, requestsRoutes);
-app.use('/api/wastage', requireAuth, wastageRoutes);
+app.use('/api/requests', requireAuth, createLimiter, requestsRoutes);
+app.use('/api/wastage', requireAuth, createLimiter, wastageRoutes);
 app.use('/api/dashboard', requireAuth, dashboardRoutes);
 app.use('/api/audit', requireAuth, auditRoutes);
 app.use('/api/sales', requireAuth, salesRoutes);
@@ -143,7 +143,7 @@ app.use('/api/categories/settings', requireAuth, categorySettingsRoutes);
 app.use('/api/purchasing', requireAuth, purchasingRoutes);
 app.use('/api/purchase-orders', requireAuth, purchasingRoutes);
 app.use('/purchase-orders', requireAuth, purchasingRoutes);
-app.use('/api/cms', cmsRoutes);
+app.use('/api/cms', looseLimiter, cmsRoutes);
 
 // ==========================================
 // ERROR HANDLER — Prevent leaking sensitive info

@@ -30,29 +30,42 @@ export const authLimiter = rateLimit({
   skipSuccessfulRequests: true
 });
 
+const isLocalOrDev = (req) => {
+  const ip = req.ip || req.connection?.remoteAddress || '';
+  return (
+    ip === '127.0.0.1' ||
+    ip === '::1' ||
+    ip.includes('127.0.0.1') ||
+    process.env.NODE_ENV !== 'production'
+  );
+};
+
 // User management rate limiter - moderate limits for user creation/updates
 export const userManagementLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 30,
   message: 'Too many user management requests, please try again later',
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  skip: isLocalOrDev
 });
 
 // Loose limiter for general operations - 200 requests per 15 minutes
 export const looseLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 200,
+  max: 500,
   message: 'Too many requests, please try again later',
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  skip: isLocalOrDev
 });
 
 // Create/Write operations limiter - moderate limits
 export const createLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 30,
+  max: 60,
   message: 'Too many creation requests, please try again later',
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  skip: isLocalOrDev
 });

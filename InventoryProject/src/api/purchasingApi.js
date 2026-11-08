@@ -95,7 +95,7 @@ export async function getSupplierOwnOrders() {
 }
 
 export async function updateSupplierOrderStatus(id, status, expected_date = null, declineReason = null) {
-  return apiCall(`/purchasing/purchase-orders/${id}`, {
+  return apiCall(`/purchasing/my-orders/${id}/status`, {
     method: "PATCH",
     body: JSON.stringify({ 
       status, 
