@@ -4,6 +4,7 @@ import { getAllProducts } from '../../api/productsApi';
 import { getAuditLogs } from '../../api/auditApi';
 import { downloadCSV, printReport } from './reportUtils';
 import InfoTip from '../../components/shared/InfoTip';
+import { TableSkeleton, StatCardsSkeleton } from '../../components/shared/SkeletonLoader';
 
 // ─── Status Groups & Helpers for Snapshot ───────────────────────────────────────
 const STATUS_GROUPS = [
@@ -610,9 +611,9 @@ const StockMovementReport = () => {
 
       {/* Loading Skeleton */}
       {loading && (
-        <div className="p-12 flex flex-col items-center justify-center text-gray-500 bg-white border border-gray-200 rounded-xl h-64">
-          <div className="w-8 h-8 border-3 border-gray-200 border-t-gray-900 rounded-full animate-spin mb-3"></div>
-          <p className="m-0 text-sm font-bold text-gray-800">Compiling stock movements...</p>
+        <div className="flex flex-col gap-6">
+          <StatCardsSkeleton count={5} />
+          <TableSkeleton rows={8} cols={5} />
         </div>
       )}
 

@@ -287,9 +287,10 @@ const NotificationInbox = ({ onNavigate, lowStockItems = [], variant = 'default'
               {/* Notification Items List */}
               <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#fafafa]">
                 {loading && notifications.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-48 text-zinc-400 gap-2">
-                    <div className="w-6 h-6 border-2 border-zinc-300 border-t-zinc-900 rounded-full animate-spin"></div>
-                    <span className="text-sm font-medium">Checking live notifications...</span>
+                  <div className="space-y-3 py-2 animate-pulse">
+                    <div className="h-14 bg-zinc-200/70 rounded-xl"></div>
+                    <div className="h-14 bg-zinc-200/70 rounded-xl"></div>
+                    <div className="h-14 bg-zinc-200/70 rounded-xl"></div>
                   </div>
                 ) : filteredNotifications.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-16 px-4 text-center">

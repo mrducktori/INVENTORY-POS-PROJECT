@@ -2,6 +2,48 @@
 
 All notable changes to this project will be documented in this file.
 
+## [UI/Table: Interactive Columns, Sorting, Stacked Multi-Line Orders & Badges - 2026-11-05]
+- **Interactive Column Visibility System**:
+  - Created reusable ColumnVisibilityDropdown.jsx matching client reference mockup.
+  - 3-bar column toggle button (|||), checklist popover with Reset and deep green Apply columns action.
+  - Persistent user column selections via localStorage (coftea_sales_table_columns).
+- **Latest Sales Redesign (SalesReceiptJournal.jsx)**:
+  - Re-architected table view to match the reference:
+    - Integrated Search bar with debouncing on the toolbar next to column toggler.
+    - Added sortable column headers (Customer, Total Price, Paid Amount, Created) with direction indicators.
+    - Stacked multi-line order rendering for items and quantities.
+    - Clean status and payment method pills (completed, dine_in, cash, debit, mobile_payment).
+    - Smooth skeleton loader states during data fetching.
+    - Row-click opens full digital transaction receipt modal.
+
+## [UI/UX: Seamless Transitions, Modern Modals & Skeleton Shimmers - 2026-11-04]
+- **Unified Modal System**:
+  - Implemented modern spring-eased entry and exit keyframes (`modalBackdropFadeIn` and `modalPopIn` with `cubic-bezier(0.16, 1, 0.3, 1)`) across all system modals.
+  - Added subtle frosted backdrops (`backdrop-blur-xs`) and gentle scaling transitions for all confirmation, receipt, purchase order, supplier, and inventory configuration popups.
+- **Upgraded Data Loaders to Executive Skeleton Shimmers**:
+  - Replaced legacy rotating circle spinners in data tables and analytics reports with structured, pulsing skeletons (`TableSkeleton`, `StatCardsSkeleton`, and `CardGridSkeleton`):
+    - `InventoryStatusReport.jsx`
+    - `SalesPerformanceReport.jsx`
+    - `StockMovementReport.jsx`
+    - `WastageReport.jsx`
+    - `ReportWastage.jsx`
+    - `DemandForecasting.jsx` (Depletion table, product forecasts, and AI reorder modal)
+    - `SupplierCatalogSection.jsx`
+    - `TopSalesGrid.jsx` on Dashboard
+    - POS and Product Catalog Recipe Breakdown modals
+    - `NotificationInbox.jsx`
+    - `SalesReceiptModal.jsx`
+- **Dashboard Tab Navigation Fluidity**:
+  - Added `tab-pane-transition` in [Dashboard.jsx](file:///D:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/dashboard/Dashboard.jsx) with smooth fade and subtle vertical translation on view switching.
+
+## [Data: Product Image Cleanup (partial) - 2026-11-04]
+- Audited all 43 products: most images were unrelated stock placeholders (e.g. donuts for Java Chip, idli for Frappe Red Velvet).
+- Replaced 11 with AI-generated matching photos (800px JPG, Supabase `cms-images/public/products`): Hazelnut Brew, Original Latte, Dark Choco, Frappe Hazelnut, Hokkaido Espresso, Blueberry, Green Apple, Honey Peach, Milk Tea Cookies & Cream, Green Matcha, Hokkaido.
+- Cleared the picture of `TESTPRODUCT`.
+- Image model quota ran out; 22 products still need images (see below). Kept 6 accurate existing images (Caramel Macchiato, Chocolate Latte, Matcha Latte, Frappe Cookies & Cream, Frappe Matcha, Milk Tea Brown Sugar/Chocolate, Chocolate Chip Cookie).
+- Backup of all product image URLs and recipes: `docs/database/backup_products_images_20261104.json`. Helper scripts in `docs/database/` (`apply_product_images.mjs`, `restore_images.mjs`, audit scripts).
+- Pending images: Coffee Red Velvet, Salted Caramel, Spanish Latte, Strawberry Latte, Vanilla Blanca, White Cappuccino; Frappe Java Chip, Norman's C&C, Okinawa Espresso, Red Velvet, Strawberry, Vanilla Espresso, Wintermelon Espresso; Fruit Kiwi, Lychee, Passionfruit, Strawberry; Milk Tea Okinawa, Original, Purple Taro, Red Velvat, Wintermelon.
+
 ## [Docs: Namecheap Custom Domain Setup for Vercel - 2026-11-04]
 - Added **Part 4** to `DEPLOYMENT_GUIDE_VERCEL_RENDER.md`: connecting a Namecheap domain to Vercel (A/CNAME records or Vercel nameservers), SSL verification, updating Render `CLIENT_URL` for CORS, and an optional `api.` subdomain for the Render backend.
 

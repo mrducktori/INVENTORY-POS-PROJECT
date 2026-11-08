@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { CardGridSkeleton } from '../../../components/shared/SkeletonLoader';
 
 // ---------------------------------------------------------------------------
 // TopSalesGrid
@@ -199,9 +200,8 @@ const TopSalesGrid = ({
       {/* Content Area */}
       <div className="w-full">
         {loading ? (
-          <div className="py-16 flex flex-col items-center justify-center gap-3">
-            <div className="w-8 h-8 border-3 border-zinc-300 border-t-zinc-900 rounded-full animate-spin" />
-            <span className="text-sm text-zinc-500 font-medium">Loading category sales...</span>
+          <div className="py-4">
+            <CardGridSkeleton count={6} />
           </div>
         ) : isEmpty ? (
           <div className="py-16 px-6 rounded-xl bg-zinc-50 border border-dashed border-zinc-200 flex flex-col items-center justify-center text-center">

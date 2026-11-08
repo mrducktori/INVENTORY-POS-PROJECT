@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getSupplierOwnCatalog, updateSupplierOwnCatalog } from '../../../api/purchasingApi';
 import Pagination from '../../../components/shared/Pagination';
+import { TableSkeleton } from '../../../components/shared/SkeletonLoader';
 
 const RAW_MATERIAL_CATEGORIES = [
   'COFFEE & TEA BASES',
@@ -149,9 +150,8 @@ export default function SupplierCatalogSection() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center shadow-xs">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-zinc-900 mb-4"></div>
-        <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Loading Supplier Catalog...</p>
+      <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-xs">
+        <TableSkeleton rows={6} cols={5} />
       </div>
     );
   }
