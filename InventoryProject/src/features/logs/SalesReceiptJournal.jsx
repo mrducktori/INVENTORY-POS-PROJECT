@@ -348,34 +348,46 @@ const SalesReceiptJournal = () => {
                   const orderType = sale.order_type || 'dine_in';
                   const paymentMethod = (sale.payment_method || 'cash').toLowerCase();
 
+                  const displayCustomer = sale.customer_name || (sale.users?.name && sale.users.name.toLowerCase() !== 'customer' ? sale.users.name : 'Walk-in Guest');
+
                   return (
                     <tr
                       key={sale.id}
                       onClick={() => handleRowClick(sale)}
                       className="hover:bg-zinc-50/80 transition-colors cursor-pointer group"
                     >
-                      {/* Order No. */}
+                      {/* Order No. (Sticky pinned anchor) */}
                       {visibleColumns.order_no !== false && (
-                        <td className="py-4 px-3 font-normal text-zinc-900 whitespace-nowrap">
+                        <td className="sticky left-0 bg-white group-hover:bg-zinc-50 z-10 py-3.5 px-4 font-mono font-bold text-zinc-900 whitespace-nowrap shadow-[1px_0_0_0_#f4f4f5]">
                           {orderNo}
                         </td>
                       )}
 
                       {/* Customer */}
                       {visibleColumns.customer !== false && (
-                        <td className="py-4 px-3 text-zinc-700 whitespace-nowrap">
-                          {customerName}
+                        <td className="py-3.5 px-3 text-zinc-700 whitespace-nowrap">
+                          <span className={displayCustomer === 'Walk-in Guest' ? 'text-zinc-400 italic' : 'font-medium text-zinc-800'}>
+                            {displayCustomer}
+                          </span>
                         </td>
                       )}
 
-                      {/* Menu item(s) - Stacked multi-line matching reference */}
+                      {/* Menu item(s) - paired with quantity pills using native min-w-5 */}
                       {visibleColumns.menu_item !== false && (
-                        <td className="py-4 px-3 text-zinc-800">
+                        <td className="py-3.5 px-3 text-zinc-800">
                           {items.length > 0 ? (
-                            <div className="space-y-1">
+                            <div className="space-y-1.5 py-0.5">
                               {items.map((it, idx) => (
-                                <div key={it.id || idx} className="whitespace-nowrap leading-snug">
-                                  {it.products?.name || 'Item'}
+                                <div key={it.id || idx} className="flex items-center gap-2">
+                                  <span className="inline-flex items-center justify-center min-w-5 px-1.5 py-0.5 rounded text-[11px] font-mono font-bold bg-zinc-100 text-zinc-800 border border-zinc-200">
+                                    {it.quantity || 1}×
+                                  </span>
+                                  <span className="whitespace-nowrap font-medium text-zinc-900">
+                                    {it.products?.name || 'Item'}
+                                  </span>
+                                  {it.cup_size && (
+                                    <span className="text-[10px] text-zinc-400 font-mono">({it.cup_size})</span>
+                                  )}
                                 </div>
                               ))}
                             </div>
@@ -385,55 +397,49 @@ const SalesReceiptJournal = () => {
                         </td>
                       )}
 
-                      {/* Quantity - Stacked numbers matching reference */}
+                      {/* Total items count */}
                       {visibleColumns.quantity !== false && (
-                        <td className="py-4 px-3 text-zinc-700">
-                          {items.length > 0 ? (
-                            <div className="space-y-1">
-                              {items.map((it, idx) => (
-                                <div key={it.id || idx} className="leading-snug">
-                                  {it.quantity || 1}
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <span className="text-zinc-400">1</span>
-                          )}
+                        <td className="py-3.5 px-3 text-zinc-700 font-semibold whitespace-nowrap">
+                          {items.reduce((acc, it) => acc + (Number(it.quantity) || 1), 0)} items
                         </td>
                       )}
 
                       {/* Status */}
                       {visibleColumns.status !== false && (
-                        <td className="py-4 px-3 text-zinc-700 whitespace-nowrap lowercase">
-                          completed
+                        <td className="py-3.5 px-3 whitespace-nowrap">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            completed
+                          </span>
                         </td>
                       )}
 
                       {/* Total Price */}
                       {visibleColumns.total_price !== false && (
-                        <td className="py-4 px-3 text-zinc-900 font-medium whitespace-nowrap">
+                        <td className="py-3.5 px-3 text-zinc-950 font-bold font-mono whitespace-nowrap">
                           {totalFormatted}
                         </td>
                       )}
 
                       {/* Paid Amount */}
                       {visibleColumns.paid_amount !== false && (
-                        <td className="py-4 px-3 text-zinc-900 whitespace-nowrap">
+                        <td className="py-3.5 px-3 text-zinc-700 font-mono whitespace-nowrap">
                           {paidFormatted}
                         </td>
                       )}
 
                       {/* Type (dine_in / takeaway / online) */}
                       {visibleColumns.type !== false && (
-                        <td className="py-4 px-3 text-zinc-700 whitespace-nowrap lowercase">
-                          {orderType}
+                        <td className="py-3.5 px-3 whitespace-nowrap">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-zinc-100 text-zinc-700">
+                            {orderType}
+                          </span>
                         </td>
                       )}
 
                       {/* Payment method badge */}
                       {visibleColumns.payment_method !== false && (
-                        <td className="py-4 px-3 whitespace-nowrap">
-                          <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-normal border border-zinc-200 text-zinc-600 bg-zinc-50">
+                        <td className="py-3.5 px-3 whitespace-nowrap">
+                          <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border border-zinc-200 text-zinc-700 bg-zinc-50">
                             {paymentMethod}
                           </span>
                         </td>
@@ -441,17 +447,34 @@ const SalesReceiptJournal = () => {
 
                       {/* Created timestamp */}
                       {visibleColumns.created !== false && (
-                        <td className="py-4 px-3 text-zinc-600 whitespace-nowrap">
+                        <td className="py-3.5 px-3 text-zinc-500 font-mono text-xs whitespace-nowrap">
                           {formatDateTime(sale.created_at)}
                         </td>
                       )}
 
                       {/* Updated timestamp */}
                       {visibleColumns.updated !== false && (
-                        <td className="py-4 px-3 text-zinc-600 whitespace-nowrap">
+                        <td className="py-3.5 px-3 text-zinc-500 font-mono text-xs whitespace-nowrap">
                           {formatDateTime(sale.updated_at || sale.created_at)}
                         </td>
                       )}
+
+                      {/* Action: View Receipt button */}
+                      <td className="py-3.5 px-3 text-right whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRowClick(sale);
+                          }}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-zinc-800 bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 transition-colors cursor-pointer"
+                        >
+                          <svg className="w-3.5 h-3.5 text-zinc-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          <span>Receipt</span>
+                        </button>
+                      </td>
                     </tr>
                   );
                 })
