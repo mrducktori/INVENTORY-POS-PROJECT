@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { getPurchaseOrders, getSupplierPriceUpdates } from '../../api/purchasingApi';
 import { getDashboardStats } from '../../api/dashboardApi';
 import { supabase } from '../../config/supabaseClient';
@@ -8,6 +8,112 @@ import { formatQuantity } from '../../utils/productUtils';
 const STORAGE_READ_KEY = 'coftea_inbox_read_v1';
 const STORAGE_DISMISSED_KEY = 'coftea_inbox_dismissed_v1';
 const EMPTY_LOW_STOCK = [];
+
+const loadStoredArray = (key) => {
+  try {
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+};
+
+// Shared singleton state across all mounted useNotifications() callers (Navbar, NotificationInbox, DashboardOverview)
+// Prevents 3x duplicate API requests and 3x duplicate Supabase Realtime channels on Dashboard mount.
+const sharedStore = {
+  orders: [],
+  internalLowStock: [],
+  priceUpdates: [],
+  loading: true,
+  readIds: loadStoredArray(STORAGE_READ_KEY),
+  dismissedIds: loadStoredArray(STORAGE_DISMISSED_KEY),
+  lastPoFetchTime: 0,
+  lastPriceFetchTime: 0,
+  lastLowStockTime: 0,
+  poPromise: null,
+  pricePromise: null,
+  lowStockPromise: null,
+  channel: null,
+  subscriberCount: 0,
+  listeners: new Set()
+};
+
+const notifyListeners = () => {
+  sharedStore.listeners.forEach((listener) => listener({ ...sharedStore }));
+};
+
+const fetchSharedPOs = async (force = false) => {
+  const now = Date.now();
+  if (!force && sharedStore.lastPoFetchTime > 0 && now - sharedStore.lastPoFetchTime < 15000) {
+    return sharedStore.orders;
+  }
+  if (sharedStore.poPromise) return sharedStore.poPromise;
+
+  sharedStore.lastPoFetchTime = now;
+  sharedStore.poPromise = getPurchaseOrders()
+    .then((data) => {
+      sharedStore.orders = Array.isArray(data) ? data : [];
+      return sharedStore.orders;
+    })
+    .catch((err) => {
+      console.error('Failed to load purchase orders for notifications:', err);
+      return sharedStore.orders;
+    })
+    .finally(() => {
+      sharedStore.loading = false;
+      sharedStore.poPromise = null;
+      notifyListeners();
+    });
+
+  return sharedStore.poPromise;
+};
+
+const fetchSharedPriceUpdates = async (force = false) => {
+  const now = Date.now();
+  if (!force && sharedStore.lastPriceFetchTime > 0 && now - sharedStore.lastPriceFetchTime < 30000) {
+    return sharedStore.priceUpdates;
+  }
+  if (sharedStore.pricePromise) return sharedStore.pricePromise;
+
+  sharedStore.lastPriceFetchTime = now;
+  sharedStore.pricePromise = getSupplierPriceUpdates()
+    .then((data) => {
+      sharedStore.priceUpdates = Array.isArray(data) ? data : [];
+      notifyListeners();
+      return sharedStore.priceUpdates;
+    })
+    .catch(() => sharedStore.priceUpdates)
+    .finally(() => {
+      sharedStore.pricePromise = null;
+    });
+
+  return sharedStore.pricePromise;
+};
+
+const fetchSharedLowStock = async (force = false) => {
+  const now = Date.now();
+  if (!force && sharedStore.lastLowStockTime > 0 && now - sharedStore.lastLowStockTime < 30000) {
+    return sharedStore.internalLowStock;
+  }
+  if (sharedStore.lowStockPromise) return sharedStore.lowStockPromise;
+
+  sharedStore.lastLowStockTime = now;
+  sharedStore.lowStockPromise = getDashboardStats('day')
+    .then((stats) => {
+      const details = stats?.lowStockDetails || stats?.lowStockItemsDetails;
+      if (Array.isArray(details)) {
+        sharedStore.internalLowStock = details;
+        notifyListeners();
+      }
+      return sharedStore.internalLowStock;
+    })
+    .catch(() => sharedStore.internalLowStock)
+    .finally(() => {
+      sharedStore.lowStockPromise = null;
+    });
+
+  return sharedStore.lowStockPromise;
+};
 
 export const getRelativeTimeString = (timestamp) => {
   if (!timestamp) return 'Just now';
@@ -33,145 +139,96 @@ export const getRelativeTimeString = (timestamp) => {
 };
 
 export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK) => {
-  const [orders, setOrders] = useState([]);
-  const [internalLowStock, setInternalLowStock] = useState(() => 
-    Array.isArray(lowStockItems) && lowStockItems.length > 0 ? lowStockItems : []
-  );
-  const [priceUpdates, setPriceUpdates] = useState([]);
+  const [snapshot, setSnapshot] = useState(() => ({ ...sharedStore }));
 
-  const fetchPriceUpdates = useCallback(async () => {
-    try {
-      const data = await getSupplierPriceUpdates();
-      setPriceUpdates(Array.isArray(data) ? data : []);
-    } catch {
-      // Graceful fallback
-    }
-  }, []);
-  const [loading, setLoading] = useState(true);
+  const orders = snapshot.orders;
+  const internalLowStock = snapshot.internalLowStock;
+  const priceUpdates = snapshot.priceUpdates;
+  const loading = snapshot.loading;
+  const readIds = snapshot.readIds;
+  const dismissedIds = snapshot.dismissedIds;
 
-  const lowStockFetchedRef = useRef(false);
-  const lastLowStockTimeRef = useRef(0);
-  const lastPoFetchTimeRef = useRef(0);
-
-  // Local read & dismissed state
-  const [readIds, setReadIds] = useState(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_READ_KEY);
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  const [dismissedIds, setDismissedIds] = useState(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_DISMISSED_KEY);
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  // Save changes to localStorage
+  // Save changes to localStorage and sync across all mounted hook instances
   const saveReadIds = useCallback((newReadIds) => {
-    setReadIds(newReadIds);
+    sharedStore.readIds = newReadIds;
     try {
       localStorage.setItem(STORAGE_READ_KEY, JSON.stringify(newReadIds));
     } catch {
       // Ignore quota errors
     }
+    notifyListeners();
   }, []);
 
   const saveDismissedIds = useCallback((newDismissedIds) => {
-    setDismissedIds(newDismissedIds);
+    sharedStore.dismissedIds = newDismissedIds;
     try {
       localStorage.setItem(STORAGE_DISMISSED_KEY, JSON.stringify(newDismissedIds));
     } catch {
       // Ignore quota errors
     }
+    notifyListeners();
   }, []);
 
-  // Fetch purchase orders with throttling (min 15s between auto-fetches)
-  const fetchPOs = useCallback(async (force = false) => {
-    const now = Date.now();
-    if (!force && now - lastPoFetchTimeRef.current < 15000) {
-      return;
-    }
-    lastPoFetchTimeRef.current = now;
-    try {
-      const data = await getPurchaseOrders();
-      setOrders(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error('Failed to load purchase orders for notifications:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const fetchPOs = useCallback((force = false) => fetchSharedPOs(force), []);
+  const fetchLowStock = useCallback((force = false) => fetchSharedLowStock(force), []);
 
-  // Fetch low stock items automatically with throttling (min 30s between auto-fetches)
-  const fetchLowStock = useCallback(async (force = false) => {
-    const now = Date.now();
-    if (!force && now - lastLowStockTimeRef.current < 30000) {
-      return;
-    }
-    lastLowStockTimeRef.current = now;
-    try {
-      const stats = await getDashboardStats('day');
-      const details = stats?.lowStockDetails || stats?.lowStockItemsDetails;
-      if (Array.isArray(details)) {
-        setInternalLowStock(details);
-      }
-    } catch {
-      // Graceful fallback
-    }
-  }, []);
-
-  // Sync external lowStockItems if provided, otherwise fetch once on mount
+  // Sync external lowStockItems if provided (e.g. from DashboardOverview stats), otherwise fetch once
   useEffect(() => {
     if (Array.isArray(lowStockItems) && lowStockItems.length > 0) {
-      setInternalLowStock(lowStockItems);
-    } else if (!lowStockFetchedRef.current) {
-      lowStockFetchedRef.current = true;
-      fetchLowStock(true);
+      sharedStore.internalLowStock = lowStockItems;
+      sharedStore.lastLowStockTime = Date.now();
+      notifyListeners();
+    } else if (sharedStore.lastLowStockTime === 0) {
+      fetchSharedLowStock(false);
     }
-  }, [lowStockItems?.length, fetchLowStock]);
+  }, [lowStockItems]);
 
-  // Realtime subscription setup
+  // Single shared Realtime subscription across all mounted notification consumers
   useEffect(() => {
-    fetchPOs(true);
-    fetchPriceUpdates();
+    sharedStore.listeners.add(setSnapshot);
+    sharedStore.subscriberCount += 1;
 
-    const channelName = `dashboard_inbox_sync_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-    const channel = supabase
-      .channel(channelName)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'purchase_orders' },
-        () => {
-          fetchPOs(true);
-    fetchPriceUpdates();
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'ingredients' },
-        () => {
-          fetchLowStock(true);
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'products' },
-        () => {
-          fetchLowStock(true);
-        }
-      )
-      .subscribe();
+    fetchSharedPOs(false);
+    fetchSharedPriceUpdates(false);
+
+    if (!sharedStore.channel) {
+      const channelName = `dashboard_inbox_sync_shared_${Date.now()}`;
+      sharedStore.channel = supabase
+        .channel(channelName)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'purchase_orders' },
+          () => {
+            fetchSharedPOs(true);
+            fetchSharedPriceUpdates(true);
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'ingredients' },
+          () => {
+            fetchSharedLowStock(true);
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'products' },
+          () => {
+            fetchSharedLowStock(true);
+          }
+        )
+        .subscribe();
+    }
 
     return () => {
-      supabase.removeChannel(channel);
+      sharedStore.listeners.delete(setSnapshot);
+      sharedStore.subscriberCount = Math.max(0, sharedStore.subscriberCount - 1);
+      if (sharedStore.subscriberCount === 0 && sharedStore.channel) {
+        supabase.removeChannel(sharedStore.channel);
+        sharedStore.channel = null;
+      }
     };
-  }, [fetchPOs, fetchLowStock]);
+  }, []);
 
   // Build unified notification list
   const allNotifications = useMemo(() => {

@@ -46,12 +46,41 @@ router.get('/stats', async (req, res) => {
       boundEnd = `${todayStr}T23:59:59.999+08:00`;
     }
 
-    // 2. Fetch sales strictly within bounding dates
-    const { data: boundedSales, error: salesError } = await supabase
-      .from('sales')
-      .select('id, total_amount, created_at, sale_items(quantity, unit_price, products(id, name, category))')
-      .gte('created_at', boundStart)
-      .lte('created_at', boundEnd);
+    const startDateObj = new Date(new Date(boundStart).toLocaleString("en-US", { timeZone: "Asia/Manila" }));
+    const endDateObj = new Date(new Date(boundEnd).toLocaleString("en-US", { timeZone: "Asia/Manila" }));
+    const needsTrendHistory = period === 'day' && !reqStart && !reqEnd;
+
+    // 2. Execute all independent dashboard queries concurrently via Promise.all
+    const [
+      { data: boundedSales, error: salesError },
+      { count: productCount },
+      ingredients,
+      { data: lowStockProductsData },
+      trendHistoryRes
+    ] = await Promise.all([
+      supabase
+        .from('sales')
+        .select('id, total_amount, created_at, sale_items(quantity, unit_price, products(id, name, category))')
+        .gte('created_at', boundStart)
+        .lte('created_at', boundEnd),
+      supabase
+        .from('products')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_archived', false),
+      inventoryService.getIngredients(),
+      supabase
+        .from('products')
+        .select('name, stock_quantity, low_stock_threshold, max_stock')
+        .eq('track_stock', true)
+        .eq('is_archived', false),
+      needsTrendHistory
+        ? supabase
+            .from('sales')
+            .select('total_amount, created_at, sale_items(quantity, unit_price, products(category))')
+            .gte('created_at', toManilaStartOfDay(new Date(endDateObj.getTime() - 6 * 86400000).toISOString()))
+            .lte('created_at', boundEnd)
+        : Promise.resolve({ data: null })
+    ]);
 
     if (salesError) throw salesError;
 
@@ -62,12 +91,6 @@ router.get('/stats', async (req, res) => {
     const avgTransactionValue = transactionsCount > 0 ? (totalRevenue / transactionsCount) : 0;
 
     // 4. Products count & Configurable Threshold Low Stock Alerts
-    const { count: productCount } = await supabase
-      .from('products')
-      .select('*', { count: 'exact', head: true })
-      .eq('is_archived', false);
-
-    const ingredients = await inventoryService.getIngredients();
     const lowStockIngredients = (ingredients || [])
       .filter(i => {
         const currentStock = parseFloat(i.stock_quantity) || 0;
@@ -87,13 +110,6 @@ router.get('/stats', async (req, res) => {
         };
       });
 
-    // Include Products with direct stock tracking
-    const { data: lowStockProductsData } = await supabase
-      .from('products')
-      .select('name, stock_quantity, low_stock_threshold, max_stock')
-      .eq('track_stock', true)
-      .eq('is_archived', false);
-    
     const lowStockProducts = (lowStockProductsData || [])
       .filter(p => {
         const currentStock = parseFloat(p.stock_quantity) || 0;
@@ -117,13 +133,8 @@ router.get('/stats', async (req, res) => {
     const lowStockCount = lowStockItemsDetails.length;
 
     // 5. Build Sales Trend (Daily bins across bounding date range)
-    // Compute list of date bins between boundStart and boundEnd
-    const startDateObj = new Date(new Date(boundStart).toLocaleString("en-US", { timeZone: "Asia/Manila" }));
-    const endDateObj = new Date(new Date(boundEnd).toLocaleString("en-US", { timeZone: "Asia/Manila" }));
-    
-    // Default to at least 7 days for trend graph visualization if period is day
     const trendMap = {};
-    if (period === 'day' && !reqStart && !reqEnd) {
+    if (needsTrendHistory) {
       for (let i = 6; i >= 0; i--) {
         const d = new Date(endDateObj);
         d.setDate(d.getDate() - i);
@@ -132,13 +143,7 @@ router.get('/stats', async (req, res) => {
         trendMap[`${mm}/${dd}`] = { revenue: 0, categories: {} };
       }
 
-      // Fetch 7-day trend history for chart sparklines
-      const weekAgoIso = `${trendMap[Object.keys(trendMap)[0]] ? Object.keys(trendMap)[0].replace('/', '-') : todayStr}`;
-      const { data: trendHistory } = await supabase
-        .from('sales')
-        .select('total_amount, created_at, sale_items(quantity, unit_price, products(category))')
-        .gte('created_at', toManilaStartOfDay(new Date(endDateObj.getTime() - 6 * 86400000).toISOString()))
-        .lte('created_at', boundEnd);
+      const trendHistory = trendHistoryRes?.data;
 
       (trendHistory || []).forEach(s => {
         const localDateObj = new Date(new Date(s.created_at).toLocaleString("en-US", { timeZone: "Asia/Manila" }));

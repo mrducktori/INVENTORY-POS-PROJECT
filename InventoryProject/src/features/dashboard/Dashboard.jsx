@@ -1,49 +1,31 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { supabase } from '../../config/supabaseClient';
-import { clearUserSession } from '../../utils/authUtils';
+import { clearUserSession, getCurrentUser } from '../../utils/authUtils';
+import { canAccess, getUserPermissions } from '../../utils/permissions';
 
 import Navbar from '../../components/Navbar';
 import DashboardOverview from './DashboardOverview';
-import POS from '../pos/POS';
 
-// Inventory System
-import Products from '../inventory/Products';
-import ManageProducts from '../inventory/ManageProducts';
-
-// Inventory Stock
-
-import RawMaterialTracker from '../inventory/RawMaterialTracker';
-import ManageRawMaterials from '../inventory/ManageRawMaterials';
-import LowStockAlerts from '../inventory/LowStockAlerts';
-import ProductStockTracker from '../inventory/ProductStockTracker';
-import PurchaseOrders from '../inventory/PurchaseOrders';
-import ManageSuppliers from '../inventory/ManageSuppliers';
-
-// Logs & Reports
-import AuditLogs from '../logs/AuditLogs';
-import TransactionLogs from '../logs/TransactionLogs';
-import SalesReceiptJournal from '../logs/SalesReceiptJournal';
-import SalesSummaryReport from '../logs/SalesSummaryReport';
-
-// Account Management
-import AccountManager from '../accounts/AccountManager';
-
-// Report Broken Items (Staff)
-import ReportWastage from '../wastage/ReportWastage';
-
-// Analytics
-import DemandForecasting from '../analytics/DemandForecasting';
-
-// Reports Module
-import Reports from '../reports/Reports';
-
-// Content Management
-import CMSDashboard from '../cms/CMSDashboard';
-
-// Supplier Portal
-import SupplierPortal from '../inventory/SupplierPortal';
-import { getCurrentUser } from '../../utils/authUtils';
-import { canAccess, getUserPermissions } from '../../utils/permissions';
+// Lazy-load secondary dashboard modules so initial bundle load is fast and light
+const POS = lazy(() => import('../pos/POS'));
+const Products = lazy(() => import('../inventory/Products'));
+const ManageProducts = lazy(() => import('../inventory/ManageProducts'));
+const RawMaterialTracker = lazy(() => import('../inventory/RawMaterialTracker'));
+const ManageRawMaterials = lazy(() => import('../inventory/ManageRawMaterials'));
+const LowStockAlerts = lazy(() => import('../inventory/LowStockAlerts'));
+const ProductStockTracker = lazy(() => import('../inventory/ProductStockTracker'));
+const PurchaseOrders = lazy(() => import('../inventory/PurchaseOrders'));
+const ManageSuppliers = lazy(() => import('../inventory/ManageSuppliers'));
+const AuditLogs = lazy(() => import('../logs/AuditLogs'));
+const TransactionLogs = lazy(() => import('../logs/TransactionLogs'));
+const SalesReceiptJournal = lazy(() => import('../logs/SalesReceiptJournal'));
+const SalesSummaryReport = lazy(() => import('../logs/SalesSummaryReport'));
+const AccountManager = lazy(() => import('../accounts/AccountManager'));
+const ReportWastage = lazy(() => import('../wastage/ReportWastage'));
+const DemandForecasting = lazy(() => import('../analytics/DemandForecasting'));
+const Reports = lazy(() => import('../reports/Reports'));
+const CMSDashboard = lazy(() => import('../cms/CMSDashboard'));
+const SupplierPortal = lazy(() => import('../inventory/SupplierPortal'));
 
 const Dashboard = () => {
   const user = getCurrentUser() || {};
@@ -82,8 +64,9 @@ const Dashboard = () => {
       )
       .subscribe();
 
-    // 2. Periodic heartbeat fallback check (every 10 seconds)
+    // 2. Periodic heartbeat fallback check (every 60 seconds when tab is visible)
     const interval = setInterval(async () => {
+      if (typeof document !== 'undefined' && document.hidden) return;
       try {
         const { data, error } = await supabase
           .from('users')
@@ -97,7 +80,7 @@ const Dashboard = () => {
       } catch {
         // ignore transient network errors
       }
-    }, 10000);
+    }, 60000);
 
     return () => {
       supabase.removeChannel(channel);
@@ -178,7 +161,17 @@ const Dashboard = () => {
         <Navbar activeTab={activeTab} onTabChange={setActiveTab} />
         <main className="flex-1 overflow-y-auto bg-[#f8fafc] scrollbar-thin scrollbar-thumb-zinc-300 hover:scrollbar-thumb-zinc-400">
           <div key={activeTab} className="tab-pane-transition min-h-full">
-            {renderContent()}
+            <Suspense
+              fallback={
+                <div className="p-8 space-y-4">
+                  <div className="h-8 w-56 bg-zinc-200/80 rounded-lg animate-pulse" />
+                  <div className="h-4 w-80 bg-zinc-100 rounded animate-pulse" />
+                  <div className="h-64 w-full bg-white border border-zinc-200 rounded-2xl animate-pulse mt-6" />
+                </div>
+              }
+            >
+              {renderContent()}
+            </Suspense>
           </div>
         </main>
       </div>

@@ -3,6 +3,7 @@ import { apiCall } from "./client.js";
 // In-memory cache to avoid duplicate network calls across components
 let cmsCache = null;
 let cacheTimestamp = 0;
+let cmsInFlightPromise = null;
 const CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes
 
 /**
@@ -32,21 +33,29 @@ export async function getCmsMap(forceRefresh = false) {
   if (!forceRefresh && cmsCache && (now - cacheTimestamp < CACHE_TTL_MS)) {
     return cmsCache;
   }
-
-  const rawList = await apiCall("/cms", { method: "GET" });
-  const map = {};
-
-  if (Array.isArray(rawList)) {
-    for (const item of rawList) {
-      if (item && item.section_key) {
-        map[item.section_key] = item;
-      }
-    }
+  if (!forceRefresh && cmsInFlightPromise) {
+    return cmsInFlightPromise;
   }
 
-  cmsCache = map;
-  cacheTimestamp = now;
-  return map;
+  cmsInFlightPromise = apiCall("/cms", { method: "GET" })
+    .then((rawList) => {
+      const map = {};
+      if (Array.isArray(rawList)) {
+        for (const item of rawList) {
+          if (item && item.section_key) {
+            map[item.section_key] = item;
+          }
+        }
+      }
+      cmsCache = map;
+      cacheTimestamp = Date.now();
+      return map;
+    })
+    .finally(() => {
+      cmsInFlightPromise = null;
+    });
+
+  return cmsInFlightPromise;
 }
 
 /**

@@ -209,16 +209,47 @@ export const deleteSupplier = async (id) => {
   return archiveSupplier(id);
 };
 
-// Helper to enrich PO items with actual multi-receive batch events from audit logs
-const enrichPOsWithReceiptHistory = async (pos) => {
-  if (!pos || pos.length === 0) return pos;
+// Cache schema capabilities so we don't repeat failed fallback queries on every request
+let hasPoReceiptHistoryCol = true;
 
+const PO_AUDIT_ACTIONS = [
+  'RAW_MATERIAL_STOCK_RECEIVED',
+  'SUPPLIER_PO_ITEM_RESPONSE',
+  'SHOP_PO_PROPOSAL_RESPONSE',
+  'PURCHASE_ORDER_CREATED',
+  'SUPPLIER_PO_DECLINED',
+  'PURCHASE_ORDER_STATUS_UPDATED',
+  'PURCHASE_ORDER_CANCELLED',
+  'PURCHASE_ORDER_RESCHEDULED'
+];
+
+// Fetch all PO-related audit logs in a single database query instead of 3 sequential queries
+const fetchPoAuditLogs = async () => {
   try {
     const { data: logs } = await supabase
       .from('audit_logs')
-      .select('created_at, details')
-      .eq('action', 'RAW_MATERIAL_STOCK_RECEIVED')
+      .select('created_at, action, details')
+      .in('action', PO_AUDIT_ACTIONS)
       .order('created_at', { ascending: true });
+    return logs || [];
+  } catch (err) {
+    console.error('Error fetching PO audit logs:', err);
+    return [];
+  }
+};
+
+// Helper to enrich PO items with actual multi-receive batch events from audit logs
+const enrichPOsWithReceiptHistory = async (pos, preloadedLogs = null) => {
+  if (!pos || pos.length === 0) return pos;
+
+  try {
+    const logs = preloadedLogs
+      ? preloadedLogs.filter(l => l.action === 'RAW_MATERIAL_STOCK_RECEIVED')
+      : (await supabase
+          .from('audit_logs')
+          .select('created_at, details')
+          .eq('action', 'RAW_MATERIAL_STOCK_RECEIVED')
+          .order('created_at', { ascending: true })).data;
 
     if (!logs || logs.length === 0) return pos;
 
@@ -256,23 +287,26 @@ const enrichPOsWithReceiptHistory = async (pos) => {
 };
 
 // Helper to enrich POs with decline reasons, cancellation reasons, and overdue metrics
-const enrichPOsWithMetadata = async (pos) => {
+const enrichPOsWithMetadata = async (pos, preloadedLogs = null) => {
   if (!pos || pos.length === 0) return pos;
 
   const todayManila = getManilaDateOnly();
+  const metadataActions = new Set([
+    'PURCHASE_ORDER_CREATED',
+    'SUPPLIER_PO_DECLINED',
+    'PURCHASE_ORDER_STATUS_UPDATED',
+    'PURCHASE_ORDER_CANCELLED',
+    'PURCHASE_ORDER_RESCHEDULED'
+  ]);
 
   try {
-    const { data: logs } = await supabase
-      .from('audit_logs')
-      .select('created_at, details, action')
-      .in('action', [
-        'PURCHASE_ORDER_CREATED',
-        'SUPPLIER_PO_DECLINED', 
-        'PURCHASE_ORDER_STATUS_UPDATED', 
-        'PURCHASE_ORDER_CANCELLED', 
-        'PURCHASE_ORDER_RESCHEDULED'
-      ])
-      .order('created_at', { ascending: false });
+    const logs = preloadedLogs
+      ? [...preloadedLogs].filter(l => metadataActions.has(l.action)).reverse()
+      : (await supabase
+          .from('audit_logs')
+          .select('created_at, details, action')
+          .in('action', Array.from(metadataActions))
+          .order('created_at', { ascending: false })).data;
 
     const declineMap = {};
     const cancellationMap = {};
@@ -362,15 +396,17 @@ const enrichPOsWithMetadata = async (pos) => {
 };
 
 // Helper to enrich PO items with supplier proposals & shop decisions from audit logs
-const enrichPOsWithSupplierProposals = async (pos) => {
+const enrichPOsWithSupplierProposals = async (pos, preloadedLogs = null) => {
   if (!pos || pos.length === 0) return pos;
 
   try {
-    const { data: logs } = await supabase
-      .from('audit_logs')
-      .select('created_at, action, details')
-      .in('action', ['SUPPLIER_PO_ITEM_RESPONSE', 'SHOP_PO_PROPOSAL_RESPONSE'])
-      .order('created_at', { ascending: true });
+    const logs = preloadedLogs
+      ? preloadedLogs.filter(l => l.action === 'SUPPLIER_PO_ITEM_RESPONSE' || l.action === 'SHOP_PO_PROPOSAL_RESPONSE')
+      : (await supabase
+          .from('audit_logs')
+          .select('created_at, action, details')
+          .in('action', ['SUPPLIER_PO_ITEM_RESPONSE', 'SHOP_PO_PROPOSAL_RESPONSE'])
+          .order('created_at', { ascending: true })).data;
 
     if (!logs || logs.length === 0) return pos;
 
@@ -441,49 +477,42 @@ const enrichPOsWithSupplierProposals = async (pos) => {
   return pos;
 };
 
+const getPoSelectColumns = () => `
+  *,
+  suppliers ( name ),
+  purchase_order_items (
+    id,
+    ingredient_id,
+    quantity,
+    quantity_received,
+    is_received,
+    unit_price,
+    subtotal,
+    purchase_unit,
+    conversion_factor,
+    ${hasPoReceiptHistoryCol ? 'receipt_history,' : ''}
+    ingredients ( name, unit )
+  )
+`;
+
 // === Purchase Orders ===
 export const getPurchaseOrders = async () => {
-  let { data, error } = await supabase
-    .from("purchase_orders")
-    .select(`
-      *,
-      suppliers ( name ),
-      purchase_order_items (
-        id,
-        ingredient_id,
-        quantity,
-        quantity_received,
-        is_received,
-        unit_price,
-        subtotal,
-        purchase_unit,
-        conversion_factor,
-        receipt_history,
-        ingredients ( name, unit )
-      )
-    `)
-    .order("created_at", { ascending: false });
+  const [poRes, auditLogs] = await Promise.all([
+    supabase
+      .from("purchase_orders")
+      .select(getPoSelectColumns())
+      .order("created_at", { ascending: false }),
+    fetchPoAuditLogs()
+  ]);
+
+  let { data, error } = poRes;
 
   // Fallback if receipt_history column doesn't exist yet in the database
   if (error && (error.code === '42703' || error.message?.includes('receipt_history'))) {
+    hasPoReceiptHistoryCol = false;
     const fallback = await supabase
       .from("purchase_orders")
-      .select(`
-        *,
-        suppliers ( name ),
-        purchase_order_items (
-          id,
-          ingredient_id,
-          quantity,
-          quantity_received,
-          is_received,
-          unit_price,
-          subtotal,
-          purchase_unit,
-          conversion_factor,
-          ingredients ( name, unit )
-        )
-      `)
+      .select(getPoSelectColumns())
       .order("created_at", { ascending: false });
 
     if (fallback.error) throw fallback.error;
@@ -493,55 +522,30 @@ export const getPurchaseOrders = async () => {
     throw error;
   }
 
-  const withReceipts = await enrichPOsWithReceiptHistory(data);
-  const withProposals = await enrichPOsWithSupplierProposals(withReceipts);
-  return await enrichPOsWithMetadata(withProposals);
+  const withReceipts = await enrichPOsWithReceiptHistory(data, auditLogs);
+  const withProposals = await enrichPOsWithSupplierProposals(withReceipts, auditLogs);
+  return await enrichPOsWithMetadata(withProposals, auditLogs);
 };
 
 // Get purchase orders for a specific supplier (Supplier Portal)
 export const getPurchaseOrdersBySupplier = async (supplierId) => {
-  let { data, error } = await supabase
-    .from("purchase_orders")
-    .select(`
-      *,
-      suppliers ( name ),
-      purchase_order_items (
-        id,
-        ingredient_id,
-        quantity,
-        quantity_received,
-        is_received,
-        unit_price,
-        subtotal,
-        purchase_unit,
-        conversion_factor,
-        receipt_history,
-        ingredients ( name, unit )
-      )
-    `)
-    .eq("supplier_id", supplierId)
-    .order("created_at", { ascending: false });
+  const [poRes, auditLogs] = await Promise.all([
+    supabase
+      .from("purchase_orders")
+      .select(getPoSelectColumns())
+      .eq("supplier_id", supplierId)
+      .order("created_at", { ascending: false }),
+    fetchPoAuditLogs()
+  ]);
+
+  let { data, error } = poRes;
 
   // Fallback if receipt_history column doesn't exist yet
   if (error && (error.code === '42703' || error.message?.includes('receipt_history'))) {
+    hasPoReceiptHistoryCol = false;
     const fallback = await supabase
       .from("purchase_orders")
-      .select(`
-        *,
-        suppliers ( name ),
-        purchase_order_items (
-          id,
-          ingredient_id,
-          quantity,
-          quantity_received,
-          is_received,
-          unit_price,
-          subtotal,
-          purchase_unit,
-          conversion_factor,
-          ingredients ( name, unit )
-        )
-      `)
+      .select(getPoSelectColumns())
       .eq("supplier_id", supplierId)
       .order("created_at", { ascending: false });
 
@@ -552,9 +556,9 @@ export const getPurchaseOrdersBySupplier = async (supplierId) => {
     throw error;
   }
 
-  const withReceipts = await enrichPOsWithReceiptHistory(data);
-  const withProposals = await enrichPOsWithSupplierProposals(withReceipts);
-  return await enrichPOsWithMetadata(withProposals);
+  const withReceipts = await enrichPOsWithReceiptHistory(data, auditLogs);
+  const withProposals = await enrichPOsWithSupplierProposals(withReceipts, auditLogs);
+  return await enrichPOsWithMetadata(withProposals, auditLogs);
 };
 
 export const createPurchaseOrder = async (poData) => {

@@ -123,6 +123,8 @@ function MenuPanel({ title, subtitle, onClose, products = [], loading = false, e
                           <img 
                             src={product.image_url} 
                             alt={product.name} 
+                            loading="lazy"
+                            decoding="async"
                             className="w-full aspect-square object-cover rounded-lg mb-2 sm:mb-3 drop-shadow-lg transition-opacity"
                           />
                         ) : (
@@ -682,8 +684,9 @@ function LandingPage() {
     };
     
     // Fallback timer just in case API is slow/fails
-    const timer = setTimeout(() => setIsInitialLoading(false), 2000);
+    const timer = setTimeout(() => setIsInitialLoading(false), 1200);
     fetchData();
+    // Defer product catalog fetch until after initial hero/CMS paint or when menu opens
     fetchProducts();
     
     return () => clearTimeout(timer);

@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Performance: Full-Stack Load Speed Optimization (Frontend & Backend) - 2026-11-08]
+- **Eliminated 3× Duplicate Notification Fetches & WebSocket Channels (`useNotifications.js`)**:
+  - `Navbar.jsx` and two `<NotificationInbox />` instances previously initialized 3 separate `useNotifications()` states on Dashboard load, firing 3× `GET /api/purchasing`, 3× `GET /api/purchasing/price-updates`, 2× `GET /api/dashboard/stats`, and 3× Supabase Realtime subscriptions simultaneously.
+  - Refactored `useNotifications.js` to use a shared singleton store with in-flight promise deduplication and a single shared Supabase Realtime channel.
+- **Short-TTL User Auth Cache in `requireAuth` (`server/middleware/authMiddleware.js`, `auth.js`, `users.js`)**:
+  - Added a 20-second in-memory user verification cache in `requireAuth` (with immediate invalidation on login, logout, and user status/profile updates) so parallel API requests on page load no longer trigger 8–12 redundant `SELECT ... FROM users` database round-trips before route handlers execute.
+- **Parallelized Dashboard & Purchasing Queries (`server/routes/dashboard.js`, `server/services/purchasingService.js`)**:
+  - Converted 5 sequential Supabase queries in `GET /api/dashboard/stats` into a single concurrent `Promise.all()` batch.
+  - Consolidated 3 sequential `audit_logs` queries in `getPurchaseOrders` and `getPurchaseOrdersBySupplier` into 1 query executed in parallel with the `purchase_orders` fetch via `Promise.all()`.
+- **Route & Tab Code-Splitting (`App.jsx`, `Dashboard.jsx`)**:
+  - Added `React.lazy()` + `<Suspense>` for `LoginPage`, `Dashboard`, and all secondary dashboard tabs (`POS`, `Products`, `ManageProducts`, `PurchaseOrders`, `Reports`, etc.), shrinking the entry `index.js` bundle from **757 kB** down to **35.5 kB (10.2 kB gzipped)**.
+  - Reduced redundant user status fallback polling in `Dashboard.jsx` from 10s to 60s (and paused when tab is hidden), deduplicated concurrent `getCmsMap()` requests in `cmsApi.js`, and added `loading="lazy"` to menu board images in `LandingPage.jsx`.
+
 ## [UI/Polish: Sticky Left-Anchored Name Columns Across Tables - 2026-11-08]
 - **Anchored Primary Name Columns on Horizontal Scroll**:
   - Added `sticky left-0 z-10` with opaque background and subtle separator border shadow to the primary Name column across `ManageRawMaterials.jsx` (`Material Name`), `RawMaterialTracker.jsx` (`Ingredient`), `ManageProducts.jsx` (`Product Name`), `Products.jsx` (`Product`), `ProductStockTracker.jsx` (`Product`), `LowStockAlerts.jsx` (`Ingredient`), `ManageSuppliers.jsx` (`Supplier Name`), and `DemandForecasting.jsx` (`Ingredient` & `Menu Item`).

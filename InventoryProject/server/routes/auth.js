@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { supabase } from "../config/supabaseClient.js";
 import { logAudit } from "../utils/auditHelper.js";
+import { invalidateUserAuthCache } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
@@ -135,6 +136,7 @@ router.post("/login", async (req, res) => {
     if (sessionTracked && data.current_session_id) {
       await logAudit("SESSION_REPLACED", data.id, { username: data.username });
     }
+    invalidateUserAuthCache(data.id);
     await logAudit("LOGIN", data.id, { username: data.username, role: data.role });
 
     const {
@@ -182,6 +184,7 @@ router.post("/logout", async (req, res) => {
       .select("id, username, role");
 
     if (data && data.length > 0) {
+      invalidateUserAuthCache(data[0].id);
       await logAudit("LOGOUT", data[0].id, { username: data[0].username, role: data[0].role });
     }
     res.json({ success: true });

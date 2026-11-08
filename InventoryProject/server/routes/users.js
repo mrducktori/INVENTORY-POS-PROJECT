@@ -2,7 +2,7 @@ import express from 'express';
 import bcrypt from 'bcrypt';
 import { supabase } from '../config/supabaseClient.js';
 import { logAudit } from '../utils/auditHelper.js';
-import { requireAuth, requireRole } from '../middleware/authMiddleware.js';
+import { requireAuth, requireRole, invalidateUserAuthCache } from '../middleware/authMiddleware.js';
 import { normalizeAccessFields } from '../utils/permissions.js';
 
 const router = express.Router();
@@ -139,6 +139,8 @@ router.put('/:id/status', requireAuth, requireRole('Admin', 'Owner'), async (req
       .single();
     if (error) throw error;
 
+    invalidateUserAuthCache(req.params.id);
+
     await logAudit('USER_STATUS_CHANGED', req.user.id, {
       target_user_id: req.params.id,
       name: data.name,
@@ -231,6 +233,8 @@ router.put('/:id', requireAuth, requireRole('Admin', 'Owner'), async (req, res) 
       .single();
 
     if (error) throw error;
+
+    invalidateUserAuthCache(req.params.id);
 
     await logAudit('USER_UPDATED', req.user.id, {
       target_user_id: req.params.id,
