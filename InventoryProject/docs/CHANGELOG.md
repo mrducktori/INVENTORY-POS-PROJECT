@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Security/UX: Password Complexity Rules, Real-Time Checklist & Server Enforcement - 2026-11-08]
+- **Interactive Password Security Rules Checklist (`AccountForm.jsx`, `PasswordRulesList.jsx`, `passwordRules.js`)**:
+  - Implemented real-time password validation with a visual checklist meeting modern security requirements:
+    1. At least 8 characters
+    2. At least one uppercase letter (`A–Z`)
+    3. At least one lowercase letter (`a–z`)
+    4. At least one number (`0–9`)
+    5. At least one special symbol (`!@#$%^&*` etc.)
+  - Features dynamic status indicators (emerald checkmark SVG when satisfied, neutral dot when pending), a progress bar, strength indicator (`Weak`, `Moderate`, `Good`, `Strong`), and no raw Unicode emojis.
+  - Added a "Confirm password" field with real-time match validation ("Passwords match" / "Passwords do not match") and show/hide password toggle buttons.
+  - When editing accounts, password remains optional ("Leave blank to keep current"); if a new password is typed, the rules checklist and confirmation automatically activate.
+- **Client & Server-Side Security Enforcement (`AccountManager.jsx`, `users.js`, `passwordValidator.js`)**:
+  - Added client-side submission guards in `AccountForm.jsx` and `AccountManager.jsx` preventing form submission if requirements are not met or if password and confirmation do not match.
+  - Created backend validator `passwordValidator.js` and enforced `validatePasswordRules()` on `POST /api/users` (account creation) and `PUT /api/users/:id` (password changes) in `server/routes/users.js` so API requests cannot bypass password complexity requirements.
+
+
 ## [UI/POS: Move Discount Selection to Checkout & Lessen Header Eyebrows - 2026-11-08]
 - **Moved Discount Selection to Post-Ongoing Checkout Flow (`Cart.jsx`, `POS.jsx`, `OngoingOrders.jsx`, `PaymentModal.jsx`)**:
   - Removed the upfront discount button grid from the Cart panel at startup; the cart now focuses purely on punched items, VAT breakdown, and a clean **`Create Order`** button (and secondary `Clear Cart`).

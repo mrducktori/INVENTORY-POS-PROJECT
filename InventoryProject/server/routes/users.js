@@ -6,6 +6,7 @@ import { requireAuth, requireRole, invalidateUserAuthCache, reapInactiveUserSess
 import { userManagementLimiter } from '../middleware/rateLimiter.js';
 import { normalizeAccessFields } from '../utils/permissions.js';
 import { toManilaStartOfDay, toManilaEndOfDay } from '../utils/dateUtils.js';
+import { validatePasswordRules } from '../utils/passwordValidator.js';
 
 const router = express.Router();
 
@@ -49,6 +50,12 @@ router.post('/', requireAuth, requireRole('Admin', 'Owner'), userManagementLimit
     // Supplier role requires a linked supplier
     if (role === 'Supplier' && !supplier_id) {
       return res.status(400).json({ error: 'Supplier role requires a linked supplier.' });
+    }
+
+    // Password security validation
+    const passwordValidation = validatePasswordRules(password);
+    if (!passwordValidation.valid) {
+      return res.status(400).json({ error: passwordValidation.error });
     }
 
     const access = normalizeAccessFields(role, permissions, custom_role_name);
@@ -225,6 +232,10 @@ router.put('/:id', requireAuth, requireRole('Admin', 'Owner'), userManagementLim
     if (role === 'Supplier') updates.supplier_id = supplier_id;
 
     if (password && password.trim() !== '') {
+      const passwordValidation = validatePasswordRules(password);
+      if (!passwordValidation.valid) {
+        return res.status(400).json({ error: passwordValidation.error });
+      }
       const saltRounds = 10;
       updates.password_hash = await bcrypt.hash(password, saltRounds);
     }

@@ -4,6 +4,7 @@ import { getCurrentUser } from '../../api/authApi';
 import { getSuppliers } from '../../api/purchasingApi';
 import { supabase } from '../../config/supabaseClient';
 import { STAFF_DEFAULT_PERMISSIONS } from '../../utils/permissions';
+import { validatePasswordForSubmission } from '../../utils/passwordRules';
 import AccountForm from './components/AccountForm';
 import UsersTable from './components/UsersTable';
 
@@ -137,6 +138,12 @@ const AccountManager = () => {
       flash('error', 'Select at least one page for this custom role.');
       return;
     }
+    const isEditing = Boolean(editingUserId);
+    const pwdCheck = validatePasswordForSubmission(formData.password, isEditing);
+    if (!pwdCheck.isValid) {
+      flash('error', pwdCheck.error);
+      return;
+    }
     setConfirmAction('save');
     setShowConfirmModal(true);
   };
@@ -144,10 +151,14 @@ const AccountManager = () => {
   const buildPayload = () => {
     const payload = {
       name: formData.name.trim(),
-      username: formData.username,
-      password: formData.password,
+      username: formData.username.trim(),
       role: formData.role,
     };
+    if (formData.password && formData.password.trim()) {
+      payload.password = formData.password.trim();
+    } else if (!editingUserId) {
+      payload.password = formData.password;
+    }
     if (formData.role === 'Supplier') payload.supplier_id = formData.supplier_id;
     if (formData.role === 'Staff' || formData.role === 'Custom') payload.permissions = formData.permissions;
     if (formData.role === 'Custom') payload.custom_role_name = formData.custom_role_name.trim();
