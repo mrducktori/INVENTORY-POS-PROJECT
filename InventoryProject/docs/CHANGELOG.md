@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [UI/POS: Move Discount Selection to Checkout & Lessen Header Eyebrows - 2026-11-08]
+- **Moved Discount Selection to Post-Ongoing Checkout Flow (`Cart.jsx`, `POS.jsx`, `OngoingOrders.jsx`, `PaymentModal.jsx`)**:
+  - Removed the upfront discount button grid from the Cart panel at startup; the cart now focuses purely on punched items, VAT breakdown, and a clean **`Create Order`** button (and secondary `Clear Cart`).
+  - Order is placed into **Ongoing Orders**; clicking **`Pay`** in Ongoing Orders opens the checkout modal where discounts (`Senior Citizen 20%`, `PWD 20%`, `Student 10%`, `Staff 15%`, `Custom`, or `No Discount`) and tenders (Cash/GCash) are selected and confirmed.
+- **Lessened Noisy Eyebrow Headers Across POS & Wastage (`Cart.jsx`, `OngoingOrders.jsx`, `POS.jsx`, `PaymentModal.jsx`, `ReportWastage.jsx`)**:
+  - Replaced shouty uppercase tracking eyebrows (`DISCOUNT TYPE`, `ITEMS: X`, `ORDERS: X`, decorative `Inventory Control` badge) with clean, minimal sentence-case typography.
+  - Form labels and card headers in POS and Wastage now use clean font weights and natural casing.
+
 ## [Fix: Stale Chunk Preload Recovery & Supabase Navigator Lock Error - 2026-11-08]
 - **Fixed Stale Chunk / Disallowed MIME Type (`text/html`) White Screen (`main.jsx`, `ErrorBoundary.jsx`)**:
   - Added global listeners for `vite:preloadError` and dynamic import module failures in `main.jsx` and `ErrorBoundary.jsx`. When an outdated browser session requests an old hashed JS chunk (e.g. `ProductStockTracker-B1R0fw9O.js`) that no longer exists after a new deployment, the browser automatically refreshes once to fetch the latest asset manifest instead of failing with a white screen.

@@ -144,14 +144,14 @@ const PaymentModal = ({ order, onConfirm, onClose }) => {
                 </>
               )}
               <div className="flex flex-col items-center justify-center pt-0.5">
-                <span className="text-xs sm:text-sm font-semibold text-gray-500 uppercase tracking-wider block">Total Amount Due</span>
+                <span className="text-xs text-gray-500 font-medium block">Total Amount Due</span>
                 <h1 className="m-0 text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight font-mono">₱{finalTotal.toFixed(2)}</h1>
               </div>
             </div>
 
             {/* Discount Selection */}
             <div>
-              <label className="block text-xs sm:text-sm font-semibold text-gray-600 uppercase tracking-wider mb-2">
+              <label className="block text-xs font-semibold text-gray-700 mb-2">
                 Discount Option
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -221,22 +221,22 @@ const PaymentModal = ({ order, onConfirm, onClose }) => {
               )}
             </div>
 
-            <div className="flex bg-gray-100 rounded-lg p-1">
+            <div className="flex bg-gray-100 rounded-xl p-1">
               <button 
                 type="button"
-                className={`flex-1 py-2.5 text-sm md:text-base font-bold uppercase tracking-wider rounded-md transition-all ${method === 'CASH' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200'}`}
+                className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all cursor-pointer border-none ${method === 'CASH' ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-600 hover:text-gray-900 bg-transparent'}`}
                 onClick={() => setMethod('CASH')}
                 disabled={submitting}
               >
-                CASH
+                Cash
               </button>
               <button 
                 type="button"
-                className={`flex-1 py-2.5 text-sm md:text-base font-bold uppercase tracking-wider rounded-md transition-all ${method === 'GCASH' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200'}`}
+                className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all cursor-pointer border-none ${method === 'GCASH' ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-600 hover:text-gray-900 bg-transparent'}`}
                 onClick={() => setMethod('GCASH')}
                 disabled={submitting}
               >
-                GCASH
+                GCash
               </button>
             </div>
 
@@ -244,7 +244,7 @@ const PaymentModal = ({ order, onConfirm, onClose }) => {
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1.5">
                   <div className="flex justify-between items-center">
-                    <label className="text-sm md:text-base font-semibold text-gray-600 uppercase tracking-wider">Amount Received</label>
+                    <label className="text-xs font-semibold text-gray-700">Amount Received</label>
                     <span className="text-xs text-gray-400 font-medium">Max: ₱{maxCashAllowed.toLocaleString()}</span>
                   </div>
 
@@ -255,7 +255,7 @@ const PaymentModal = ({ order, onConfirm, onClose }) => {
                         <button
                           key={preset.label}
                           type="button"
-                          className="px-3.5 py-1.5 text-xs md:text-sm font-bold rounded-lg border border-gray-300 bg-white hover:bg-gray-100 text-gray-900 shadow-sm transition-colors cursor-pointer"
+                          className="px-3.5 py-1.5 text-xs md:text-sm font-semibold rounded-lg border border-gray-200 bg-white hover:bg-gray-100 text-gray-900 shadow-xs transition-colors cursor-pointer"
                           onClick={() => {
                             setAmountReceived(preset.val.toString());
                             setError('');
@@ -286,12 +286,12 @@ const PaymentModal = ({ order, onConfirm, onClose }) => {
                     }}
                     required
                     disabled={submitting}
-                    className="w-full px-4 py-3 text-xl font-bold border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all disabled:bg-gray-100"
+                    className="w-full px-4 py-3 text-lg font-bold border border-gray-300 rounded-xl focus:outline-none focus:border-gray-900 transition-all disabled:bg-gray-100 font-mono"
                   />
                 </div>
-                <div className="flex justify-between items-center px-4 py-3 bg-gray-50 rounded-lg border border-gray-100">
-                  <span className="text-sm md:text-base font-bold text-gray-700 uppercase tracking-wider">Change</span>
-                  <div className={`text-2xl md:text-3xl font-black ${change > 0 ? 'text-green-600' : 'text-gray-400'}`}>
+                <div className="flex justify-between items-center px-4 py-3 bg-gray-50 rounded-xl border border-gray-100">
+                  <span className="text-xs font-semibold text-gray-700">Change</span>
+                  <div className={`text-xl font-bold font-mono ${change > 0 ? 'text-emerald-600' : 'text-gray-400'}`}>
                     ₱{change.toFixed(2)}
                   </div>
                 </div>
@@ -301,7 +301,7 @@ const PaymentModal = ({ order, onConfirm, onClose }) => {
             {method === 'GCASH' && (
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm md:text-base font-semibold text-gray-600 uppercase tracking-wider">Transaction Reference Number</label>
+                  <label className="text-xs font-semibold text-gray-700">Transaction Reference Number</label>
                   <input 
                     type="text" 
                     autoFocus
@@ -310,10 +310,10 @@ const PaymentModal = ({ order, onConfirm, onClose }) => {
                     onChange={(e) => setReference(e.target.value)}
                     required
                     disabled={submitting}
-                    className="w-full px-4 py-3 text-base font-medium border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all disabled:bg-gray-100"
+                    className="w-full px-4 py-2.5 text-sm font-medium border border-gray-300 rounded-xl focus:outline-none focus:border-gray-900 transition-all disabled:bg-gray-100"
                   />
                 </div>
-                <div className="bg-blue-50 text-blue-700 p-3 rounded-lg text-sm md:text-base font-medium border border-blue-100 flex items-center justify-center text-center">
+                <div className="bg-blue-50 text-blue-700 p-3 rounded-xl text-xs font-medium border border-blue-100 flex items-center justify-center text-center">
                     Ensure payment is confirmed on GCash app before proceeding.
                 </div>
               </div>
@@ -323,7 +323,7 @@ const PaymentModal = ({ order, onConfirm, onClose }) => {
           <div className="flex gap-3 px-6 py-4 bg-gray-50 border-t border-gray-100">
             <button 
               type="button" 
-              className="flex-1 py-3 bg-white border border-gray-300 rounded-xl text-sm md:text-base font-bold text-gray-600 uppercase tracking-wider hover:bg-gray-50 transition-colors disabled:opacity-50" 
+              className="flex-1 py-2.5 bg-white border border-gray-300 rounded-xl text-xs sm:text-sm font-semibold text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-50 cursor-pointer" 
               onClick={onClose}
               disabled={submitting}
             >
@@ -331,7 +331,7 @@ const PaymentModal = ({ order, onConfirm, onClose }) => {
             </button>
             <button 
               type="submit" 
-              className="flex-[2] py-3 bg-green-600 border border-transparent rounded-xl text-sm md:text-base font-bold text-white uppercase tracking-wider hover:bg-green-700 hover:shadow-md transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+              className="flex-2 py-2.5 bg-zinc-900 border-none rounded-xl text-xs sm:text-sm font-bold text-white hover:bg-black hover:shadow-md transition-all disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
               disabled={submitting}
             >
               {submitting ? 'Processing...' : 'Confirm Payment'}

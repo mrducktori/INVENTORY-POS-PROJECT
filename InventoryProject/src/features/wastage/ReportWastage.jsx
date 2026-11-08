@@ -130,55 +130,49 @@ const ReportWastage = () => {
       {/* Operational Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-4 border-b border-gray-200">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-zinc-900 text-white tracking-wide">
-              <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-              Inventory Control
-            </span>
-          </div>
-          <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-900 tracking-tight m-0">
+          <h1 className="text-2xl md:text-3xl font-bold text-zinc-900 tracking-tight m-0">
             Report Wastage
           </h1>
-          <p className="text-base text-zinc-600 mt-1 mb-0">
+          <p className="text-sm text-zinc-500 mt-1 mb-0">
             Log spoiled, spilled, damaged, or expired stock to keep raw material counts synchronized.
           </p>
         </div>
       </div>
 
       {/* KPI Cards Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white border border-gray-200/90 rounded-2xl p-6 shadow-xs">
-          <div className="text-sm font-bold text-zinc-600 uppercase tracking-wide mb-2">
-            Total Logged Incidents
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-2xs">
+          <div className="text-xs font-medium text-zinc-500 mb-1">
+            Total Incidents
           </div>
-          <div className="text-4xl md:text-5xl font-black text-zinc-900 tabular-nums">
+          <div className="text-3xl font-bold text-zinc-900 tabular-nums">
             {wastageHistory.length}
           </div>
-          <div className="text-sm text-zinc-500 font-medium mt-2">
+          <div className="text-xs text-zinc-400 mt-1">
             Historical incident records
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200/90 rounded-2xl p-6 shadow-xs">
-          <div className="text-sm font-bold text-zinc-600 uppercase tracking-wide mb-2">
+        <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-2xs">
+          <div className="text-xs font-medium text-zinc-500 mb-1">
             Total Units Wasted
           </div>
-          <div className="text-4xl md:text-5xl font-black text-zinc-900 tabular-nums">
+          <div className="text-3xl font-bold text-zinc-900 tabular-nums">
             {totalWastageQuantity.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 2 })}
           </div>
-          <div className="text-sm text-zinc-500 font-medium mt-2">
+          <div className="text-xs text-zinc-400 mt-1">
             Cumulative ingredient deduction
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200/90 rounded-2xl p-6 shadow-xs">
-          <div className="text-sm font-bold text-zinc-600 uppercase tracking-wide mb-2">
+        <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-2xs">
+          <div className="text-xs font-medium text-zinc-500 mb-1">
             Logged This Month
           </div>
-          <div className="text-4xl md:text-5xl font-black text-zinc-900 tabular-nums">
+          <div className="text-3xl font-bold text-zinc-900 tabular-nums">
             {thisMonthCount}
           </div>
-          <div className="text-sm text-zinc-500 font-medium mt-2">
+          <div className="text-xs text-zinc-400 mt-1">
             Incidents reported in current cycle
           </div>
         </div>
@@ -212,8 +206,8 @@ const ReportWastage = () => {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Ingredient Selector */}
-            <div className="space-y-2">
-              <label className="block text-sm font-bold text-zinc-800 uppercase tracking-wide">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-zinc-700">
                 Raw Material Ingredient *
               </label>
               <SearchableIngredientSelect
@@ -228,13 +222,13 @@ const ReportWastage = () => {
 
             {/* Live Stock Context Chip */}
             {selectedIngredient && (
-              <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-4 space-y-3">
+              <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-3.5 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+                  <span className="text-xs font-medium text-zinc-500">
                     Current Stock
                   </span>
                   <span
-                    className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider border ${
+                    className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold border ${
                       selectedIngredient.stock_quantity <= 0
                         ? 'bg-zinc-900 text-white border-zinc-900'
                         : selectedIngredient.stock_quantity <= selectedIngredient.low_stock_alert
@@ -250,16 +244,16 @@ const ReportWastage = () => {
                   </span>
                 </div>
 
-                <div className="flex items-baseline justify-between text-base">
-                  <span className="text-zinc-600 font-medium">Available:</span>
-                  <span className="text-zinc-900 font-extrabold tabular-nums">
+                <div className="flex items-baseline justify-between text-sm">
+                  <span className="text-zinc-600">Available:</span>
+                  <span className="text-zinc-900 font-bold tabular-nums font-mono">
                     {formatQuantity(selectedIngredient.stock_quantity, selectedIngredient.unit)}
                   </span>
                 </div>
 
-                <div className="flex items-baseline justify-between text-sm">
+                <div className="flex items-baseline justify-between text-xs">
                   <span className="text-zinc-500">Alert threshold:</span>
-                  <span className="text-zinc-700 font-semibold tabular-nums">
+                  <span className="text-zinc-700 font-medium tabular-nums font-mono">
                     {formatQuantity(selectedIngredient.low_stock_alert, selectedIngredient.unit)}
                   </span>
                 </div>
@@ -267,8 +261,8 @@ const ReportWastage = () => {
             )}
 
             {/* Quantity Input */}
-            <div className="space-y-2">
-              <label className="block text-sm font-bold text-zinc-800 uppercase tracking-wide">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-zinc-700">
                 Quantity Wasted *
               </label>
               <div className="relative">
@@ -281,10 +275,10 @@ const ReportWastage = () => {
                   value={formData.quantity}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-4 py-3 bg-zinc-50 hover:bg-white focus:bg-white border border-zinc-300 rounded-xl text-base text-zinc-900 font-medium focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all shadow-xs tabular-nums pr-16"
+                  className="w-full px-3.5 py-2.5 bg-zinc-50 hover:bg-white focus:bg-white border border-zinc-300 rounded-xl text-sm text-zinc-900 font-medium focus:outline-none focus:border-zinc-900 transition-all shadow-xs tabular-nums pr-16"
                 />
                 {selectedIngredient?.unit && (
-                  <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-zinc-500 uppercase">
+                  <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-zinc-500">
                     {selectedIngredient.unit}
                   </span>
                 )}
@@ -292,8 +286,8 @@ const ReportWastage = () => {
             </div>
 
             {/* Reason Selector */}
-            <div className="space-y-2">
-              <label className="block text-sm font-bold text-zinc-800 uppercase tracking-wide">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-zinc-700">
                 Reason *
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -306,7 +300,7 @@ const ReportWastage = () => {
                       onClick={() =>
                         setFormData((prev) => ({ ...prev, reason: reasonOption }))
                       }
-                      className={`px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer text-center ${
+                      className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer text-center ${
                         isActive
                           ? 'bg-zinc-900 text-white border-zinc-900 shadow-xs'
                           : 'bg-zinc-50 hover:bg-zinc-100 text-zinc-700 border-zinc-200'
@@ -323,7 +317,7 @@ const ReportWastage = () => {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full py-3.5 px-6 bg-zinc-900 hover:bg-black text-white text-base font-bold rounded-xl shadow-sm hover:shadow transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3 px-6 bg-zinc-900 hover:bg-black text-white text-sm font-semibold rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting ? 'Deducting Stock...' : 'Submit Wastage Report'}
             </button>
@@ -364,23 +358,23 @@ const ReportWastage = () => {
               <div className="overflow-x-auto rounded-xl border border-zinc-200">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-zinc-50 border-b border-zinc-200">
-                      <th className="px-5 py-3.5 text-xs font-bold text-zinc-600 uppercase tracking-wider">
+                    <tr className="bg-zinc-50 border-b border-zinc-200 text-zinc-500 font-semibold text-xs">
+                      <th className="px-5 py-3">
                         Date & Time
                       </th>
-                      <th className="px-5 py-3.5 text-xs font-bold text-zinc-600 uppercase tracking-wider">
+                      <th className="px-5 py-3">
                         Ingredient
                       </th>
-                      <th className="px-5 py-3.5 text-xs font-bold text-zinc-600 uppercase tracking-wider text-right">
+                      <th className="px-5 py-3 text-right">
                         Quantity
                       </th>
-                      <th className="px-5 py-3.5 text-xs font-bold text-zinc-600 uppercase tracking-wider">
+                      <th className="px-5 py-3">
                         Unit
                       </th>
-                      <th className="px-5 py-3.5 text-xs font-bold text-zinc-600 uppercase tracking-wider">
+                      <th className="px-5 py-3">
                         Reason
                       </th>
-                      <th className="px-5 py-3.5 text-xs font-bold text-zinc-600 uppercase tracking-wider">
+                      <th className="px-5 py-3">
                         Reported By
                       </th>
                     </tr>

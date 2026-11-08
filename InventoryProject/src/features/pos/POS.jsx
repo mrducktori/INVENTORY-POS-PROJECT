@@ -119,16 +119,16 @@ const POS = () => {
         {/* Tabs */}
         <div className="flex border-b border-gray-200 bg-gray-50/50">
           <button
-            className={`flex-1 py-4 text-sm md:text-base font-semibold uppercase tracking-wider transition-colors border-b-2 ${activeTab === 'cart' ? 'border-gray-900 text-gray-900 bg-white' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
+            className={`flex-1 py-3.5 text-sm font-semibold transition-colors border-b-2 cursor-pointer ${activeTab === 'cart' ? 'border-gray-900 text-gray-900 bg-white' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
             onClick={() => setActiveTab('cart')}
           >
-            Transaction ({cart.length})
+            Cart ({cart.length})
           </button>
           <button
-            className={`flex-1 py-4 text-sm md:text-base font-semibold uppercase tracking-wider transition-colors border-b-2 ${activeTab === 'ongoing' ? 'border-gray-900 text-gray-900 bg-white' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
+            className={`flex-1 py-3.5 text-sm font-semibold transition-colors border-b-2 cursor-pointer ${activeTab === 'ongoing' ? 'border-gray-900 text-gray-900 bg-white' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
             onClick={() => setActiveTab('ongoing')}
           >
-            Ongoing Orders ({ongoingOrders.length})
+            Ongoing ({ongoingOrders.length})
           </button>
         </div>
 
@@ -138,42 +138,26 @@ const POS = () => {
             <Cart
               cart={cart}
               total={calculateTotal()}
-              discountType={discountType}
-              onSelectDiscountType={setDiscountType}
-              customDiscountMode={customDiscountMode}
-              onSelectCustomDiscountMode={setCustomDiscountMode}
-              customDiscountValue={customDiscountValue}
-              onChangeCustomDiscountValue={setCustomDiscountValue}
-              discountDetails={getCartDiscountDetails()}
               onUpdateQty={updateQty}
               onRemove={removeFromCart}
               onEdit={openEditOptions}
             />
 
-            <div className="p-4 border-t border-gray-200 bg-gray-50 mt-auto flex flex-col gap-2.5">
+            <div className="p-4 border-t border-gray-200 bg-white mt-auto flex flex-col gap-2">
               <button
-                className="w-full py-3.5 rounded-xl text-sm md:text-base font-bold uppercase tracking-wider text-white bg-gray-900 transition-all hover:bg-black hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                onClick={handleDirectCheckout}
+                className="w-full py-3.5 rounded-xl text-sm font-bold text-white bg-gray-900 transition-all hover:bg-black hover:shadow-md disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                onClick={handleCompleteSale}
                 disabled={cart.length === 0}
               >
-                Checkout &amp; Pay Now
+                Create Order
               </button>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  className="w-full py-2.5 rounded-xl text-xs md:text-sm font-bold uppercase tracking-wider text-gray-800 bg-white border border-gray-300 transition-all hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                  onClick={handleCompleteSale}
-                  disabled={cart.length === 0}
-                >
-                  Hold Order
-                </button>
-                <button
-                  className="w-full py-2.5 rounded-xl text-xs md:text-sm font-semibold uppercase tracking-wider text-red-600 bg-red-50 border border-red-200 transition-all hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                  onClick={clearCart}
-                  disabled={cart.length === 0}
-                >
-                  Clear Cart
-                </button>
-              </div>
+              <button
+                className="w-full py-2 rounded-xl text-xs font-semibold text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer bg-transparent border-none"
+                onClick={clearCart}
+                disabled={cart.length === 0}
+              >
+                Clear Cart
+              </button>
             </div>
           </>
         )}
@@ -202,13 +186,13 @@ const POS = () => {
               {/* Quantity */}
               <div className="mb-6">
                 <div className="flex justify-between items-center mb-2">
-                  <label className="block text-sm md:text-base font-bold text-gray-800 uppercase tracking-wider">Quantity</label>
-                  <span className="text-xs md:text-sm text-gray-500 font-semibold">Limit: 1 – 99</span>
+                  <label className="block text-sm font-semibold text-gray-800">Quantity</label>
+                  <span className="text-xs text-gray-500 font-medium">Limit: 1 – 99</span>
                 </div>
                 <div className="flex items-center gap-1 border-2 border-gray-300 rounded-xl overflow-hidden w-40">
                   <button 
                     type="button"
-                    className="flex-1 px-3 py-2.5 bg-gray-50 hover:bg-gray-100 text-gray-800 font-bold text-xl transition-colors disabled:opacity-30 disabled:cursor-not-allowed" 
+                    className="flex-1 px-3 py-2 bg-gray-50 hover:bg-gray-100 text-gray-800 font-bold text-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer border-none" 
                     onClick={() => setProductOptions(p => ({...p, qty: Math.max(1, p.qty - 1)}))}
                     disabled={productOptions.qty <= 1}
                   >−</button>
@@ -216,7 +200,7 @@ const POS = () => {
                     type="number" 
                     min="1" 
                     max="99" 
-                    className="w-16 text-center text-gray-900 font-black text-xl border-none focus:outline-none bg-white p-0" 
+                    className="w-16 text-center text-gray-900 font-bold text-lg border-none focus:outline-none bg-white p-0" 
                     value={productOptions.qty} 
                     onChange={(e) => {
                       const val = parseInt(e.target.value, 10);
@@ -226,7 +210,7 @@ const POS = () => {
                   />
                   <button 
                     type="button"
-                    className="flex-1 px-3 py-2.5 bg-gray-50 hover:bg-gray-100 text-gray-800 font-bold text-xl transition-colors disabled:opacity-30 disabled:cursor-not-allowed" 
+                    className="flex-1 px-3 py-2 bg-gray-50 hover:bg-gray-100 text-gray-800 font-bold text-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer border-none" 
                     onClick={() => setProductOptions(p => ({...p, qty: Math.min(99, p.qty + 1)}))}
                     disabled={productOptions.qty >= 99}
                   >+</button>
@@ -237,12 +221,12 @@ const POS = () => {
               {["COFFEE", "FRAPPE", "MILK TEA", "SODA", "FRUIT DRINKS"].includes(selectedProduct.category?.toUpperCase()) && (
                 <>
                   <div className="mb-6">
-                    <label className="block text-sm md:text-base font-bold text-gray-800 uppercase tracking-wider mb-2">Cup Size</label>
-                    <div className="flex gap-2.5 flex-wrap">
+                    <label className="block text-sm font-semibold text-gray-800 mb-2">Cup Size</label>
+                    <div className="flex gap-2 flex-wrap">
                       {(selectedProduct.sizes?.length > 0 ? selectedProduct.sizes.map(s => s.name) : ["12 oz", "16 oz", "22 oz"]).map(size => (
                         <button 
                           key={size}
-                          className={`px-5 py-2.5 text-sm md:text-base font-bold uppercase tracking-wider rounded-xl border transition-all cursor-pointer ${productOptions.cupSize === size ? "bg-gray-900 text-white border-gray-900 shadow-md" : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"}`}
+                          className={`px-4 py-2 text-sm font-semibold rounded-xl border transition-all cursor-pointer ${productOptions.cupSize === size ? "bg-gray-900 text-white border-gray-900 shadow-sm" : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"}`}
                           onClick={() => setProductOptions(p => ({...p, cupSize: size}))}
                         >
                           {size}
@@ -253,8 +237,8 @@ const POS = () => {
 
                   <div className="mb-2">
                     <div className="flex justify-between items-center mb-2">
-                      <label className="block text-sm md:text-base font-bold text-gray-800 uppercase tracking-wider">Add-ons</label>
-                      <span className="text-xs md:text-sm text-gray-500 font-semibold">Max 5 per add-on</span>
+                      <label className="block text-sm font-semibold text-gray-800">Add-ons</label>
+                      <span className="text-xs text-gray-500 font-medium">Max 5 per add-on</span>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       {(() => {
@@ -266,18 +250,18 @@ const POS = () => {
                           const currentQty = productOptions.addOns[addon] || 0;
                           return (
                             <div key={addon} className={`flex flex-col p-3 rounded-xl border-2 transition-colors ${currentQty > 0 ? 'bg-indigo-50/60 border-indigo-400' : 'bg-white border-gray-200'}`}>
-                              <span className="text-sm md:text-base font-bold text-gray-900 mb-2 truncate">{addon}</span>
+                              <span className="text-sm font-bold text-gray-900 mb-2 truncate">{addon}</span>
                               <div className="flex items-center justify-between mt-auto">
                                 <button 
                                   type="button"
-                                  className="w-9 h-9 rounded-full bg-white border border-gray-300 flex items-center justify-center font-bold text-gray-700 hover:bg-gray-100 transition-colors text-lg disabled:opacity-30 disabled:cursor-not-allowed" 
+                                  className="w-8 h-8 rounded-full bg-white border border-gray-300 flex items-center justify-center font-bold text-gray-700 hover:bg-gray-100 transition-colors text-base disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer" 
                                   onClick={() => updateAddOnQty(addon, currentQty - 1)}
                                   disabled={currentQty <= 0}
                                 >-</button>
-                                <span className="font-black text-gray-900 text-lg w-7 text-center">{currentQty}</span>
+                                <span className="font-bold text-gray-900 text-base w-7 text-center font-mono">{currentQty}</span>
                                 <button 
                                   type="button"
-                                  className="w-9 h-9 rounded-full bg-white border border-gray-300 flex items-center justify-center font-bold text-gray-700 hover:bg-gray-100 transition-colors text-lg disabled:opacity-30 disabled:cursor-not-allowed" 
+                                  className="w-8 h-8 rounded-full bg-white border border-gray-300 flex items-center justify-center font-bold text-gray-700 hover:bg-gray-100 transition-colors text-base disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer" 
                                   onClick={() => updateAddOnQty(addon, currentQty + 1)}
                                   disabled={currentQty >= 5}
                                 >+</button>
@@ -292,8 +276,8 @@ const POS = () => {
               )}
             </div>
             <div className="flex gap-3 px-6 py-4 bg-gray-50 border-t border-gray-200">
-              <button className="flex-[1] py-3.5 bg-white border border-gray-300 rounded-xl text-sm md:text-base font-bold text-gray-700 uppercase tracking-wider hover:bg-gray-100 transition-colors cursor-pointer" onClick={closeOptions}>Cancel</button>
-              <button className="flex-[2] py-3.5 bg-gray-900 border border-transparent rounded-xl text-sm md:text-base font-bold text-white uppercase tracking-wider hover:bg-black hover:shadow-md transition-all cursor-pointer" onClick={handleAddWithOptions}>
+              <button className="flex-1 py-2.5 bg-white border border-gray-300 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer" onClick={closeOptions}>Cancel</button>
+              <button className="flex-2 py-2.5 bg-gray-900 rounded-xl text-sm font-semibold text-white hover:bg-black transition-all cursor-pointer border-none" onClick={handleAddWithOptions}>
                 {(() => {
                   let displayPrice = parseFloat(selectedProduct.price);
                   if (["COFFEE", "FRAPPE", "MILK TEA", "SODA", "FRUIT DRINKS"].includes(selectedProduct.category?.toUpperCase())) {
