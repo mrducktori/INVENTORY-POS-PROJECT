@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [UI/Redesign: Demand Forecasting De-Slopped & Simplified - 2026-11-08]
+- **Eliminated Clutter & AI Slop (Rule 16)**:
+  - Removed the verbose 3-column "Ingredient Burn Rate & Depletion Methodology / Formula Specification" essay block at the bottom of the page.
+  - Removed noisy multi-line cell sublabels (e.g., repeating "30-day recipe average" and min-alert subtexts on every row).
+  - Replaced loud rainbow-bordered KPI cards (`border-l-4`, `border-t-4`) and hardcoded placeholder metrics ("Forecast Confidence: 92%") with clean, minimalist executive summary cards computed from live data.
+- **Redesigned Ingredient Restock View**:
+  - Streamlined table columns into clear, single-purpose metrics: `Ingredient`, `On Hand`, `Daily Usage`, `Est. Time Left`, `Suggested Order`, `Supplier`, and `Action`.
+  - Consolidated search, category dropdown, status pills, and batch PO actions into a compact single-line toolbar with 15-item pagination.
+- **Redesigned Menu Demand (7-Day) View**:
+  - Removed confusing "In-Stock: 0 / Out of Stock" columns on made-to-order cafe drinks and fake confidence progress bars.
+  - Added clear cafe-centric metrics: `Daily Average`, `Next 7 Days`, `Est. 30 Days`, and a human-readable `Sales Trend` badge (`+X% Up`, `Steady`, `-X% Down`).
+  - Simplified the Monthly Projection and Create PO modals and portaled both to `document.body`.
+
 ## [UI/Refactor: Sales Receipt Journal Restored Classic Transaction Receipt & Removed Column Filter - 2026-11-08]
 - **Removed Column Visibility Dropdown**: Eliminated `ColumnVisibilityDropdown` and its dropdown menu button from the Latest Sales header toolbar, restoring a clean, distraction-free table view with fixed standard columns.
 - **Restored Classic Transaction Receipt Modal**:
