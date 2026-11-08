@@ -550,9 +550,9 @@
     animation: shimmerSlide 1.6s ease-in-out infinite;
   }
 
-  /* Smooth tab view transitions */
+  /* Smooth tab view transitions — ends with transform: none so position: fixed modals stay fixed to the viewport */
   .tab-pane-transition {
-    animation: tabFadeSlideIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: tabFadeSlideIn 0.24s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   @keyframes tabFadeSlideIn {
@@ -562,7 +562,7 @@
     }
     to {
       opacity: 1;
-      transform: translateY(0);
+      transform: none;
     }
   }
 

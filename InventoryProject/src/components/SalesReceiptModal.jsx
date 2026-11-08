@@ -67,13 +67,13 @@ const SalesReceiptModal = ({ saleId, initialReceipt = null, onClose }) => {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[99999] overflow-y-auto bg-black/60 backdrop-blur-xs flex justify-center items-start pt-8 sm:pt-12 md:pt-16 pb-12 p-4 animate-[modalBackdropFadeIn_0.2s_ease-out]"
+      className="fixed inset-0 z-[99999] overflow-y-auto bg-black/60 backdrop-blur-xs flex justify-center items-center p-4 animate-[modalBackdropFadeIn_0.2s_ease-out]"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl border border-zinc-200 w-full max-w-md max-h-[calc(100vh-5rem)] md:max-h-[calc(100vh-6rem)] overflow-y-auto p-6 animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)] relative"
+        className="bg-white rounded-2xl shadow-2xl border border-zinc-200 w-full max-w-md max-h-[calc(100vh-3rem)] overflow-y-auto p-6 animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)] relative"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between pb-3 border-b border-zinc-100 mb-4 shrink-0">

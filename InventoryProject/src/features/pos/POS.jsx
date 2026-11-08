@@ -1,4 +1,5 @@
 import React from "react";
+import { createPortal } from "react-dom";
 import { filterProducts, formatQuantity } from "../../utils/productUtils";
 import CategoryFilter from '../../components/shared/CategoryFilter';
 import ProductCard from "./components/ProductCard";
@@ -67,12 +68,14 @@ const POS = () => {
   const filteredProducts = filterProducts(products, category, searchTerm);
 
   return (
-    <div className="flex flex-col lg:flex-row h-full w-full bg-gray-50 overflow-hidden relative">
-      {saleComplete && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-[fadeIn_0.3s_ease-out] font-semibold tracking-wide">
-          Transaction completed successfully!
-        </div>
-      )}
+    <div className="flex flex-col lg:flex-row h-full lg:h-[calc(100vh-0px)] w-full bg-gray-50 overflow-hidden relative">
+      {saleComplete &&
+        createPortal(
+          <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg z-[100001] animate-[fadeIn_0.3s_ease-out] font-semibold tracking-wide">
+            Transaction completed successfully!
+          </div>,
+          document.body
+        )}
 
       {/* LEFT - Products */}
       <div className="flex-[2] flex flex-col p-4 md:p-6 overflow-hidden border-r border-gray-200">
@@ -186,9 +189,11 @@ const POS = () => {
         )}
       </div>
       {/* Options Modal */}
-      {showOptions && selectedProduct && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[9999] p-4 flex justify-center items-start pt-6 sm:pt-10 md:pt-14 pb-12 animate-[modalBackdropFadeIn_0.2s_ease-out]" onMouseDown={(e) => { if (e.target === e.currentTarget) closeOptions(); }}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[calc(100vh-5rem)] md:max-h-[calc(100vh-6rem)] animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)]" onClick={e => e.stopPropagation()}>
+      {showOptions &&
+        selectedProduct &&
+        createPortal(
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[99990] p-4 flex justify-center items-center animate-[modalBackdropFadeIn_0.2s_ease-out]" onMouseDown={(e) => { if (e.target === e.currentTarget) closeOptions(); }}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[calc(100vh-3rem)] animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)]" onClick={e => e.stopPropagation()}>
             <div className="bg-gray-900 text-white px-6 py-4 flex justify-between items-center">
               <h3 className="m-0 text-lg md:text-xl font-bold tracking-wide">{editingCartItemId ? 'Edit:' : 'Customize:'} {selectedProduct.name}</h3>
               <button className="text-gray-400 hover:text-white transition-colors bg-transparent border-none text-2xl leading-none cursor-pointer p-0" onClick={closeOptions} aria-label="Close"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
@@ -312,7 +317,8 @@ const POS = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Ingredients Info Modal */}
@@ -321,8 +327,8 @@ const POS = () => {
         const isDirectOut = treatsAsDirect && recipeProduct.stock_quantity <= 0;
         const isUnavailable = recipeProduct.is_available === false || isDirectOut;
         
-        return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[9999] p-4 flex justify-center items-start pt-6 sm:pt-10 md:pt-14 pb-12 animate-[modalBackdropFadeIn_0.2s_ease-out]" onMouseDown={(e) => { if (e.target === e.currentTarget) setRecipeProduct(null); }}>
+        return createPortal(
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[99990] p-4 flex justify-center items-center animate-[modalBackdropFadeIn_0.2s_ease-out]" onMouseDown={(e) => { if (e.target === e.currentTarget) setRecipeProduct(null); }}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)]" onClick={e => e.stopPropagation()}>
             <div className="bg-gray-900 text-white px-6 py-4 flex justify-between items-center">
               <h3 className="m-0 text-lg md:text-xl font-bold tracking-wide">Ingredients: {recipeProduct.name}</h3>
@@ -374,7 +380,8 @@ const POS = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
         );
       })()}
       {/* Payment Modal */}

@@ -157,7 +157,7 @@ const Dashboard = () => {
 
   return (
     <div className="w-full h-screen bg-[#f8fafc] text-zinc-900 font-sans flex flex-col">
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
         <Navbar activeTab={activeTab} onTabChange={setActiveTab} />
         <main className="flex-1 overflow-y-auto bg-[#f8fafc] scrollbar-thin scrollbar-thumb-zinc-300 hover:scrollbar-thumb-zinc-400">
           <div key={activeTab} className="tab-pane-transition min-h-full">

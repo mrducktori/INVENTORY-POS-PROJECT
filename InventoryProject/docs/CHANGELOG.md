@@ -19,6 +19,10 @@ All notable changes to this project will be documented in this file.
 - **Fixed Overlapping Loading State & Cost Calculation in Wastage Report (`WastageReport.jsx`, `SkeletonLoader.jsx`, `wastageService.js`)**:
   - Fixed a broken `{loading && (` wrapper in `WastageReport.jsx` that rendered both the skeleton loader and the report content inside an `h-64` centered flex container during loading (causing the skeleton to float over the header/filters) and hid the report once loading finished.
   - Updated `wastageService.js` and `WastageReport.jsx` to compute estimated PHP cost loss per wasted ingredient and formatted `Overall Statistics` with clean labels and 2-decimal precision.
+- **Viewport-Centered Modals When Scrolled & Smooth Collapsible Mobile-Friendly Navbar (`index.css`, `ConfirmModal.jsx`, `PaymentModal.jsx`, `SalesReceiptModal.jsx`, `POS.jsx`, `Navbar.jsx`, `Dashboard.jsx`)**:
+  - Fixed `.tab-pane-transition` in `src/index.css` so its animation finishes with `transform: none;` (without `forwards`), preventing the tab wrapper from creating a CSS containing block that trapped `position: fixed` popups at the top of scrolled pages.
+  - Portaled `ConfirmModal`, `PaymentModal`, and `POS` modals (`OptionsModal`, `IngredientsModal`, `saleComplete` toast) to `document.body` so all popups always follow the user's current viewport scroll position.
+  - Upgraded `Navbar.jsx` and `Dashboard.jsx` with a smooth collapsible desktop sidebar (`w-68` ↔ `w-20` icon rail with persistent state and smooth grid-row submenu transitions) and a responsive mobile top bar + smooth slide-over drawer (`translate-x-0` / `-translate-x-full`) for mobile and tablet screens.
 
 ## [Auth/Security: Inactivity Auto-Logout, Live Activity Tracking, Online Status Sync & Audit Logging - 2026-11-08]
 - **Inactivity Logout Now Clears Online Session & Writes Audit Log (`authUtils.js`, `client.js`, `App.jsx`, `server/routes/auth.js`)**:

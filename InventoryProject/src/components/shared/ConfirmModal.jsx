@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 
 const ConfirmModal = ({
   isOpen,
@@ -43,9 +44,9 @@ const ConfirmModal = ({
     if (onCancel) onCancel();
   };
 
-  return (
+  return createPortal(
     <div 
-      className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-[100] p-4 animate-[modalBackdropFadeIn_0.2s_ease-out]"
+      className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-[100000] p-4 animate-[modalBackdropFadeIn_0.2s_ease-out]"
       onClick={handleCancelClick}
     >
       <div 
@@ -118,7 +119,8 @@ const ConfirmModal = ({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
