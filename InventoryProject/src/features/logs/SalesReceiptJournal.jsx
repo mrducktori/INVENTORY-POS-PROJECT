@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getSales } from '../../api/salesApi.js';
 import { getManilaDateOnly } from '../../utils/dateUtils.js';
-import { downloadCSV } from '../reports/reportUtils.js';
 import SalesReceiptModal from '../../components/SalesReceiptModal.jsx';
 
 // Format date to: YYYY-MM-DD hh:mm:ss A
@@ -274,51 +273,54 @@ const SalesReceiptJournal = () => {
   const handleExportCSV = () => {
     if (!filteredSales || filteredSales.length === 0) return;
 
-    const exportRows = [
-      ['COF/TEA CAFE — SALES RECEIPT JOURNAL'],
-      ['Store Name', 'Cof/Tea Cafe'],
-      ['Date Generated', new Date().toLocaleString('en-PH')],
-      ['Total Records Exported', filteredSales.length],
-      [],
-      [
-        'Receipt Number',
-        'Date & Time',
-        'Cashier',
-        'Items Ordered',
-        'Subtotal (PHP)',
-        'Discount (PHP)',
-        'Tax (PHP)',
-        'Total Amount (PHP)',
-        'Payment Method',
-        'Amount Received (PHP)',
-        'Change (PHP)',
-        'Reference / Notes',
-      ],
-      ...filteredSales.map((sale) => {
-        const itemsSummary = (sale.sale_items || [])
-          .map((it) => `${it.quantity || 1}x ${it.products?.name || 'Item'}${it.cup_size ? ` (${it.cup_size})` : ''}`)
-          .join('; ');
-        const discount = Number(sale.discount_amount || 0);
-        const subtotal = Number(sale.total_amount || 0) + discount;
-
-        return [
-          sale.receipt_number || sale.id,
-          formatDateTime(sale.created_at),
-          sale.users?.name || sale.users?.username || 'Staff',
-          itemsSummary,
-          subtotal.toFixed(2),
-          discount.toFixed(2),
-          Number(sale.tax_amount || 0).toFixed(2),
-          Number(sale.total_amount || 0).toFixed(2),
-          sale.payment_method || 'CASH',
-          Number(sale.amount_received || sale.total_amount || 0).toFixed(2),
-          Number(sale.change_amount || 0).toFixed(2),
-          sale.transaction_reference || sale.notes || '',
-        ];
-      })
+    const headers = [
+      'Receipt Number',
+      'Date & Time',
+      'Cashier',
+      'Items Ordered',
+      'Subtotal',
+      'Discount',
+      'Tax (12%)',
+      'Total Amount',
+      'Payment Method',
+      'Amount Received',
+      'Change',
+      'Reference / Notes',
     ];
 
-    downloadCSV(exportRows, `CofTea_Receipt_Journal_${getManilaDateOnly()}.csv`);
+    const rows = filteredSales.map((sale) => {
+      const itemsSummary = (sale.sale_items || [])
+        .map((it) => `${it.quantity || 1}x ${it.products?.name || 'Item'}${it.cup_size ? ` (${it.cup_size})` : ''}`)
+        .join('; ');
+      const discount = Number(sale.discount_amount || 0);
+      const subtotal = Number(sale.total_amount || 0) + discount;
+
+      return [
+        sale.receipt_number || sale.id,
+        formatDateTime(sale.created_at),
+        sale.users?.name || sale.users?.username || 'Staff',
+        `"${itemsSummary.replace(/"/g, '""')}"`,
+        subtotal.toFixed(2),
+        discount.toFixed(2),
+        Number(sale.tax_amount || 0).toFixed(2),
+        Number(sale.total_amount || 0).toFixed(2),
+        sale.payment_method || 'CASH',
+        Number(sale.amount_received || sale.total_amount || 0).toFixed(2),
+        Number(sale.change_amount || 0).toFixed(2),
+        `"${String(sale.transaction_reference || sale.notes || '').replace(/"/g, '""')}"`,
+      ];
+    });
+
+    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `CofTea_Receipt_Journal_${getManilaDateOnly()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const getPageNumbers = () => {
