@@ -446,6 +446,7 @@ export const useManageProducts = () => {
   return {
     viewMode, setViewMode,
     products, loading, uploading, message, setMessage,
+    fetchProducts,
     isProcessing, processingId,
     searchTerm, setSearchTerm,
     statusFilter, setStatusFilter,

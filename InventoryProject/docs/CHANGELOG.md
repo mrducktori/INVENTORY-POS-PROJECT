@@ -3,6 +3,8 @@
 All notable changes to this project will be documented in this file.
 
 ## [Reports & Exports: Wastage Data Integration, Manila Timezone Fix, CSV UTF-8 Formatting, & Executive Print Layouts - 2026-11-09]
+- **Bug Fix: `fetchProducts is not defined` (`ManageProducts.jsx`, `useManageProducts.js`)**:
+  - Exported `fetchProducts` from `useManageProducts.js` and destructured it in `ManageProducts.jsx`, fixing the runtime ReferenceError when viewing archived products or clicking Refresh.
 - **Wastage Connection & Midnight Timezone Fix (`StockMovementReport.jsx`, `dateUtils.js`, `wastageService.js`, `audit.js`)**:
   - **Fixed Early Morning / Midnight Manila Timezone Cutoff**: Resolved root cause where `toManilaEndOfDay(endDate)` used `.split('T')[0]` on UTC timestamps (e.g. `2026-11-08T16:21:59Z`), resolving to UTC day `2026-11-08` instead of Manila day `2026-11-09`. This caused transactions and wastage logged past midnight Manila time (+08:00) to be excluded from date filters. Updated `toManilaStartOfDay` and `toManilaEndOfDay` in both backend and frontend `dateUtils.js` to evaluate `Asia/Manila` calendar days reliably.
   - **Direct Wastage Table Integration (`StockMovementReport.jsx`)**: Connected `getWastageReport(startDate, endDate)` directly to `StockMovementReport.jsx` alongside `getAuditLogs`. Wastage records from the `wastage` table (30 total records) are now seamlessly merged and deduplicated against audit logs.
