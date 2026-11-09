@@ -105,4 +105,65 @@ export const getDaysOverdue = (dateStr) => {
   return Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24)));
 };
 
+/**
+ * Returns an ISO-formatted start of day in Manila timezone (+08:00)
+ */
+export const toManilaStartOfDay = (dateInput) => {
+  if (!dateInput) return null;
+  let dStr;
+  if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateInput.trim())) {
+    dStr = dateInput.trim();
+  } else {
+    try {
+      dStr = new Date(dateInput).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+    } catch {
+      dStr = getManilaDateOnly();
+    }
+  }
+  return `${dStr}T00:00:00+08:00`;
+};
+
+/**
+ * Returns an ISO-formatted end of day in Manila timezone (+08:00)
+ */
+export const toManilaEndOfDay = (dateInput) => {
+  if (!dateInput) return null;
+  let dStr;
+  if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateInput.trim())) {
+    dStr = dateInput.trim();
+  } else {
+    try {
+      dStr = new Date(dateInput).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+    } catch {
+      dStr = getManilaDateOnly();
+    }
+  }
+  return `${dStr}T23:59:59.999+08:00`;
+};
+
+/**
+ * Computes start and end ISO strings in Manila timezone for period presets
+ */
+export const getPeriodDateRange = (period = 'weekly') => {
+  const mDate = getManilaDate();
+  const todayStr = getManilaDateOnly();
+  let startStr = todayStr;
+
+  if (period === 'daily') {
+    startStr = todayStr;
+  } else if (period === 'weekly') {
+    mDate.setDate(mDate.getDate() - 6);
+    const pad = (n) => String(n).padStart(2, '0');
+    startStr = `${mDate.getFullYear()}-${pad(mDate.getMonth() + 1)}-${pad(mDate.getDate())}`;
+  } else if (period === 'monthly') {
+    const pad = (n) => String(n).padStart(2, '0');
+    startStr = `${mDate.getFullYear()}-${pad(mDate.getMonth() + 1)}-01`;
+  }
+
+  return {
+    startDate: `${startStr}T00:00:00+08:00`,
+    endDate: `${todayStr}T23:59:59.999+08:00`
+  };
+};
+
 

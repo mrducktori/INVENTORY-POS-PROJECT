@@ -135,16 +135,23 @@ const WastageReport = () => {
       ? `${startDate} to ${endDate}`
       : startDate ? `From ${startDate}` : endDate ? `Up to ${endDate}` : 'All Time';
     const exportRows = [
-      ['WASTAGE & LOSS REPORT'],
-      [`Date Range: ${dateRange}`],
-      [`Date Generated: ${new Date().toLocaleDateString('en-PH')}`],
-      [],
-      ['SUMMARY'],
+      ['COF/TEA CAFE — WASTAGE & LOSS REPORT'],
+      ['Store Name', 'Cof/Tea Cafe'],
+      ['Reporting Range', dateRange],
+      ['Date Generated', new Date().toLocaleString('en-PH')],
       ['Total Wastage Events', filtered.length],
       ['Total Quantity Wasted', totalQuantity.toFixed(2)],
-      ['Total Estimated Cost Loss (PHP)', `₱${totalCost.toFixed(2)}`],
+      ['Total Estimated Cost Loss (PHP)', totalCost.toFixed(2)],
       [],
-      ['WASTAGE LOG'],
+      ['SECTION 1: BREAKDOWN BY REASON'],
+      ['Reason Category', 'Number of Events', 'Total Cost Loss (PHP)'],
+      ...byReason.map(([reason, data]) => [
+        reason,
+        data.count,
+        data.cost.toFixed(2)
+      ]),
+      [],
+      ['SECTION 2: DETAILED WASTAGE LOG'],
       ['Date & Time', 'Ingredient Name', 'Quantity Wasted', 'Unit', 'Reason', 'Estimated Cost Loss (PHP)', 'Reported By'],
       ...filtered.map(e => [
         new Date(e.created_at).toLocaleString('en-PH'),
@@ -152,44 +159,110 @@ const WastageReport = () => {
         parseFloat(e.quantity || 0).toFixed(2),
         e.ingredients?.unit || e.unit || '—',
         e.reason || '—',
-        `₱${getEntryCost(e).toFixed(2)}`,
+        getEntryCost(e).toFixed(2),
         e.users?.name || e.reported_by_name || '—'
       ])
     ];
-    downloadCSV(exportRows, `Wastage_Report_${new Date().toISOString().split('T')[0]}.csv`);
+    downloadCSV(exportRows, `CofTea_Wastage_Report_${new Date().toISOString().split('T')[0]}.csv`);
   };
 
   const handlePrint = () => {
     const dateRange = startDate && endDate ? `${startDate} to ${endDate}` : 'All Time';
     const tableRows = filtered.map(e => `
       <tr>
-        <td style="font-size:11px;color:#777">${new Date(e.created_at).toLocaleString('en-PH')}</td>
+        <td style="font-size:10px;color:#4b5563;white-space:nowrap">${new Date(e.created_at).toLocaleString('en-PH')}</td>
         <td><strong>${e.ingredients?.name || e.ingredient_name || '—'}</strong></td>
-        <td style="text-align:right">${parseFloat(e.quantity || 0).toFixed(2)} ${e.ingredients?.unit || e.unit || ''}</td>
-        <td>${e.reason || '—'}</td>
-        <td style="text-align:right;color:#c62828;font-weight:bold">₱${getEntryCost(e).toFixed(2)}</td>
-        <td>${e.users?.name || e.reported_by_name || '—'}</td>
+        <td class="text-right" style="font-weight:700;font-family:monospace">${parseFloat(e.quantity || 0).toFixed(2)} ${e.ingredients?.unit || e.unit || ''}</td>
+        <td><span class="badge badge-waste">${e.reason || '—'}</span></td>
+        <td class="text-right num-neg">₱${getEntryCost(e).toFixed(2)}</td>
+        <td style="font-size:10px">${e.users?.name || e.reported_by_name || '—'}</td>
       </tr>`).join('');
+
     const reasonRows = byReason.map(([reason, data]) =>
-      `<tr><td>${reason}</td><td style="text-align:center">${data.count}</td><td style="text-align:right">₱${data.cost.toFixed(2)}</td></tr>`
+      `<tr>
+        <td><strong>${reason}</strong></td>
+        <td class="text-center" style="font-family:monospace;font-weight:700">${data.count}</td>
+        <td class="text-right num-neg">₱${data.cost.toFixed(2)}</td>
+      </tr>`
     ).join('');
+
     const html = `
-      <h1>Wastage & Loss Report</h1>
-      <p class="subtitle">Period: ${dateRange} &nbsp;&bull;&nbsp; Generated: ${new Date().toLocaleString('en-PH')}</p>
-      <div class="kpi-grid">
-        <div class="kpi-box"><div class="kpi-label">Total Events</div><div class="kpi-value">${filtered.length}</div></div>
-        <div class="kpi-box"><div class="kpi-label">Total Cost Loss</div><div class="kpi-value">₱${totalCost.toFixed(2)}</div></div>
-        <div class="kpi-box"><div class="kpi-label">Total Qty Wasted</div><div class="kpi-value">${totalQuantity.toFixed(2)}</div></div>
+      <div class="report-header">
+        <div class="brand-meta-row">
+          <div>
+            <div class="brand-logo-text">COF/TEA CAFE</div>
+            <div class="brand-subtitle">Point of Sale &amp; Inventory Management System</div>
+          </div>
+          <div class="report-timestamp">
+            <div>Period: <strong>${dateRange}</strong></div>
+            <div>Generated: <strong>${new Date().toLocaleString('en-PH')}</strong></div>
+          </div>
+        </div>
+        <h1>Wastage &amp; Loss Report</h1>
+        <p class="subtitle">Complete audit of raw material spoilage, damage, expiration, and quality control write-offs.</p>
       </div>
-      <h2>Breakdown by Reason</h2>
-      <table><thead><tr><th>Reason</th><th>Events</th><th>Cost Loss</th></tr></thead>
-      <tbody>${reasonRows}</tbody></table>
-      <h2>Wastage Log (${filtered.length} records)</h2>
+
+      <div class="kpi-grid">
+        <div class="kpi-box border-out">
+          <div class="kpi-label">Total Cost Loss</div>
+          <div class="kpi-value" style="color:#dc2626">₱${totalCost.toFixed(2)}</div>
+          <div class="kpi-sub">estimated asset loss</div>
+        </div>
+        <div class="kpi-box border-alert">
+          <div class="kpi-label">Wastage Events</div>
+          <div class="kpi-value" style="color:#d97706">${filtered.length}</div>
+          <div class="kpi-sub">recorded incidents</div>
+        </div>
+        <div class="kpi-box border-neutral">
+          <div class="kpi-label">Total Volume Wasted</div>
+          <div class="kpi-value">${totalQuantity.toFixed(2)}</div>
+          <div class="kpi-sub">cumulative material units</div>
+        </div>
+      </div>
+
+      <h2>
+        <span>Breakdown by Reason</span>
+        <span style="font-size:10px;color:#6b7280;font-weight:normal">${byReason.length} categories</span>
+      </h2>
       <table>
-        <thead><tr><th>Date & Time</th><th>Ingredient</th><th style="text-align:right">Qty</th><th>Reason</th><th style="text-align:right">Cost Loss</th><th>Reported By</th></tr></thead>
-        <tbody>${tableRows}</tbody>
+        <thead>
+          <tr>
+            <th>Reason Category</th>
+            <th class="text-center">Recorded Incidents</th>
+            <th class="text-right">Estimated Financial Loss</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${reasonRows || '<tr><td colspan="3">No loss events recorded.</td></tr>'}
+        </tbody>
       </table>
+
+      <h2>
+        <span>Detailed Wastage &amp; Loss Log (${filtered.length} records)</span>
+        <span style="font-size:10px;color:#6b7280;font-weight:normal">Chronological order</span>
+      </h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Date &amp; Time</th>
+            <th>Raw Material</th>
+            <th class="text-right">Qty Wasted</th>
+            <th>Reason</th>
+            <th class="text-right">Cost Loss</th>
+            <th>Reported By</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tableRows || '<tr><td colspan="6">No wastage records match the selected date range and filter criteria.</td></tr>'}
+        </tbody>
+      </table>
+
+      <div class="report-footer">
+        <span>Confidential &bull; Cof/Tea Cafe Management Report</span>
+        <span>Generated by POS &amp; Inventory System</span>
+      </div>
     `;
+
     printReport('Wastage & Loss Report', html);
   };
 

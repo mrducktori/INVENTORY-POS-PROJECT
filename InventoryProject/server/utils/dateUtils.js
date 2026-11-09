@@ -50,20 +50,40 @@ export const formatDisplayDate = (dateStr) => {
 /**
  * Returns an ISO-formatted start of day in Manila timezone (+08:00)
  * Example: "2026-10-23" -> "2026-10-23T00:00:00+08:00"
+ * Handles both plain YYYY-MM-DD and full ISO strings with timezone
  */
 export const toManilaStartOfDay = (dateInput) => {
   if (!dateInput) return null;
-  const dStr = typeof dateInput === 'string' ? dateInput.split('T')[0] : getManilaDateOnly();
+  let dStr;
+  if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateInput.trim())) {
+    dStr = dateInput.trim();
+  } else {
+    try {
+      dStr = new Date(dateInput).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+    } catch {
+      dStr = getManilaDateOnly();
+    }
+  }
   return `${dStr}T00:00:00+08:00`;
 };
 
 /**
  * Returns an ISO-formatted end of day in Manila timezone (+08:00)
  * Example: "2026-10-23" -> "2026-10-23T23:59:59.999+08:00"
+ * Handles both plain YYYY-MM-DD and full ISO strings with timezone
  */
 export const toManilaEndOfDay = (dateInput) => {
   if (!dateInput) return null;
-  const dStr = typeof dateInput === 'string' ? dateInput.split('T')[0] : getManilaDateOnly();
+  let dStr;
+  if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateInput.trim())) {
+    dStr = dateInput.trim();
+  } else {
+    try {
+      dStr = new Date(dateInput).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+    } catch {
+      dStr = getManilaDateOnly();
+    }
+  }
   return `${dStr}T23:59:59.999+08:00`;
 };
 

@@ -123,63 +123,138 @@ const InventoryStatusReport = () => {
     const time = new Date().toLocaleTimeString('en-PH');
 
     const rows = [
-      ['INVENTORY STATUS REPORT'],
-      [`Date Generated: ${date} ${time}`],
-      [],
-      ['SUMMARY'],
+      ['COF/TEA CAFE — INVENTORY STATUS REPORT'],
+      ['Store Name', 'Cof/Tea Cafe'],
+      ['Date Generated', `${date} ${time}`],
       ['Total Tracked Ingredients', stats.total],
       ['In Stock (Healthy)', stats.healthy],
-      ['Low Stock (Warning)', stats.warning],
-      ['Critical (Restock Needed)', stats.critical],
+      ['Low Stock (Restock Warning)', stats.warning],
+      ['Critical (Immediate Action)', stats.critical],
       ['Out of Stock', stats.out],
       [],
-      ['INVENTORY DETAIL'],
-      ['Ingredient Name', 'Current Stock', 'Alert Level', 'Unit', 'Status'],
+      ['SECTION 1: INVENTORY DETAIL'],
+      ['Raw Material Name', 'Category', 'Current Stock', 'Alert Level', 'Unit', 'Stock Status'],
       ...filtered.map(i => [
         i.name,
-        i.stock_quantity,
-        i.low_stock_alert,
+        i.category || 'General',
+        parseFloat(i.stock_quantity || 0),
+        parseFloat(i.low_stock_alert || 0),
         i.unit,
         getStatusLabel(getStatus(i.stock_quantity, i.low_stock_alert))
       ])
     ];
 
-    downloadCSV(rows, `Inventory_Status_${new Date().toISOString().split('T')[0]}.csv`);
+    downloadCSV(rows, `CofTea_Inventory_Status_${new Date().toISOString().split('T')[0]}.csv`);
   };
 
   const handlePrint = () => {
-    const urgentRows = priorityList.map((i, idx) => `<tr>
-      <td>${idx + 1}</td>
-      <td><strong>${i.name}</strong></td>
-      <td>${i.stock_quantity} ${i.unit}</td>
-      <td>${i.low_stock_alert} ${i.unit}</td>
-      <td><span class="badge ${getStatus(i.stock_quantity, i.low_stock_alert)}">${getStatusLabel(getStatus(i.stock_quantity, i.low_stock_alert))}</span></td>
-    </tr>`).join('');
+    const urgentRows = priorityList.map((i, idx) => {
+      const statusKey = getStatus(i.stock_quantity, i.low_stock_alert);
+      const badgeClass = statusKey === 'out' ? 'badge-danger' : 'badge-warning';
+      return `<tr>
+        <td class="text-center" style="font-family:monospace;font-weight:700">${idx + 1}</td>
+        <td><strong>${i.name}</strong></td>
+        <td>${i.category || 'General'}</td>
+        <td class="text-right num-neg">${i.stock_quantity} ${i.unit}</td>
+        <td class="text-right" style="font-family:monospace;color:#6b7280">${i.low_stock_alert} ${i.unit}</td>
+        <td class="text-right"><span class="badge ${badgeClass}">${getStatusLabel(statusKey)}</span></td>
+      </tr>`;
+    }).join('');
 
-    const allRows = filtered.map(i => `<tr>
-      <td>${i.name}</td>
-      <td>${i.stock_quantity} ${i.unit}</td>
-      <td>${i.low_stock_alert} ${i.unit}</td>
-      <td><span class="badge ${getStatus(i.stock_quantity, i.low_stock_alert)}">${getStatusLabel(getStatus(i.stock_quantity, i.low_stock_alert))}</span></td>
-    </tr>`).join('');
+    const allRows = filtered.map(i => {
+      const statusKey = getStatus(i.stock_quantity, i.low_stock_alert);
+      const badgeClass = statusKey === 'healthy' ? 'badge-in' : statusKey === 'out' ? 'badge-danger' : 'badge-warning';
+      return `<tr>
+        <td><strong>${i.name}</strong></td>
+        <td style="color:#6b7280">${i.category || 'General'}</td>
+        <td class="text-right" style="font-family:monospace;font-weight:700">${i.stock_quantity}</td>
+        <td class="text-right" style="font-family:monospace;color:#6b7280">${i.low_stock_alert}</td>
+        <td>${i.unit}</td>
+        <td class="text-right"><span class="badge ${badgeClass}">${getStatusLabel(statusKey)}</span></td>
+      </tr>`;
+    }).join('');
 
     const html = `
-      <h1>Inventory Status Report</h1>
-      <p class="subtitle">Generated: ${new Date().toLocaleString('en-PH')}</p>
-      <div class="kpi-grid">
-        <div class="kpi-box"><div class="kpi-label">Total Tracked</div><div class="kpi-value">${stats.total}</div></div>
-        <div class="kpi-box"><div class="kpi-label">In Stock</div><div class="kpi-value">${stats.healthy}</div></div>
-        <div class="kpi-box"><div class="kpi-label">Low / Restock Needed</div><div class="kpi-value">${stats.warning + stats.critical}</div></div>
-        <div class="kpi-box"><div class="kpi-label">Out of Stock</div><div class="kpi-value">${stats.out}</div></div>
+      <div class="report-header">
+        <div class="brand-meta-row">
+          <div>
+            <div class="brand-logo-text">COF/TEA CAFE</div>
+            <div class="brand-subtitle">Point of Sale &amp; Inventory Management System</div>
+          </div>
+          <div class="report-timestamp">
+            <div>Generated: <strong>${new Date().toLocaleString('en-PH')}</strong></div>
+          </div>
+        </div>
+        <h1>Inventory Status Report</h1>
+        <p class="subtitle">Real-time stock valuation, material threshold monitoring, and restock alert levels.</p>
       </div>
+
+      <div class="kpi-grid">
+        <div class="kpi-box border-neutral">
+          <div class="kpi-label">Total Tracked</div>
+          <div class="kpi-value">${stats.total}</div>
+          <div class="kpi-sub">all materials</div>
+        </div>
+        <div class="kpi-box border-in">
+          <div class="kpi-label">In Stock</div>
+          <div class="kpi-value" style="color:#16a34a">${stats.healthy}</div>
+          <div class="kpi-sub">optimal stock</div>
+        </div>
+        <div class="kpi-box border-alert">
+          <div class="kpi-label">Low Stock</div>
+          <div class="kpi-value" style="color:#d97706">${stats.warning}</div>
+          <div class="kpi-sub">below warning line</div>
+        </div>
+        <div class="kpi-box border-out">
+          <div class="kpi-label">Restock Attention</div>
+          <div class="kpi-value" style="color:#dc2626">${stats.critical + stats.out}</div>
+          <div class="kpi-sub">critical or empty (${stats.out} out)</div>
+        </div>
+      </div>
+
       ${priorityList.length > 0 ? `
-        <h2>Needs Attention (${priorityList.length} items)</h2>
-        <table><thead><tr><th>#</th><th>Ingredient</th><th>Current Stock</th><th>Alert Level</th><th>Status</th></tr></thead>
-        <tbody>${urgentRows}</tbody></table>` : ''}
-      <h2>Full Inventory List</h2>
-      <table><thead><tr><th>Ingredient</th><th>Current Stock</th><th>Alert Level</th><th>Status</th></tr></thead>
-      <tbody>${allRows}</tbody></table>
+        <h2>
+          <span>Critical Restock Attention (${priorityList.length} items)</span>
+          <span style="font-size:10px;color:#dc2626;font-weight:normal">Immediate reorder recommended</span>
+        </h2>
+        <table>
+          <thead>
+            <tr>
+              <th class="text-center" style="width:30px">#</th>
+              <th>Raw Material</th>
+              <th>Category</th>
+              <th class="text-right">Current Stock</th>
+              <th class="text-right">Alert Threshold</th>
+              <th class="text-right">Urgency Status</th>
+            </tr>
+          </thead>
+          <tbody>${urgentRows}</tbody>
+        </table>` : ''}
+
+      <h2>
+        <span>Comprehensive Inventory Registry (${filtered.length} items)</span>
+        <span style="font-size:10px;color:#6b7280;font-weight:normal">All monitored raw materials</span>
+      </h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Raw Material</th>
+            <th>Category</th>
+            <th class="text-right">Current Stock</th>
+            <th class="text-right">Alert Level</th>
+            <th>Unit</th>
+            <th class="text-right">Stock Status</th>
+          </tr>
+        </thead>
+        <tbody>${allRows}</tbody>
+      </table>
+
+      <div class="report-footer">
+        <span>Confidential &bull; Cof/Tea Cafe Management Report</span>
+        <span>Generated by POS &amp; Inventory System</span>
+      </div>
     `;
+
     printReport('Inventory Status Report', html);
   };
 

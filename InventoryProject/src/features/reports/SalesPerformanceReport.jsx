@@ -114,26 +114,30 @@ const SalesPerformanceReport = () => {
     const periodLabel = period === 'daily' ? 'Today' : period === 'weekly' ? 'This Week' : period === 'monthly' ? 'This Month' : `${customStart} to ${customEnd}`;
 
     const rows = [
-      [`SALES REPORT — ${periodLabel.toUpperCase()}`],
-      [`Date Generated: ${date} ${time}`],
-      [],
-      ['SUMMARY'],
-      ['Total Revenue (PHP)', `₱${totalSales.toFixed(2)}`],
-      ['Total Number of Orders', totalTx],
-      ['Average Order Value (PHP)', `₱${avgTicket.toFixed(2)}`],
+      ['COF/TEA CAFE — SALES PERFORMANCE REPORT'],
+      ['Store Name', 'Cof/Tea Cafe'],
+      ['Reporting Period', periodLabel],
+      ['Date Generated', `${date} ${time}`],
+      ['Total Revenue (PHP)', totalSales.toFixed(2)],
+      ['Total Transactions', totalTx],
+      ['Average Order Value (PHP)', avgTicket.toFixed(2)],
       ['Total Items Sold', totalItems],
       [],
-      ['STAFF PERFORMANCE'],
-      ['Staff Name', 'Total Sales (PHP)', 'Number of Orders', 'Average per Order (PHP)', 'Share of Total Sales'],
-      ...sortedStaff.map(s => [
-        s.name,
-        `₱${(s.total_sales || 0).toFixed(2)}`,
-        s.transactions,
-        `₱${((s.total_sales || 0) / (s.transactions || 1)).toFixed(2)}`,
-        `${((s.total_sales / (totalSales || 1)) * 100).toFixed(1)}%`
-      ]),
+      ['SECTION 1: STAFF SALES BREAKDOWN'],
+      ['Staff Name', 'Total Sales (PHP)', 'Number of Orders', 'Average Ticket (PHP)', 'Sales Share (%)'],
+      ...sortedStaff.map(s => {
+        const avg = s.transactions > 0 ? s.total_sales / s.transactions : 0;
+        const share = totalSales > 0 ? (s.total_sales / totalSales) * 100 : 0;
+        return [
+          s.name,
+          (s.total_sales || 0).toFixed(2),
+          s.transactions,
+          avg.toFixed(2),
+          `${share.toFixed(1)}%`
+        ];
+      }),
     ];
-    downloadCSV(rows, `Sales_Report_${period}_${new Date().toISOString().split('T')[0]}.csv`);
+    downloadCSV(rows, `CofTea_Sales_Report_${period}_${new Date().toISOString().split('T')[0]}.csv`);
   };
 
   const handlePrint = () => {
@@ -142,29 +146,78 @@ const SalesPerformanceReport = () => {
       const avg = s.transactions > 0 ? s.total_sales / s.transactions : 0;
       const share = totalSales > 0 ? (s.total_sales / totalSales) * 100 : 0;
       return `<tr>
-        <td>${i + 1}</td>
+        <td class="text-center" style="font-family:monospace;font-weight:700">${i + 1}</td>
         <td><strong>${s.name}</strong></td>
-        <td>₱${(s.total_sales || 0).toFixed(2)}</td>
-        <td style="text-align:center">${s.transactions}</td>
-        <td>₱${avg.toFixed(2)}</td>
-        <td>${share.toFixed(1)}%</td>
+        <td class="text-right num-pos">₱${(s.total_sales || 0).toFixed(2)}</td>
+        <td class="text-center" style="font-family:monospace">${s.transactions}</td>
+        <td class="text-right" style="font-family:monospace">₱${avg.toFixed(2)}</td>
+        <td class="text-right" style="font-weight:700">${share.toFixed(1)}%</td>
       </tr>`;
     }).join('');
 
     const html = `
-      <h1>Sales Report — ${periodLabel}</h1>
-      <p class="subtitle">Generated: ${new Date().toLocaleString('en-PH')}</p>
-      <div class="kpi-grid">
-        <div class="kpi-box"><div class="kpi-label">Total Revenue</div><div class="kpi-value">₱${totalSales.toFixed(2)}</div></div>
-        <div class="kpi-box"><div class="kpi-label">Total Orders</div><div class="kpi-value">${totalTx}</div></div>
-        <div class="kpi-box"><div class="kpi-label">Avg Order Value</div><div class="kpi-value">₱${avgTicket.toFixed(2)}</div></div>
-        <div class="kpi-box"><div class="kpi-label">Items Sold</div><div class="kpi-value">${totalItems}</div></div>
+      <div class="report-header">
+        <div class="brand-meta-row">
+          <div>
+            <div class="brand-logo-text">COF/TEA CAFE</div>
+            <div class="brand-subtitle">Point of Sale &amp; Inventory Management System</div>
+          </div>
+          <div class="report-timestamp">
+            <div>Period: <strong>${periodLabel}</strong></div>
+            <div>Generated: <strong>${new Date().toLocaleString('en-PH')}</strong></div>
+          </div>
+        </div>
+        <h1>Sales Performance Report</h1>
+        <p class="subtitle">Official revenue summary, cashier productivity, order volume, and ticket averages.</p>
       </div>
-      <h2>Staff Performance</h2>
+
+      <div class="kpi-grid">
+        <div class="kpi-box border-in">
+          <div class="kpi-label">Total Revenue</div>
+          <div class="kpi-value" style="color:#16a34a">₱${totalSales.toFixed(2)}</div>
+          <div class="kpi-sub">gross completed sales</div>
+        </div>
+        <div class="kpi-box border-neutral">
+          <div class="kpi-label">Transactions</div>
+          <div class="kpi-value">${totalTx}</div>
+          <div class="kpi-sub">completed orders</div>
+        </div>
+        <div class="kpi-box border-brand">
+          <div class="kpi-label">Average Order</div>
+          <div class="kpi-value">₱${avgTicket.toFixed(2)}</div>
+          <div class="kpi-sub">average ticket value</div>
+        </div>
+        <div class="kpi-box border-alert">
+          <div class="kpi-label">Items Sold</div>
+          <div class="kpi-value" style="color:#d97706">${totalItems}</div>
+          <div class="kpi-sub">total units served</div>
+        </div>
+      </div>
+
+      <h2>
+        <span>Staff Sales Performance (${sortedStaff.length} cashiers)</span>
+        <span style="font-size:10px;color:#6b7280;font-weight:normal">Ranked by revenue</span>
+      </h2>
       <table>
-        <thead><tr><th>#</th><th>Staff Name</th><th>Total Sales</th><th>Orders</th><th>Avg Per Order</th><th>Share</th></tr></thead>
-        <tbody>${staffRows || '<tr><td colspan="6">No staff data for this period.</td></tr>'}</tbody>
+        <thead>
+          <tr>
+            <th class="text-center" style="width:30px">#</th>
+            <th>Staff Name</th>
+            <th class="text-right">Total Revenue</th>
+            <th class="text-center">Orders</th>
+            <th class="text-right">Avg Per Order</th>
+            <th class="text-right">Revenue Share</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${staffRows || '<tr><td colspan="6">No staff transactions recorded for this period.</td></tr>'}
+        </tbody>
       </table>
+
+      <div class="report-footer">
+        <span>Confidential &bull; Cof/Tea Cafe Management Report</span>
+        <span>Generated by POS &amp; Inventory System</span>
+      </div>
     `;
     printReport(`Sales Report — ${periodLabel}`, html);
   };

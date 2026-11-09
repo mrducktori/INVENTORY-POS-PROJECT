@@ -1,8 +1,9 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { getInventoryStatusReport } from '../../api/reportsApi';
+import { getInventoryStatusReport, getWastageReport } from '../../api/reportsApi';
 import { getAllProducts } from '../../api/productsApi';
 import { getAuditLogs } from '../../api/auditApi';
 import { downloadCSV, printReport } from './reportUtils';
+import { getPeriodDateRange } from '../../utils/dateUtils';
 import InfoTip from '../../components/shared/InfoTip';
 import { TableSkeleton, StatCardsSkeleton } from '../../components/shared/SkeletonLoader';
 
@@ -81,21 +82,22 @@ const StockMovementReport = () => {
   const fetchReport = useCallback(async () => {
     setLoading(true);
     try {
-      const startDate = getPeriodStart(period);
-      const endDate   = new Date().toISOString();
+      const { startDate, endDate } = getPeriodDateRange(period);
 
       // Fetch all stock-related movement actions in single call
       const stockActions = 'RAW_MATERIAL_STOCK_RECEIVED,PRODUCT_STOCK_RECEIVED,INGREDIENT_DEDUCTED,PRODUCT_DEDUCTED,WASTAGE';
 
-      const [ingData, prodData, auditRes] = await Promise.all([
+      const [ingData, prodData, auditRes, wastageData] = await Promise.all([
         getInventoryStatusReport(),
         getAllProducts(),
-        getAuditLogs({ action: stockActions, start_date: startDate, end_date: endDate, limit: 1500 })
+        getAuditLogs({ action: stockActions, start_date: startDate, end_date: endDate, limit: 2000 }),
+        getWastageReport(startDate, endDate)
       ]);
 
       const ingList = ingData || [];
       const prodList = prodData || [];
       const auditList = auditRes?.data || auditRes || [];
+      const wastageList = wastageData || [];
 
       // Create lookup maps for accurate names and units
       const ingredientMap = {};
@@ -143,8 +145,33 @@ const StockMovementReport = () => {
 
       const snapshot = [...ingredientRows, ...productRows];
 
-      // 2. Parse comprehensive stock movement audit events (IN, OUT, WASTAGE)
-      const parsedMovements = auditList.map(log => {
+      // 2. Map dedicated records from the wastage table (primary source of truth)
+      const directWastageMovements = wastageList.map(w => {
+        const ing = w.ingredients || ingredientMap[w.ingredient_id] || {};
+        const qty = parseFloat(w.quantity) || 0;
+        const itemName = ing.name || '—';
+        const unit = ing.unit || 'pcs';
+        const costStr = w.estimated_cost ? ` (Est. ₱${Number(w.estimated_cost).toFixed(2)})` : '';
+
+        return {
+          id:             `wastage-${w.id}`,
+          timestamp:      w.created_at,
+          action:         'WASTAGE',
+          movementType:   'WASTAGE',
+          directionLabel: 'Wastage',
+          itemType:       'Ingredient',
+          name:           itemName,
+          unit,
+          qtyChange:      -Math.abs(qty),
+          absQty:         Math.abs(qty),
+          newStock:       null,
+          reason:         w.reason ? `Wastage: ${w.reason}${costStr}` : `Wastage / Loss${costStr}`,
+          recordedBy:     w.users?.name || 'Staff'
+        };
+      });
+
+      // 3. Parse comprehensive stock movement audit events (IN, OUT, WASTAGE)
+      const parsedAuditMovements = auditList.map(log => {
         let details = {};
         if (typeof log.details === 'string') {
           try {
@@ -237,10 +264,27 @@ const StockMovementReport = () => {
           reason,
           recordedBy:     log.users?.name || 'System'
         };
-      }).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      });
+
+      // 4. Combine and deduplicate movements: prioritize wastage table records over audit log duplicates
+      const combined = [...directWastageMovements, ...parsedAuditMovements];
+      const seenWastage = new Set();
+      const finalMovements = [];
+
+      for (const m of combined) {
+        if (m.movementType === 'WASTAGE') {
+          const timeMinute = m.timestamp ? new Date(m.timestamp).toISOString().slice(0, 16) : '';
+          const key = `${timeMinute}_${String(m.name || '').toLowerCase()}_${m.qtyChange}`;
+          if (seenWastage.has(key)) continue;
+          seenWastage.add(key);
+        }
+        finalMovements.push(m);
+      }
+
+      finalMovements.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
       setRows(snapshot);
-      setMovements(parsedMovements);
+      setMovements(finalMovements);
       setFetched(true);
     } catch (err) {
       console.error('Stock movement error:', err);
@@ -301,7 +345,8 @@ const StockMovementReport = () => {
   // ─── Export CSV (RFC-4180 standard CRLF layout) ─────────────────────────────
   const handleExportCSV = () => {
     const exportRows = [
-      ['HIGHLAND COFFEE — STOCK MOVEMENT & INVENTORY REPORT'],
+      ['COF/TEA CAFE — STOCK MOVEMENT & INVENTORY REPORT'],
+      ['Store Name', 'Cof/Tea Cafe'],
       ['Reporting Period', periodLabel],
       ['Date Generated', new Date().toLocaleString('en-PH')],
       ['Total Inbound Stock (+)', totalStockIn.toFixed(2)],
@@ -339,7 +384,7 @@ const StockMovementReport = () => {
       )
     ];
 
-    downloadCSV(exportRows, `Stock_Movement_Report_${period}_${new Date().toISOString().split('T')[0]}.csv`);
+    downloadCSV(exportRows, `CofTea_Stock_Movement_Report_${period}_${new Date().toISOString().split('T')[0]}.csv`);
   };
 
   // ─── Export PDF / Print (Executive Layout) ──────────────────────────────────
@@ -391,26 +436,35 @@ const StockMovementReport = () => {
 
     const html = `
       <div class="report-header">
-        <div class="brand-subtitle">Highland Coffee POS &amp; Inventory Management</div>
+        <div class="brand-meta-row">
+          <div>
+            <div class="brand-logo-text">COF/TEA CAFE</div>
+            <div class="brand-subtitle">Point of Sale &amp; Inventory Management System</div>
+          </div>
+          <div class="report-timestamp">
+            <div>Period: <strong>${periodLabel}</strong></div>
+            <div>Generated: <strong>${new Date().toLocaleString('en-PH')}</strong></div>
+          </div>
+        </div>
         <h1>Stock Movement &amp; Inventory Report</h1>
-        <p class="subtitle">Reporting Period: <strong>${periodLabel}</strong> &bull; Generated: <strong>${new Date().toLocaleString('en-PH')}</strong></p>
+        <p class="subtitle">Complete audit of inbound stock receipts, sales deductions, wastage logs, and current inventory health.</p>
       </div>
 
       <div class="kpi-grid">
         <div class="kpi-box border-in">
           <div class="kpi-label">Total Stock Inbound</div>
-          <div class="kpi-value" style="color:#15803d">+${totalStockIn.toFixed(1)}</div>
+          <div class="kpi-value" style="color:#16a34a">+${totalStockIn.toFixed(1)}</div>
           <div class="kpi-sub">restock &amp; received units</div>
         </div>
         <div class="kpi-box border-out">
           <div class="kpi-label">Total Stock Outbound</div>
-          <div class="kpi-value" style="color:#b91c1c">-${totalStockOut.toFixed(1)}</div>
+          <div class="kpi-value" style="color:#dc2626">-${totalStockOut.toFixed(1)}</div>
           <div class="kpi-sub">POS sales consumption</div>
         </div>
         <div class="kpi-box border-alert">
           <div class="kpi-label">Total Wastage / Loss</div>
           <div class="kpi-value" style="color:#d97706">-${totalWastage.toFixed(1)}</div>
-          <div class="kpi-sub">spoilage &amp; damaged items</div>
+          <div class="kpi-sub">spoilage, damage, &amp; expired</div>
         </div>
         <div class="kpi-box border-neutral">
           <div class="kpi-label">Net Movement</div>
@@ -469,8 +523,8 @@ const StockMovementReport = () => {
       </table>
 
       <div class="report-footer">
-        <span>Confidential &bull; Highland Coffee Management Report</span>
-        <span>Page 1 of 1</span>
+        <span>Confidential &bull; Cof/Tea Cafe Management Report</span>
+        <span>Generated by POS &amp; Inventory System</span>
       </div>
     `;
 

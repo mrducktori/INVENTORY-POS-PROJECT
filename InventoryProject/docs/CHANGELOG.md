@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Reports & Exports: Wastage Data Integration, Manila Timezone Fix, CSV UTF-8 Formatting, & Executive Print Layouts - 2026-11-09]
+- **Wastage Connection & Midnight Timezone Fix (`StockMovementReport.jsx`, `dateUtils.js`, `wastageService.js`, `audit.js`)**:
+  - **Fixed Early Morning / Midnight Manila Timezone Cutoff**: Resolved root cause where `toManilaEndOfDay(endDate)` used `.split('T')[0]` on UTC timestamps (e.g. `2026-11-08T16:21:59Z`), resolving to UTC day `2026-11-08` instead of Manila day `2026-11-09`. This caused transactions and wastage logged past midnight Manila time (+08:00) to be excluded from date filters. Updated `toManilaStartOfDay` and `toManilaEndOfDay` in both backend and frontend `dateUtils.js` to evaluate `Asia/Manila` calendar days reliably.
+  - **Direct Wastage Table Integration (`StockMovementReport.jsx`)**: Connected `getWastageReport(startDate, endDate)` directly to `StockMovementReport.jsx` alongside `getAuditLogs`. Wastage records from the `wastage` table (30 total records) are now seamlessly merged and deduplicated against audit logs.
+  - **Accurate Wastage KPI & Filtering**: Clicking the `WASTAGE` filter now accurately displays the recorded wastage volume, incident counts, material names, units, reasons, and reporting cashier details.
+- **Universal CSV Export Standardization (`reportUtils.js`, `StockMovementReport.jsx`, `WastageReport.jsx`, `InventoryStatusReport.jsx`, `SalesPerformanceReport.jsx`, `SalesReceiptJournal.jsx`, `SalesSummaryReport.jsx`)**:
+  - **UTF-8 Byte Order Mark (BOM `\uFEFF`) & RFC-4180**: Standardized `downloadCSV` across all reports and log export functions to include `\uFEFF` and RFC-4180 double-quote escaping. Prevents character encoding corruption in Microsoft Excel, Apple Numbers, and Google Sheets when viewing Philippine Peso (`₱`) and item descriptions.
+  - **Structured Metadata Headers**: Every export now features clean corporate headers with `COF/TEA CAFE — [REPORT NAME]`, store identification, date range/period, and generated timestamps.
+  - **Pure Numeric Cell Formatting**: Formatted monetary columns with pure decimal numbers in data rows (`58.65` instead of text strings) so spreadsheets can immediately execute `SUM`, `AVERAGE`, and analytics formulas.
+  - **Updated Store Branding**: Replaced legacy placeholder name `Highland Coffee` with official `Cof/Tea Cafe` branding across all CSV headers and filenames (`CofTea_Stock_Movement_Report_...csv`, `CofTea_Receipt_Journal_...csv`).
+- **Executive Print & PDF Layout Redesign (`reportUtils.js`, `StockMovementReport.jsx`, `WastageReport.jsx`, `InventoryStatusReport.jsx`, `SalesPerformanceReport.jsx`)**:
+  - **Dedicated Print Preview Bar**: Added top preview bar with one-click `Print Document / Save PDF` fallback button.
+  - **High-Contrast Executive Header**: Official `COF/TEA CAFE` masthead with sub-brand label, period badge, and generation timestamp.
+  - **Repeating Page Headers (`thead { display: table-header-group; }`)**: Long tables spanning multiple printed pages automatically repeat table column headers at the top of each page.
+  - **Print Color Adjust**: Configured `-webkit-print-color-adjust: exact` and `print-color-adjust: exact` so badges, borders, and KPI boxes print with crisp colors.
+  - **Official Confidential Footer**: Added `Confidential • Cof/Tea Cafe Management Report` with system attribution.
+
+
 ## [UI/Search & Logs: System-Wide Case-Insensitive Search & Unified Logs/Reports Design System - 2026-11-09]
 - **System-Wide Case-Insensitive & Accurate Search (`server/routes/sales.js`, `SalesReceiptJournal.jsx`, `productUtils.js`, `inventory`, `reports`)**:
   - **Fixed Root Cause of False-Positive Matches on "RED" / "red velvet"**:
