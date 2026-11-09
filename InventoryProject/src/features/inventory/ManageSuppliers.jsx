@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getSuppliers, createSupplier, updateSupplier, archiveSupplier, restoreSupplier } from '../../api/purchasingApi';
+import { getSuppliers, createSupplier, updateSupplier, archiveSupplier, restoreSupplier, deleteSupplier } from '../../api/purchasingApi';
 import { getIngredients } from '../../api/inventoryApi';
 import ConfirmModal from '../../components/shared/ConfirmModal';
 import SupplierFormModal from './components/SupplierFormModal';
@@ -88,31 +88,52 @@ const ManageSuppliers = () => {
     }
   };
 
-  // Delete Supplier
+  // Archive Supplier (soft delete)
   const handleDeleteSupplier = (supplier) => {
     setConfirmConfig({
       isOpen: true,
-      title: 'Delete Supplier',
-      message: `Are you sure you want to remove "${supplier.name}"? This will unlink their catalog mappings. Past purchase orders will be retained.`,
+      title: 'Archive Supplier',
+      message: `Are you sure you want to archive "${supplier.name}"? Past purchase orders will be retained.`,
       onConfirm: async () => {
         setConfirmConfig((prev) => ({ ...prev, isOpen: false }));
         try {
-          await deleteSupplier(supplier.id);
-          flashMessage('success', `Supplier "${supplier.name}" removed successfully.`);
+          await archiveSupplier(supplier.id);
+          flashMessage('success', `Supplier "${supplier.name}" archived successfully.`);
           fetchData();
         } catch (err) {
           console.error(err);
-          flashMessage('error', err.message || 'Failed to delete supplier.');
+          flashMessage('error', err.message || 'Failed to archive supplier.');
         }
       }
     });
   };
 
+  // Restore Supplier
+  const handleRestoreSupplier = async (supplier) => {
+    try {
+      await restoreSupplier(supplier.id);
+      flashMessage('success', `Supplier "${supplier.name}" restored successfully.`);
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      flashMessage('error', err.message || 'Failed to restore supplier.');
+    }
+  };
+
+  // Active and archived suppliers
+  const activeSuppliers = useMemo(() => {
+    return suppliers.filter((s) => !s.is_archived);
+  }, [suppliers]);
+
+  const archivedSuppliers = useMemo(() => {
+    return suppliers.filter((s) => s.is_archived);
+  }, [suppliers]);
+
   // Filtered suppliers for directory
   const filteredSuppliers = useMemo(() => {
     const term = searchTerm.toLowerCase().trim();
-    if (!term) return suppliers;
-    return suppliers.filter(
+    if (!term) return activeSuppliers;
+    return activeSuppliers.filter(
       (s) =>
         (s.name || '').toLowerCase().includes(term) ||
         (s.contact_person || '').toLowerCase().includes(term) ||
@@ -120,7 +141,7 @@ const ManageSuppliers = () => {
         (s.email || '').toLowerCase().includes(term) ||
         (s.address || '').toLowerCase().includes(term)
     );
-  }, [suppliers, searchTerm]);
+  }, [activeSuppliers, searchTerm]);
 
   return (
     <div className="p-4 md:p-8 flex-1 bg-gray-50 overflow-y-auto w-full">
@@ -147,7 +168,7 @@ const ManageSuppliers = () => {
                   : 'text-zinc-600 hover:text-zinc-900'
               }`}
             >
-              Suppliers Directory ({suppliers.length})
+              Suppliers Directory ({activeSuppliers.length})
             </button>
             <button
               type="button"
@@ -210,7 +231,7 @@ const ManageSuppliers = () => {
             </div>
 
             <div className="text-xs font-semibold text-zinc-500 tabular-nums">
-              Showing {activeSuppliers.length} active suppliers
+              Showing {filteredSuppliers.length} of {activeSuppliers.length} active suppliers
             </div>
           </div>
 
@@ -218,9 +239,9 @@ const ManageSuppliers = () => {
           <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden shadow-xs">
             {loading ? (
               <div className="p-12 text-center text-sm text-zinc-400">Loading supplier directory...</div>
-            ) : activeSuppliers.length === 0 ? (
+            ) : filteredSuppliers.length === 0 ? (
               <div className="p-12 text-center text-sm text-zinc-400">
-                No suppliers found. Click "Add Supplier" above to register one.
+                {searchTerm ? 'No suppliers match your search.' : 'No suppliers found. Click "Add Supplier" above to register one.'}
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -235,7 +256,7 @@ const ManageSuppliers = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-100 text-sm">
-                    {activeSuppliers.map((supp) => {
+                    {filteredSuppliers.map((supp) => {
                       const itemsCount = supp.supplier_ingredients?.length || 0;
                       return (
                         <tr key={supp.id} className="hover:bg-zinc-50/60 transition-colors group">
@@ -301,7 +322,7 @@ const ManageSuppliers = () => {
                                 className="px-3 py-1.5 bg-white border border-rose-200 text-rose-600 rounded-md text-xs font-bold uppercase tracking-wider hover:bg-rose-50 transition-colors cursor-pointer"
                                 onClick={() => handleDeleteSupplier(supp)}
                               >
-                                Delete
+                                Archive
                               </button>
                             </div>
                           </td>
@@ -313,13 +334,49 @@ const ManageSuppliers = () => {
               </div>
             )}
           </div>
+
+          {/* Dedicated Archived Suppliers Section */}
+          {archivedSuppliers.length > 0 && (
+            <div className="mt-8 mb-4 bg-zinc-950 text-white rounded-2xl p-6 border border-zinc-800 shadow-xl w-full">
+              <div className="flex items-center justify-between pb-4 border-b border-zinc-800 mb-5">
+                <div>
+                  <h3 className="text-lg font-bold text-white tracking-tight m-0">Archived Suppliers</h3>
+                  <p className="text-xs text-zinc-400 m-0 mt-0.5">Archived suppliers are hidden from purchase orders and active catalog views until restored.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={fetchData}
+                  className="px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:text-white bg-zinc-900 border border-zinc-700 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer"
+                >
+                  Refresh
+                </button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {archivedSuppliers.map((s) => (
+                  <div key={s.id} className="bg-zinc-900/90 border border-zinc-800/80 rounded-xl p-3.5 flex items-center justify-between gap-3 shadow-sm hover:border-zinc-700 transition-colors">
+                    <div className="min-w-0">
+                      <div className="font-bold text-zinc-200 text-sm truncate">{s.name}</div>
+                      <div className="text-xs text-zinc-500 truncate">{s.contact_person || s.email || 'Archived'}</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRestoreSupplier(s)}
+                      className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-zinc-200 text-xs font-bold uppercase tracking-wider rounded-lg transition-colors cursor-pointer shrink-0"
+                    >
+                      Restore
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {/* TAB 2: PRICE DIFFERENCES & COMPARISON MATRIX */}
       {activeTab === 'prices' && (
         <SupplierPriceComparison
-          suppliers={suppliers}
+          suppliers={activeSuppliers}
           ingredients={ingredients}
           onEditSupplier={handleOpenEdit}
         />

@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Fix: Supplier Management `activeSuppliers is not defined` & Soft Archive Restoration - 2026-11-09]
+- **Bug Fix: `activeSuppliers is not defined` (`ManageSuppliers.jsx`)**:
+  - Resolved runtime `ReferenceError: activeSuppliers is not defined` by properly defining `activeSuppliers` and `archivedSuppliers` memoizations from `suppliers.filter(s => !s.is_archived)`.
+  - Re-bound supplier directory table rendering and empty state checks to `filteredSuppliers` so the search bar accurately filters active suppliers in real-time.
+  - Fixed missing `deleteSupplier` import by switching deletion handler to use the imported `archiveSupplier` endpoint, matching the soft-archive convention.
+  - Added dedicated **Archived Suppliers** section with one-click restore functionality (`handleRestoreSupplier` via `restoreSupplier()`), allowing accidental archives to be immediately recovered.
+
+
 ## [Reports & Exports: Wastage Data Integration, Manila Timezone Fix, CSV UTF-8 Formatting, & Executive Print Layouts - 2026-11-09]
 - **Bug Fix: `fetchProducts is not defined` (`ManageProducts.jsx`, `useManageProducts.js`)**:
   - Exported `fetchProducts` from `useManageProducts.js` and destructured it in `ManageProducts.jsx`, fixing the runtime ReferenceError when viewing archived products or clicking Refresh.
