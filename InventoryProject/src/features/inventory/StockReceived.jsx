@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { getIngredients, receiveStock } from '../../api/inventoryApi';
 import { getAllProducts, receiveProductStock } from '../../api/productsApi';
 import { formatQuantity } from '../../utils/productUtils';
 import SearchableIngredientSelect from '../../components/shared/SearchableIngredientSelect';
+import Pagination from '../../components/shared/Pagination';
 
 
 const StockReceived = () => {
@@ -13,12 +14,15 @@ const StockReceived = () => {
   const [selectedId, setSelectedId] = useState('');
   const [quantity, setQuantity] = useState('');
   const [message, setMessage] = useState('');
+  const [searchFilter, setSearchFilter] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Combined list of trackable items
   const activeIngredients = ingredients.filter(i => !i.is_archived);
   const trackableProducts = products.filter(p => p.track_stock && !p.is_archived);
 
-  const allItems = [
+  const allItems = useMemo(() => [
     ...activeIngredients.map(i => ({ ...i, itemType: 'ingredient' })),
     ...trackableProducts.map(p => ({ 
       ...p, 
@@ -26,7 +30,26 @@ const StockReceived = () => {
       low_stock_alert: p.low_stock_threshold,
       unit: 'pcs' // Products usually pcs
     }))
-  ].sort((a, b) => a.name.localeCompare(b.name));
+  ].sort((a, b) => a.name.localeCompare(b.name)), [activeIngredients, trackableProducts]);
+
+  const filteredItems = useMemo(() => {
+    const q = searchFilter.trim().toLowerCase();
+    if (!q) return allItems;
+    return allItems.filter(i =>
+      (i.name || '').toLowerCase().includes(q) ||
+      (i.itemType || '').toLowerCase().includes(q)
+    );
+  }, [allItems, searchFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / itemsPerPage));
+  const paginatedItems = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredItems.slice(start, start + itemsPerPage);
+  }, [filteredItems, currentPage, itemsPerPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchFilter]);
 
   const selectedItem = allItems.find(i => String(i.id) === String(selectedId));
 
@@ -155,12 +178,41 @@ const StockReceived = () => {
       </div>
 
       <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden w-full">
-        <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50">
-          <h2 className="m-0 text-lg font-bold text-gray-900 tracking-tight">Inventory Status Overview</h2>
+        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 className="m-0 text-lg font-bold text-gray-900 tracking-tight">Inventory Status Overview</h2>
+            <p className="m-0 text-xs text-gray-500 font-medium mt-0.5">Showing {filteredItems.length} trackable items</p>
+          </div>
+          <div className="relative w-full sm:w-64">
+            <svg className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search items or type..."
+              value={searchFilter}
+              onChange={(e) => setSearchFilter(e.target.value)}
+              className="w-full pl-9 pr-8 py-1.5 bg-white border border-gray-300 rounded-lg text-xs font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900 transition-all"
+            />
+            {searchFilter && (
+              <button
+                type="button"
+                onClick={() => setSearchFilter('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 text-xs cursor-pointer"
+                aria-label="Clear"
+              >
+                <svg className="w-3.5 h-3.5 text-zinc-400 hover:text-zinc-700" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
         <div className="p-0">
           {loading ? (
             <div className="p-8 text-center text-gray-500 font-medium">Loading...</div>
+          ) : filteredItems.length === 0 ? (
+            <div className="p-8 text-center text-gray-400 font-medium">No items found matching your search.</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse whitespace-nowrap">
@@ -174,7 +226,7 @@ const StockReceived = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {allItems.map(item => (
+                  {paginatedItems.map(item => (
                     <tr key={`${item.itemType}-${item.id}`} className={`transition-colors ${selectedId === String(item.id) ? 'bg-blue-50/50' : 'hover:bg-gray-50/50'}`}>
                       <td className="px-6 py-4"><span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider bg-gray-100 px-2 py-1 rounded">{item.itemType}</span></td>
                       <td className="px-6 py-4"><strong className="text-sm font-bold text-gray-900">{item.name}</strong></td>
@@ -196,6 +248,22 @@ const StockReceived = () => {
                 </tbody>
               </table>
             </div>
+          )}
+
+          {/* Pagination Controls */}
+          {!loading && filteredItems.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredItems.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+              onItemsPerPageChange={(val) => {
+                setItemsPerPage(val);
+                setCurrentPage(1);
+              }}
+              itemsPerPageOptions={[10, 20, 50]}
+            />
           )}
         </div>
       </div>

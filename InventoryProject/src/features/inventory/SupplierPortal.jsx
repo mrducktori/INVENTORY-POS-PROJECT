@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { getSupplierOwnOrders, updateSupplierOrderStatus, submitSupplierItemResponses } from '../../api/purchasingApi';
 import { supabase } from '../../config/supabaseClient';
 import { formatDisplayDate, isDatePast, getDaysOverdue } from '../../utils/dateUtils';
 import SupplierReviewPOModal from './components/SupplierReviewPOModal';
 import SupplierCatalogSection from './components/SupplierCatalogSection';
+import Pagination from '../../components/shared/Pagination';
 
 const SupplierPortal = () => {
   const [mainView, setMainView] = useState('ORDERS'); // 'ORDERS' | 'CATALOG'
@@ -13,6 +14,13 @@ const SupplierPortal = () => {
   const [expandedId, setExpandedId] = useState(null);
   const [tabFilter, setTabFilter] = useState('ALL'); // 'ALL' | 'PENDING' | 'PROPOSALS' | 'ACTIVE' | 'COMPLETED'
   const [searchQuery, setSearchQuery] = useState('');
+  const [orderPage, setOrderPage] = useState(1);
+  const [orderItemsPerPage, setOrderItemsPerPage] = useState(10);
+
+  useEffect(() => {
+    setOrderPage(1);
+  }, [tabFilter, searchQuery]);
+
   const [postponeModal, setPostponeModal] = useState({ show: false, orderId: null, date: '' });
   const [reviewModal, setReviewModal] = useState({ show: false, order: null });
   const [declineModal, setDeclineModal] = useState({ show: false, orderId: null, reason: '' });
@@ -149,6 +157,12 @@ const SupplierPortal = () => {
 
     return true;
   });
+
+  const orderTotalPages = Math.max(1, Math.ceil(filteredOrders.length / orderItemsPerPage));
+  const paginatedOrders = useMemo(() => {
+    const start = (orderPage - 1) * orderItemsPerPage;
+    return filteredOrders.slice(start, start + orderItemsPerPage);
+  }, [filteredOrders, orderPage, orderItemsPerPage]);
 
   return (
     <div className="p-4 md:p-8 flex-1 bg-gray-50 overflow-y-auto w-full">
@@ -365,7 +379,7 @@ const SupplierPortal = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filteredOrders.map(po => {
+                {paginatedOrders.map(po => {
                   const isOverdue = isPOOverdue(po);
                   const daysOverdue = getPODaysOverdue(po);
                   const itemNames = (po.purchase_order_items || [])
@@ -682,6 +696,22 @@ const SupplierPortal = () => {
               })}
               </tbody>
             </table>
+
+            {/* Pagination Controls */}
+            {filteredOrders.length > 0 && (
+              <Pagination
+                currentPage={orderPage}
+                totalPages={orderTotalPages}
+                totalItems={filteredOrders.length}
+                itemsPerPage={orderItemsPerPage}
+                onPageChange={setOrderPage}
+                onItemsPerPageChange={(val) => {
+                  setOrderItemsPerPage(val);
+                  setOrderPage(1);
+                }}
+                itemsPerPageOptions={[10, 20, 50]}
+              />
+            )}
           </div>
         ) : (
           <div className="p-12 flex flex-col items-center justify-center text-gray-400 bg-gray-50/50 h-full">

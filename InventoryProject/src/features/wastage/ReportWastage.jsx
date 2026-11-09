@@ -5,6 +5,7 @@ import { formatQuantity } from '../../utils/productUtils';
 import { getCurrentUser } from '../../api/authApi';
 import { TableSkeleton } from '../../components/shared/SkeletonLoader';
 import SearchableIngredientSelect from '../../components/shared/SearchableIngredientSelect';
+import Pagination from '../../components/shared/Pagination';
 
 const REASON_COLORS = {
   'Expiry': 'bg-amber-50 text-amber-800 border-amber-200/80',
@@ -21,6 +22,8 @@ const ReportWastage = () => {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [formData, setFormData] = useState({
     ingredient_id: '',
     quantity: '',
@@ -124,6 +127,16 @@ const ReportWastage = () => {
       (w.users?.name || '').toLowerCase().includes(q)
     );
   }, [wastageHistory, searchFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredHistory.length / itemsPerPage));
+  const paginatedHistory = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredHistory.slice(start, start + itemsPerPage);
+  }, [filteredHistory, currentPage, itemsPerPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchFilter]);
 
   return (
     <div className="w-full px-6 lg:px-10 py-6 min-h-full space-y-6">
@@ -380,7 +393,7 @@ const ReportWastage = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-200">
-                    {filteredHistory.map((record) => {
+                    {paginatedHistory.map((record) => {
                       const reasonClass = REASON_COLORS[record.reason] || 'bg-zinc-100 text-zinc-800 border-zinc-200';
                       const formattedDate = new Intl.DateTimeFormat('en-PH', {
                         month: 'short',
@@ -419,6 +432,20 @@ const ReportWastage = () => {
                     })}
                   </tbody>
                 </table>
+
+                {/* Pagination Controls */}
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalItems={filteredHistory.length}
+                  itemsPerPage={itemsPerPage}
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(val) => {
+                    setItemsPerPage(val);
+                    setCurrentPage(1);
+                  }}
+                  itemsPerPageOptions={[10, 20, 50]}
+                />
               </div>
             ) : (
               <div className="py-16 px-6 rounded-xl bg-zinc-50 border border-dashed border-zinc-300 flex flex-col items-center justify-center text-center">

@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [UI: System-Wide Pagination for All Table and List Views - 2026-11-10]
+- **Unified Standardized Pagination Component Across All Modules**:
+  - Implemented the reusable `<Pagination />` component ([`Pagination.jsx`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/components/shared/Pagination.jsx)) across every unpaginated table and list view throughout the application.
+  - **Modules Updated**:
+    1. **Suppliers**: [`ManageSuppliers.jsx`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/inventory/ManageSuppliers.jsx) (Suppliers Directory table, 10/20/50 per page).
+    2. **Purchasing & Inflow**: [`PurchaseOrders.jsx`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/inventory/PurchaseOrders.jsx) (PO orders table, 10/20/50 per page) and [`StockReceived.jsx`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/inventory/StockReceived.jsx) (Inventory status overview with inline live search filter).
+    3. **Stock Trackers**: [`ProductStockTracker.jsx`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/inventory/ProductStockTracker.jsx) and [`RawMaterialTracker.jsx`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/inventory/RawMaterialTracker.jsx) (Priority status-grouped pagination with 10/20/50 per-page selection).
+    4. **Alerts & Wastage**: [`LowStockAlerts.jsx`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/inventory/LowStockAlerts.jsx) and [`ReportWastage.jsx`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/wastage/ReportWastage.jsx) (Incident history table).
+    5. **Staff Requests**: [`ViewRequests.jsx`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/requests/ViewRequests.jsx) (Staff request management) and [`RequestProduct.jsx`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/requests/RequestProduct.jsx) (Personal request history).
+    6. **Accounts & Attendance**: [`UsersTable.jsx`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/accounts/components/UsersTable.jsx) (Accounts directory) and [`EmployeeTracker.jsx`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/accounts/EmployeeTracker.jsx) (Shift logs).
+    7. **Audit & Activity Logs**: [`AdminLogs.jsx`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/logs/AdminLogs.jsx) (System activity trail, 10/25/50/100 per page) and [`SalesSummaryReport.jsx`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/logs/SalesSummaryReport.jsx) (Cashier sales audit drilldown modal).
+    8. **Supplier Portal**: [`SupplierPortal.jsx`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/inventory/SupplierPortal.jsx) (Supplier incoming order list).
+    9. **Reports Hub Tables**: [`StockMovementReport.jsx`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/reports/StockMovementReport.jsx) (Stock Movement Audit Log), [`WastageReport.jsx`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/reports/WastageReport.jsx) (Detailed wastage log), [`InventoryStatusReport.jsx`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/reports/InventoryStatusReport.jsx) (Full material status table), and [`SalesPerformanceReport.jsx`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/reports/SalesPerformanceReport.jsx) (Menu items ranking table).
+  - Ensured automatic page reset (`setCurrentPage(1)`) whenever active search terms, status tabs, date pickers, or sort directions change.
+  - Verified full print and CSV export functions continue to export 100% of rows while interactive UI tables render fast, paginated slices.
+
+
 ## [Fix: Supplier Management `activeSuppliers is not defined` & Soft Archive Restoration - 2026-11-09]
 - **Bug Fix: `activeSuppliers is not defined` (`ManageSuppliers.jsx`)**:
   - Resolved runtime `ReferenceError: activeSuppliers is not defined` by properly defining `activeSuppliers` and `archivedSuppliers` memoizations from `suppliers.filter(s => !s.is_archived)`.

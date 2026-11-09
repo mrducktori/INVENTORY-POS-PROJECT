@@ -1,12 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { getRequests, updateRequestStatus } from '../../api/requestsApi';
-
+import Pagination from '../../components/shared/Pagination';
 
 const ViewRequests = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState('PENDING');
   const [error, setError] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter]);
+
+  const totalPages = Math.max(1, Math.ceil(requests.length / itemsPerPage));
+  const paginatedRequests = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return requests.slice(start, start + itemsPerPage);
+  }, [requests, currentPage, itemsPerPage]);
 
   useEffect(() => {
     fetchRequests();
@@ -77,7 +89,7 @@ const ViewRequests = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {requests.map(req => {
+                  {paginatedRequests.map(req => {
                     const priority = req.details?.priority || 'NORMAL';
                     const subject = req.details?.product_name || req.details?.ingredient_name || 'General';
                     
@@ -169,6 +181,22 @@ const ViewRequests = () => {
               <svg className="w-12 h-12 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
               <p className="m-0 text-sm font-medium">No requests found for this filter.</p>
             </div>
+          )}
+
+          {/* Pagination Controls */}
+          {!loading && requests.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={requests.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+              onItemsPerPageChange={(val) => {
+                setItemsPerPage(val);
+                setCurrentPage(1);
+              }}
+              itemsPerPageOptions={[10, 20, 50]}
+            />
           )}
         </div>
       </div>

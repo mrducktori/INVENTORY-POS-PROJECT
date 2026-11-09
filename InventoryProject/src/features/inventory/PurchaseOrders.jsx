@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { getPurchaseOrders, updatePurchaseOrderStatus, respondToSupplierProposal, reschedulePurchaseOrder } from '../../api/purchasingApi';
 import PurchaseOrderForm from './PurchaseOrderForm';
 import ReceivePOModal from './components/ReceivePOModal';
 import CancelPOModal from './components/CancelPOModal';
 import ReschedulePOModal from './components/ReschedulePOModal';
+import Pagination from '../../components/shared/Pagination';
 
 import { TableSkeleton } from '../../components/shared/SkeletonLoader';
 import InfoTip from '../../components/shared/InfoTip';
@@ -22,6 +23,8 @@ const PurchaseOrders = () => {
   const [tabFilter, setTabFilter] = useState('ALL'); // 'ALL' | 'OVERDUE' | 'PROPOSALS' | 'DELIVERING' | 'COMPLETED'
   const [searchQuery, setSearchQuery] = useState('');
   const [processingProposalId, setProcessingProposalId] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const fetchOrders = async () => {
     try {
@@ -139,6 +142,11 @@ const PurchaseOrders = () => {
     return getDaysOverdue(po?.expected_date);
   };
 
+  // Reset page when tab or search query changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [tabFilter, searchQuery]);
+
   // Counts
   const overdueCount = orders.filter(isPOOverdue).length;
   const proposalsCount = orders.filter(o => o.has_proposals || o.status === 'Proposal Pending' || o.status === 'Partially Accepted').length;
@@ -146,25 +154,33 @@ const PurchaseOrders = () => {
   const completedCount = orders.filter(o => o.status === 'Received').length;
 
   // Filtered orders (tab + multi-field search)
-  const filteredOrders = orders.filter(po => {
-    if (tabFilter === 'OVERDUE' && !isPOOverdue(po)) return false;
-    if (tabFilter === 'PROPOSALS' && !(po.has_proposals || po.status === 'Proposal Pending' || po.status === 'Partially Accepted')) return false;
-    if (tabFilter === 'DELIVERING' && !['To Be Delivered', 'Delivering', 'Partial'].includes(po.status)) return false;
-    if (tabFilter === 'COMPLETED' && po.status !== 'Received') return false;
+  const filteredOrders = useMemo(() => {
+    return orders.filter(po => {
+      if (tabFilter === 'OVERDUE' && !isPOOverdue(po)) return false;
+      if (tabFilter === 'PROPOSALS' && !(po.has_proposals || po.status === 'Proposal Pending' || po.status === 'Partially Accepted')) return false;
+      if (tabFilter === 'DELIVERING' && !['To Be Delivered', 'Delivering', 'Partial'].includes(po.status)) return false;
+      if (tabFilter === 'COMPLETED' && po.status !== 'Received') return false;
 
-    if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase();
-      const poId = String(po.id || '').toLowerCase();
-      const supplierName = String(po.suppliers?.name || '').toLowerCase();
-      const status = String(po.status || '').toLowerCase();
-      const itemsMatch = (po.purchase_order_items || []).some(item =>
-        String(item.ingredients?.name || '').toLowerCase().includes(q)
-      );
-      return poId.includes(q) || supplierName.includes(q) || status.includes(q) || itemsMatch;
-    }
+      if (searchQuery.trim()) {
+        const q = searchQuery.trim().toLowerCase();
+        const poId = String(po.id || '').toLowerCase();
+        const supplierName = String(po.suppliers?.name || '').toLowerCase();
+        const status = String(po.status || '').toLowerCase();
+        const itemsMatch = (po.purchase_order_items || []).some(item =>
+          String(item.ingredients?.name || '').toLowerCase().includes(q)
+        );
+        return poId.includes(q) || supplierName.includes(q) || status.includes(q) || itemsMatch;
+      }
 
-    return true;
-  });
+      return true;
+    });
+  }, [orders, tabFilter, searchQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / itemsPerPage));
+  const paginatedOrders = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredOrders.slice(start, start + itemsPerPage);
+  }, [filteredOrders, currentPage, itemsPerPage]);
 
   return (
     <div className="p-4 md:p-8 flex-1 bg-gray-50 overflow-y-auto w-full">
@@ -297,7 +313,7 @@ const PurchaseOrders = () => {
                       </td>
                     </tr>
                   ) : (
-                    filteredOrders.map(po => {
+                    paginatedOrders.map(po => {
                       const isOverdue = isPOOverdue(po);
                       const daysOverdue = getPODaysOverdue(po);
                       const itemNames = (po.purchase_order_items || [])
@@ -674,6 +690,22 @@ const PurchaseOrders = () => {
                 </tbody>
               </table>
             </div>
+          )}
+
+          {/* Pagination Controls */}
+          {!loading && filteredOrders.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredOrders.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+              onItemsPerPageChange={(val) => {
+                setItemsPerPage(val);
+                setCurrentPage(1);
+              }}
+              itemsPerPageOptions={[10, 20, 50]}
+            />
           )}
         </div>
       </div>

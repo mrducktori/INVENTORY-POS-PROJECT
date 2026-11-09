@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { getSuppliers, createSupplier, updateSupplier, archiveSupplier, restoreSupplier, deleteSupplier } from '../../api/purchasingApi';
 import { getIngredients } from '../../api/inventoryApi';
 import ConfirmModal from '../../components/shared/ConfirmModal';
+import Pagination from '../../components/shared/Pagination';
 import SupplierFormModal from './components/SupplierFormModal';
 import SupplierCatalogModal from './components/SupplierCatalogModal';
 import SupplierPriceComparison from './components/SupplierPriceComparison';
@@ -14,6 +15,8 @@ const ManageSuppliers = () => {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Modals state
   const [formModalOpen, setFormModalOpen] = useState(false);
@@ -120,6 +123,11 @@ const ManageSuppliers = () => {
     }
   };
 
+  // Reset page when search term changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
   // Active and archived suppliers
   const activeSuppliers = useMemo(() => {
     return suppliers.filter((s) => !s.is_archived);
@@ -142,6 +150,12 @@ const ManageSuppliers = () => {
         (s.address || '').toLowerCase().includes(term)
     );
   }, [activeSuppliers, searchTerm]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredSuppliers.length / itemsPerPage));
+  const paginatedSuppliers = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredSuppliers.slice(start, start + itemsPerPage);
+  }, [filteredSuppliers, currentPage, itemsPerPage]);
 
   return (
     <div className="p-4 md:p-8 flex-1 bg-gray-50 overflow-y-auto w-full">
@@ -256,7 +270,7 @@ const ManageSuppliers = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-100 text-sm">
-                    {filteredSuppliers.map((supp) => {
+                    {paginatedSuppliers.map((supp) => {
                       const itemsCount = supp.supplier_ingredients?.length || 0;
                       return (
                         <tr key={supp.id} className="hover:bg-zinc-50/60 transition-colors group">
@@ -332,6 +346,22 @@ const ManageSuppliers = () => {
                   </tbody>
                 </table>
               </div>
+            )}
+
+            {/* Pagination Controls */}
+            {filteredSuppliers.length > 0 && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={filteredSuppliers.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPage}
+                onItemsPerPageChange={(val) => {
+                  setItemsPerPage(val);
+                  setCurrentPage(1);
+                }}
+                itemsPerPageOptions={[10, 20, 50]}
+              />
             )}
           </div>
 

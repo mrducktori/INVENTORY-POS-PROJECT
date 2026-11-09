@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { getLowStockAlerts } from '../../api/inventoryApi';
-
+import Pagination from '../../components/shared/Pagination';
 
 const LowStockAlerts = () => {
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
 
   useEffect(() => {
@@ -34,9 +36,21 @@ const LowStockAlerts = () => {
     return 'low';
   };
 
-  const filteredAlerts = alerts.filter(a => 
-    a.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredAlerts = useMemo(() => {
+    return alerts.filter(a => 
+      (a.name || '').toLowerCase().includes((searchTerm || '').toLowerCase())
+    );
+  }, [alerts, searchTerm]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredAlerts.length / itemsPerPage));
+  const paginatedAlerts = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredAlerts.slice(start, start + itemsPerPage);
+  }, [filteredAlerts, currentPage, itemsPerPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
 
 
@@ -107,7 +121,7 @@ const LowStockAlerts = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {filteredAlerts.map(alert => {
+                  {paginatedAlerts.map(alert => {
                     const shortage = alert.low_stock_alert - alert.stock_quantity;
                     const severity = getSeverity(alert.stock_quantity, alert.low_stock_alert);
 
@@ -140,6 +154,22 @@ const LowStockAlerts = () => {
               <svg className="w-12 h-12 mb-3 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
               <p className="m-0 text-sm font-bold">All ingredients are at healthy stock levels!</p>
             </div>
+          )}
+
+          {/* Pagination Controls */}
+          {!loading && filteredAlerts.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredAlerts.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+              onItemsPerPageChange={(val) => {
+                setItemsPerPage(val);
+                setCurrentPage(1);
+              }}
+              itemsPerPageOptions={[10, 20, 50]}
+            />
           )}
         </div>
       </div>

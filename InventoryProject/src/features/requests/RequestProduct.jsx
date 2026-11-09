@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createRequest, getRequests } from '../../api/requestsApi';
 import { getCurrentUser } from '../../api/authApi';
 import { getProducts } from '../../api/posApi';
 import { getIngredients } from '../../api/inventoryApi';
 import { getRecipesByProduct } from '../../api/recipesApi';
 import SearchableIngredientSelect from '../../components/shared/SearchableIngredientSelect';
+import Pagination from '../../components/shared/Pagination';
 
 
 const RequestProduct = () => {
@@ -30,6 +31,14 @@ const RequestProduct = () => {
   
   // History State
   const [history, setHistory] = useState([]);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyItemsPerPage, setHistoryItemsPerPage] = useState(10);
+
+  const historyTotalPages = Math.max(1, Math.ceil(history.length / historyItemsPerPage));
+  const paginatedHistory = useMemo(() => {
+    const start = (historyPage - 1) * historyItemsPerPage;
+    return history.slice(start, start + historyItemsPerPage);
+  }, [history, historyPage, historyItemsPerPage]);
 
   const user = getCurrentUser();
 
@@ -418,7 +427,7 @@ const RequestProduct = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {history.map(req => (
+                    {paginatedHistory.map(req => (
                       <tr key={req.id} className="hover:bg-gray-50/50 transition-colors">
                         <td className="px-6 py-4 text-sm font-medium text-gray-500">{new Date(req.created_at).toLocaleDateString()}</td>
                         <td className="px-6 py-4 text-sm font-bold text-gray-900">{req.type.replace('_', ' ')}</td>
@@ -439,6 +448,20 @@ const RequestProduct = () => {
                     ))}
                   </tbody>
                 </table>
+
+                {/* Pagination Controls */}
+                <Pagination
+                  currentPage={historyPage}
+                  totalPages={historyTotalPages}
+                  totalItems={history.length}
+                  itemsPerPage={historyItemsPerPage}
+                  onPageChange={setHistoryPage}
+                  onItemsPerPageChange={(val) => {
+                    setHistoryItemsPerPage(val);
+                    setHistoryPage(1);
+                  }}
+                  itemsPerPageOptions={[10, 20, 50]}
+                />
               </div>
             ) : (
               <div className="p-12 flex flex-col items-center justify-center text-gray-400 bg-gray-50/50 h-full">

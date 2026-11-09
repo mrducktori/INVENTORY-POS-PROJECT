@@ -1,12 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { getEmployeeShifts } from '../../api/usersApi';
-
+import Pagination from '../../components/shared/Pagination';
 
 const EmployeeTracker = () => {
   const [shifts, setShifts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [dateStr, setDateStr] = useState(new Date().toISOString().split('T')[0]);
   const [error, setError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [dateStr]);
+
+  const totalPages = Math.max(1, Math.ceil(shifts.length / itemsPerPage));
+  const paginatedShifts = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return shifts.slice(start, start + itemsPerPage);
+  }, [shifts, currentPage, itemsPerPage]);
 
   useEffect(() => {
     fetchShifts();
@@ -72,7 +84,7 @@ const EmployeeTracker = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {shifts.map(shift => (
+                  {paginatedShifts.map(shift => (
                     <tr key={shift.id}>
                       <td><strong>{shift.users?.name || 'Unknown'}</strong></td>
                       <td>{shift.users?.role || 'Staff'}</td>
@@ -88,6 +100,20 @@ const EmployeeTracker = () => {
                   ))}
                 </tbody>
               </table>
+
+              {/* Pagination Controls */}
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={shifts.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPage}
+                onItemsPerPageChange={(val) => {
+                  setItemsPerPage(val);
+                  setCurrentPage(1);
+                }}
+                itemsPerPageOptions={[10, 20, 50]}
+              />
             </div>
           ) : (
             <div className="empty-state">

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { getInventoryStatusReport, getWastageReport } from '../../api/reportsApi';
 import { getAllProducts } from '../../api/productsApi';
 import { getAuditLogs } from '../../api/auditApi';
@@ -6,6 +6,7 @@ import { downloadCSV, printReport } from './reportUtils';
 import { getPeriodDateRange } from '../../utils/dateUtils';
 import InfoTip from '../../components/shared/InfoTip';
 import { TableSkeleton, StatCardsSkeleton } from '../../components/shared/SkeletonLoader';
+import Pagination from '../../components/shared/Pagination';
 
 // ─── Status Groups & Helpers for Snapshot ───────────────────────────────────────
 const STATUS_GROUPS = [
@@ -78,6 +79,12 @@ const StockMovementReport = () => {
   const [stockStatusFilter, setStockStatusFilter] = useState('ALL');
   const [movementTypeFilter, setMovementTypeFilter] = useState('ALL'); // 'ALL' | 'IN' | 'OUT' | 'WASTAGE'
   const [activeView, setActiveView] = useState('movements'); // 'movements' | 'snapshot'
+  const [movementPage, setMovementPage] = useState(1);
+  const [movementItemsPerPage, setMovementItemsPerPage] = useState(25);
+
+  useEffect(() => {
+    setMovementPage(1);
+  }, [period, movementTypeFilter, search]);
 
   const fetchReport = useCallback(async () => {
     setLoading(true);
@@ -307,6 +314,12 @@ const StockMovementReport = () => {
       return matchSearch && matchType;
     });
   }, [movements, search, movementTypeFilter]);
+
+  const movementTotalPages = Math.max(1, Math.ceil(filteredMovements.length / movementItemsPerPage));
+  const paginatedMovements = useMemo(() => {
+    const start = (movementPage - 1) * movementItemsPerPage;
+    return filteredMovements.slice(start, start + movementItemsPerPage);
+  }, [filteredMovements, movementPage, movementItemsPerPage]);
 
   // Filter snapshot
   const filteredSnapshot = useMemo(() => {
@@ -828,7 +841,7 @@ const StockMovementReport = () => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
-                        {filteredMovements.map(m => {
+                        {paginatedMovements.map(m => {
                           const isPos = m.qtyChange > 0;
                           const isWaste = m.movementType === 'WASTAGE';
 
@@ -872,6 +885,20 @@ const StockMovementReport = () => {
                         })}
                       </tbody>
                     </table>
+
+                    {/* Pagination Controls */}
+                    <Pagination
+                      currentPage={movementPage}
+                      totalPages={movementTotalPages}
+                      totalItems={filteredMovements.length}
+                      itemsPerPage={movementItemsPerPage}
+                      onPageChange={setMovementPage}
+                      onItemsPerPageChange={(val) => {
+                        setMovementItemsPerPage(val);
+                        setMovementPage(1);
+                      }}
+                      itemsPerPageOptions={[10, 25, 50, 100]}
+                    />
                   </div>
                 ) : (
                   <div className="p-12 text-center text-gray-600 font-bold bg-gray-50/50">

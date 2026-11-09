@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { getSalesReportByPeriod } from '../../api/logsApi';
 import { getSales } from '../../api/salesApi';
 import { downloadCSV } from '../reports/reportUtils';
+import Pagination from '../../components/shared/Pagination';
 
 const SalesSummaryReport = () => {
   const [period, setPeriod] = useState('daily'); // 'daily', 'weekly', 'monthly'
@@ -13,6 +14,12 @@ const SalesSummaryReport = () => {
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [staffSearch, setStaffSearch] = useState('');
   const [auditSearch, setAuditSearch] = useState('');
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditItemsPerPage, setAuditItemsPerPage] = useState(10);
+
+  useEffect(() => {
+    setAuditPage(1);
+  }, [auditSearch, selectedStaff]);
 
   useEffect(() => {
     fetchSummary();
@@ -86,6 +93,12 @@ const SalesSummaryReport = () => {
     );
     return ref.includes(q) || method.includes(q) || total.includes(q) || itemsMatch;
   });
+
+  const auditTotalPages = Math.max(1, Math.ceil(filteredStaffSales.length / auditItemsPerPage));
+  const paginatedStaffSales = useMemo(() => {
+    const start = (auditPage - 1) * auditItemsPerPage;
+    return filteredStaffSales.slice(start, start + auditItemsPerPage);
+  }, [filteredStaffSales, auditPage, auditItemsPerPage]);
 
   return (
     <div className="p-4 md:p-8 flex-1 bg-gray-50 overflow-y-auto w-full">
@@ -274,7 +287,7 @@ const SalesSummaryReport = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {filteredStaffSales.map(sale => (
+                      {paginatedStaffSales.map(sale => (
                         <tr key={sale.id} className="hover:bg-gray-50 transition-colors">
                           <td className="px-6 py-4 font-mono font-bold text-gray-400 text-[11px]">
                             #{sale.receipt_number || sale.id.substring(0,8).toUpperCase()}
@@ -315,6 +328,22 @@ const SalesSummaryReport = () => {
                       )}
                     </tbody>
                   </table>
+
+                  {/* Pagination Controls */}
+                  {filteredStaffSales.length > 0 && (
+                    <Pagination
+                      currentPage={auditPage}
+                      totalPages={auditTotalPages}
+                      totalItems={filteredStaffSales.length}
+                      itemsPerPage={auditItemsPerPage}
+                      onPageChange={setAuditPage}
+                      onItemsPerPageChange={(val) => {
+                        setAuditItemsPerPage(val);
+                        setAuditPage(1);
+                      }}
+                      itemsPerPageOptions={[10, 20, 50]}
+                    />
+                  )}
                 </div>
               )}
             </div>

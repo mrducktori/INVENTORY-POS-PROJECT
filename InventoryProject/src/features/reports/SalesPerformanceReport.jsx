@@ -1,7 +1,8 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { getSalesPerformanceReport } from '../../api/reportsApi';
 import { downloadCSV, printReport } from './reportUtils';
 import { TableSkeleton, StatCardsSkeleton } from '../../components/shared/SkeletonLoader';
+import Pagination from '../../components/shared/Pagination';
 
 // ─── Mini Bar chart (SVG sparkline) ──────────────────────────────────────────
 const TrendBars = ({ data }) => {
@@ -39,6 +40,12 @@ const SalesPerformanceReport = () => {
   const [sortDir, setSortDir] = useState('desc');
   const [staffSearch, setStaffSearch] = useState('');
   const [productSearch, setProductSearch] = useState('');
+  const [productPage, setProductPage] = useState(1);
+  const [productItemsPerPage, setProductItemsPerPage] = useState(15);
+
+  useEffect(() => {
+    setProductPage(1);
+  }, [productSearch, period]);
 
   const fetchReport = useCallback(async () => {
     setLoading(true);
@@ -75,6 +82,12 @@ const SalesPerformanceReport = () => {
     }
     return list;
   }, [summary, productSearch]);
+
+  const productTotalPages = Math.max(1, Math.ceil(sortedProducts.length / productItemsPerPage));
+  const paginatedProducts = useMemo(() => {
+    const start = (productPage - 1) * productItemsPerPage;
+    return sortedProducts.slice(start, start + productItemsPerPage);
+  }, [sortedProducts, productPage, productItemsPerPage]);
 
   const handleSort = (key) => {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -475,29 +488,48 @@ const SalesPerformanceReport = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-100">
-                    {sortedProducts.map((p, i) => (
-                      <tr key={p.id} className="hover:bg-zinc-50/60 transition-colors">
-                        <td className="py-3.5 px-4 text-center">
-                          <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold ${
-                            i === 0 ? 'bg-zinc-900 text-white' : i === 1 ? 'bg-zinc-200 text-zinc-800' : 'bg-zinc-100 text-zinc-600'
-                          }`}>
-                            {i + 1}
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4 font-semibold text-zinc-900">{p.name}</td>
-                        <td className="py-3.5 px-4">
-                          <span className="inline-flex px-2 py-0.5 rounded text-[11px] font-semibold bg-zinc-100 text-zinc-700 border border-zinc-200">
-                            {p.category}
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4 font-bold font-mono text-zinc-900 text-center">{p.qty_sold}</td>
-                        <td className="py-3.5 px-4 font-bold font-mono text-zinc-900">
-                          ₱{p.revenue.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
-                        </td>
-                      </tr>
-                    ))}
+                    {paginatedProducts.map((p, i) => {
+                      const rank = (productPage - 1) * productItemsPerPage + i;
+                      return (
+                        <tr key={p.id} className="hover:bg-zinc-50/60 transition-colors">
+                          <td className="py-3.5 px-4 text-center">
+                            <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold ${
+                              rank === 0 ? 'bg-zinc-900 text-white' : rank === 1 ? 'bg-zinc-200 text-zinc-800' : 'bg-zinc-100 text-zinc-600'
+                            }`}>
+                              {rank + 1}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 font-semibold text-zinc-900">{p.name}</td>
+                          <td className="py-3.5 px-4">
+                            <span className="inline-flex px-2 py-0.5 rounded text-[11px] font-semibold bg-zinc-100 text-zinc-700 border border-zinc-200">
+                              {p.category}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 font-bold font-mono text-zinc-900 text-center">{p.qty_sold}</td>
+                          <td className="py-3.5 px-4 font-bold font-mono text-zinc-900">
+                            ₱{p.revenue.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
+
+                {/* Pagination Controls */}
+                {sortedProducts.length > 0 && (
+                  <Pagination
+                    currentPage={productPage}
+                    totalPages={productTotalPages}
+                    totalItems={sortedProducts.length}
+                    itemsPerPage={productItemsPerPage}
+                    onPageChange={setProductPage}
+                    onItemsPerPageChange={(val) => {
+                      setProductItemsPerPage(val);
+                      setProductPage(1);
+                    }}
+                    itemsPerPageOptions={[10, 15, 25, 50]}
+                  />
+                )}
               </div>
             </div>
           )}

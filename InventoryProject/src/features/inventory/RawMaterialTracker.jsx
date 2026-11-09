@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { getIngredients } from '../../api/inventoryApi';
 import { formatQuantity } from '../../utils/productUtils';
 import { TableSkeleton } from '../../components/shared/SkeletonLoader';
+import Pagination from '../../components/shared/Pagination';
 
 const STATUS_GROUPS = [
   {
@@ -44,6 +45,12 @@ const RawMaterialTracker = () => {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [stockFilter, setStockFilter] = useState('ALL');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, stockFilter]);
 
   useEffect(() => {
     fetchIngredients();
@@ -101,15 +108,35 @@ const RawMaterialTracker = () => {
     healthy: ingredients.filter(i => getStockStatus(i.stock_quantity, i.low_stock_alert) === 'normal').length,
   };
 
-  const groupedIngredients = STATUS_GROUPS.map(group => {
-    const items = filteredIngredients
-      .filter(ing => getStockStatus(ing.stock_quantity, ing.low_stock_alert) === group.id)
-      .sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }));
-    return {
-      ...group,
-      items
-    };
-  }).filter(group => group.items.length > 0);
+  const sortedFiltered = useMemo(() => {
+    const priority = { out: 0, low: 1, normal: 2 };
+    return [...filteredIngredients].sort((a, b) => {
+      const statusA = getStockStatus(a.stock_quantity, a.low_stock_alert);
+      const statusB = getStockStatus(b.stock_quantity, b.low_stock_alert);
+      if (priority[statusA] !== priority[statusB]) {
+        return priority[statusA] - priority[statusB];
+      }
+      return (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' });
+    });
+  }, [filteredIngredients]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedFiltered.length / itemsPerPage));
+  const paginatedIngredients = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return sortedFiltered.slice(start, start + itemsPerPage);
+  }, [sortedFiltered, currentPage, itemsPerPage]);
+
+  const groupedIngredients = useMemo(() => {
+    return STATUS_GROUPS.map(group => {
+      const items = paginatedIngredients.filter(
+        i => getStockStatus(i.stock_quantity, i.low_stock_alert) === group.id
+      );
+      return {
+        ...group,
+        items
+      };
+    }).filter(group => group.items.length > 0);
+  }, [paginatedIngredients]);
 
   return (
     <div className="p-4 md:p-8 flex-1 bg-gray-50 overflow-y-auto w-full">
@@ -250,6 +277,22 @@ const RawMaterialTracker = () => {
               <svg className="w-12 h-12 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
               <p className="m-0 text-sm font-medium">No ingredients match your search.</p>
             </div>
+          )}
+
+          {/* Pagination Controls */}
+          {!loading && sortedFiltered.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={sortedFiltered.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+              onItemsPerPageChange={(val) => {
+                setItemsPerPage(val);
+                setCurrentPage(1);
+              }}
+              itemsPerPageOptions={[10, 20, 50]}
+            />
           )}
         </div>
       </div>

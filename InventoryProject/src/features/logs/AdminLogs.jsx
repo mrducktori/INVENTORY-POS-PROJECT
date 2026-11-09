@@ -1,17 +1,20 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getAuditLogs } from '../../api/auditApi';
 import { TableSkeleton } from '../../components/shared/SkeletonLoader';
+import Pagination from '../../components/shared/Pagination';
 
 const AdminLogs = () => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [filterAction, setFilterAction] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
 
   const fetchLogs = async () => {
     try {
       setLoading(true);
-      const data = await getAuditLogs({ action: filterAction, limit: 100 });
+      const data = await getAuditLogs({ action: filterAction, limit: 500 });
       const list = Array.isArray(data) ? data : (data?.data || []);
       setLogs(list);
     } catch (err) {
@@ -25,6 +28,10 @@ const AdminLogs = () => {
     fetchLogs();
   }, [filterAction]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterAction]);
+
   const filteredLogs = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
     if (!term) return logs;
@@ -35,6 +42,12 @@ const AdminLogs = () => {
       return user.includes(term) || action.includes(term) || details.includes(term);
     });
   }, [logs, searchTerm]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredLogs.length / itemsPerPage));
+  const paginatedLogs = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredLogs.slice(start, start + itemsPerPage);
+  }, [filteredLogs, currentPage, itemsPerPage]);
 
   return (
     <div className="p-4 md:p-8 flex-1 bg-white min-h-screen overflow-y-auto w-full space-y-6">
@@ -106,7 +119,7 @@ const AdminLogs = () => {
               </thead>
               <tbody className="divide-y divide-zinc-100">
                 {filteredLogs.length > 0 ? (
-                  filteredLogs.map(log => (
+                  paginatedLogs.map(log => (
                     <tr key={log.id} className="hover:bg-zinc-50/60 transition-colors">
                       <td className="py-3.5 px-4 font-mono text-zinc-600 text-xs">
                         {new Date(log.created_at).toLocaleString()}
@@ -134,6 +147,22 @@ const AdminLogs = () => {
                 )}
               </tbody>
             </table>
+
+            {/* Pagination Controls */}
+            {filteredLogs.length > 0 && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={filteredLogs.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPage}
+                onItemsPerPageChange={(val) => {
+                  setItemsPerPage(val);
+                  setCurrentPage(1);
+                }}
+                itemsPerPageOptions={[10, 25, 50, 100]}
+              />
+            )}
           </div>
         )}
       </div>

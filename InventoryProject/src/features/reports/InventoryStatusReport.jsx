@@ -1,7 +1,8 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { getInventoryStatusReport } from '../../api/reportsApi';
 import { downloadCSV, printReport } from './reportUtils';
 import { TableSkeleton, StatCardsSkeleton } from '../../components/shared/SkeletonLoader';
+import Pagination from '../../components/shared/Pagination';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const getStatus = (qty, alert) => {
@@ -48,6 +49,12 @@ const InventoryStatusReport = () => {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [sortKey, setSortKey] = useState('name');
   const [sortDir, setSortDir] = useState('asc');
+  const [page, setPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
+
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, search, sortKey, sortDir]);
 
   const fetchReport = useCallback(async () => {
     setLoading(true);
@@ -110,6 +117,12 @@ const InventoryStatusReport = () => {
         return 0;
       });
   }, [ingredients, search, statusFilter, sortKey, sortDir]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
+  const paginated = useMemo(() => {
+    const start = (page - 1) * itemsPerPage;
+    return filtered.slice(start, start + itemsPerPage);
+  }, [filtered, page, itemsPerPage]);
 
   const priorityList = useMemo(() => {
     return ingredients.filter(i => {
@@ -467,7 +480,7 @@ const InventoryStatusReport = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-100">
-                    {filtered.map(ing => {
+                    {paginated.map(ing => {
                       const s = getStatus(ing.stock_quantity, ing.low_stock_alert);
                       const pct = getStockPct(ing.stock_quantity, ing.low_stock_alert);
                       return (
@@ -506,6 +519,22 @@ const InventoryStatusReport = () => {
                 <div className="p-8 text-center text-zinc-400 font-medium">No materials match your filters.</div>
               )}
             </div>
+
+            {/* Pagination Controls */}
+            {filtered.length > 0 && (
+              <Pagination
+                currentPage={page}
+                totalPages={totalPages}
+                totalItems={filtered.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setPage}
+                onItemsPerPageChange={(val) => {
+                  setItemsPerPage(val);
+                  setPage(1);
+                }}
+                itemsPerPageOptions={[10, 25, 50, 100]}
+              />
+            )}
           </div>
         </div>
       )}

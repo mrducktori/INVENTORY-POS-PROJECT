@@ -1,7 +1,8 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { getWastageReport, getWastageStats } from '../../api/reportsApi';
 import { downloadCSV, printReport } from './reportUtils';
 import { TableSkeleton, StatCardsSkeleton } from '../../components/shared/SkeletonLoader';
+import Pagination from '../../components/shared/Pagination';
 
 // ─── Reason badge colors ──────────────────────────────────────────────────────
 const reasonBadgeStyle = (reason) => {
@@ -27,6 +28,12 @@ const WastageReport = () => {
   const [search, setSearch]     = useState('');
   const [sortKey, setSortKey]   = useState('created_at');
   const [sortDir, setSortDir]   = useState('desc');
+  const [page, setPage]         = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
+
+  useEffect(() => {
+    setPage(1);
+  }, [reasonFilter, search, sortKey, sortDir, startDate, endDate]);
 
   const fetchReport = useCallback(async () => {
     setLoading(true);
@@ -94,6 +101,12 @@ const WastageReport = () => {
         return 0;
       });
   }, [entries, search, reasonFilter, sortKey, sortDir]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
+  const paginated = useMemo(() => {
+    const start = (page - 1) * itemsPerPage;
+    return filtered.slice(start, start + itemsPerPage);
+  }, [filtered, page, itemsPerPage]);
 
   // Helper to get estimated cost for an entry
   const getEntryCost = (e) => {
@@ -507,7 +520,7 @@ const WastageReport = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {filtered.map((e, i) => (
+                      {paginated.map((e, i) => (
                         <tr key={e.id || i} className="hover:bg-gray-50/50 transition-colors">
                           <td className="px-6 py-4 text-sm md:text-base font-medium font-mono text-gray-500">
                             {new Date(e.created_at).toLocaleString()}
@@ -536,6 +549,20 @@ const WastageReport = () => {
                       ))}
                     </tbody>
                   </table>
+
+                  {/* Pagination Controls */}
+                  <Pagination
+                    currentPage={page}
+                    totalPages={totalPages}
+                    totalItems={filtered.length}
+                    itemsPerPage={itemsPerPage}
+                    onPageChange={setPage}
+                    onItemsPerPageChange={(val) => {
+                      setItemsPerPage(val);
+                      setPage(1);
+                    }}
+                    itemsPerPageOptions={[10, 25, 50, 100]}
+                  />
                 </div>
               ) : (
                 <div className="p-12 flex flex-col items-center justify-center text-gray-500 bg-gray-50/50">

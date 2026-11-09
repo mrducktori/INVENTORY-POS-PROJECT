@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { getRoleLabel, getUserPermissions } from '../../../utils/permissions';
+import Pagination from '../../../components/shared/Pagination';
 
 const ROLE_FILTERS = ['All', 'Owner', 'Admin', 'Staff', 'Custom', 'Supplier'];
 
@@ -17,6 +18,12 @@ const accessSummary = (user) => {
 const UsersTable = ({ users, loading, currentUser, onEdit, onToggleStatus }) => {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('All');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, roleFilter]);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -26,6 +33,12 @@ const UsersTable = ({ users, loading, currentUser, onEdit, onToggleStatus }) => 
       return [u.name, u.username, getRoleLabel(u)].some((v) => (v || '').toLowerCase().includes(term));
     });
   }, [users, search, roleFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
+  const paginatedUsers = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filtered.slice(start, start + itemsPerPage);
+  }, [filtered, currentPage, itemsPerPage]);
 
   return (
     <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden">
@@ -75,7 +88,7 @@ const UsersTable = ({ users, loading, currentUser, onEdit, onToggleStatus }) => 
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
-              {filtered.map((u) => {
+              {paginatedUsers.map((u) => {
                 const protectedOwner = u.role === 'Owner' && currentUser?.role !== 'Owner';
                 const active = u.status === 'ACTIVE';
                 return (
@@ -146,6 +159,22 @@ const UsersTable = ({ users, loading, currentUser, onEdit, onToggleStatus }) => 
               })}
             </tbody>
           </table>
+
+          {/* Pagination Controls */}
+          {filtered.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filtered.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+              onItemsPerPageChange={(val) => {
+                setItemsPerPage(val);
+                setCurrentPage(1);
+              }}
+              itemsPerPageOptions={[10, 20, 50]}
+            />
+          )}
         </div>
       )}
     </div>

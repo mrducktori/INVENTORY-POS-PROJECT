@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { getAllProducts } from '../../api/productsApi';
 import { TableSkeleton } from '../../components/shared/SkeletonLoader';
+import Pagination from '../../components/shared/Pagination';
 
 const STATUS_GROUPS = [
   {
@@ -43,6 +44,12 @@ const ProductStockTracker = () => {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [stockFilter, setStockFilter] = useState('ALL');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, stockFilter]);
 
   useEffect(() => {
     fetchProducts();
@@ -101,15 +108,35 @@ const ProductStockTracker = () => {
     healthy: products.filter(p => getStockStatus(p.stock_quantity, p.low_stock_threshold) === 'normal').length,
   };
 
-  const groupedProducts = STATUS_GROUPS.map(group => {
-    const items = filteredProducts
-      .filter(p => getStockStatus(p.stock_quantity, p.low_stock_threshold) === group.id)
-      .sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }));
-    return {
-      ...group,
-      items
-    };
-  }).filter(group => group.items.length > 0);
+  const sortedFiltered = useMemo(() => {
+    const priority = { out: 0, low: 1, normal: 2 };
+    return [...filteredProducts].sort((a, b) => {
+      const statusA = getStockStatus(a.stock_quantity, a.low_stock_threshold);
+      const statusB = getStockStatus(b.stock_quantity, b.low_stock_threshold);
+      if (priority[statusA] !== priority[statusB]) {
+        return priority[statusA] - priority[statusB];
+      }
+      return (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' });
+    });
+  }, [filteredProducts]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedFiltered.length / itemsPerPage));
+  const paginatedProducts = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return sortedFiltered.slice(start, start + itemsPerPage);
+  }, [sortedFiltered, currentPage, itemsPerPage]);
+
+  const groupedProducts = useMemo(() => {
+    return STATUS_GROUPS.map(group => {
+      const items = paginatedProducts.filter(
+        p => getStockStatus(p.stock_quantity, p.low_stock_threshold) === group.id
+      );
+      return {
+        ...group,
+        items
+      };
+    }).filter(group => group.items.length > 0);
+  }, [paginatedProducts]);
 
   return (
     <div className="p-4 md:p-8 flex-1 bg-gray-50 overflow-y-auto w-full">
@@ -252,6 +279,22 @@ const ProductStockTracker = () => {
               <svg className="w-12 h-12 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
               <p className="m-0 text-sm font-medium">No products match your search.</p>
             </div>
+          )}
+
+          {/* Pagination Controls */}
+          {!loading && sortedFiltered.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={sortedFiltered.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+              onItemsPerPageChange={(val) => {
+                setItemsPerPage(val);
+                setCurrentPage(1);
+              }}
+              itemsPerPageOptions={[10, 20, 50]}
+            />
           )}
         </div>
       </div>
