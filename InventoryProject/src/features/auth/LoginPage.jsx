@@ -2,13 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Dashboard from '../dashboard/Dashboard';
 import { useLogin } from './useLogin';
-import PageLoader from './PageLoader/PageLoader';
 import { getCmsImage } from '../../api/cmsApi';
 
 const DEFAULT_HERO_IMAGE = 'https://zngerymqycuxpxdmfftj.supabase.co/storage/v1/object/public/cms-images/public/landing_hero-0.8481000269201046.jpg';
 
 function LoginPage() {
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [sessionNotice, setSessionNotice] = useState('');
   const [bgImage, setBgImage] = useState(DEFAULT_HERO_IMAGE);
   const navigate = useNavigate();
@@ -25,11 +23,6 @@ function LoginPage() {
     }
 
     getCmsImage('landing_hero', DEFAULT_HERO_IMAGE).then(setBgImage);
-
-    const timer = setTimeout(() => {
-      setIsInitialLoading(false);
-    }, 1500);
-    return () => clearTimeout(timer);
   }, []);
 
   const {
@@ -52,8 +45,6 @@ function LoginPage() {
   }, [user, navigate]);
 
   if (user) return null;
-  
-  if (isInitialLoading) return <PageLoader />;
 
   const fmt = (s) => `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
 

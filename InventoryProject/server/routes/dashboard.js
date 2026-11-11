@@ -82,17 +82,19 @@ router.get('/stats', async (req, res) => {
     const startDateObj = new Date(new Date(boundStart).toLocaleString("en-US", { timeZone: "Asia/Manila" }));
     const endDateObj = new Date(new Date(boundEnd).toLocaleString("en-US", { timeZone: "Asia/Manila" }));
     const needsTrendHistory = period === 'day' && !reqStart && !reqEnd;
+    const salesQueryStart = needsTrendHistory
+      ? toManilaStartOfDay(new Date(endDateObj.getTime() - 6 * 86400000).toISOString())
+      : boundStart;
 
-    // 2. Execute all independent dashboard queries concurrently via Promise.all
+    // 2. Execute all independent dashboard queries concurrently (single bounded sales scan covers both today & 7-day trend)
     const [
-      boundedSales,
+      fetchedSales,
       { count: productCount },
       ingredients,
-      { data: lowStockProductsData },
-      trendHistoryRes
+      { data: lowStockProductsData }
     ] = await Promise.all([
       fetchBoundedSales(
-        boundStart,
+        salesQueryStart,
         boundEnd,
         'id, total_amount, created_at, sale_items(quantity, unit_price, products(id, name, category))'
       ),
@@ -105,18 +107,19 @@ router.get('/stats', async (req, res) => {
         .from('products')
         .select('name, stock_quantity, low_stock_threshold, max_stock')
         .eq('track_stock', true)
-        .eq('is_archived', false),
-      needsTrendHistory
-        ? supabase
-            .from('sales')
-            .select('total_amount, created_at, sale_items(quantity, unit_price, products(category))')
-            .gte('created_at', toManilaStartOfDay(new Date(endDateObj.getTime() - 6 * 86400000).toISOString()))
-            .lte('created_at', boundEnd)
-        : Promise.resolve({ data: null })
+        .eq('is_archived', false)
     ]);
 
     // 3. Basic metrics from bounded sales
-    const salesList = boundedSales || [];
+    const boundStartMs = new Date(boundStart).getTime();
+    const boundEndMs = new Date(boundEnd).getTime();
+    const trendHistory = needsTrendHistory ? (fetchedSales || []) : null;
+    const salesList = needsTrendHistory
+      ? (fetchedSales || []).filter((s) => {
+          const ts = new Date(s.created_at).getTime();
+          return ts >= boundStartMs && ts <= boundEndMs;
+        })
+      : (fetchedSales || []);
     const totalRevenue = salesList.reduce((sum, s) => sum + (parseFloat(s.total_amount) || 0), 0);
     const transactionsCount = salesList.length;
     const avgTransactionValue = transactionsCount > 0 ? (totalRevenue / transactionsCount) : 0;
@@ -173,8 +176,6 @@ router.get('/stats', async (req, res) => {
         const dd = String(d.getDate()).padStart(2, '0');
         trendMap[`${mm}/${dd}`] = { revenue: 0, categories: {} };
       }
-
-      const trendHistory = trendHistoryRes?.data;
 
       (trendHistory || []).forEach(s => {
         const localDateObj = new Date(new Date(s.created_at).toLocaleString("en-US", { timeZone: "Asia/Manila" }));

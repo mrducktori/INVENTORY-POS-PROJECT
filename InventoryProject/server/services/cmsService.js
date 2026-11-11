@@ -1,14 +1,44 @@
 import { supabase } from "../config/supabaseClient.js";
 
+const CMS_CACHE_TTL_MS = 60 * 1000; // 1 minute server-side cache for public CMS reads
+let cmsCache = null;
+let cmsCacheAt = 0;
+let cmsInFlight = null;
+
+export const invalidateCmsCache = () => {
+  cmsCache = null;
+  cmsCacheAt = 0;
+};
+
 export const getCmsContent = async () => {
-  const { data, error } = await supabase
+  const now = Date.now();
+  if (cmsCache && now - cmsCacheAt < CMS_CACHE_TTL_MS) {
+    return cmsCache;
+  }
+  if (cmsInFlight) {
+    return cmsInFlight;
+  }
+
+  cmsInFlight = supabase
     .from("cms_content")
-    .select("*");
-  if (error) throw error;
-  return data;
+    .select("*")
+    .then(({ data, error }) => {
+      if (error) throw error;
+      cmsCache = data || [];
+      cmsCacheAt = Date.now();
+      return cmsCache;
+    })
+    .finally(() => {
+      cmsInFlight = null;
+    });
+
+  return cmsInFlight;
 };
 
 export const getCmsSection = async (section_key) => {
+  if (cmsCache && Date.now() - cmsCacheAt < CMS_CACHE_TTL_MS) {
+    return cmsCache.find((s) => s.section_key === section_key) || null;
+  }
   const { data, error } = await supabase
     .from("cms_content")
     .select("*")
@@ -26,6 +56,7 @@ export const updateCmsContent = async (section_key, updates) => {
     .single();
     
   if (error) throw error;
+  invalidateCmsCache();
   return data;
 };
 

@@ -7,8 +7,10 @@ import { logAudit } from "../utils/auditHelper.js";
 import {
   invalidateUserAuthCache,
   touchUserServerActivity,
+  getUserServerActivity,
   clearUserServerActivity,
-  reapInactiveUserSessions
+  reapInactiveUserSessions,
+  SESSION_INACTIVITY_TIMEOUT_MS
 } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
@@ -73,7 +75,7 @@ router.post("/login", async (req, res) => {
     if (error || !data) {
       recordFailedAttempt(username);
       const rec = getLockout(username);
-      await logAudit("LOGIN_FAILED", null, { username, reason: "User not found" });
+      void logAudit("LOGIN_FAILED", null, { username, reason: "User not found" });
       if (rec.lockedUntil) {
         return res.status(429).json({
           error: `Too many failed attempts. Account locked for 5 minutes.`,
@@ -88,13 +90,13 @@ router.post("/login", async (req, res) => {
     }
 
     if (data.status !== "ACTIVE") {
-      await logAudit("LOGIN_FAILED", data.id, { username, reason: "Account inactive" });
+      void logAudit("LOGIN_FAILED", data.id, { username, reason: "Account inactive" });
       return res.status(401).json({ error: "User account is not active" });
     }
 
     // FIX #9: Removed plaintext password fallback. All passwords MUST be bcrypt hashed.
     if (!data.password_hash || !data.password_hash.startsWith('$2')) {
-      await logAudit("LOGIN_FAILED", data.id, { username, reason: "Password not hashed — requires admin reset" });
+      void logAudit("LOGIN_FAILED", data.id, { username, reason: "Password not hashed — requires admin reset" });
       return res.status(401).json({ error: "Your account requires a password reset. Please contact an administrator." });
     }
 
@@ -103,7 +105,7 @@ router.post("/login", async (req, res) => {
     if (!isPasswordValid) {
       recordFailedAttempt(username);
       const rec = getLockout(username);
-      await logAudit("LOGIN_FAILED", data.id, { username, reason: "Wrong password" });
+      void logAudit("LOGIN_FAILED", data.id, { username, reason: "Wrong password" });
       if (rec.lockedUntil) {
         return res.status(429).json({
           error: `Too many failed attempts. Account locked for 5 minutes.`,
@@ -120,14 +122,26 @@ router.post("/login", async (req, res) => {
     // Successful login — clear any previous failure record
     resetLockout(username);
 
-    // Reap any stale inactive sessions before checking if a live session is being replaced
-    await reapInactiveUserSessions(true);
-    const { data: freshUser } = await supabase
-      .from("users")
-      .select("current_session_id")
-      .eq("id", data.id)
-      .single();
-    const hadActiveSession = Boolean(freshUser?.current_session_id);
+    // Check only this user's previous session activity without blocking login on a full-table reap scan
+    let hadActiveSession = false;
+    if (data.current_session_id) {
+      let lastActiveMs = getUserServerActivity(data.id);
+      if (!lastActiveMs) {
+        const { data: latestLogs } = await supabase
+          .from("audit_logs")
+          .select("created_at")
+          .eq("user_id", data.id)
+          .order("created_at", { ascending: false })
+          .limit(1);
+        lastActiveMs = latestLogs?.[0]?.created_at
+          ? new Date(latestLogs[0].created_at).getTime()
+          : 0;
+      }
+      hadActiveSession = Date.now() - lastActiveMs <= SESSION_INACTIVITY_TIMEOUT_MS;
+    }
+
+    // Trigger periodic stale-session reaper in background without delaying login
+    void reapInactiveUserSessions(false);
 
     // Single active session: a new login replaces the previous session,
     // which signs out any other device using this account.
@@ -148,11 +162,11 @@ router.post("/login", async (req, res) => {
     }
 
     if (sessionTracked && hadActiveSession) {
-      await logAudit("SESSION_REPLACED", data.id, { username: data.username });
+      void logAudit("SESSION_REPLACED", data.id, { username: data.username });
     }
     touchUserServerActivity(data.id);
     invalidateUserAuthCache(data.id);
-    await logAudit("LOGIN", data.id, { username: data.username, role: data.role });
+    void logAudit("LOGIN", data.id, { username: data.username, role: data.role });
 
     const {
       password_hash: _password_hash,

@@ -168,9 +168,21 @@ if (!fs.existsSync(distPath)) {
 
 const indexPath = path.join(distPath, 'index.html');
 if (fs.existsSync(indexPath)) {
-  app.use(express.static(distPath));
+  app.use(
+    express.static(distPath, {
+      setHeaders: (res, filePath) => {
+        if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+          // Vite asset filenames are content-hashed and safe to cache aggressively
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        } else if (filePath.endsWith('index.html')) {
+          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        }
+      }
+    })
+  );
   // Catch-all: return index.html for any non-API route so React Router works
   app.get(/.*/, (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.sendFile(indexPath);
   });
 } else {

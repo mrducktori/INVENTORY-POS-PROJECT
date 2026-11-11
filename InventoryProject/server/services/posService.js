@@ -1,6 +1,6 @@
 import { supabase } from "../config/supabaseClient.js";
 import { convertToBaseUnit } from "../utils/unitUtils.js";
-import { logAudit } from "../utils/auditHelper.js";
+import { logAuditBatch } from "../utils/auditHelper.js";
 import { invalidateAnalyticsCache } from "../routes/analytics.js";
 
 export const getProducts = async () => {
@@ -90,18 +90,69 @@ export const createSale = async ({
   const receipt_number = generateReceiptNumber();
   const resolvedTotal = Number(total ?? total_amount ?? final_amount ?? 0);
 
-  // --- 1. PRE-FLIGHT INVENTORY CHECK ---
+  // --- 1. BATCH PRE-FLIGHT INVENTORY CHECK (Single parallel DB round-trip) ---
+  const productIds = [...new Set(cart.map(item => item.id).filter(Boolean))];
+  const extraIngredientIds = [
+    ...new Set(
+      cart.flatMap(item => {
+        const ids = [];
+        if (item.cup_size_obj?.ingredient_id) ids.push(item.cup_size_obj.ingredient_id);
+        if (Array.isArray(item.add_ons)) {
+          item.add_ons.forEach(ao => {
+            if (ao?.ingredient_id) ids.push(ao.ingredient_id);
+          });
+        }
+        return ids;
+      })
+    )
+  ];
+
+  const [
+    { data: fetchedProducts, error: prodFetchError },
+    { data: fetchedRecipes, error: recipeFetchError },
+    extraIngredientsRes
+  ] = await Promise.all([
+    supabase
+      .from("products")
+      .select("id, name, track_stock, stock_quantity")
+      .in("id", productIds),
+    supabase
+      .from("recipes")
+      .select("product_id, ingredient_id, quantity_used, recipe_unit, ingredients(id, name, unit, stock_quantity)")
+      .in("product_id", productIds),
+    extraIngredientIds.length > 0
+      ? supabase
+          .from("ingredients")
+          .select("id, name, unit, stock_quantity")
+          .in("id", extraIngredientIds)
+      : Promise.resolve({ data: [], error: null })
+  ]);
+
+  if (prodFetchError) throw prodFetchError;
+  if (recipeFetchError) throw recipeFetchError;
+  if (extraIngredientsRes?.error) throw extraIngredientsRes.error;
+
+  const productMap = new Map((fetchedProducts || []).map(p => [p.id, p]));
+  const recipesByProduct = new Map();
+  (fetchedRecipes || []).forEach(r => {
+    if (!recipesByProduct.has(r.product_id)) recipesByProduct.set(r.product_id, []);
+    recipesByProduct.get(r.product_id).push(r);
+  });
+
+  const ingredientMap = new Map();
+  (fetchedRecipes || []).forEach(r => {
+    if (r.ingredients?.id) ingredientMap.set(r.ingredients.id, r.ingredients);
+  });
+  (extraIngredientsRes?.data || []).forEach(ing => {
+    if (ing?.id) ingredientMap.set(ing.id, ing);
+  });
+
   const requiredProducts = {};    // { id: { name, qty } }
   const requiredIngredients = {}; // { id: { name, qty } }
 
   for (const item of cart) {
-    const { data: product, error: prodFetchError } = await supabase
-      .from("products")
-      .select("track_stock, name")
-      .eq("id", item.id)
-      .single();
-
-    if (prodFetchError || !product) {
+    const product = productMap.get(item.id);
+    if (!product) {
       throw new Error(`Product not found: ${item.name || item.id}`);
     }
 
@@ -111,35 +162,23 @@ export const createSale = async ({
       }
       requiredProducts[item.id].qty += item.qty;
     } else {
-      // Recipe Ingredients
-      const { data: recipes, error: recipeError } = await supabase
-        .from("recipes")
-        .select("ingredient_id, quantity_used, recipe_unit, ingredients(name, unit)")
-        .eq("product_id", item.id);
+      const recipes = recipesByProduct.get(item.id) || [];
+      for (const recipe of recipes) {
+        const ing = recipe.ingredients || ingredientMap.get(recipe.ingredient_id);
+        if (!ing) continue;
 
-      if (!recipeError && recipes) {
-        for (const recipe of recipes) {
-          const ing = recipe.ingredients;
-          if (!ing) continue;
+        const deductionPerUnit = convertToBaseUnit(recipe.quantity_used, recipe.recipe_unit || ing.unit, ing.unit);
+        const totalDeduction = deductionPerUnit * item.qty;
 
-          const deductionPerUnit = convertToBaseUnit(recipe.quantity_used, recipe.recipe_unit || ing.unit, ing.unit);
-          const totalDeduction = deductionPerUnit * item.qty;
-
-          if (!requiredIngredients[recipe.ingredient_id]) {
-            requiredIngredients[recipe.ingredient_id] = { name: ing.name, qty: 0 };
-          }
-          requiredIngredients[recipe.ingredient_id].qty += totalDeduction;
+        if (!requiredIngredients[recipe.ingredient_id]) {
+          requiredIngredients[recipe.ingredient_id] = { name: ing.name, qty: 0 };
         }
+        requiredIngredients[recipe.ingredient_id].qty += totalDeduction;
       }
 
       // Cup Size Deduction
       if (item.cup_size_obj && item.cup_size_obj.ingredient_id) {
-        const { data: ingData } = await supabase
-          .from("ingredients")
-          .select("name")
-          .eq("id", item.cup_size_obj.ingredient_id)
-          .single();
-
+        const ingData = ingredientMap.get(item.cup_size_obj.ingredient_id);
         if (ingData) {
           const totalDeduction = 1 * item.qty;
           if (!requiredIngredients[item.cup_size_obj.ingredient_id]) {
@@ -154,12 +193,7 @@ export const createSale = async ({
         for (const addon of item.add_ons) {
           if (!addon.ingredient_id) continue;
 
-          const { data: ingData } = await supabase
-            .from("ingredients")
-            .select("name, unit")
-            .eq("id", addon.ingredient_id)
-            .single();
-
+          const ingData = ingredientMap.get(addon.ingredient_id);
           if (ingData) {
             const deductionPerUnit = convertToBaseUnit(addon.quantity || 0, addon.unit || ingData.unit, ingData.unit);
             const totalDeduction = deductionPerUnit * item.qty * (addon.customer_qty || 1);
@@ -174,39 +208,31 @@ export const createSale = async ({
     }
   }
 
-  // Verify against current DB stock
+  // Verify against fetched DB stock
   const insufficient = [];
 
   const pIds = Object.keys(requiredProducts);
-  if (pIds.length > 0) {
-    const { data: prodStocks } = await supabase.from("products").select("id, stock_quantity").in("id", pIds);
-    if (prodStocks) {
-      for (const p of prodStocks) {
-        const currentStock = parseFloat(p.stock_quantity || 0);
-        const req = requiredProducts[p.id].qty;
-        if (currentStock < req) {
-          insufficient.push(`${requiredProducts[p.id].name} (Requires ${req}, Has ${currentStock})`);
-        } else {
-          requiredProducts[p.id].newStock = currentStock - req;
-        }
-      }
+  for (const pid of pIds) {
+    const prod = productMap.get(pid);
+    const currentStock = parseFloat(prod?.stock_quantity || 0);
+    const req = requiredProducts[pid].qty;
+    if (currentStock < req) {
+      insufficient.push(`${requiredProducts[pid].name} (Requires ${req}, Has ${currentStock})`);
+    } else {
+      requiredProducts[pid].newStock = currentStock - req;
     }
   }
 
   const iIds = Object.keys(requiredIngredients);
-  if (iIds.length > 0) {
-    const { data: ingStocks } = await supabase.from("ingredients").select("id, stock_quantity").in("id", iIds);
-    if (ingStocks) {
-      for (const i of ingStocks) {
-        const currentStock = parseFloat(i.stock_quantity || 0);
-        const req = requiredIngredients[i.id].qty;
-        if (currentStock < req) {
-          // Format ingredient requirements to 2 decimal places to avoid floating point length issues
-          insufficient.push(`${requiredIngredients[i.id].name} (Requires ${req.toFixed(2)}, Has ${currentStock.toFixed(2)})`);
-        } else {
-          requiredIngredients[i.id].newStock = currentStock - req;
-        }
-      }
+  for (const iid of iIds) {
+    const ing = ingredientMap.get(iid);
+    const currentStock = parseFloat(ing?.stock_quantity || 0);
+    const req = requiredIngredients[iid].qty;
+    if (currentStock < req) {
+      // Format ingredient requirements to 2 decimal places to avoid floating point length issues
+      insufficient.push(`${requiredIngredients[iid].name} (Requires ${req.toFixed(2)}, Has ${currentStock.toFixed(2)})`);
+    } else {
+      requiredIngredients[iid].newStock = currentStock - req;
     }
   }
 
@@ -260,107 +286,94 @@ export const createSale = async ({
     sale = insertedSale;
     createdSaleId = sale.id;
 
-    // 2b. Insert Sale Items
+    // 2b + 2c + 2d. Insert Sale Items and deduct Product/Ingredient Stocks concurrently
     const itemsToInsert = saleItems.map(item => ({
       ...item,
       sale_id: createdSaleId
     }));
 
-    const { error: itemError } = await supabase
-      .from("sale_items")
-      .insert(itemsToInsert);
+    const parallelOps = [
+      supabase.from("sale_items").insert(itemsToInsert).then(({ error }) => {
+        if (error) throw error;
+      }),
+      ...pIds.map(async (pid) => {
+        const pData = requiredProducts[pid];
+        const { error: prodUpdateError } = await supabase
+          .from("products")
+          .update({ stock_quantity: pData.newStock })
+          .eq("id", pid);
 
-    if (itemError) throw itemError;
+        if (prodUpdateError) throw prodUpdateError;
+        appliedProductDeductions.push({ pid, restoreStock: pData.newStock + pData.qty });
+      }),
+      ...iIds.map(async (iid) => {
+        const iData = requiredIngredients[iid];
+        const { error: ingUpdateError } = await supabase
+          .from("ingredients")
+          .update({ stock_quantity: iData.newStock })
+          .eq("id", iid);
 
-    // 2c. Deduct Product Stocks
-    for (const pid of pIds) {
-      const pData = requiredProducts[pid];
-      const { error: prodUpdateError } = await supabase
-        .from("products")
-        .update({ stock_quantity: pData.newStock })
-        .eq("id", pid);
+        if (ingUpdateError) throw ingUpdateError;
+        appliedIngredientDeductions.push({ iid, restoreStock: iData.newStock + iData.qty });
+      })
+    ];
 
-      if (prodUpdateError) throw prodUpdateError;
-      appliedProductDeductions.push({ pid, restoreStock: pData.newStock + pData.qty });
-    }
-
-    // 2d. Deduct Ingredient Stocks
-    for (const iid of iIds) {
-      const iData = requiredIngredients[iid];
-      const { error: ingUpdateError } = await supabase
-        .from("ingredients")
-        .update({ stock_quantity: iData.newStock })
-        .eq("id", iid);
-
-      if (ingUpdateError) throw ingUpdateError;
-      appliedIngredientDeductions.push({ iid, restoreStock: iData.newStock + iData.qty });
-    }
+    await Promise.all(parallelOps);
   } catch (atomicError) {
-    // ROLLBACK COMPENSATION: Undo all partial operations to ensure 100% transactional atomicity
+    // ROLLBACK COMPENSATION: Undo all partial operations concurrently
     console.error('[POS Transaction Rollback] An error occurred during checkout, rolling back:', atomicError);
 
-    // Rollback products
-    for (const item of appliedProductDeductions) {
-      try {
-        await supabase.from("products").update({ stock_quantity: item.restoreStock }).eq("id", item.pid);
-      } catch (e) {
-        console.error('[Rollback Failure] Product restore error:', e);
-      }
-    }
-
-    // Rollback ingredients
-    for (const item of appliedIngredientDeductions) {
-      try {
-        await supabase.from("ingredients").update({ stock_quantity: item.restoreStock }).eq("id", item.iid);
-      } catch (e) {
-        console.error('[Rollback Failure] Ingredient restore error:', e);
-      }
-    }
-
-    // Rollback created sale (cascades to sale_items)
-    if (createdSaleId) {
-      try {
-        await supabase.from("sales").delete().eq("id", createdSaleId);
-      } catch (e) {
-        console.error('[Rollback Failure] Sale delete error:', e);
-      }
-    }
+    await Promise.allSettled([
+      ...appliedProductDeductions.map((item) =>
+        supabase.from("products").update({ stock_quantity: item.restoreStock }).eq("id", item.pid)
+      ),
+      ...appliedIngredientDeductions.map((item) =>
+        supabase.from("ingredients").update({ stock_quantity: item.restoreStock }).eq("id", item.iid)
+      ),
+      ...(createdSaleId
+        ? [supabase.from("sales").delete().eq("id", createdSaleId)]
+        : [])
+    ]);
 
     throw new Error(`Transaction aborted: ${atomicError.message}`);
   }
 
-  // --- 3. AUDIT LOGGING (Post-commit) ---
-  for (const pid of pIds) {
-    const pData = requiredProducts[pid];
-    await logAudit('PRODUCT_DEDUCTED', staff_id, {
-      product_id: pid,
-      name: pData.name,
-      quantity: -pData.qty,
-      new_stock: pData.newStock,
-      sale_id: sale.id,
-      type: 'SALE'
-    });
-  }
+  // --- 3. NON-BLOCKING BATCH AUDIT LOGGING (Post-commit) ---
+  const auditEntries = [
+    ...pIds.map((pid) => {
+      const pData = requiredProducts[pid];
+      return ['PRODUCT_DEDUCTED', staff_id, {
+        product_id: pid,
+        name: pData.name,
+        quantity: -pData.qty,
+        new_stock: pData.newStock,
+        sale_id: sale.id,
+        type: 'SALE'
+      }];
+    }),
+    ...iIds.map((iid) => {
+      const iData = requiredIngredients[iid];
+      return ['INGREDIENT_DEDUCTED', staff_id, {
+        ingredient_id: iid,
+        name: iData.name,
+        quantity: -iData.qty,
+        new_stock: iData.newStock,
+        sale_id: sale.id,
+        type: 'SALE'
+      }];
+    }),
+    {
+      action: "SALE",
+      entity_type: "SALE",
+      entity_id: sale.id,
+      user_id: staff_id,
+      details: `Completed sale of ${cart.length} items for ₱${resolvedTotal}. Inventory deducted atomically.`,
+      new_value: { sale_id: sale.id, items: cart.length, total: resolvedTotal }
+    }
+  ];
 
-  for (const iid of iIds) {
-    const iData = requiredIngredients[iid];
-    await logAudit('INGREDIENT_DEDUCTED', staff_id, {
-      ingredient_id: iid,
-      name: iData.name,
-      quantity: -iData.qty,
-      new_stock: iData.newStock,
-      sale_id: sale.id,
-      type: 'SALE'
-    });
-  }
-
-  await logAudit({
-    action: "SALE",
-    entity_type: "SALE",
-    entity_id: sale.id,
-    user_id: staff_id,
-    details: `Completed sale of ${cart.length} items for ₱${resolvedTotal}. Inventory deducted atomically.`,
-    new_value: { sale_id: sale.id, items: cart.length, total: resolvedTotal }
+  void logAuditBatch(auditEntries).catch((err) => {
+    console.error('[AUDIT] Async batch log failed:', err.message);
   });
 
   invalidateAnalyticsCache();

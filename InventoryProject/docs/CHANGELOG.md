@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Perf/System: Faster Loading Without Compromising Security - 2026-11-12]
+- **Login Screen & Auth (`src/features/auth/LoginPage.jsx`, `server/routes/auth.js`)**:
+  - Removed the artificial `1500ms` blocking splash delay on [`LoginPage`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/auth/LoginPage.jsx).
+  - Updated `POST /api/auth/login` to evaluate only the signing-in user's own session timeout state (preserving single-session replacement, bcrypt verification, lockout, and `SESSION_REPLACED`/`LOGIN` audit logs) while running the global inactive-session reaper and login audit inserts non-blockingly.
+- **Dashboard & API Deduplication (`src/api/dashboardApi.js`, `server/routes/dashboard.js`)**:
+  - Deduplicated concurrent identical `getDashboardStats()` requests on the client so `Navbar` and `DashboardOverview` share one request on load.
+  - Combined today's metrics and the 7-day trend history into a single bounded `sales` query on `GET /api/dashboard/stats` instead of querying today's sales twice.
+- **Static Asset & CMS Caching (`server/server.js`, `server/services/cmsService.js`)**:
+  - Configured long-lived immutable browser cache headers for hashed `/assets/*` bundles while keeping `index.html` `no-cache`.
+  - Added a 60-second in-memory server cache (with in-flight deduplication and write invalidation) for public CMS reads.
+
+## [Perf/POS: Fast Batch Checkout & Non-Blocking Audit Logging - 2026-11-12]
+- **Root Cause**: [`posService.createSale`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/server/services/posService.js) previously executed dozens of sequential Supabase queries per checkout (N+1 loops over cart items, recipes, cup sizes, add-ons, sequential stock updates, and sequential blocking `await logAudit()` loops before returning), causing several seconds of delay before the Digital Receipt Modal appeared.
+- **Backend Optimization (`server/services/posService.js`, `server/utils/auditHelper.js`)**:
+  - Replaced per-item N+1 pre-flight loops with 1 parallel batch (`Promise.all` with `.in(...)`) for products, recipes, and extra ingredients.
+  - Parallelized `sale_items` insertion and product/ingredient stock deductions (and rollback compensation on error).
+  - Added [`logAuditBatch`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/server/utils/auditHelper.js) and moved post-commit audit writes to a single non-blocking batch insert so checkout returns the receipt immediately.
+
 ## [Fix/POS: Isolated Thermal Receipt Printing - 2026-11-12]
 - **Root Cause**: [`SalesReceiptModal.jsx`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/components/SalesReceiptModal.jsx) previously called `window.print()` directly without `@media print` isolation, causing the browser to print the entire POS/dashboard screen, modal backdrop, UI buttons, and browser URL/timestamp headers like a screenshot.
 - **Thermal Receipt Utility (`src/utils/receiptPrint.js`)**: Created `printThermalReceipt()`, `formatReceiptDateTime()`, and `computeReceiptTotals()`. Measures the rendered slip height and prints from a top-level `#coftea-print-root` with `@media print` isolation and exact `@page { size: 80mm|58mm <height>mm; margin: 0; }` so Chromium honors custom receipt roll dimensions in Print Preview / Save as PDF without giant blank margins, browser URL headers, or popup blockers.
