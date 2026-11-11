@@ -1,35 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { getSalesReceipt } from '../api/logsApi';
-
-const formatDateTime = (isoString) => {
-  if (!isoString) return '—';
-  const d = new Date(isoString);
-  if (isNaN(d.getTime())) return '—';
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  let hours = d.getHours();
-  const mins = String(d.getMinutes()).padStart(2, '0');
-  const secs = String(d.getSeconds()).padStart(2, '0');
-  const ampm = hours >= 12 ? 'PM' : 'AM';
-  hours = hours % 12 || 12;
-  const hrsStr = String(hours).padStart(2, '0');
-  return `${y}-${m}-${day} ${hrsStr}:${mins}:${secs} ${ampm}`;
-};
-
-const extractDiscountLabel = (receipt) => {
-  if (!receipt) return '';
-  if (receipt.discount_label) return receipt.discount_label;
-  if (typeof receipt.notes === 'string' && receipt.notes.startsWith('Discount:')) {
-    return receipt.notes.replace(/^Discount:\s*/i, '').trim();
-  }
-  return '';
-};
+import {
+  formatReceiptDateTime,
+  computeReceiptTotals,
+  getSavedPaperWidth,
+  savePaperWidth,
+  printThermalReceipt,
+} from '../utils/receiptPrint';
 
 const SalesReceiptModal = ({ saleId, initialReceipt = null, onClose }) => {
   const [receipt, setReceipt] = useState(initialReceipt);
   const [loading, setLoading] = useState(!initialReceipt && Boolean(saleId));
+  const [paperWidth, setPaperWidth] = useState(getSavedPaperWidth);
 
   useEffect(() => {
     if (initialReceipt) {
@@ -57,13 +40,14 @@ const SalesReceiptModal = ({ saleId, initialReceipt = null, onClose }) => {
 
   if (!saleId && !initialReceipt) return null;
 
-  const discountAmount = parseFloat(receipt?.discount_amount) || 0;
-  const totalAmount = parseFloat(receipt?.total_amount) || 0;
-  const subtotalAmount =
-    receipt?.subtotal_amount !== undefined
-      ? parseFloat(receipt.subtotal_amount)
-      : totalAmount + discountAmount - (parseFloat(receipt?.tax_amount) || 0);
-  const discountLabel = extractDiscountLabel(receipt);
+  const { discountAmount, totalAmount, subtotalAmount, discountLabel } =
+    computeReceiptTotals(receipt);
+
+  const handlePaperWidthChange = (e) => {
+    const nextWidth = e.target.value;
+    setPaperWidth(nextWidth);
+    savePaperWidth(nextWidth);
+  };
 
   return createPortal(
     <div
@@ -105,7 +89,7 @@ const SalesReceiptModal = ({ saleId, initialReceipt = null, onClose }) => {
             <div className="border-t border-b border-dashed border-zinc-200 py-2.5 text-xs text-zinc-600 space-y-1">
               <div className="flex justify-between">
                 <span>Date:</span>
-                <span className="font-medium text-zinc-900">{formatDateTime(receipt.created_at)}</span>
+                <span className="font-medium text-zinc-900">{formatReceiptDateTime(receipt.created_at)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Receipt No:</span>
@@ -195,9 +179,18 @@ const SalesReceiptModal = ({ saleId, initialReceipt = null, onClose }) => {
             </div>
 
             <div className="pt-2 flex items-center gap-2 border-t border-zinc-100">
+              <select
+                value={paperWidth}
+                onChange={handlePaperWidthChange}
+                aria-label="Thermal paper width"
+                className="py-2.5 px-2.5 rounded-xl border border-zinc-300 bg-zinc-50 text-zinc-700 text-xs font-bold uppercase tracking-wider cursor-pointer focus:outline-none focus:ring-2 focus:ring-zinc-900"
+              >
+                <option value="80mm">80mm</option>
+                <option value="58mm">58mm</option>
+              </select>
               <button
                 type="button"
-                onClick={() => window.print()}
+                onClick={() => printThermalReceipt(receipt, { paperWidth })}
                 className="flex-1 py-2.5 px-4 rounded-xl border border-zinc-300 bg-white hover:bg-zinc-50 text-zinc-700 text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
               >
                 Print Receipt

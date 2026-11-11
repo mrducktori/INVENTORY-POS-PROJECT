@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Fix/POS: Isolated Thermal Receipt Printing - 2026-11-12]
+- **Root Cause**: [`SalesReceiptModal.jsx`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/components/SalesReceiptModal.jsx) previously called `window.print()` directly without `@media print` isolation, causing the browser to print the entire POS/dashboard screen, modal backdrop, UI buttons, and browser URL/timestamp headers like a screenshot.
+- **Thermal Receipt Utility (`src/utils/receiptPrint.js`)**: Created `printThermalReceipt()`, `formatReceiptDateTime()`, and `computeReceiptTotals()`. Prints a clean standalone thermal slip via an isolated hidden `<iframe>` with `@page { size: 80mm|58mm auto; margin: 0; }` (suppressing browser URL/date headers and footers and avoiding pop-up blockers).
+- **Receipt Modal (`src/components/SalesReceiptModal.jsx`)**: Wired `Print Receipt` to `printThermalReceipt()` and added a saved `80mm` / `58mm` paper-width selector.
+
 ## [Fix/Inventory: Display Archived Raw Materials Section - 2026-11-12]
 - **Root Cause**: `ManageRawMaterials` already included the **Archived Raw Materials** section and `Archived Only` filter, but `inventoryService.getIngredients()` unconditionally filtered `.neq("is_archived", true)`, preventing archived rows from reaching the frontend.
 - **Backend (`inventoryService.js`, `inventoryController.js`)**: Added optional `{ includeArchived }` parameter to `getIngredients()` wired to `?include_archived=true` on `GET /api/inventory/ingredients` (default remains active-only so POS, dashboard, PO forms, wastage, stock receiving, and recipe pickers are unaffected).
