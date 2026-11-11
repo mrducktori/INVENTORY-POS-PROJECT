@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Fix: Reports `periodLabel is not defined` Scope Fix - 2026-11-11]
+- **Bug Fix**: Moved `periodLabel` to component-level scope in [`SalesPerformanceReport.jsx`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/reports/SalesPerformanceReport.jsx) to eliminate `ReferenceError: periodLabel is not defined` when rendering the period prompt.
+- **Production Build**: Successfully compiled latest frontend assets in `InventoryProject/dist/`.
+
+
 ## [Reports: Unified Minimalist UI & Auto-Load Default Data - 2026-11-11]
 - **Automatic Default Report Loading**:
   - Implemented auto-fetching on initial mount across all 4 report tabs:
