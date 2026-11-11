@@ -1,5 +1,7 @@
 const PAPER_WIDTH_STORAGE_KEY = 'coftea_receipt_paper_width';
 const VALID_PAPER_WIDTHS = ['80mm', '58mm'];
+const PRINT_ROOT_ID = 'coftea-print-root';
+const PRINT_STYLE_ID = 'coftea-print-style';
 
 /**
  * Formats an ISO timestamp as YYYY-MM-DD hh:mm:ss AM/PM for receipts.
@@ -75,26 +77,25 @@ const escapeHtml = (value) =>
 
 const formatCurrency = (value) => `₱${(Number(value) || 0).toFixed(2)}`;
 
-const buildThermalReceiptHtml = (
+const buildReceiptMarkup = (
   receipt,
   {
-    paperWidth = '80mm',
     storeName = 'COF/TEA CAFE',
     branchLabel = 'Main Branch • Store #001',
   } = {}
 ) => {
-  const safeWidth = VALID_PAPER_WIDTHS.includes(paperWidth) ? paperWidth : '80mm';
-  const isCompact = safeWidth === '58mm';
   const { discountAmount, totalAmount, subtotalAmount, discountLabel } =
     computeReceiptTotals(receipt);
 
   const itemsHtml = (receipt.sale_items || [])
     .map((item) => {
       const name = escapeHtml(item.products?.name || item.name || 'Item');
-      const cupSize = item.cup_size ? ` <span class="muted">(${escapeHtml(item.cup_size)})</span>` : '';
+      const cupSize = item.cup_size
+        ? ` <span class="coftea-receipt-size">(${escapeHtml(item.cup_size)})</span>`
+        : '';
       const addOns =
         Array.isArray(item.add_ons) && item.add_ons.length > 0
-          ? `<div class="addons">+ ${item.add_ons
+          ? `<div class="coftea-receipt-addons">+ ${item.add_ons
               .map((ao) => `${escapeHtml(ao.customer_qty || 1)}x ${escapeHtml(ao.name)}`)
               .join(', ')}</div>`
           : '';
@@ -103,12 +104,12 @@ const buildThermalReceiptHtml = (
 
       return `
         <tr>
-          <td class="col-item">
-            <div class="item-name">${name}${cupSize}</div>
+          <td class="coftea-col-item">
+            <div class="coftea-item-name">${name}${cupSize}</div>
             ${addOns}
           </td>
-          <td class="col-qty">${qty}</td>
-          <td class="col-price">${lineTotal}</td>
+          <td class="coftea-col-qty">${qty}</td>
+          <td class="coftea-col-price">${lineTotal}</td>
         </tr>
       `;
     })
@@ -117,7 +118,7 @@ const buildThermalReceiptHtml = (
   const discountRow =
     discountAmount > 0
       ? `
-        <div class="summary-row">
+        <div class="coftea-summary-row">
           <span>Discount${discountLabel ? ` (${escapeHtml(discountLabel)})` : ''}</span>
           <span>-${formatCurrency(discountAmount)}</span>
         </div>
@@ -126,150 +127,221 @@ const buildThermalReceiptHtml = (
 
   const referenceRow = receipt.transaction_reference
     ? `
-      <div class="summary-row">
+      <div class="coftea-summary-row">
         <span>Reference #</span>
         <span>${escapeHtml(receipt.transaction_reference)}</span>
       </div>
     `
     : '';
 
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Receipt ${escapeHtml(receipt.receipt_number || '')}</title>
-  <style>
-    @page {
-      size: ${safeWidth} auto;
-      margin: 0;
-    }
+  return `
+    <div class="coftea-receipt-slip">
+      <div class="coftea-receipt-header">
+        <h1 class="coftea-store-name">${escapeHtml(storeName)}</h1>
+        <p class="coftea-branch-label">${escapeHtml(branchLabel)}</p>
+      </div>
 
-    *, *::before, *::after {
-      box-sizing: border-box;
-    }
+      <div class="coftea-dashed-divider"></div>
 
-    html, body {
-      margin: 0;
-      padding: 0;
+      <div class="coftea-meta-row">
+        <span>Date:</span>
+        <span class="coftea-meta-val">${escapeHtml(formatReceiptDateTime(receipt.created_at))}</span>
+      </div>
+      <div class="coftea-meta-row">
+        <span>Receipt No:</span>
+        <span class="coftea-meta-val">${escapeHtml(receipt.receipt_number || 'N/A')}</span>
+      </div>
+      <div class="coftea-meta-row">
+        <span>Cashier:</span>
+        <span class="coftea-meta-val">${escapeHtml(receipt.users?.name || 'System')}</span>
+      </div>
+
+      <div class="coftea-dashed-divider"></div>
+
+      <table class="coftea-receipt-table">
+        <thead>
+          <tr>
+            <th class="coftea-col-item">Item</th>
+            <th class="coftea-col-qty">Qty</th>
+            <th class="coftea-col-price">Price</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${itemsHtml}
+        </tbody>
+      </table>
+
+      <div class="coftea-dashed-divider"></div>
+
+      <div class="coftea-summary-row">
+        <span>Subtotal</span>
+        <span>${formatCurrency(subtotalAmount)}</span>
+      </div>
+      ${discountRow}
+
+      <div class="coftea-total-row">
+        <span>TOTAL</span>
+        <span>${formatCurrency(totalAmount)}</span>
+      </div>
+
+      <div class="coftea-summary-row">
+        <span>Payment (${escapeHtml(receipt.payment_method || 'CASH')})</span>
+        <span>${formatCurrency(receipt.amount_received ?? totalAmount)}</span>
+      </div>
+      ${referenceRow}
+      <div class="coftea-summary-row">
+        <span>Change</span>
+        <span>${formatCurrency(receipt.change_amount || 0)}</span>
+      </div>
+
+      <div class="coftea-dashed-divider"></div>
+
+      <div class="coftea-receipt-footer">
+        <div>Thank you for visiting Cof/Tea!</div>
+      </div>
+    </div>
+  `;
+};
+
+const buildReceiptStyles = (paperWidth, heightMm = null) => {
+  const safeWidth = VALID_PAPER_WIDTHS.includes(paperWidth) ? paperWidth : '80mm';
+  const isCompact = safeWidth === '58mm';
+  const pageRule = heightMm
+    ? `@page { size: ${safeWidth} ${heightMm}mm; margin: 0; }`
+    : `@page { size: ${safeWidth} 297mm; margin: 0; }`;
+
+  return `
+    ${pageRule}
+
+    #${PRINT_ROOT_ID} {
+      position: fixed;
+      left: -9999px;
+      top: 0;
+      width: ${safeWidth};
       background: #ffffff;
       color: #000000;
-      width: ${safeWidth};
-      font-family: ui-monospace, 'Cascadia Mono', Consolas, 'Courier New', monospace;
-      font-size: ${isCompact ? '10px' : '11.5px'};
+      font-family: ui-monospace, 'Cascadia Mono', Consolas, 'Courier New', monospace !important;
+      font-size: ${isCompact ? '9.5px' : '11.5px'};
       line-height: 1.35;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
+      visibility: hidden;
+      pointer-events: none;
+      z-index: -1;
     }
 
-    .receipt {
+    #${PRINT_ROOT_ID} * {
+      box-sizing: border-box;
+      font-family: ui-monospace, 'Cascadia Mono', Consolas, 'Courier New', monospace !important;
+    }
+
+    #${PRINT_ROOT_ID} .coftea-receipt-slip {
       width: 100%;
-      padding: ${isCompact ? '3.5mm 2.5mm 6mm' : '4mm 3.5mm 7mm'};
+      padding: ${isCompact ? '3.5mm 2.5mm 5mm' : '4mm 3.5mm 6mm'};
     }
 
-    .header {
+    #${PRINT_ROOT_ID} .coftea-receipt-header {
       text-align: center;
       margin-bottom: 8px;
     }
 
-    .store-name {
+    #${PRINT_ROOT_ID} .coftea-store-name {
       margin: 0;
-      font-size: ${isCompact ? '14px' : '16px'};
+      font-size: ${isCompact ? '13.5px' : '16px'};
       font-weight: 800;
       letter-spacing: 0.04em;
     }
 
-    .branch-label {
+    #${PRINT_ROOT_ID} .coftea-branch-label {
       margin: 2px 0 0;
-      font-size: ${isCompact ? '9.5px' : '10.5px'};
+      font-size: ${isCompact ? '9px' : '10.5px'};
     }
 
-    .dashed-divider {
+    #${PRINT_ROOT_ID} .coftea-dashed-divider {
       border-top: 1px dashed #000000;
-      margin: 7px 0;
-    }
-
-    .solid-divider {
-      border-top: 1px solid #000000;
       margin: 6px 0;
     }
 
-    .meta-row, .summary-row {
+    #${PRINT_ROOT_ID} .coftea-meta-row,
+    #${PRINT_ROOT_ID} .coftea-summary-row {
       display: flex;
       justify-content: space-between;
       align-items: baseline;
-      gap: 6px;
+      gap: 4px;
       margin: 2px 0;
+      font-size: ${isCompact ? '9px' : '11px'};
     }
 
-    .meta-val {
+    #${PRINT_ROOT_ID} .coftea-meta-val {
       text-align: right;
       font-weight: 700;
+      white-space: nowrap;
     }
 
-    table {
+    #${PRINT_ROOT_ID} .coftea-receipt-table {
       width: 100%;
       border-collapse: collapse;
       margin: 4px 0;
     }
 
-    th {
+    #${PRINT_ROOT_ID} .coftea-receipt-table th {
       text-align: left;
-      font-size: ${isCompact ? '9.5px' : '10.5px'};
+      font-size: ${isCompact ? '9px' : '10.5px'};
       font-weight: 700;
       padding: 3px 0;
       border-bottom: 1px dashed #000000;
     }
 
-    td {
+    #${PRINT_ROOT_ID} .coftea-receipt-table td {
       padding: 4px 0;
       vertical-align: top;
       border-bottom: 1px dotted #999999;
+      font-size: ${isCompact ? '9.5px' : '11px'};
     }
 
-    tr:last-child td {
+    #${PRINT_ROOT_ID} .coftea-receipt-table tr:last-child td {
       border-bottom: none;
     }
 
-    .col-item {
-      width: 58%;
+    #${PRINT_ROOT_ID} .coftea-col-item {
+      width: ${isCompact ? '56%' : '58%'};
       padding-right: 4px;
       word-break: break-word;
     }
 
-    .col-qty {
-      width: 14%;
+    #${PRINT_ROOT_ID} .coftea-col-qty {
+      width: ${isCompact ? '13%' : '14%'};
       text-align: center;
       white-space: nowrap;
     }
 
-    .col-price {
-      width: 28%;
+    #${PRINT_ROOT_ID} .coftea-col-price {
+      width: ${isCompact ? '31%' : '28%'};
       text-align: right;
       white-space: nowrap;
     }
 
-    th.col-qty { text-align: center; }
-    th.col-price { text-align: right; }
+    #${PRINT_ROOT_ID} th.coftea-col-qty { text-align: center; }
+    #${PRINT_ROOT_ID} th.coftea-col-price { text-align: right; }
 
-    .item-name {
+    #${PRINT_ROOT_ID} .coftea-item-name {
       font-weight: 600;
     }
 
-    .muted {
+    #${PRINT_ROOT_ID} .coftea-receipt-size {
       font-weight: 400;
-      font-size: ${isCompact ? '9px' : '10px'};
+      font-size: ${isCompact ? '8.5px' : '10px'};
+      white-space: nowrap;
     }
 
-    .addons {
-      font-size: ${isCompact ? '9px' : '10px'};
+    #${PRINT_ROOT_ID} .coftea-receipt-addons {
+      font-size: ${isCompact ? '8.5px' : '10px'};
       margin-top: 1px;
     }
 
-    .total-row {
+    #${PRINT_ROOT_ID} .coftea-total-row {
       display: flex;
       justify-content: space-between;
       align-items: baseline;
-      font-size: ${isCompact ? '13px' : '14.5px'};
+      font-size: ${isCompact ? '12.5px' : '14.5px'};
       font-weight: 800;
       padding: 4px 0;
       border-top: 1px solid #000000;
@@ -277,161 +349,101 @@ const buildThermalReceiptHtml = (
       margin: 5px 0;
     }
 
-    .footer {
+    #${PRINT_ROOT_ID} .coftea-receipt-footer {
       text-align: center;
-      margin-top: 10px;
-      font-size: ${isCompact ? '9.5px' : '10.5px'};
+      margin-top: 8px;
+      font-size: ${isCompact ? '9px' : '10.5px'};
     }
 
     @media print {
       html, body {
-        width: ${safeWidth};
+        margin: 0 !important;
+        padding: 0 !important;
+        width: ${safeWidth} !important;
+        ${heightMm ? `height: ${heightMm}mm !important;` : 'height: auto !important;'}
+        min-height: 0 !important;
+        overflow: hidden !important;
+        background: #ffffff !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      body > *:not(#${PRINT_ROOT_ID}) {
+        display: none !important;
+      }
+
+      #${PRINT_ROOT_ID} {
+        display: block !important;
+        visibility: visible !important;
+        position: static !important;
+        left: auto !important;
+        top: auto !important;
+        width: ${safeWidth} !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #ffffff !important;
       }
     }
-  </style>
-</head>
-<body>
-  <div class="receipt">
-    <div class="header">
-      <h1 class="store-name">${escapeHtml(storeName)}</h1>
-      <p class="branch-label">${escapeHtml(branchLabel)}</p>
-    </div>
-
-    <div class="dashed-divider"></div>
-
-    <div class="meta-row">
-      <span>Date:</span>
-      <span class="meta-val">${escapeHtml(formatReceiptDateTime(receipt.created_at))}</span>
-    </div>
-    <div class="meta-row">
-      <span>Receipt No:</span>
-      <span class="meta-val">${escapeHtml(receipt.receipt_number || 'N/A')}</span>
-    </div>
-    <div class="meta-row">
-      <span>Cashier:</span>
-      <span class="meta-val">${escapeHtml(receipt.users?.name || 'System')}</span>
-    </div>
-
-    <div class="dashed-divider"></div>
-
-    <table>
-      <thead>
-        <tr>
-          <th class="col-item">Item</th>
-          <th class="col-qty">Qty</th>
-          <th class="col-price">Price</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${itemsHtml}
-      </tbody>
-    </table>
-
-    <div class="dashed-divider"></div>
-
-    <div class="summary-row">
-      <span>Subtotal</span>
-      <span>${formatCurrency(subtotalAmount)}</span>
-    </div>
-    ${discountRow}
-
-    <div class="total-row">
-      <span>TOTAL</span>
-      <span>${formatCurrency(totalAmount)}</span>
-    </div>
-
-    <div class="summary-row">
-      <span>Payment (${escapeHtml(receipt.payment_method || 'CASH')})</span>
-      <span>${formatCurrency(receipt.amount_received ?? totalAmount)}</span>
-    </div>
-    ${referenceRow}
-    <div class="summary-row">
-      <span>Change</span>
-      <span>${formatCurrency(receipt.change_amount || 0)}</span>
-    </div>
-
-    <div class="dashed-divider"></div>
-
-    <div class="footer">
-      <div>Thank you for visiting Cof/Tea!</div>
-    </div>
-  </div>
-</body>
-</html>`;
+  `;
 };
 
-const PRINT_IFRAME_ID = 'coftea-thermal-receipt-frame';
+const cleanupExistingPrintElements = () => {
+  const oldRoot = document.getElementById(PRINT_ROOT_ID);
+  if (oldRoot) oldRoot.remove();
+  const oldStyle = document.getElementById(PRINT_STYLE_ID);
+  if (oldStyle) oldStyle.remove();
+};
 
 /**
- * Prints only the thermal receipt slip via an isolated hidden iframe so
- * dashboard UI, modal backdrops, and browser headers/footers never appear.
+ * Prints only the thermal receipt slip at top-level window context so Chromium
+ * honors the exact 80mm / 58mm @page size, removes browser headers/footers,
+ * and avoids popup blockers and SPA screen captures.
  */
 export const printThermalReceipt = (receipt, options = {}) => {
   if (!receipt || typeof document === 'undefined') return;
 
-  const existing = document.getElementById(PRINT_IFRAME_ID);
-  if (existing) {
-    existing.remove();
+  const safeWidth = VALID_PAPER_WIDTHS.includes(options.paperWidth) ? options.paperWidth : '80mm';
+  cleanupExistingPrintElements();
+
+  const styleEl = document.createElement('style');
+  styleEl.id = PRINT_STYLE_ID;
+  styleEl.textContent = buildReceiptStyles(safeWidth);
+  document.head.appendChild(styleEl);
+
+  const rootEl = document.createElement('div');
+  rootEl.id = PRINT_ROOT_ID;
+  rootEl.setAttribute('aria-hidden', 'true');
+  rootEl.innerHTML = buildReceiptMarkup(receipt, options);
+  document.body.appendChild(rootEl);
+
+  // Measure the exact rendered receipt height at target thermal width (96px = 25.4mm)
+  const measuredPx = Math.max(rootEl.scrollHeight, rootEl.getBoundingClientRect().height);
+  const heightMm = Math.max(60, Math.ceil((measuredPx * 25.4) / 96) + 4);
+  styleEl.textContent = buildReceiptStyles(safeWidth, heightMm);
+
+  const originalTitle = document.title;
+  if (receipt.receipt_number) {
+    document.title = `Receipt_${receipt.receipt_number}`;
   }
 
-  const iframe = document.createElement('iframe');
-  iframe.id = PRINT_IFRAME_ID;
-  iframe.setAttribute('aria-hidden', 'true');
-  iframe.tabIndex = -1;
-  Object.assign(iframe.style, {
-    position: 'fixed',
-    right: '0',
-    bottom: '0',
-    width: '0',
-    height: '0',
-    border: '0',
-    visibility: 'hidden',
-    pointerEvents: 'none',
-  });
-
-  document.body.appendChild(iframe);
-
+  let cleaned = false;
   const cleanup = () => {
-    if (iframe.parentNode) {
-      iframe.parentNode.removeChild(iframe);
-    }
+    if (cleaned) return;
+    cleaned = true;
+    document.title = originalTitle;
+    cleanupExistingPrintElements();
   };
 
-  const doc = iframe.contentWindow?.document;
-  if (!doc) {
-    cleanup();
-    return;
-  }
+  window.addEventListener('afterprint', cleanup, { once: true });
 
-  doc.open();
-  doc.write(buildThermalReceiptHtml(receipt, options));
-  doc.close();
-
-  const triggerPrint = () => {
-    const win = iframe.contentWindow;
-    if (!win) {
-      cleanup();
-      return;
-    }
-
-    let cleaned = false;
-    const safeCleanup = () => {
-      if (cleaned) return;
-      cleaned = true;
-      cleanup();
-    };
-
-    win.addEventListener('afterprint', safeCleanup, { once: true });
-
-    try {
-      win.focus();
-      win.print();
-    } finally {
-      // Fallback cleanup for browsers that do not fire afterprint on iframes
-      setTimeout(safeCleanup, 60000);
-    }
-  };
-
-  // Allow layout calculation inside the hidden iframe before opening print dialog
-  setTimeout(triggerPrint, 120);
+  // Wait two animation frames so Chromium commits the updated @page dimensions before print preview opens
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      try {
+        window.print();
+      } finally {
+        setTimeout(cleanup, 60000);
+      }
+    });
+  });
 };

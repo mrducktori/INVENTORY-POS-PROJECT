@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## [Fix/POS: Isolated Thermal Receipt Printing - 2026-11-12]
 - **Root Cause**: [`SalesReceiptModal.jsx`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/components/SalesReceiptModal.jsx) previously called `window.print()` directly without `@media print` isolation, causing the browser to print the entire POS/dashboard screen, modal backdrop, UI buttons, and browser URL/timestamp headers like a screenshot.
-- **Thermal Receipt Utility (`src/utils/receiptPrint.js`)**: Created `printThermalReceipt()`, `formatReceiptDateTime()`, and `computeReceiptTotals()`. Prints a clean standalone thermal slip via an isolated hidden `<iframe>` with `@page { size: 80mm|58mm auto; margin: 0; }` (suppressing browser URL/date headers and footers and avoiding pop-up blockers).
+- **Thermal Receipt Utility (`src/utils/receiptPrint.js`)**: Created `printThermalReceipt()`, `formatReceiptDateTime()`, and `computeReceiptTotals()`. Measures the rendered slip height and prints from a top-level `#coftea-print-root` with `@media print` isolation and exact `@page { size: 80mm|58mm <height>mm; margin: 0; }` so Chromium honors custom receipt roll dimensions in Print Preview / Save as PDF without giant blank margins, browser URL headers, or popup blockers.
 - **Receipt Modal (`src/components/SalesReceiptModal.jsx`)**: Wired `Print Receipt` to `printThermalReceipt()` and added a saved `80mm` / `58mm` paper-width selector.
 
 ## [Fix/Inventory: Display Archived Raw Materials Section - 2026-11-12]
