@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Fix/Inventory: Display Archived Raw Materials Section - 2026-11-12]
+- **Root Cause**: `ManageRawMaterials` already included the **Archived Raw Materials** section and `Archived Only` filter, but `inventoryService.getIngredients()` unconditionally filtered `.neq("is_archived", true)`, preventing archived rows from reaching the frontend.
+- **Backend (`inventoryService.js`, `inventoryController.js`)**: Added optional `{ includeArchived }` parameter to `getIngredients()` wired to `?include_archived=true` on `GET /api/inventory/ingredients` (default remains active-only so POS, dashboard, PO forms, wastage, stock receiving, and recipe pickers are unaffected).
+- **Frontend (`inventoryApi.js`, `useManageRawMaterials.js`)**: Updated `getIngredients({ includeArchived = false } = {})` to append `?include_archived=true` when requested, and updated `useManageRawMaterials` to fetch with `{ includeArchived: true }` so archived raw materials appear in the **Archived Raw Materials** section and can be restored.
+
+## [Docs/Flowcharts: Role-Based System Flowcharts - 2026-11-12]
+- **Created 4 Role-Based Flowcharts (SVG & PNG) in `InventoryProject/docs/diagrams/`**:
+  - **Customer**: [`CofTea_Flowchart_Customer.svg`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/docs/diagrams/CofTea_Flowchart_Customer.svg) & [`CofTea_Flowchart_Customer.png`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/docs/diagrams/CofTea_Flowchart_Customer.png)
+  - **Staff (Cashier / Barista)**: [`CofTea_Flowchart_Staff.svg`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/docs/diagrams/CofTea_Flowchart_Staff.svg) & [`CofTea_Flowchart_Staff.png`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/docs/diagrams/CofTea_Flowchart_Staff.png)
+  - **Supplier**: [`CofTea_Flowchart_Supplier.svg`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/docs/diagrams/CofTea_Flowchart_Supplier.svg) & [`CofTea_Flowchart_Supplier.png`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/docs/diagrams/CofTea_Flowchart_Supplier.png)
+  - **Admin & Owner (+ Custom Roles)**: [`CofTea_Flowchart_Admin_Owner.svg`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/docs/diagrams/CofTea_Flowchart_Admin_Owner.svg) & [`CofTea_Flowchart_Admin_Owner.png`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/docs/diagrams/CofTea_Flowchart_Admin_Owner.png)
+
+## [Docs/DFD: Updated Level 1 Data Flow Diagram - 2026-11-12]
+- **Created Updated Level 1 Data Flow Diagram ([`CofTea_DFD_Level1.svg`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/docs/diagrams/CofTea_DFD_Level1.svg) & [`CofTea_DFD_Level1.png`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/docs/diagrams/CofTea_DFD_Level1.png))**:
+  - Expanded to Processes 1–9 and closed Data Stores `D1`–`D9` (`User`, `Product`, `Recipe`, `Transaction`, `Inventory`, `Waste Log`, `Purchasing & Supplier`, `CMS Content`, and `Audit Log`), including **Supplier Portal**, **CMS & Public Menu**, and **Google Gemini AI** forecast flows.
+
+## [Docs/DFD: Updated Level 0 Context Data Flow Diagram - 2026-11-12]
+- **Created & Refined Updated Level 0 Data Flow Diagram ([`CofTea_DFD_Level0.svg`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/docs/diagrams/CofTea_DFD_Level0.svg) & [`CofTea_DFD_Level0.png`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/docs/diagrams/CofTea_DFD_Level0.png))**:
+  - Updated external entities and data flows around Process `0` (`Cof/Tea Cafe Inventory Management with POS System`) to reflect current system capabilities: direct **Customer** public CMS menu board interaction, **Supplier** (Supplier Portal PO negotiation & catalog pricing), **Google Gemini AI** (generic `Historical Sales & Forecast Request` / `Demand Forecast Results` flows so forecast model details stay flexible), **Staff / Cashier** (POS ongoing holds, discounts, Cash/GCash, wastage, real-time stock alerts), and **Admin / Owner** (RBAC/Custom roles, unit-converted PO receiving, CMS, 4-module Reports, Receipt Journal, Audit & Owner-only Transaction Logs).
+
 ## [Docs/UML: Updated System UML Use Case Diagram - 2026-11-12]
 - **Created Updated UML Use Case Diagram ([`CofTea_UML_UseCase_Diagram.svg`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/docs/diagrams/CofTea_UML_UseCase_Diagram.svg) & [`CofTea_UML_UseCase_Diagram.png`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/docs/diagrams/CofTea_UML_UseCase_Diagram.png))**:
   - Updated actors to match current RBAC & external integrations: **Customer**, **Staff (Cashier / Barista)**, **Supplier**, **Admin**, **Owner** (with generalization to Admin), and **Google Gemini AI** (external forecast API).

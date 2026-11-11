@@ -4,7 +4,8 @@ import { invalidateAnalyticsCache } from "../routes/analytics.js";
 
 export const getIngredients = async (req, res) => {
   try {
-    const data = await inventoryService.getIngredients();
+    const includeArchived = req.query.include_archived === "true";
+    const data = await inventoryService.getIngredients({ includeArchived });
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });

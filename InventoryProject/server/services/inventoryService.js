@@ -1,11 +1,15 @@
 import { supabase } from "../config/supabaseClient.js";
 
-export const getIngredients = async () => {
-  const { data, error } = await supabase
+export const getIngredients = async ({ includeArchived = false } = {}) => {
+  let query = supabase
     .from("ingredients")
-    .select("*")
-    .neq("is_archived", true)
-    .order("name");
+    .select("*");
+
+  if (!includeArchived) {
+    query = query.neq("is_archived", true);
+  }
+
+  const { data, error } = await query.order("name");
 
   if (error) throw error;
   return data;

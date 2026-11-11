@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 1140" width="1100" height="1140" style="font-family: 'Segoe UI', Arial, Helvetica, sans-serif; background: #ffffff;">
+  <defs>
+    <marker id="arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="8.5" markerHeight="8.5" orient="auto">
+      <path d="M 1 2 L 11 6 L 1 10 z" fill="#18181b" />
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1100" height="1140" fill="#ffffff" />
+  <rect x="24" y="20" width="1052" height="1100" rx="10" fill="#ffffff" stroke="#d4d4d8" stroke-width="1.5" />
+
+  <!-- Title -->
+  <text x="550" y="62" text-anchor="middle" font-size="24" font-weight="800" fill="#18181b">CUSTOMER FLOWCHART</text>
+  <text x="550" y="88" text-anchor="middle" font-size="14.5" font-weight="600" fill="#52525b">Cof/Tea Cafe — Public Menu Browsing &amp; Counter Ordering Flow</text>
+  <line x1="60" y1="106" x2="1040" y2="106" stroke="#e4e4e7" stroke-width="1.2" />
+
+  <!-- Connectors -->
+  <line x1="550" y1="184" x2="550" y2="216" stroke="#18181b" stroke-width="1.8" marker-end="url(#arrow)" />
+  <line x1="550" y1="278" x2="550" y2="310" stroke="#18181b" stroke-width="1.8" marker-end="url(#arrow)" />
+  <line x1="550" y1="372" x2="550" y2="404" stroke="#18181b" stroke-width="1.8" marker-end="url(#arrow)" />
+  <line x1="550" y1="466" x2="550" y2="498" stroke="#18181b" stroke-width="1.8" marker-end="url(#arrow)" />
+
+  <!-- Decision 1: Place Order? -->
+  <!-- Yes (down) -->
+  <line x1="550" y1="606" x2="550" y2="646" stroke="#18181b" stroke-width="1.8" marker-end="url(#arrow)" />
+  <rect x="558" y="614" width="34" height="18" rx="4" fill="#ffffff" />
+  <text x="575" y="627" text-anchor="middle" font-size="12" font-weight="700" fill="#15803d">Yes</text>
+
+  <!-- No (right -> straight to End) -->
+  <polyline points="670,554 920,554 920,1077 634,1077" fill="none" stroke="#18181b" stroke-width="1.8" marker-end="url(#arrow)" />
+  <rect x="755" y="542" width="32" height="18" rx="4" fill="#ffffff" />
+  <text x="771" y="555" text-anchor="middle" font-size="12" font-weight="700" fill="#b91c1c">No</text>
+
+  <!-- After Order Details -> Discount Decision -->
+  <line x1="550" y1="712" x2="550" y2="744" stroke="#18181b" stroke-width="1.8" marker-end="url(#arrow)" />
+
+  <!-- Decision 2: Discount? -->
+  <!-- Yes (left branch) -->
+  <polyline points="430,798 220,798 220,836" fill="none" stroke="#18181b" stroke-width="1.8" marker-end="url(#arrow)" />
+  <rect x="305" y="786" width="34" height="18" rx="4" fill="#ffffff" />
+  <text x="322" y="799" text-anchor="middle" font-size="12" font-weight="700" fill="#15803d">Yes</text>
+  <polyline points="220,900 220,926 378,926" fill="none" stroke="#18181b" stroke-width="1.8" marker-end="url(#arrow)" />
+
+  <!-- No (straight down to Payment) -->
+  <line x1="550" y1="850" x2="550" y2="890" stroke="#18181b" stroke-width="1.8" marker-end="url(#arrow)" />
+  <rect x="558" y="860" width="32" height="18" rx="4" fill="#ffffff" />
+  <text x="574" y="873" text-anchor="middle" font-size="12" font-weight="700" fill="#b91c1c">No</text>
+
+  <!-- Wait: adjust spacing so Receipt -> End has clean arrow! Let's inspect y values carefully:
+       Payment y=894..954, Receipt y=986..1046? No, End is at 1018..1068, let's adjust Receipt/End -->
+
+  <!-- Shapes -->
+  <!-- Start -->
+  <rect x="470" y="132" width="160" height="52" rx="26" fill="#18181b" />
+  <text x="550" y="164" text-anchor="middle" font-size="15.5" font-weight="700" fill="#ffffff">START</text>
+
+  <!-- Visit Landing Page -->
+  <rect x="370" y="220" width="360" height="58" rx="6" fill="#f8fafc" stroke="#18181b" stroke-width="2" />
+  <text x="550" y="246" text-anchor="middle" font-size="14" font-weight="700" fill="#18181b">Visit Public Landing Page (/)</text>
+  <text x="550" y="265" text-anchor="middle" font-size="12" fill="#52525b">Loaded via CMS &amp; Public Menu API</text>
+
+  <!-- View Hero, Promos, Location (Parallelogram I/O) -->
+  <polygon points="365,314 760,314 735,372 340,372" fill="#ffffff" stroke="#18181b" stroke-width="2" />
+  <text x="550" y="340" text-anchor="middle" font-size="13.5" font-weight="700" fill="#18181b">View Promotions, Location &amp; Socials</text>
+  <text x="550" y="358" text-anchor="middle" font-size="11.5" fill="#52525b">Live store details &amp; featured slides</text>
+
+  <!-- Browse Menu Board -->
+  <rect x="370" y="408" width="360" height="58" rx="6" fill="#f8fafc" stroke="#18181b" stroke-width="2" />
+  <text x="550" y="434" text-anchor="middle" font-size="14" font-weight="700" fill="#18181b">Browse Menu Board &amp; Filter Categories</text>
+  <text x="550" y="453" text-anchor="middle" font-size="12" fill="#52525b">View cup sizes (12oz/16oz/22oz) &amp; live prices</text>
+
+  <!-- Decision 1 -->
+  <polygon points="550,502 670,554 550,606 430,554" fill="#fffbeb" stroke="#18181b" stroke-width="2" />
+  <text x="550" y="550" text-anchor="middle" font-size="13" font-weight="700" fill="#18181b">Order at</text>
+  <text x="550" y="567" text-anchor="middle" font-size="13" font-weight="700" fill="#18181b">Counter?</text>
+
+  <!-- Provide Order Details (Parallelogram) -->
+  <polygon points="365,650 760,650 735,712 340,712" fill="#ffffff" stroke="#18181b" stroke-width="2" />
+  <text x="550" y="677" text-anchor="middle" font-size="13.5" font-weight="700" fill="#18181b">Give Order Details to Cashier</text>
+  <text x="550" y="695" text-anchor="middle" font-size="11.5" fill="#52525b">Product, cup size, add-ons &amp; quantity</text>
+
+  <!-- Decision 2: Discount -->
+  <polygon points="550,748 670,798 550,850 430,798" fill="#fffbeb" stroke="#18181b" stroke-width="2" />
+  <text x="550" y="794" text-anchor="middle" font-size="12.5" font-weight="700" fill="#18181b">Eligible for</text>
+  <text x="550" y="811" text-anchor="middle" font-size="12.5" font-weight="700" fill="#18181b">Discount?</text>
+
+  <!-- Present ID (Left Parallelogram) -->
+  <polygon points="95,840 365,840 345,900 75,900" fill="#ffffff" stroke="#18181b" stroke-width="2" />
+  <text x="220" y="866" text-anchor="middle" font-size="12.5" font-weight="700" fill="#18181b">Present Valid ID / Promo</text>
+  <text x="220" y="883" text-anchor="middle" font-size="11" fill="#52525b">Senior / PWD 20%, Student 10%</text>
+
+  <!-- Pay via Cash or GCash -->
+  <polygon points="395,894 730,894 705,956 370,956" fill="#ffffff" stroke="#18181b" stroke-width="2" />
+  <text x="550" y="921" text-anchor="middle" font-size="13.5" font-weight="700" fill="#18181b">Pay via Cash or GCash</text>
+  <text x="550" y="939" text-anchor="middle" font-size="11.5" fill="#52525b">Provide payment / GCash reference #</text>
+
+  <!-- Receive Receipt & Order (Wait: put Receipt at 978..1026 and End at 1052..1100? Let's shift up slightly? No, put Receipt at 978..1028 -> wait arrow from 956 to 978 is 22px, then End at 1052..1102!) -->
+  <!-- Wait: let's adjust Receipt & End positions cleanly without crowding: move Decision 1..Payment slightly or put End at 1056..1106 -->
+  <polygon points="395,976 730,976 705,1026 370,1026" fill="#ffffff" stroke="#18181b" stroke-width="2" />
+  <text x="550" y="998" text-anchor="middle" font-size="13" font-weight="700" fill="#18181b">Receive Receipt &amp; Change</text>
+  <text x="550" y="1015" text-anchor="middle" font-size="11" fill="#52525b">Printed / digital receipt &amp; prepared order</text>
+
+  <!-- Arrow Payment -> Receipt and Receipt -> End -->
+  <line x1="550" y1="956" x2="550" y2="972" stroke="#18181b" stroke-width="1.8" marker-end="url(#arrow)" />
+  <line x1="550" y1="1026" x2="550" y2="1048" stroke="#18181b" stroke-width="1.8" marker-end="url(#arrow)" />
+
+  <!-- End (shifted to y=1052..1102; also update No branch endpoint to 634, 1077!) -->
+  <rect x="470" y="1052" width="160" height="50" rx="25" fill="#18181b" />
+  <text x="550" y="1083" text-anchor="middle" font-size="15.5" font-weight="700" fill="#ffffff">END</text>
+
+  <!-- Fix No-branch arrow to enter End cleanly at y=1077 (draw white patch over old y=1044 line? Better: fix line directly!) -->
+</svg>

@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1320 1160" width="1320" height="1160" style="font-family: 'Segoe UI', Arial, Helvetica, sans-serif; background: #ffffff;">
+  <defs>
+    <marker id="arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="8.5" markerHeight="8.5" orient="auto">
+      <path d="M 1 2 L 11 6 L 1 10 z" fill="#18181b" />
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1320" height="1160" fill="#ffffff" />
+  <rect x="24" y="20" width="1272" height="1120" rx="10" fill="#ffffff" stroke="#d4d4d8" stroke-width="1.5" />
+
+  <!-- Title -->
+  <text x="660" y="62" text-anchor="middle" font-size="25" font-weight="800" fill="#18181b">SUPPLIER FLOWCHART</text>
+  <text x="660" y="88" text-anchor="middle" font-size="14.5" font-weight="600" fill="#52525b">Cof/Tea Cafe — Supplier Portal Purchase Order Response &amp; Catalog Management</text>
+  <line x1="60" y1="106" x2="1260" y2="106" stroke="#e4e4e7" stroke-width="1.2" />
+
+  <!-- Connectors -->
+  <line x1="660" y1="176" x2="660" y2="206" stroke="#18181b" stroke-width="1.8" marker-end="url(#arrow)" />
+  <line x1="660" y1="268" x2="660" y2="296" stroke="#18181b" stroke-width="1.8" marker-end="url(#arrow)" />
+
+  <!-- Login Failed -->
+  <line x1="785" y1="348" x2="926" y2="348" stroke="#18181b" stroke-width="1.8" marker-end="url(#arrow)" />
+  <rect x="830" y="336" width="32" height="18" rx="4" fill="#ffffff" />
+  <text x="846" y="349" text-anchor="middle" font-size="12" font-weight="700" fill="#b91c1c">No</text>
+  <polyline points="1080,316 1080,238 855,238" fill="none" stroke="#18181b" stroke-width="1.8" marker-end="url(#arrow)" />
+
+  <!-- Login Success -->
+  <line x1="660" y1="396" x2="660" y2="428" stroke="#18181b" stroke-width="1.8" marker-end="url(#arrow)" />
+  <rect x="668" y="402" width="34" height="18" rx="4" fill="#ffffff" />
+  <text x="685" y="415" text-anchor="middle" font-size="12" font-weight="700" fill="#15803d">Yes</text>
+
+  <line x1="660" y1="484" x2="660" y2="514" stroke="#18181b" stroke-width="1.8" marker-end="url(#arrow)" />
+
+  <!-- Portal View Split -->
+  <polyline points="535,564 360,564 360,614" fill="none" stroke="#18181b" stroke-width="1.8" marker-end="url(#arrow)" />
+  <rect x="372" y="552" width="136" height="18" rx="4" fill="#ffffff" />
+  <text x="440" y="565" text-anchor="middle" font-size="12" font-weight="700" fill="#18181b">Incoming Orders</text>
+
+  <polyline points="785,564 980,564 980,614" fill="none" stroke="#18181b" stroke-width="1.8" marker-end="url(#arrow)" />
+  <rect x="822" y="552" width="136" height="18" rx="4" fill="#ffffff" />
+  <text x="890" y="565" text-anchor="middle" font-size="12" font-weight="700" fill="#18181b">Supplier Catalog</text>
+
+  <!-- Orders Branch -->
+  <line x1="360" y1="678" x2="360" y2="708" stroke="#18181b" stroke-width="1.8" marker-end="url(#arrow)" />
+  <line x1="360" y1="808" x2="360" y2="854" stroke="#18181b" stroke-width="1.8" marker-end="url(#arrow)" />
+  <rect x="368" y="818" width="90" height="18" rx="4" fill="#ffffff" />
+  <text x="413" y="831" text-anchor="middle" font-size="11.5" font-weight="700" fill="#15803d">Confirm / Propose</text>
+
+  <polyline points="235,758 140,758 140,854" fill="none" stroke="#18181b" stroke-width="1.6" marker-end="url(#arrow)" />
+  <rect x="135" y="746" width="98" height="18" rx="4" fill="#ffffff" />
+  <text x="184" y="759" text-anchor="middle" font-size="11" font-weight="700" fill="#b91c1c">Postpone/Decline</text>
+  <polyline points="140,916 140,972 486,972" fill="none" stroke="#18181b" stroke-width="1.6" marker-end="url(#arrow)" />
+
+  <polyline points="360,916 360,972 486,972" fill="none" stroke="#18181b" stroke-width="1.8" marker-end="url(#arrow)" />
+
+  <!-- Catalog Branch -->
+  <line x1="980" y1="678" x2="980" y2="726" stroke="#18181b" stroke-width="1.8" marker-end="url(#arrow)" />
+  <polyline points="980,788 980,972 834,972" fill="none" stroke="#18181b" stroke-width="1.8" marker-end="url(#arrow)" />
+
+  <!-- Sign out -> End -->
+  <line x1="660" y1="1002" x2="660" y2="1034" stroke="#18181b" stroke-width="1.8" marker-end="url(#arrow)" />
+
+  <!-- SHAPES -->
+  <rect x="580" y="126" width="160" height="50" rx="25" fill="#18181b" />
+  <text x="660" y="157" text-anchor="middle" font-size="15" font-weight="700" fill="#ffffff">START</text>
+
+  <polygon points="485,210 860,210 835,268 460,268" fill="#ffffff" stroke="#18181b" stroke-width="2" />
+  <text x="660" y="236" text-anchor="middle" font-size="13.5" font-weight="700" fill="#18181b">Enter Supplier Credentials</text>
+  <text x="660" y="254" text-anchor="middle" font-size="11.5" fill="#52525b">Login Page (/coftealoginpageforstaff)</text>
+
+  <polygon points="660,300 785,348 660,396 535,348" fill="#fffbeb" stroke="#18181b" stroke-width="2" />
+  <text x="660" y="344" text-anchor="middle" font-size="12.5" font-weight="700" fill="#18181b">Valid &amp;</text>
+  <text x="660" y="361" text-anchor="middle" font-size="12.5" font-weight="700" fill="#18181b">Active?</text>
+
+  <rect x="930" y="316" width="300" height="60" rx="6" fill="#fef2f2" stroke="#b91c1c" stroke-width="1.8" />
+  <text x="1080" y="342" text-anchor="middle" font-size="13" font-weight="700" fill="#991b1b">Display Error / Lockout</text>
+  <text x="1080" y="360" text-anchor="middle" font-size="11.5" fill="#991b1b">5-min lock after 3 failed attempts</text>
+
+  <rect x="480" y="432" width="360" height="52" rx="6" fill="#f8fafc" stroke="#18181b" stroke-width="2" />
+  <text x="660" y="455" text-anchor="middle" font-size="13.5" font-weight="700" fill="#18181b">Open Supplier Portal</text>
+  <text x="660" y="473" text-anchor="middle" font-size="11.5" fill="#52525b">Shows only POs addressed to this supplier</text>
+
+  <polygon points="660,518 785,564 660,610 535,564" fill="#fffbeb" stroke="#18181b" stroke-width="2" />
+  <text x="660" y="560" text-anchor="middle" font-size="13" font-weight="700" fill="#18181b">Select</text>
+  <text x="660" y="577" text-anchor="middle" font-size="13" font-weight="700" fill="#18181b">Portal Tab</text>
+
+  <!-- Orders Branch Boxes -->
+  <rect x="190" y="618" width="340" height="60" rx="6" fill="#f8fafc" stroke="#18181b" stroke-width="2" />
+  <text x="360" y="644" text-anchor="middle" font-size="13.5" font-weight="700" fill="#18181b">Filter &amp; Inspect Purchase Orders</text>
+  <text x="360" y="662" text-anchor="middle" font-size="11.5" fill="#52525b">All, Pending, Proposals, Active, Completed</text>
+
+  <polygon points="360,710 485,758 360,806 235,758" fill="#fffbeb" stroke="#18181b" stroke-width="2" />
+  <text x="360" y="754" text-anchor="middle" font-size="12.5" font-weight="700" fill="#18181b">Choose PO</text>
+  <text x="360" y="771" text-anchor="middle" font-size="12.5" font-weight="700" fill="#18181b">Response</text>
+
+  <polygon points="62,858 230,858 214,916 46,916" fill="#ffffff" stroke="#18181b" stroke-width="1.8" />
+  <text x="140" y="883" text-anchor="middle" font-size="12" font-weight="700" fill="#18181b">Enter New Date</text>
+  <text x="140" y="900" text-anchor="middle" font-size="11" fill="#52525b">or Decline Reason</text>
+
+  <rect x="250" y="858" width="230" height="58" rx="6" fill="#f8fafc" stroke="#18181b" stroke-width="2" />
+  <text x="365" y="883" text-anchor="middle" font-size="12.5" font-weight="700" fill="#18181b">Confirm PO or Send</text>
+  <text x="365" y="901" text-anchor="middle" font-size="11.5" fill="#52525b">Price / Qty Proposal</text>
+
+  <!-- Catalog Branch Boxes -->
+  <polygon points="825,618 1155,618 1135,678 805,678" fill="#ffffff" stroke="#18181b" stroke-width="2" />
+  <text x="980" y="644" text-anchor="middle" font-size="13" font-weight="700" fill="#18181b">Edit Catalog Items &amp; Prices</text>
+  <text x="980" y="662" text-anchor="middle" font-size="11" fill="#52525b">Add or update offered raw materials</text>
+
+  <rect x="810" y="730" width="340" height="58" rx="6" fill="#f8fafc" stroke="#18181b" stroke-width="2" />
+  <text x="980" y="755" text-anchor="middle" font-size="13.5" font-weight="700" fill="#18181b">Save Catalog &amp; Notify Cafe</text>
+  <text x="980" y="773" text-anchor="middle" font-size="11.5" fill="#52525b">Real-time update sent to Admin/Owner</text>
+
+  <!-- Sign Out & End -->
+  <rect x="490" y="942" width="340" height="60" rx="6" fill="#f8fafc" stroke="#18181b" stroke-width="2" />
+  <text x="660" y="968" text-anchor="middle" font-size="13.5" font-weight="700" fill="#18181b">Sign Out / Auto-Logout</text>
+  <text x="660" y="986" text-anchor="middle" font-size="11.5" fill="#52525b">2-hour inactivity timeout or account deactivation</text>
+
+  <rect x="580" y="1038" width="160" height="50" rx="25" fill="#18181b" />
+  <text x="660" y="1069" text-anchor="middle" font-size="15" font-weight="700" fill="#ffffff">END</text>
+</svg>

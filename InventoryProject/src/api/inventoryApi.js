@@ -3,8 +3,9 @@ import { getCurrentUser } from '../utils/authUtils.js';
 
 const getUserId = () => getCurrentUser()?.id || null;
 
-export const getIngredients = async () => {
-  return apiCall('/inventory/ingredients', { method: 'GET' });
+export const getIngredients = async ({ includeArchived = false } = {}) => {
+  const query = includeArchived ? '?include_archived=true' : '';
+  return apiCall(`/inventory/ingredients${query}`, { method: 'GET' });
 };
 
 export const getIngredient = async (id) => {

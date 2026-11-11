@@ -46,7 +46,7 @@ export const useManageRawMaterials = () => {
   const fetchIngredients = async () => {
     try {
       setLoading(true);
-      const data = await getIngredients();
+      const data = await getIngredients({ includeArchived: true });
       setIngredients(data || []);
     } catch (err) {
       console.error('Failed to load ingredients:', err);
