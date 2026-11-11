@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Reports: Unified Minimalist UI & Auto-Load Default Data - 2026-11-11]
+- **Automatic Default Report Loading**:
+  - Implemented auto-fetching on initial mount across all 4 report tabs:
+    - **Sales Performance** auto-loads Today's sales data immediately on tab open.
+    - **Inventory Status** auto-loads the warehouse stock snapshot immediately on tab open.
+    - **Stock Movement** auto-loads This Week's inflow, outflow, and wastage immediately on tab open.
+    - **Wastage & Loss** auto-loads This Month's wastage write-offs immediately on tab open.
+  - No more initial blank/empty screens on tab opening.
+- **On-Demand Compilation on Filter Change**:
+  - When the user changes the period or custom date range, the report marks as uncompiled and displays an informative prompt: `"Period Selection Changed: [Period]. Click Generate Report to compile analytics."`
+  - Clicking **Generate Report** compiles and displays the analytics for the updated selection.
+- **Complete Visual & UI Harmonization Across All 4 Tabs**:
+  - **Stock Movement** ([`StockMovementReport.jsx`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/reports/StockMovementReport.jsx)): Replaced heavy uppercase buttons, oversized inputs, and colored card borders with the minimalist zinc theme (`border-zinc-200/80`, `shadow-2xs`, sentence-case `Export CSV`, `Generate Report`, `Print`, and mono KPI cards).
+  - **Wastage & Loss** ([`WastageReport.jsx`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/reports/WastageReport.jsx)): Replaced raw date inputs with the standard `Period` dropdown (`Today`, `This Week`, `This Month`, `Custom Date`) matching `SalesPerformanceReport`, upgraded KPI cards to clean monochrome cards, and styled reason badges with subtle neutral borders.
+
+
 ## [UX: Browser Refresh Tab Persistence & URL Hash Routing - 2026-11-11]
 - **Main Dashboard Tab Persistence**:
   - Implemented dual-layer persistence (URL hash `#TabName` + `localStorage`) in [`Dashboard.jsx`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/dashboard/Dashboard.jsx) so refreshing the browser retains the exact active page (e.g. `Reports`, `Products`, `POS`, `PurchaseOrders`, `Forecasting`).

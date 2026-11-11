@@ -300,6 +300,11 @@ const StockMovementReport = () => {
     }
   }, [period]);
 
+  // Auto-fetch default report on initial mount
+  useEffect(() => {
+    fetchReport();
+  }, [fetchReport]);
+
   // Filter movements
   const filteredMovements = useMemo(() => {
     return movements.filter(m => {
@@ -547,30 +552,30 @@ const StockMovementReport = () => {
   return (
     <div className="flex flex-col gap-6">
       {/* Controls Bar */}
-      <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-5 sm:p-6 flex flex-col lg:flex-row justify-between gap-5">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-3">
-            <span className="text-xs sm:text-sm font-black text-gray-700 uppercase tracking-wide">Period</span>
+      <div className="bg-white border border-zinc-200/80 shadow-2xs rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Period</span>
             <select
-              className="px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm sm:text-base font-bold bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-black shadow-sm cursor-pointer"
+              className="bg-zinc-50 border border-zinc-200 text-zinc-800 text-xs sm:text-sm font-semibold rounded-lg px-3 py-1.5 focus:outline-none focus:border-zinc-400 cursor-pointer"
               value={period}
               onChange={e => { setPeriod(e.target.value); setFetched(false); }}
             >
-              <option value="daily">Today</option>
+              <option value="daily">Today (Daily)</option>
               <option value="weekly">This Week</option>
               <option value="monthly">This Month</option>
             </select>
           </div>
 
           {fetched && (
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-              <div className="relative w-full sm:w-64">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative w-full sm:w-60">
                 <svg className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
                 </svg>
                 <input
                   type="text"
-                  className="w-full pl-9 pr-7 py-2 bg-zinc-50/70 border border-zinc-200 rounded-lg text-xs sm:text-sm text-zinc-800 placeholder-zinc-400 focus:outline-none focus:bg-white focus:border-zinc-400 transition-colors"
+                  className="w-full pl-9 pr-7 py-1.5 bg-zinc-50 border border-zinc-200 rounded-lg text-xs sm:text-sm text-zinc-800 placeholder-zinc-400 focus:outline-none focus:bg-white focus:border-zinc-400 transition-colors"
                   placeholder="Search item, reason, staff..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
@@ -588,35 +593,39 @@ const StockMovementReport = () => {
               </div>
 
               {activeView === 'movements' && (
-                <div className="flex items-center gap-1.5 bg-gray-100 p-1 rounded-lg border border-gray-200">
+                <div className="flex items-center gap-1 bg-zinc-100 p-0.5 rounded-lg border border-zinc-200">
                   <button
+                    type="button"
                     onClick={() => setMovementTypeFilter('ALL')}
-                    className={`px-3 py-1.5 rounded-md text-xs font-black uppercase tracking-wide transition-all cursor-pointer ${
-                      movementTypeFilter === 'ALL' ? 'bg-white text-gray-950 shadow-xs' : 'text-gray-600 hover:text-gray-950'
+                    className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                      movementTypeFilter === 'ALL' ? 'bg-white text-zinc-900 shadow-2xs font-bold' : 'text-zinc-600 hover:text-zinc-900'
                     }`}
                   >
                     All ({movements.length})
                   </button>
                   <button
+                    type="button"
                     onClick={() => setMovementTypeFilter('IN')}
-                    className={`px-3 py-1.5 rounded-md text-xs font-black uppercase tracking-wide transition-all cursor-pointer ${
-                      movementTypeFilter === 'IN' ? 'bg-emerald-600 text-white shadow-xs' : 'text-emerald-800 hover:bg-emerald-50'
+                    className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                      movementTypeFilter === 'IN' ? 'bg-zinc-900 text-white shadow-2xs font-bold' : 'text-zinc-600 hover:text-zinc-900'
                     }`}
                   >
                     Inflow
                   </button>
                   <button
+                    type="button"
                     onClick={() => setMovementTypeFilter('OUT')}
-                    className={`px-3 py-1.5 rounded-md text-xs font-black uppercase tracking-wide transition-all cursor-pointer ${
-                      movementTypeFilter === 'OUT' ? 'bg-red-600 text-white shadow-xs' : 'text-red-700 hover:bg-red-50'
+                    className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                      movementTypeFilter === 'OUT' ? 'bg-zinc-900 text-white shadow-2xs font-bold' : 'text-zinc-600 hover:text-zinc-900'
                     }`}
                   >
                     Outflow
                   </button>
                   <button
+                    type="button"
                     onClick={() => setMovementTypeFilter('WASTAGE')}
-                    className={`px-3 py-1.5 rounded-md text-xs font-black uppercase tracking-wide transition-all cursor-pointer ${
-                      movementTypeFilter === 'WASTAGE' ? 'bg-amber-600 text-white shadow-xs' : 'text-amber-800 hover:bg-amber-50'
+                    className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                      movementTypeFilter === 'WASTAGE' ? 'bg-zinc-900 text-white shadow-2xs font-bold' : 'text-zinc-600 hover:text-zinc-900'
                     }`}
                   >
                     Wastage
@@ -626,7 +635,7 @@ const StockMovementReport = () => {
 
               {activeView === 'snapshot' && (
                 <select
-                  className="px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm sm:text-base font-bold bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-black shadow-sm cursor-pointer"
+                  className="bg-zinc-50 border border-zinc-200 text-zinc-800 text-xs sm:text-sm font-semibold rounded-lg px-3 py-1.5 focus:outline-none focus:border-zinc-400 cursor-pointer"
                   value={stockStatusFilter}
                   onChange={e => setStockStatusFilter(e.target.value)}
                 >
@@ -640,55 +649,45 @@ const StockMovementReport = () => {
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <button 
-            className="px-4 py-2.5 bg-white border border-gray-300 text-gray-800 rounded-lg text-xs sm:text-sm font-black uppercase tracking-wide hover:bg-gray-100 transition-colors disabled:opacity-50 shadow-xs cursor-pointer flex items-center gap-2" 
+            type="button"
+            className="px-3.5 py-1.5 bg-white border border-zinc-200 text-zinc-700 rounded-lg text-xs sm:text-sm font-semibold hover:bg-zinc-50 transition-colors disabled:opacity-40 cursor-pointer shadow-2xs" 
             onClick={handleExportCSV} 
             disabled={!fetched || loading}
-            title="Download RFC-standard CSV spreadsheet"
+            title="Download CSV spreadsheet"
           >
-            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            <span>Export CSV</span>
+            Export CSV
           </button>
-
           <button 
-            className="px-4 py-2.5 bg-white border border-gray-300 text-gray-800 rounded-lg text-xs sm:text-sm font-black uppercase tracking-wide hover:bg-gray-100 transition-colors disabled:opacity-50 shadow-xs cursor-pointer flex items-center gap-2" 
-            onClick={handlePrint} 
-            disabled={!fetched || loading}
-            title="Print or save as professional PDF"
-          >
-            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-            </svg>
-            <span>Print / PDF</span>
-          </button>
-
-          <button 
-            className="px-5 py-2.5 bg-gray-900 text-white rounded-lg text-xs sm:text-sm font-black uppercase tracking-wide hover:bg-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm cursor-pointer flex items-center gap-2" 
+            type="button"
+            className="px-4 py-1.5 bg-zinc-900 hover:bg-black text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-2xs cursor-pointer" 
             onClick={fetchReport} 
             disabled={loading}
           >
-            <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            <span>{loading ? 'Analyzing...' : fetched ? 'Refresh Data' : 'Generate Report'}</span>
+            {loading ? 'Generating...' : 'Generate Report'}
+          </button>
+          <button 
+            type="button"
+            className="px-3.5 py-1.5 bg-white border border-zinc-200 text-zinc-700 rounded-lg text-xs sm:text-sm font-semibold hover:bg-zinc-50 transition-colors disabled:opacity-40 cursor-pointer shadow-2xs" 
+            onClick={handlePrint} 
+            disabled={!fetched || loading}
+            title="Print or save as PDF"
+          >
+            Print
           </button>
         </div>
       </div>
 
-      {/* Initial Empty State */}
+      {/* Initial / Changed State */}
       {!fetched && !loading && (
-        <div className="p-12 flex flex-col items-center justify-center text-gray-500 bg-white border border-gray-200 border-dashed rounded-xl h-64 text-center">
-          <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3 text-gray-400">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-          </div>
-          <div className="text-base font-bold text-gray-900 mb-1">Stock Movement Analysis</div>
-          <p className="m-0 text-xs sm:text-sm text-gray-500 max-w-sm">
-            Select a period and click <strong className="text-gray-900">Generate Report</strong> to inspect stock inflow, outflow, and wastage.
+        <div className="p-12 flex flex-col items-center justify-center text-zinc-500 bg-white border border-zinc-200/80 border-dashed rounded-2xl h-64 text-center">
+          <svg className="w-12 h-12 mb-3 text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+          <div className="text-base font-bold text-zinc-900 mb-1">Period Selection Changed</div>
+          <p className="m-0 text-xs sm:text-sm text-zinc-500 max-w-sm">
+            Selected period: <strong className="text-zinc-900 font-semibold">{periodLabel}</strong>. Click <strong className="text-zinc-900 font-semibold">Generate Report</strong> to inspect stock inflow, outflow, and wastage.
           </p>
         </div>
       )}
@@ -705,101 +704,63 @@ const StockMovementReport = () => {
       {fetched && !loading && (
         <div className="flex flex-col gap-6 animate-in fade-in duration-300">
           {/* Executive KPI Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-5">
-            {/* Card 1: Inflow */}
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-l-4 border-l-emerald-600 flex flex-col justify-between">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black text-gray-600 uppercase tracking-wide">Stock Inflow (+)</span>
-                <InfoTip text="Total inventory received from Purchase Orders and direct restocks." />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="bg-white border border-zinc-200 rounded-xl p-4 shadow-2xs">
+              <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Stock Inflow (+)</div>
+              <div className="text-2xl font-bold text-zinc-900 tabular-nums mt-1 font-mono">
+                +{totalStockIn.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
               </div>
-              <div className="mt-3">
-                <div className="text-2xl sm:text-3xl font-black text-emerald-700 tracking-tight font-mono">
-                  +{totalStockIn.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-                </div>
-                <div className="text-xs sm:text-sm font-semibold text-gray-500 mt-1">
-                  {movements.filter(m => m.movementType === 'IN').length} receipts
-                </div>
-              </div>
+              <div className="text-xs text-zinc-400 mt-1">{movements.filter(m => m.movementType === 'IN').length} receipts</div>
             </div>
 
-            {/* Card 2: Outflow */}
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-l-4 border-l-red-600 flex flex-col justify-between">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black text-gray-600 uppercase tracking-wide">Stock Outflow (-)</span>
-                <InfoTip text="Total inventory deducted through completed POS customer sales." />
+            <div className="bg-white border border-zinc-200 rounded-xl p-4 shadow-2xs">
+              <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Stock Outflow (-)</div>
+              <div className="text-2xl font-bold text-zinc-900 tabular-nums mt-1 font-mono">
+                -{totalStockOut.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
               </div>
-              <div className="mt-3">
-                <div className="text-2xl sm:text-3xl font-black text-red-700 tracking-tight font-mono">
-                  -{totalStockOut.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-                </div>
-                <div className="text-xs sm:text-sm font-semibold text-gray-500 mt-1">
-                  {movements.filter(m => m.movementType === 'OUT').length} sales deductions
-                </div>
-              </div>
+              <div className="text-xs text-zinc-400 mt-1">{movements.filter(m => m.movementType === 'OUT').length} deductions</div>
             </div>
 
-            {/* Card 3: Wastage */}
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-l-4 border-l-amber-500 flex flex-col justify-between">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black text-gray-600 uppercase tracking-wide">Wastage / Loss (-)</span>
-                <InfoTip text="Reported inventory deductions from spoilage, breakage, or expired ingredients." />
+            <div className="bg-white border border-zinc-200 rounded-xl p-4 shadow-2xs">
+              <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Wastage / Loss (-)</div>
+              <div className="text-2xl font-bold text-zinc-900 tabular-nums mt-1 font-mono">
+                -{totalWastage.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
               </div>
-              <div className="mt-3">
-                <div className="text-2xl sm:text-3xl font-black text-amber-700 tracking-tight font-mono">
-                  -{totalWastage.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-                </div>
-                <div className="text-xs sm:text-sm font-semibold text-gray-500 mt-1">
-                  {movements.filter(m => m.movementType === 'WASTAGE').length} wastage logs
-                </div>
-              </div>
+              <div className="text-xs text-zinc-400 mt-1">{movements.filter(m => m.movementType === 'WASTAGE').length} write-offs</div>
             </div>
 
-            {/* Card 4: Net Movement */}
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-l-4 border-l-gray-900 flex flex-col justify-between">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black text-gray-600 uppercase tracking-wide">Net Movement</span>
-                <InfoTip text="Net change in stock volume (Inflow - Outflow - Wastage)." />
+            <div className="bg-white border border-zinc-200 rounded-xl p-4 shadow-2xs">
+              <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Net Movement</div>
+              <div className="text-2xl font-bold text-zinc-900 tabular-nums mt-1 font-mono">
+                {netMovement >= 0 ? `+${netMovement.toFixed(2)}` : netMovement.toFixed(2)}
               </div>
-              <div className="mt-3">
-                <div className={`text-2xl sm:text-3xl font-black tracking-tight font-mono ${netMovement >= 0 ? 'text-gray-950' : 'text-red-700'}`}>
-                  {netMovement >= 0 ? `+${netMovement.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}` : netMovement.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-                </div>
-                <div className="text-xs sm:text-sm font-semibold text-gray-500 mt-1">
-                  volume delta
-                </div>
-              </div>
+              <div className="text-xs text-zinc-400 mt-1">volume delta</div>
             </div>
 
-            {/* Card 5: Low Stock */}
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-l-4 border-l-red-500 flex flex-col justify-between">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black text-gray-600 uppercase tracking-wide">Restock Attention</span>
-                <InfoTip text="Tracked items currently at low stock or completely depleted." />
+            <div className="bg-white border border-zinc-200 rounded-xl p-4 shadow-2xs">
+              <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Restock Attention</div>
+              <div className="text-2xl font-bold text-red-600 tabular-nums mt-1 font-mono">
+                {criticalCount}
               </div>
-              <div className="mt-3">
-                <div className="text-2xl sm:text-3xl font-black text-red-600 tracking-tight">
-                  {criticalCount}
-                </div>
-                <div className="text-xs sm:text-sm font-bold text-red-700 mt-1">
-                  items need restock
-                </div>
-              </div>
+              <div className="text-xs text-zinc-400 mt-1">items need restock</div>
             </div>
           </div>
 
           {/* Section View Switcher */}
-          <div className="flex items-center gap-2 border-b border-gray-200 pb-2">
+          <div className="flex items-center gap-2">
             <button
-              className={`px-5 py-2.5 rounded-lg text-xs sm:text-sm font-black uppercase tracking-wide transition-all cursor-pointer ${
-                activeView === 'movements' ? 'bg-gray-900 text-white shadow-sm' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-100'
+              type="button"
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                activeView === 'movements' ? 'bg-zinc-900 text-white shadow-2xs font-bold' : 'bg-zinc-100 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/70'
               }`}
               onClick={() => setActiveView('movements')}
             >
               Stock Movement Log ({filteredMovements.length})
             </button>
             <button
-              className={`px-5 py-2.5 rounded-lg text-xs sm:text-sm font-black uppercase tracking-wide transition-all cursor-pointer ${
-                activeView === 'snapshot' ? 'bg-gray-900 text-white shadow-sm' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-100'
+              type="button"
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                activeView === 'snapshot' ? 'bg-zinc-900 text-white shadow-2xs font-bold' : 'bg-zinc-100 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/70'
               }`}
               onClick={() => setActiveView('snapshot')}
             >

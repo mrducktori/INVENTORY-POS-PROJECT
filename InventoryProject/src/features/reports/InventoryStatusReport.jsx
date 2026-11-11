@@ -69,6 +69,11 @@ const InventoryStatusReport = () => {
     }
   }, []);
 
+  // Auto-fetch default report on initial mount
+  useEffect(() => {
+    fetchReport();
+  }, [fetchReport]);
+
   const stats = useMemo(() => ({
     total: ingredients.length,
     healthy: ingredients.filter(i => getStatus(i.stock_quantity, i.low_stock_alert) === 'healthy').length,

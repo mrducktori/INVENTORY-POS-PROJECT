@@ -1,17 +1,18 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { getWastageReport, getWastageStats } from '../../api/reportsApi';
 import { downloadCSV, printReport } from './reportUtils';
+import { getPeriodDateRange } from '../../utils/dateUtils';
 import { TableSkeleton, StatCardsSkeleton } from '../../components/shared/SkeletonLoader';
 import Pagination from '../../components/shared/Pagination';
 
 // ─── Reason badge colors ──────────────────────────────────────────────────────
 const reasonBadgeStyle = (reason) => {
   const map = {
-    'Expired':   { background: '#ffebee', color: '#c62828', border: '1px solid #c62828' },
-    'Spilled':   { background: '#fff8e1', color: '#e65100', border: '1px solid #e65100' },
-    'Damaged':   { background: '#fff8e1', color: '#e65100', border: '1px solid #e65100' },
-    'Overcooked':{ background: '#f3e5f5', color: '#6a1b9a', border: '1px solid #6a1b9a' },
-    'Other':     { background: '#f5f5f5', color: '#555', border: '1px solid #ccc' },
+    'Expired':   { background: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca' },
+    'Spilled':   { background: '#fffbeb', color: '#b45309', border: '1px solid #fde68a' },
+    'Damaged':   { background: '#fffbeb', color: '#b45309', border: '1px solid #fde68a' },
+    'Overcooked':{ background: '#faf5ff', color: '#7e22ce', border: '1px solid #f3e8ff' },
+    'Other':     { background: '#f4f4f5', color: '#3f3f46', border: '1px solid #e4e4e7' },
   };
   return map[reason] || map['Other'];
 };
@@ -22,8 +23,9 @@ const WastageReport = () => {
   const [stats, setStats]     = useState(null);
   const [loading, setLoading] = useState(false);
   const [fetched, setFetched] = useState(false);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate]     = useState('');
+  const [period, setPeriod]   = useState('monthly');
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd]     = useState('');
   const [reasonFilter, setReasonFilter] = useState('ALL');
   const [search, setSearch]     = useState('');
   const [sortKey, setSortKey]   = useState('created_at');
@@ -33,13 +35,24 @@ const WastageReport = () => {
 
   useEffect(() => {
     setPage(1);
-  }, [reasonFilter, search, sortKey, sortDir, startDate, endDate]);
+  }, [reasonFilter, search, sortKey, sortDir, period, customStart, customEnd]);
 
   const fetchReport = useCallback(async () => {
     setLoading(true);
     try {
+      let start = null;
+      let end = null;
+      if (period === 'custom') {
+        start = customStart ? `${customStart}T00:00:00+08:00` : null;
+        end = customEnd ? `${customEnd}T23:59:59.999+08:00` : null;
+      } else {
+        const range = getPeriodDateRange(period);
+        start = range.startDate;
+        end = range.endDate;
+      }
+
       const [wastageData, statsData] = await Promise.all([
-        getWastageReport(startDate, endDate),
+        getWastageReport(start, end),
         getWastageStats()
       ]);
       setEntries(wastageData || []);
@@ -50,7 +63,12 @@ const WastageReport = () => {
     } finally {
       setLoading(false);
     }
-  }, [startDate, endDate]);
+  }, [period, customStart, customEnd]);
+
+  // Auto-fetch default report on initial mount
+  useEffect(() => {
+    fetchReport();
+  }, [fetchReport]);
 
   const handleSort = (key) => {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -180,7 +198,7 @@ const WastageReport = () => {
   };
 
   const handlePrint = () => {
-    const dateRange = startDate && endDate ? `${startDate} to ${endDate}` : 'All Time';
+    const periodLabel = period === 'daily' ? 'Today' : period === 'weekly' ? 'This Week' : period === 'monthly' ? 'This Month' : (customStart && customEnd ? `${customStart} to ${customEnd}` : 'All Time');
     const tableRows = filtered.map(e => `
       <tr>
         <td style="font-size:10px;color:#4b5563;white-space:nowrap">${new Date(e.created_at).toLocaleString('en-PH')}</td>
@@ -207,7 +225,7 @@ const WastageReport = () => {
             <div class="brand-subtitle">Point of Sale &amp; Inventory Management System</div>
           </div>
           <div class="report-timestamp">
-            <div>Period: <strong>${dateRange}</strong></div>
+            <div>Period: <strong>${periodLabel}</strong></div>
             <div>Generated: <strong>${new Date().toLocaleString('en-PH')}</strong></div>
           </div>
         </div>
@@ -279,35 +297,49 @@ const WastageReport = () => {
     printReport('Wastage & Loss Report', html);
   };
 
+  const periodLabel = period === 'daily' ? 'Today' : period === 'weekly' ? 'This Week' : period === 'monthly' ? 'This Month' : `${customStart} to ${customEnd}`;
+
   return (
     <div className="flex flex-col gap-6">
       {/* Controls */}
-      <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-6 flex flex-col lg:flex-row justify-between gap-6">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-3">
-            <span className="text-sm md:text-base font-bold text-gray-700 uppercase tracking-wider">Start Date</span>
-            <input
-              type="date"
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm md:text-base bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm w-40"
-              value={startDate}
-              onChange={e => { setStartDate(e.target.value); setFetched(false); }}
-            />
+      <div className="bg-white border border-zinc-200/80 shadow-2xs rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Period</span>
+            <select
+              className="bg-zinc-50 border border-zinc-200 text-zinc-800 text-xs sm:text-sm font-semibold rounded-lg px-3 py-1.5 focus:outline-none focus:border-zinc-400 cursor-pointer"
+              value={period}
+              onChange={e => { setPeriod(e.target.value); setFetched(false); }}
+            >
+              <option value="daily">Today (Daily)</option>
+              <option value="weekly">This Week</option>
+              <option value="monthly">This Month</option>
+              <option value="custom">Custom Date</option>
+            </select>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-sm md:text-base font-bold text-gray-700 uppercase tracking-wider">End Date</span>
-            <input
-              type="date"
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm md:text-base bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm w-40"
-              value={endDate}
-              onChange={e => { setEndDate(e.target.value); setFetched(false); }}
-            />
-          </div>
+          {period === 'custom' && (
+            <div className="flex items-center gap-2 bg-zinc-50 border border-zinc-200 rounded-lg px-2.5 py-1 text-xs">
+              <input 
+                type="date" 
+                className="bg-transparent border-none text-xs font-medium text-zinc-800 focus:outline-none p-0 cursor-pointer" 
+                value={customStart} 
+                onChange={e => { setCustomStart(e.target.value); setFetched(false); }} 
+              />
+              <span className="text-zinc-300 font-semibold">—</span>
+              <input 
+                type="date" 
+                className="bg-transparent border-none text-xs font-medium text-zinc-800 focus:outline-none p-0 cursor-pointer" 
+                value={customEnd} 
+                onChange={e => { setCustomEnd(e.target.value); setFetched(false); }} 
+              />
+            </div>
+          )}
           {fetched && (
             <>
-              <div className="flex items-center gap-3">
-                <span className="text-sm md:text-base font-bold text-gray-700 uppercase tracking-wider">Reason</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Reason</span>
                 <select 
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm md:text-base bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
+                  className="bg-zinc-50 border border-zinc-200 text-zinc-800 text-xs sm:text-sm font-semibold rounded-lg px-3 py-1.5 focus:outline-none focus:border-zinc-400 cursor-pointer"
                   value={reasonFilter} 
                   onChange={e => setReasonFilter(e.target.value)}
                 >
@@ -320,7 +352,7 @@ const WastageReport = () => {
                 </svg>
                 <input
                   type="text"
-                  className="w-full pl-9 pr-7 py-2 bg-zinc-50/70 border border-zinc-200 rounded-lg text-xs sm:text-sm text-zinc-800 placeholder-zinc-400 focus:outline-none focus:bg-white focus:border-zinc-400 transition-colors"
+                  className="w-full pl-9 pr-7 py-1.5 bg-zinc-50 border border-zinc-200 rounded-lg text-xs sm:text-sm text-zinc-800 placeholder-zinc-400 focus:outline-none focus:bg-white focus:border-zinc-400 transition-colors"
                   placeholder="Item, reason, staff..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
@@ -339,23 +371,26 @@ const WastageReport = () => {
             </>
           )}
         </div>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <button 
-            className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm md:text-base font-bold uppercase tracking-wider hover:bg-gray-50 transition-colors disabled:opacity-50 shadow-sm" 
+            type="button"
+            className="px-3.5 py-1.5 bg-white border border-zinc-200 text-zinc-700 rounded-lg text-xs sm:text-sm font-semibold hover:bg-zinc-50 transition-colors disabled:opacity-40 cursor-pointer shadow-2xs" 
             onClick={handleExport} 
             disabled={!fetched || loading}
           >
             Export CSV
           </button>
           <button 
-            className="px-5 py-2.5 bg-gray-900 text-white rounded-lg text-sm md:text-base font-bold uppercase tracking-wider hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm" 
+            type="button"
+            className="px-4 py-1.5 bg-zinc-900 hover:bg-black text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-2xs cursor-pointer" 
             onClick={fetchReport} 
-            disabled={loading}
+            disabled={loading || (period === 'custom' && (!customStart || !customEnd))}
           >
-            {loading ? 'Loading...' : fetched ? 'Refresh Data' : 'Generate Report'}
+            {loading ? 'Generating...' : 'Generate Report'}
           </button>
           <button 
-            className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm md:text-base font-bold uppercase tracking-wider hover:bg-gray-50 transition-colors disabled:opacity-50 shadow-sm" 
+            type="button"
+            className="px-3.5 py-1.5 bg-white border border-zinc-200 text-zinc-700 rounded-lg text-xs sm:text-sm font-semibold hover:bg-zinc-50 transition-colors disabled:opacity-40 cursor-pointer shadow-2xs" 
             onClick={handlePrint} 
             disabled={!fetched}
           >
@@ -364,11 +399,12 @@ const WastageReport = () => {
         </div>
       </div>
 
+      {/* Initial / Changed State */}
       {!fetched && !loading && (
-        <div className="p-12 flex flex-col items-center justify-center text-gray-500 bg-white border border-gray-200 border-dashed rounded-xl h-64">
-          <svg className="w-16 h-16 mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
-          <div className="text-lg font-bold text-gray-900 mb-1">Ready to Generate</div>
-          <p className="m-0 text-sm md:text-base">Optionally set a date range, then click <strong className="text-gray-900">Generate Report</strong> to view wastage data.</p>
+        <div className="p-12 flex flex-col items-center justify-center text-zinc-500 bg-white border border-zinc-200/80 border-dashed rounded-2xl h-64 text-center">
+          <svg className="w-12 h-12 mb-3 text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+          <div className="text-base font-bold text-zinc-900 mb-1">Period Selection Changed</div>
+          <p className="m-0 text-xs sm:text-sm text-zinc-500">Selected period: <strong className="text-zinc-900 font-semibold">{periodLabel}</strong>. Click <strong className="text-zinc-900 font-semibold">Generate Report</strong> to compile wastage analytics.</p>
         </div>
       )}
 
@@ -383,25 +419,25 @@ const WastageReport = () => {
         <div className="flex flex-col gap-6 animate-[fadeIn_0.3s_ease-out]">
           {/* KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-t-4 border-t-gray-900">
-              <div className="text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider mb-2">Total Records</div>
-              <div className="text-2xl font-extrabold text-gray-900 mb-1">{filtered.length}</div>
-              <div className="text-sm md:text-base font-medium text-gray-400">wastage events</div>
+            <div className="bg-white border border-zinc-200 rounded-xl p-4 shadow-2xs">
+              <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Total Records</div>
+              <div className="text-2xl font-bold text-zinc-900 tabular-nums mt-1 font-mono">{filtered.length}</div>
+              <div className="text-xs text-zinc-400 mt-1">wastage events recorded</div>
             </div>
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-t-4 border-t-red-500">
-              <div className="text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider mb-2">Estimated Cost Loss</div>
-              <div className="text-2xl font-extrabold text-red-700 mb-1">₱{totalCost.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-              <div className="text-sm md:text-base font-medium text-gray-400">total loss value</div>
+            <div className="bg-white border border-zinc-200 rounded-xl p-4 shadow-2xs">
+              <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Estimated Cost Loss</div>
+              <div className="text-2xl font-bold text-red-600 tabular-nums mt-1 font-mono">₱{totalCost.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              <div className="text-xs text-zinc-400 mt-1">total loss value</div>
             </div>
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-t-4 border-t-orange-500">
-              <div className="text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider mb-2">Total Quantity Wasted</div>
-              <div className="text-2xl font-extrabold text-gray-900 mb-1">{totalQuantity.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-              <div className="text-sm md:text-base font-medium text-gray-400">units lost</div>
+            <div className="bg-white border border-zinc-200 rounded-xl p-4 shadow-2xs">
+              <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Total Quantity Wasted</div>
+              <div className="text-2xl font-bold text-zinc-900 tabular-nums mt-1 font-mono">{totalQuantity.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              <div className="text-xs text-zinc-400 mt-1">units lost</div>
             </div>
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-t-4 border-t-purple-500">
-              <div className="text-sm md:text-base font-bold text-gray-500 uppercase tracking-wider mb-2">Reason Categories</div>
-              <div className="text-2xl font-extrabold text-gray-900 mb-1">{byReason.length}</div>
-              <div className="text-sm md:text-base font-medium text-gray-400">distinct reasons</div>
+            <div className="bg-white border border-zinc-200 rounded-xl p-4 shadow-2xs">
+              <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Reason Categories</div>
+              <div className="text-2xl font-bold text-zinc-900 tabular-nums mt-1 font-mono">{byReason.length}</div>
+              <div className="text-xs text-zinc-400 mt-1">distinct reasons</div>
             </div>
           </div>
 
