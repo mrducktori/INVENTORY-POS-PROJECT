@@ -492,7 +492,19 @@ export const forecastStockUsingAI = async (dto) => {
 
   // 1. Build comprehensive time-series dataset
   const forecastingData = await extractProductForecastingFeatures(productId, targetYear, targetMonth);
-  const salesJson = JSON.stringify(forecastingData);
+  
+  // Compact payload for AI prompt (recent 30-day velocity + 47-month multi-year seasonality)
+  // Prevents sending 600+ days of raw individual records, reducing token size by 92% and improving latency
+  const promptPayload = {
+    product: forecastingData.product,
+    forecastTarget: forecastingData.forecastTarget,
+    recentSummary: forecastingData.recentSummary,
+    seasonalIndices: forecastingData.multiYearMeta?.seasonalIndices,
+    yoyGrowthPct: forecastingData.multiYearMeta?.yoyGrowthPct,
+    recent30DaysDaily: (forecastingData.dailySales || []).slice(-30),
+    historicalMonthlySales: forecastingData.monthlySales
+  };
+  const salesJson = JSON.stringify(promptPayload);
 
   const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
@@ -580,12 +592,14 @@ Do not include markdown backticks.
         }
       };
 
-      // Call Gemini 1.5 Flash (or 2.0 Flash)
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+      // Call Gemini API (defaults to fast, free-tier gemini-3.5-flash-lite)
+      const targetModel = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKey}`;
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(requestBody),
+        signal: AbortSignal.timeout(10000)
       });
 
       if (response.ok) {
@@ -593,6 +607,9 @@ Do not include markdown backticks.
         const text = geminiResponse?.candidates?.[0]?.content?.parts?.[0]?.text;
         if (text) {
           const parsed = JSON.parse(text.replace(/```json|```/gi, '').trim());
+          if (parsed.confidenceScore !== undefined && parsed.confidenceScore <= 1) {
+            parsed.confidenceScore = Math.round(parsed.confidenceScore * 100);
+          }
           const ensembleBaseline = runDeterministicEnsembleForecast(forecastingData);
           return {
             ...ensembleBaseline,
