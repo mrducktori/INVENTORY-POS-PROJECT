@@ -124,12 +124,12 @@ const SalesPerformanceReport = () => {
   const totalTx = summary?.total_transactions || 0;
   const avgTicket = totalTx > 0 ? totalSales / totalTx : 0;
   const totalItems = summary?.total_items_sold || 0;
+  const periodLabel = period === 'daily' ? 'Today' : period === 'weekly' ? 'This Week' : period === 'monthly' ? 'This Month' : `${customStart} to ${customEnd}`;
 
   const handleExport = () => {
     if (!summary) return;
     const date = new Date().toLocaleDateString('en-PH');
     const time = new Date().toLocaleTimeString('en-PH');
-    const periodLabel = period === 'daily' ? 'Today' : period === 'weekly' ? 'This Week' : period === 'monthly' ? 'This Month' : `${customStart} to ${customEnd}`;
 
     const rows = [
       ['COF/TEA CAFE — SALES PERFORMANCE REPORT'],
@@ -159,7 +159,6 @@ const SalesPerformanceReport = () => {
   };
 
   const handlePrint = () => {
-    const periodLabel = period === 'daily' ? 'Today' : period === 'weekly' ? 'This Week' : period === 'monthly' ? 'This Month' : `${customStart} to ${customEnd}`;
     const staffRows = sortedStaff.map((s, i) => {
       const avg = s.transactions > 0 ? s.total_sales / s.transactions : 0;
       const share = totalSales > 0 ? (s.total_sales / totalSales) * 100 : 0;
