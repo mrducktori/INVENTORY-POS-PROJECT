@@ -9,7 +9,38 @@ import Pagination from '../../components/shared/Pagination';
 
 
 const RequestProduct = () => {
-  const [activeTab, setActiveTab] = useState('SUBMIT'); // 'SUBMIT' | 'HISTORY'
+  const getInitialTab = () => {
+    if (typeof window !== 'undefined' && window.location.hash.includes('/')) {
+      const sub = window.location.hash.split('/')[1];
+      if (sub === 'SUBMIT' || sub === 'HISTORY') return sub;
+    }
+    try {
+      const saved = localStorage.getItem('coftea_request_tab');
+      if (saved === 'SUBMIT' || saved === 'HISTORY') return saved;
+    } catch {}
+    return 'SUBMIT';
+  };
+
+  const [activeTab, setActiveTab] = useState(getInitialTab); // 'SUBMIT' | 'HISTORY'
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    try {
+      localStorage.setItem('coftea_request_tab', tab);
+      if (typeof window !== 'undefined') {
+        window.history.replaceState(null, '', `#RequestProduct/${tab}`);
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('coftea_request_tab', activeTab);
+      if (typeof window !== 'undefined') {
+        window.history.replaceState(null, '', `#RequestProduct/${activeTab}`);
+      }
+    } catch {}
+  }, [activeTab]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   
@@ -146,7 +177,7 @@ const RequestProduct = () => {
       await createRequest(payload);
       setMessage('Request submitted successfully!');
       resetForm();
-      setActiveTab('HISTORY');
+      handleTabChange('HISTORY');
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
       setMessage('Error submitting request: ' + err.message);
@@ -176,7 +207,7 @@ const RequestProduct = () => {
             className={`px-6 py-2.5 rounded-lg text-sm font-bold uppercase tracking-wider transition-all ${
               activeTab === 'SUBMIT' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
             }`}
-            onClick={() => setActiveTab('SUBMIT')}
+            onClick={() => handleTabChange('SUBMIT')}
           >
             New Request
           </button>
@@ -184,7 +215,7 @@ const RequestProduct = () => {
             className={`px-6 py-2.5 rounded-lg text-sm font-bold uppercase tracking-wider transition-all ${
               activeTab === 'HISTORY' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
             }`}
-            onClick={() => setActiveTab('HISTORY')}
+            onClick={() => handleTabChange('HISTORY')}
           >
             My History
           </button>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import SalesPerformanceReport from './SalesPerformanceReport';
 import InventoryStatusReport from './InventoryStatusReport';
 import StockMovementReport from './StockMovementReport';
@@ -28,7 +28,47 @@ const TABS = [
 ];
 
 const Reports = () => {
-  const [activeTab, setActiveTab] = useState('sales');
+  const getInitialTab = () => {
+    // 1. Check URL hash sub-route (e.g. #Reports/wastage)
+    if (typeof window !== 'undefined' && window.location.hash.includes('/')) {
+      const sub = window.location.hash.split('/')[1];
+      if (TABS.some((t) => t.id === sub)) return sub;
+    }
+    // 2. Check localStorage
+    try {
+      const saved = localStorage.getItem('coftea_reports_active_tab');
+      if (saved && TABS.some((t) => t.id === saved)) return saved;
+    } catch {
+      // ignore
+    }
+    return 'sales';
+  };
+
+  const [activeTab, setActiveTab] = useState(getInitialTab);
+
+  const handleTabChange = useCallback((tabId) => {
+    setActiveTab(tabId);
+    try {
+      localStorage.setItem('coftea_reports_active_tab', tabId);
+      if (typeof window !== 'undefined') {
+        window.history.replaceState(null, '', `#Reports/${tabId}`);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // Keep URL hash and localStorage in sync on change
+  useEffect(() => {
+    try {
+      localStorage.setItem('coftea_reports_active_tab', activeTab);
+      if (typeof window !== 'undefined') {
+        window.history.replaceState(null, '', `#Reports/${activeTab}`);
+      }
+    } catch {
+      // ignore
+    }
+  }, [activeTab]);
 
   const currentTab = TABS.find((t) => t.id === activeTab);
 
@@ -73,7 +113,7 @@ const Reports = () => {
                 ? 'bg-zinc-900 text-white shadow-2xs font-bold'
                 : 'bg-zinc-100 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/70'
             }`}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => handleTabChange(tab.id)}
           >
             {tab.label}
           </button>

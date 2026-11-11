@@ -63,6 +63,15 @@ export const clearUserSession = (reason = null) => {
 
     localStorage.removeItem(USER_STORAGE_KEY);
     localStorage.removeItem(LAST_ACTIVITY_KEY);
+    localStorage.removeItem('coftea_active_tab');
+    localStorage.removeItem('coftea_reports_active_tab');
+    localStorage.removeItem('coftea_forecasting_tab');
+    localStorage.removeItem('coftea_suppliers_tab');
+    localStorage.removeItem('coftea_cms_tab');
+    localStorage.removeItem('coftea_request_tab');
+    if (typeof window !== 'undefined' && window.location.hash) {
+      window.history.replaceState(null, '', window.location.pathname);
+    }
 
     if (reason === "expired") {
       if (expiringUser && typeof onSessionExpiredCallback === "function") {

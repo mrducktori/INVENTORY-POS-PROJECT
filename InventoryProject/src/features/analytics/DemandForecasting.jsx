@@ -54,9 +54,41 @@ const SortIcon = ({ active, direction, className = '' }) => {
 };
 
 const DemandForecasting = () => {
-  const [activeTab, setActiveTab] = useState('ingredients'); // 'ingredients' | 'products'
+  const getInitialTab = () => {
+    if (typeof window !== 'undefined' && window.location.hash.includes('/')) {
+      const sub = window.location.hash.split('/')[1];
+      if (sub === 'ingredients' || sub === 'products') return sub;
+    }
+    try {
+      const saved = localStorage.getItem('coftea_forecasting_tab');
+      if (saved === 'ingredients' || saved === 'products') return saved;
+    } catch {}
+    return 'ingredients';
+  };
+
+  const [activeTab, setActiveTab] = useState(getInitialTab); // 'ingredients' | 'products'
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    try {
+      localStorage.setItem('coftea_forecasting_tab', tab);
+      if (typeof window !== 'undefined') {
+        window.history.replaceState(null, '', `#Forecasting/${tab}`);
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('coftea_forecasting_tab', activeTab);
+      if (typeof window !== 'undefined') {
+        window.history.replaceState(null, '', `#Forecasting/${activeTab}`);
+      }
+    } catch {}
+  }, [activeTab]);
+
   const [infoModalOpen, setInfoModalOpen] = useState(false);
-  const [infoGuideTab, setInfoGuideTab] = useState('ingredients'); // 'ingredients' | 'products'
+  const [infoGuideTab, setInfoGuideTab] = useState(activeTab); // 'ingredients' | 'products'
 
   const openInfoGuide = (tabKey) => {
     setInfoGuideTab(tabKey || activeTab);
@@ -145,6 +177,9 @@ const DemandForecasting = () => {
   useEffect(() => {
     fetchIngredientForecast();
     fetchSuppliersList();
+    if (activeTab === 'products') {
+      fetchProductForecasts();
+    }
   }, []);
 
   const showToast = (type, message) => {
@@ -192,7 +227,7 @@ const DemandForecasting = () => {
   };
 
   const handleTabSwitch = (tab) => {
-    setActiveTab(tab);
+    handleTabChange(tab);
     if (tab === 'products' && productForecasts.length === 0) {
       fetchProductForecasts();
     }

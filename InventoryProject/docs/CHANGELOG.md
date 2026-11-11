@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [UX: Browser Refresh Tab Persistence & URL Hash Routing - 2026-11-11]
+- **Main Dashboard Tab Persistence**:
+  - Implemented dual-layer persistence (URL hash `#TabName` + `localStorage`) in [`Dashboard.jsx`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/dashboard/Dashboard.jsx) so refreshing the browser retains the exact active page (e.g. `Reports`, `Products`, `POS`, `PurchaseOrders`, `Forecasting`).
+  - Added `hashchange` listener to seamlessly support browser Back and Forward navigation buttons.
+  - Retained strict RBAC authorization checks via `canAccess()` so unauthorized stored tabs safely fallback to the user's role-default landing tab.
+- **Sub-Tab Persistence Across Feature Modules**:
+  - **Reports Hub** ([`Reports.jsx`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/reports/Reports.jsx)): Persists sub-tabs (`sales`, `inventory`, `movement`, `wastage`) via `#Reports/<subtab>` and `localStorage`.
+  - **Demand Forecasting** ([`DemandForecasting.jsx`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/analytics/DemandForecasting.jsx)): Persists `ingredients` vs `products` tabs via `#Forecasting/<subtab>` and `localStorage`, and automatically triggers initial product fetch if loaded directly on products tab.
+  - **Supplier Management** ([`ManageSuppliers.jsx`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/inventory/ManageSuppliers.jsx)): Persists `suppliers` directory vs `prices` comparison tab.
+  - **CMS Dashboard** ([`CMSDashboard.jsx`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/cms/CMSDashboard.jsx)): Persists `branding`, `hero`, `promos`, and `details` tabs.
+  - **Staff Requests** ([`RequestProduct.jsx`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/requests/RequestProduct.jsx)): Persists `SUBMIT` vs `HISTORY` tabs.
+- **Session Cleanup**:
+  - Updated [`clearUserSession()`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/utils/authUtils.js) to clear all stored active tab keys and reset URL hashes on logout/session expiry.
+
+
 ## [UI: System-Wide Pagination for All Table and List Views - 2026-11-10]
 - **Unified Standardized Pagination Component Across All Modules**:
   - Implemented the reusable `<Pagination />` component ([`Pagination.jsx`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/components/shared/Pagination.jsx)) across every unpaginated table and list view throughout the application.

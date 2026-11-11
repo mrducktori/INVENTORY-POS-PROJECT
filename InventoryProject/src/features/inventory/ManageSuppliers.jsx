@@ -8,7 +8,38 @@ import SupplierCatalogModal from './components/SupplierCatalogModal';
 import SupplierPriceComparison from './components/SupplierPriceComparison';
 
 const ManageSuppliers = () => {
-  const [activeTab, setActiveTab] = useState('suppliers'); // 'suppliers' | 'prices'
+  const getInitialTab = () => {
+    if (typeof window !== 'undefined' && window.location.hash.includes('/')) {
+      const sub = window.location.hash.split('/')[1];
+      if (sub === 'suppliers' || sub === 'prices') return sub;
+    }
+    try {
+      const saved = localStorage.getItem('coftea_suppliers_tab');
+      if (saved === 'suppliers' || saved === 'prices') return saved;
+    } catch {}
+    return 'suppliers';
+  };
+
+  const [activeTab, setActiveTab] = useState(getInitialTab); // 'suppliers' | 'prices'
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    try {
+      localStorage.setItem('coftea_suppliers_tab', tab);
+      if (typeof window !== 'undefined') {
+        window.history.replaceState(null, '', `#ManageSuppliers/${tab}`);
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('coftea_suppliers_tab', activeTab);
+      if (typeof window !== 'undefined') {
+        window.history.replaceState(null, '', `#ManageSuppliers/${activeTab}`);
+      }
+    } catch {}
+  }, [activeTab]);
   const [suppliers, setSuppliers] = useState([]);
   const [ingredients, setIngredients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -175,7 +206,7 @@ const ManageSuppliers = () => {
           <div className="inline-flex bg-zinc-200/80 p-1 rounded-xl">
             <button
               type="button"
-              onClick={() => setActiveTab('suppliers')}
+              onClick={() => handleTabChange('suppliers')}
               className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer ${
                 activeTab === 'suppliers'
                   ? 'bg-zinc-900 text-white shadow-xs'
@@ -186,7 +217,7 @@ const ManageSuppliers = () => {
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab('prices')}
+              onClick={() => handleTabChange('prices')}
               className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer ${
                 activeTab === 'prices'
                   ? 'bg-zinc-900 text-white shadow-xs'

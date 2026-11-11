@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, Suspense, lazy, useCallback } from 'react';
 import { supabase } from '../../config/supabaseClient';
 import { clearUserSession, getCurrentUser } from '../../utils/authUtils';
 import { canAccess, getUserPermissions } from '../../utils/permissions';
@@ -35,15 +35,78 @@ const SupplierPortal = lazy(() => import('../inventory/SupplierPortal'));
 
 const Dashboard = () => {
   const user = getCurrentUser() || {};
-  const getDefaultTab = () => {
+  const getDefaultTab = useCallback(() => {
     if (user.role === 'Supplier') return 'SupplierPortal';
     if (user.role === 'Admin' || user.role === 'Owner') return 'Dashboard';
     const allowed = getUserPermissions(user);
     if (allowed.includes('POS')) return 'POS';
     return allowed[0] || 'POS';
-  };
+  }, [user]);
 
-  const [activeTab, setActiveTab] = useState(getDefaultTab);
+  const getInitialTab = useCallback(() => {
+    // 1. Check URL hash first (e.g. #Reports or #Reports/wastage)
+    if (typeof window !== 'undefined' && window.location.hash) {
+      const hashTab = window.location.hash.replace(/^#\/?/, '').split('/')[0];
+      if (hashTab && canAccess(user, hashTab)) {
+        return hashTab;
+      }
+    }
+    // 2. Check localStorage
+    try {
+      const savedTab = localStorage.getItem('coftea_active_tab');
+      if (savedTab && canAccess(user, savedTab)) {
+        return savedTab;
+      }
+    } catch {
+      // ignore
+    }
+    return getDefaultTab();
+  }, [user, getDefaultTab]);
+
+  const [activeTab, setActiveTab] = useState(getInitialTab);
+
+  const handleTabChange = useCallback((newTab) => {
+    setActiveTab(newTab);
+    try {
+      localStorage.setItem('coftea_active_tab', newTab);
+      if (typeof window !== 'undefined') {
+        const currentHash = window.location.hash.replace(/^#\/?/, '');
+        if (!currentHash.startsWith(newTab)) {
+          window.history.replaceState(null, '', `#${newTab}`);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // Sync state with URL hash and localStorage on tab changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const currentMain = window.location.hash.replace(/^#\/?/, '').split('/')[0];
+      if (currentMain !== activeTab) {
+        window.history.replaceState(null, '', `#${activeTab}`);
+      }
+    }
+    try {
+      localStorage.setItem('coftea_active_tab', activeTab);
+    } catch {}
+  }, [activeTab]);
+
+  // Handle browser Back / Forward navigation
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hashTab = window.location.hash.replace(/^#\/?/, '').split('/')[0];
+      if (hashTab && hashTab !== activeTab && canAccess(user, hashTab)) {
+        setActiveTab(hashTab);
+        try {
+          localStorage.setItem('coftea_active_tab', hashTab);
+        } catch {}
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [activeTab, user]);
 
   // Monitor account active status and session validity in real time
   useEffect(() => {
@@ -112,7 +175,7 @@ const Dashboard = () => {
     }
 
     switch (activeTab) {
-      case 'Dashboard':         return <DashboardOverview onNavigate={setActiveTab} />;
+      case 'Dashboard':         return <DashboardOverview onNavigate={handleTabChange} />;
       case 'POS':               return <POS />;
       case 'ReportWastage':     return <ReportWastage />;
 
@@ -169,7 +232,7 @@ const Dashboard = () => {
   return (
     <div className="w-full h-screen bg-[#f8fafc] text-zinc-900 font-sans flex flex-col">
       <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
-        <Navbar activeTab={activeTab} onTabChange={setActiveTab} />
+        <Navbar activeTab={activeTab} onTabChange={handleTabChange} />
         <main className="flex-1 overflow-y-auto bg-[#f8fafc] scrollbar-thin scrollbar-thumb-zinc-300 hover:scrollbar-thumb-zinc-400">
           <div key={activeTab} className="tab-pane-transition min-h-full">
             <ErrorBoundary key={activeTab} level="tab">

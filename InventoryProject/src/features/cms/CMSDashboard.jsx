@@ -158,7 +158,40 @@ function ImageUploadField({ label, value, onChange, onUpload, uploading, placeho
 export default function CMSDashboard() {
   const [sections, setSections] = useState({});
   const [promos, setPromos] = useState([]);
-  const [activeTab, setActiveTab] = useState('branding');
+
+  const getInitialTab = () => {
+    const CMS_TABS = ['branding', 'hero', 'promos', 'details'];
+    if (typeof window !== 'undefined' && window.location.hash.includes('/')) {
+      const sub = window.location.hash.split('/')[1];
+      if (CMS_TABS.includes(sub)) return sub;
+    }
+    try {
+      const saved = localStorage.getItem('coftea_cms_tab');
+      if (saved && CMS_TABS.includes(saved)) return saved;
+    } catch {}
+    return 'branding';
+  };
+
+  const [activeTab, setActiveTab] = useState(getInitialTab);
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    try {
+      localStorage.setItem('coftea_cms_tab', tab);
+      if (typeof window !== 'undefined') {
+        window.history.replaceState(null, '', `#CMSDashboard/${tab}`);
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('coftea_cms_tab', activeTab);
+      if (typeof window !== 'undefined') {
+        window.history.replaceState(null, '', `#CMSDashboard/${activeTab}`);
+      }
+    } catch {}
+  }, [activeTab]);
   const [loading, setLoading] = useState(true);
   const [savingKey, setSavingKey] = useState(null);
   const [uploadingKey, setUploadingKey] = useState(null);
@@ -452,7 +485,7 @@ export default function CMSDashboard() {
             <button
               key={t.id}
               type="button"
-              onClick={() => setActiveTab(t.id)}
+              onClick={() => handleTabChange(t.id)}
               className={`px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
                 isActive
                   ? 'bg-white text-zinc-900 shadow-2xs'
