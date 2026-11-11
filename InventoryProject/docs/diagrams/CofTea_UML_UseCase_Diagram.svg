@@ -1,0 +1,476 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2200 1520" width="2200" height="1520" style="font-family: 'Segoe UI', Arial, Helvetica, sans-serif; background: #ffffff;">
+  <defs>
+    <!-- Open arrowhead for <<include>> / <<extend>> -->
+    <marker id="openArrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <path d="M 2 2 L 10 6 L 2 10" fill="none" stroke="#3f3f46" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+    </marker>
+    <!-- Hollow triangle arrowhead for Actor Generalization (Owner -> Admin) -->
+    <marker id="triangleArrow" viewBox="0 0 16 16" refX="14" refY="8" markerWidth="14" markerHeight="14" orient="auto">
+      <path d="M 2 2 L 14 8 L 2 14 Z" fill="#ffffff" stroke="#18181b" stroke-width="1.8" stroke-linejoin="round" />
+    </marker>
+  </defs>
+
+  <!-- Clean white background -->
+  <rect x="0" y="0" width="2200" height="1520" fill="#ffffff" />
+
+  <!-- System Boundary -->
+  <rect x="300" y="55" width="1600" height="1390" rx="6" fill="#ffffff" stroke="#18181b" stroke-width="2.6" />
+  <text x="1100" y="96" text-anchor="middle" font-size="22" font-weight="800" fill="#18181b" letter-spacing="0.3">
+    CofTea Cafe — Inventory &amp; Point-of-Sale (POS) System
+  </text>
+  <text x="1100" y="120" text-anchor="middle" font-size="13.5" font-weight="500" fill="#52525b">
+    UML Use Case Diagram (POS, Inventory, Purchasing, Supplier Portal, AI Demand Forecasting, Reports, RBAC &amp; CMS)
+  </text>
+  <line x1="330" y1="134" x2="1870" y2="134" stroke="#e4e4e7" stroke-width="1.4" />
+
+  <!-- Column Headers -->
+  <text x="540" y="114" text-anchor="middle" font-size="12" font-weight="700" fill="#71717a" letter-spacing="1"></text>
+
+  <!-- Associations (drawn first so ovals sit cleanly on top) -->
+  <g class="associations">
+    <line x1="175" y1="225" x2="375" y2="155" stroke="#18181b" stroke-width="1.5" />
+    <line x1="175" y1="225" x2="375" y2="212" stroke="#18181b" stroke-width="1.5" />
+    <line x1="175" y1="225" x2="375" y2="269" stroke="#18181b" stroke-width="1.5" />
+    <line x1="175" y1="225" x2="375" y2="326" stroke="#18181b" stroke-width="1.5" />
+    <line x1="175" y1="625" x2="375" y2="405" stroke="#18181b" stroke-width="1.5" />
+    <line x1="175" y1="625" x2="375" y2="462" stroke="#18181b" stroke-width="1.5" />
+    <line x1="175" y1="625" x2="375" y2="519" stroke="#18181b" stroke-width="1.5" />
+    <line x1="175" y1="625" x2="375" y2="576" stroke="#18181b" stroke-width="1.5" />
+    <line x1="175" y1="625" x2="375" y2="633" stroke="#18181b" stroke-width="1.5" />
+    <line x1="175" y1="625" x2="375" y2="690" stroke="#18181b" stroke-width="1.5" />
+    <line x1="175" y1="625" x2="375" y2="747" stroke="#18181b" stroke-width="1.5" />
+    <line x1="175" y1="625" x2="375" y2="804" stroke="#18181b" stroke-width="1.5" />
+    <line x1="175" y1="625" x2="375" y2="861" stroke="#18181b" stroke-width="1.5" />
+    <line x1="175" y1="1090" x2="375" y2="950" stroke="#18181b" stroke-width="1.5" />
+    <line x1="175" y1="1090" x2="375" y2="1007" stroke="#18181b" stroke-width="1.5" />
+    <line x1="175" y1="1090" x2="375" y2="1064" stroke="#18181b" stroke-width="1.5" />
+    <line x1="175" y1="1090" x2="375" y2="1121" stroke="#18181b" stroke-width="1.5" />
+    <line x1="175" y1="1090" x2="375" y2="1178" stroke="#18181b" stroke-width="1.5" />
+    <line x1="175" y1="1090" x2="375" y2="1235" stroke="#18181b" stroke-width="1.5" />
+    <line x1="2015" y1="175" x2="1840" y2="175" stroke="#18181b" stroke-width="1.5" />
+    <line x1="2015" y1="595" x2="1840" y2="255" stroke="#18181b" stroke-width="1.5" />
+    <line x1="2015" y1="595" x2="1840" y2="312" stroke="#18181b" stroke-width="1.5" />
+    <line x1="2015" y1="595" x2="1840" y2="369" stroke="#18181b" stroke-width="1.5" />
+    <line x1="2015" y1="595" x2="1840" y2="426" stroke="#18181b" stroke-width="1.5" />
+    <line x1="2015" y1="595" x2="1840" y2="483" stroke="#18181b" stroke-width="1.5" />
+    <line x1="2015" y1="595" x2="1840" y2="540" stroke="#18181b" stroke-width="1.5" />
+    <line x1="2015" y1="595" x2="1840" y2="597" stroke="#18181b" stroke-width="1.5" />
+    <line x1="2015" y1="595" x2="1840" y2="654" stroke="#18181b" stroke-width="1.5" />
+    <line x1="2015" y1="595" x2="1840" y2="711" stroke="#18181b" stroke-width="1.5" />
+    <line x1="2015" y1="595" x2="1840" y2="768" stroke="#18181b" stroke-width="1.5" />
+    <line x1="2015" y1="595" x2="1840" y2="825" stroke="#18181b" stroke-width="1.5" />
+    <line x1="2015" y1="595" x2="1840" y2="882" stroke="#18181b" stroke-width="1.5" />
+    <line x1="2015" y1="595" x2="1840" y2="939" stroke="#18181b" stroke-width="1.5" />
+    <line x1="1973" y1="1205" x2="1275" y2="1205" stroke="#18181b" stroke-width="1.5" />
+  </g>
+
+  <!-- Actor Generalization: Owner inherits Admin -->
+  <line x1="2045" y1="286" x2="2045" y2="532" stroke="#18181b" stroke-width="2" marker-end="url(#triangleArrow)" />
+  <rect x="2005" y="388" width="80" height="22" rx="4" fill="#ffffff" />
+  <text x="2045" y="403" text-anchor="middle" font-size="11.5" font-style="italic" font-weight="600" fill="#3f3f46">inherits</text>
+
+  <!-- Dependencies -->
+  <g class="dependencies">
+    
+  <g class="dependency">
+    <path d="M 705 405 L 925 199" fill="none" stroke="#3f3f46" stroke-width="1.45" stroke-dasharray="6,4" marker-end="url(#openArrow)" />
+    <rect x="761.6" y="286" width="76.8" height="18" rx="4" fill="#ffffff" fill-opacity="0.94" />
+    <text x="800" y="299" text-anchor="middle" font-size="11.5" font-style="italic" font-weight="600" fill="#27272a">«include»</text>
+  </g>
+    
+  <g class="dependency">
+    <path d="M 705 950 Q 871 588.5 947 227" fill="none" stroke="#3f3f46" stroke-width="1.45" stroke-dasharray="6,4" marker-end="url(#openArrow)" />
+    <rect x="732.6" y="793.5" width="76.8" height="18" rx="4" fill="#ffffff" fill-opacity="0.94" />
+    <text x="771" y="806.5" text-anchor="middle" font-size="11.5" font-style="italic" font-weight="600" fill="#27272a">«include»</text>
+  </g>
+    
+  <g class="dependency">
+    <path d="M 1480 255 L 1275 205" fill="none" stroke="#3f3f46" stroke-width="1.45" stroke-dasharray="6,4" marker-end="url(#openArrow)" />
+    <rect x="1339.1" y="212" width="76.8" height="18" rx="4" fill="#ffffff" fill-opacity="0.94" />
+    <text x="1377.5" y="225" text-anchor="middle" font-size="11.5" font-style="italic" font-weight="600" fill="#27272a">«include»</text>
+  </g>
+    
+  <g class="dependency">
+    <path d="M 705 519 L 925 347" fill="none" stroke="#3f3f46" stroke-width="1.45" stroke-dasharray="6,4" marker-end="url(#openArrow)" />
+    <rect x="761.6" y="415" width="76.8" height="18" rx="4" fill="#ffffff" fill-opacity="0.94" />
+    <text x="800" y="428" text-anchor="middle" font-size="11.5" font-style="italic" font-weight="600" fill="#27272a">«include»</text>
+  </g>
+    
+  <g class="dependency">
+    <path d="M 705 576 L 925 367" fill="none" stroke="#3f3f46" stroke-width="1.45" stroke-dasharray="6,4" marker-end="url(#openArrow)" />
+    <rect x="796.6" y="473.5" width="76.8" height="18" rx="4" fill="#ffffff" fill-opacity="0.94" />
+    <text x="835" y="486.5" text-anchor="middle" font-size="11.5" font-style="italic" font-weight="600" fill="#27272a">«include»</text>
+  </g>
+    
+  <g class="dependency">
+    <path d="M 1100 382 L 1100 468" fill="none" stroke="#3f3f46" stroke-width="1.45" stroke-dasharray="6,4" marker-end="url(#openArrow)" />
+    <rect x="1109.6" y="415" width="76.8" height="18" rx="4" fill="#ffffff" fill-opacity="0.94" />
+    <text x="1148" y="428" text-anchor="middle" font-size="11.5" font-style="italic" font-weight="600" fill="#27272a">«include»</text>
+  </g>
+    
+  <g class="dependency">
+    <path d="M 1100 522 L 1100 608" fill="none" stroke="#3f3f46" stroke-width="1.45" stroke-dasharray="6,4" marker-end="url(#openArrow)" />
+    <rect x="1109.6" y="555" width="76.8" height="18" rx="4" fill="#ffffff" fill-opacity="0.94" />
+    <text x="1148" y="568" text-anchor="middle" font-size="11.5" font-style="italic" font-weight="600" fill="#27272a">«include»</text>
+  </g>
+    
+  <g class="dependency">
+    <path d="M 705 804 L 925 639" fill="none" stroke="#3f3f46" stroke-width="1.45" stroke-dasharray="6,4" marker-end="url(#openArrow)" />
+    <rect x="761.6" y="701.5" width="76.8" height="18" rx="4" fill="#ffffff" fill-opacity="0.94" />
+    <text x="800" y="714.5" text-anchor="middle" font-size="11.5" font-style="italic" font-weight="600" fill="#27272a">«include»</text>
+  </g>
+    
+  <g class="dependency">
+    <path d="M 705 1235 Q 861 946 947 657" fill="none" stroke="#3f3f46" stroke-width="1.45" stroke-dasharray="6,4" marker-end="url(#openArrow)" />
+    <rect x="752.6" y="1121" width="76.8" height="18" rx="4" fill="#ffffff" fill-opacity="0.94" />
+    <text x="791" y="1134" text-anchor="middle" font-size="11.5" font-style="italic" font-weight="600" fill="#27272a">«include»</text>
+  </g>
+    
+  <g class="dependency">
+    <path d="M 1275 775 L 1480 597" fill="none" stroke="#3f3f46" stroke-width="1.45" stroke-dasharray="6,4" marker-end="url(#openArrow)" />
+    <rect x="1342.7" y="666" width="69.6" height="18" rx="4" fill="#ffffff" fill-opacity="0.94" />
+    <text x="1377.5" y="679" text-anchor="middle" font-size="11.5" font-style="italic" font-weight="600" fill="#27272a">«extend»</text>
+  </g>
+    
+  <g class="dependency">
+    <path d="M 1480 711 L 1275 910" fill="none" stroke="#3f3f46" stroke-width="1.45" stroke-dasharray="6,4" marker-end="url(#openArrow)" />
+    <rect x="1339.1" y="790.5" width="76.8" height="18" rx="4" fill="#ffffff" fill-opacity="0.94" />
+    <text x="1377.5" y="803.5" text-anchor="middle" font-size="11.5" font-style="italic" font-weight="600" fill="#27272a">«include»</text>
+  </g>
+    
+  <g class="dependency">
+    <path d="M 1480 768 Q 1307.5 981.5 1275 1195" fill="none" stroke="#3f3f46" stroke-width="1.45" stroke-dasharray="6,4" marker-end="url(#openArrow)" />
+    <rect x="1304.1" y="996.5" width="76.8" height="18" rx="4" fill="#ffffff" fill-opacity="0.94" />
+    <text x="1342.5" y="1009.5" text-anchor="middle" font-size="11.5" font-style="italic" font-weight="600" fill="#27272a">«include»</text>
+  </g>
+    
+  <g class="dependency">
+    <path d="M 705 861 L 925 1051" fill="none" stroke="#3f3f46" stroke-width="1.45" stroke-dasharray="6,4" marker-end="url(#openArrow)" />
+    <rect x="786.6" y="934" width="76.8" height="18" rx="4" fill="#ffffff" fill-opacity="0.94" />
+    <text x="825" y="947" text-anchor="middle" font-size="11.5" font-style="italic" font-weight="600" fill="#27272a">«include»</text>
+  </g>
+    
+  <g class="dependency">
+    <path d="M 1480 825 L 1275 1051" fill="none" stroke="#3f3f46" stroke-width="1.45" stroke-dasharray="6,4" marker-end="url(#openArrow)" />
+    <rect x="1339.1" y="918" width="76.8" height="18" rx="4" fill="#ffffff" fill-opacity="0.94" />
+    <text x="1377.5" y="931" text-anchor="middle" font-size="11.5" font-style="italic" font-weight="600" fill="#27272a">«include»</text>
+  </g>
+  </g>
+
+  <!-- Use Cases -->
+  <g class="use-cases-left">
+    
+  <g class="use-case">
+    <ellipse cx="540" cy="155" rx="165" ry="24" fill="#ffffff" stroke="#18181b" stroke-width="1.8"  />
+    <text x="540" y="159.5" text-anchor="middle" font-size="13.5" font-weight="500" fill="#18181b">Browse Public Menu &amp; Promos</text>
+  </g>
+    
+  <g class="use-case">
+    <ellipse cx="540" cy="212" rx="165" ry="24" fill="#ffffff" stroke="#18181b" stroke-width="1.8"  />
+    <text x="540" y="216.5" text-anchor="middle" font-size="13.5" font-weight="500" fill="#18181b">Place Walk-in Order</text>
+  </g>
+    
+  <g class="use-case">
+    <ellipse cx="540" cy="269" rx="165" ry="24" fill="#ffffff" stroke="#18181b" stroke-width="1.8"  />
+    <text x="540" y="273.5" text-anchor="middle" font-size="13.5" font-weight="500" fill="#18181b">Pay for Order (Cash / GCash)</text>
+  </g>
+    
+  <g class="use-case">
+    <ellipse cx="540" cy="326" rx="165" ry="24" fill="#ffffff" stroke="#18181b" stroke-width="1.8"  />
+    <text x="540" y="330.5" text-anchor="middle" font-size="13.5" font-weight="500" fill="#18181b">Receive Printed / Digital Receipt</text>
+  </g>
+    
+  <g class="use-case">
+    <ellipse cx="540" cy="405" rx="165" ry="24" fill="#ffffff" stroke="#18181b" stroke-width="1.8"  />
+    <text x="540" y="409.5" text-anchor="middle" font-size="13.5" font-weight="500" fill="#18181b">Log In / Log Out</text>
+  </g>
+    
+  <g class="use-case">
+    <ellipse cx="540" cy="462" rx="165" ry="24" fill="#ffffff" stroke="#18181b" stroke-width="1.8"  />
+    <text x="540" y="466.5" text-anchor="middle" font-size="13.5" font-weight="500" fill="#18181b">Search &amp; Browse Menu Products</text>
+  </g>
+    
+  <g class="use-case">
+    <ellipse cx="540" cy="519" rx="165" ry="24" fill="#ffffff" stroke="#18181b" stroke-width="1.8"  />
+    <text x="540" y="523.5" text-anchor="middle" font-size="13.5" font-weight="500" fill="#18181b">Process Orders (Sizes, Add-ons &amp; Hold)</text>
+  </g>
+    
+  <g class="use-case">
+    <ellipse cx="540" cy="576" rx="165" ry="24" fill="#ffffff" stroke="#18181b" stroke-width="1.8"  />
+    <text x="540" y="580.5" text-anchor="middle" font-size="13.5" font-weight="500" fill="#18181b">Accept Payment &amp; Apply Discounts</text>
+  </g>
+    
+  <g class="use-case">
+    <ellipse cx="540" cy="633" rx="165" ry="24" fill="#ffffff" stroke="#18181b" stroke-width="1.8"  />
+    <text x="540" y="637.5" text-anchor="middle" font-size="13.5" font-weight="500" fill="#18181b">Generate &amp; Print Receipt</text>
+  </g>
+    
+  <g class="use-case">
+    <ellipse cx="540" cy="690" rx="165" ry="24" fill="#ffffff" stroke="#18181b" stroke-width="1.8"  />
+    <text x="540" y="694.5" text-anchor="middle" font-size="13.5" font-weight="500" fill="#18181b">View Product Recipe Details</text>
+  </g>
+    
+  <g class="use-case">
+    <ellipse cx="540" cy="747" rx="165" ry="24" fill="#ffffff" stroke="#18181b" stroke-width="1.8"  />
+    <text x="540" y="751.5" text-anchor="middle" font-size="13.5" font-weight="500" fill="#18181b">Monitor Product &amp; Material Stock</text>
+  </g>
+    
+  <g class="use-case">
+    <ellipse cx="540" cy="804" rx="165" ry="24" fill="#ffffff" stroke="#18181b" stroke-width="1.8"  />
+    <text x="540" y="808.5" text-anchor="middle" font-size="13.5" font-weight="500" fill="#18181b">Receive Low &amp; Out-of-Stock Alerts</text>
+  </g>
+    
+  <g class="use-case">
+    <ellipse cx="540" cy="861" rx="165" ry="24" fill="#ffffff" stroke="#18181b" stroke-width="1.8"  />
+    <text x="540" y="865.5" text-anchor="middle" font-size="13.5" font-weight="500" fill="#18181b">Report Damaged / Wasted Items</text>
+  </g>
+    
+  <g class="use-case">
+    <ellipse cx="540" cy="950" rx="165" ry="24" fill="#ffffff" stroke="#18181b" stroke-width="1.8"  />
+    <text x="540" y="954.5" text-anchor="middle" font-size="13.5" font-weight="500" fill="#18181b">Log In / Log Out</text>
+  </g>
+    
+  <g class="use-case">
+    <ellipse cx="540" cy="1007" rx="165" ry="24" fill="#ffffff" stroke="#18181b" stroke-width="1.8"  />
+    <text x="540" y="1011.5" text-anchor="middle" font-size="13.5" font-weight="500" fill="#18181b">View Assigned Purchase Orders</text>
+  </g>
+    
+  <g class="use-case">
+    <ellipse cx="540" cy="1064" rx="165" ry="24" fill="#ffffff" stroke="#18181b" stroke-width="1.8"  />
+    <text x="540" y="1068.5" text-anchor="middle" font-size="13.5" font-weight="500" fill="#18181b">Accept / Decline / Postpone PO</text>
+  </g>
+    
+  <g class="use-case">
+    <ellipse cx="540" cy="1121" rx="165" ry="24" fill="#ffffff" stroke="#18181b" stroke-width="1.8"  />
+    <text x="540" y="1125.5" text-anchor="middle" font-size="13.5" font-weight="500" fill="#18181b">Submit Item Delivery Proposals</text>
+  </g>
+    
+  <g class="use-case">
+    <ellipse cx="540" cy="1178" rx="165" ry="24" fill="#ffffff" stroke="#18181b" stroke-width="1.8"  />
+    <text x="540" y="1182.5" text-anchor="middle" font-size="13.5" font-weight="500" fill="#18181b">Update Own Catalog &amp; Pricing</text>
+  </g>
+    
+  <g class="use-case">
+    <ellipse cx="540" cy="1235" rx="165" ry="24" fill="#ffffff" stroke="#18181b" stroke-width="1.8"  />
+    <text x="540" y="1239.5" text-anchor="middle" font-size="13.5" font-weight="500" fill="#18181b">Receive PO Notifications</text>
+  </g>
+  </g>
+  <g class="use-cases-mid">
+    
+  <g class="use-case">
+    <ellipse cx="1100" cy="205" rx="175" ry="27" fill="#f4f4f5" stroke="#18181b" stroke-width="1.8" stroke-dasharray="0" />
+    <text x="1100" y="201.5" text-anchor="middle" font-size="13" font-weight="600" fill="#18181b">JWT Auth, Lockout &amp;</text>
+    <text x="1100" y="217.5" text-anchor="middle" font-size="13" font-weight="600" fill="#18181b">Inactivity Session Guard</text>
+  </g>
+    
+  <g class="use-case">
+    <ellipse cx="1100" cy="355" rx="175" ry="27" fill="#f4f4f5" stroke="#18181b" stroke-width="1.8" stroke-dasharray="0" />
+    <text x="1100" y="351.5" text-anchor="middle" font-size="13" font-weight="600" fill="#18181b">POS Checkout, Discounts</text>
+    <text x="1100" y="367.5" text-anchor="middle" font-size="13" font-weight="600" fill="#18181b">&amp; 12% VAT Calculation</text>
+  </g>
+    
+  <g class="use-case">
+    <ellipse cx="1100" cy="495" rx="175" ry="27" fill="#f4f4f5" stroke="#18181b" stroke-width="1.8" stroke-dasharray="0" />
+    <text x="1100" y="491.5" text-anchor="middle" font-size="13" font-weight="600" fill="#18181b">Auto Recipe &amp; Tracked</text>
+    <text x="1100" y="507.5" text-anchor="middle" font-size="13" font-weight="600" fill="#18181b">Product Stock Deduction</text>
+  </g>
+    
+  <g class="use-case">
+    <ellipse cx="1100" cy="635" rx="175" ry="27" fill="#f4f4f5" stroke="#18181b" stroke-width="1.8" stroke-dasharray="0" />
+    <text x="1100" y="631.5" text-anchor="middle" font-size="13" font-weight="600" fill="#18181b">Real-Time Stock &amp; PO</text>
+    <text x="1100" y="647.5" text-anchor="middle" font-size="13" font-weight="600" fill="#18181b">Notification Engine</text>
+  </g>
+    
+  <g class="use-case">
+    <ellipse cx="1100" cy="775" rx="175" ry="27" fill="#f4f4f5" stroke="#18181b" stroke-width="1.8" stroke-dasharray="0" />
+    <text x="1100" y="771.5" text-anchor="middle" font-size="13" font-weight="600" fill="#18181b">PO Unit Conversion &amp;</text>
+    <text x="1100" y="787.5" text-anchor="middle" font-size="13" font-weight="600" fill="#18181b">Stock Receiving</text>
+  </g>
+    
+  <g class="use-case">
+    <ellipse cx="1100" cy="915" rx="175" ry="27" fill="#f4f4f5" stroke="#18181b" stroke-width="1.8" stroke-dasharray="0" />
+    <text x="1100" y="911.5" text-anchor="middle" font-size="13" font-weight="600" fill="#18181b">Sales, Inventory, Movement</text>
+    <text x="1100" y="927.5" text-anchor="middle" font-size="13" font-weight="600" fill="#18181b">&amp; Wastage Aggregation</text>
+  </g>
+    
+  <g class="use-case">
+    <ellipse cx="1100" cy="1055" rx="175" ry="27" fill="#f4f4f5" stroke="#18181b" stroke-width="1.8" stroke-dasharray="0" />
+    <text x="1100" y="1051.5" text-anchor="middle" font-size="13" font-weight="600" fill="#18181b">System Audit &amp; Cost</text>
+    <text x="1100" y="1067.5" text-anchor="middle" font-size="13" font-weight="600" fill="#18181b">Trail Logging</text>
+  </g>
+    
+  <g class="use-case">
+    <ellipse cx="1100" cy="1205" rx="175" ry="27" fill="#f4f4f5" stroke="#18181b" stroke-width="1.8" stroke-dasharray="0" />
+    <text x="1100" y="1201.5" text-anchor="middle" font-size="13" font-weight="600" fill="#18181b">AI &amp; 4-Year Multi-Seasonal</text>
+    <text x="1100" y="1217.5" text-anchor="middle" font-size="13" font-weight="600" fill="#18181b">Demand Forecasting Engine</text>
+  </g>
+  </g>
+  <g class="use-cases-right">
+    
+  <g class="use-case">
+    <ellipse cx="1660" cy="175" rx="180" ry="24" fill="#fefce8" stroke="#18181b" stroke-width="1.8"  />
+    <text x="1660" y="179.5" text-anchor="middle" font-size="13.5" font-weight="500" fill="#18181b">View Transaction Logs (Owner-Only)</text>
+  </g>
+    
+  <g class="use-case">
+    <ellipse cx="1660" cy="255" rx="180" ry="24" fill="#ffffff" stroke="#18181b" stroke-width="1.8"  />
+    <text x="1660" y="259.5" text-anchor="middle" font-size="13.5" font-weight="500" fill="#18181b">Log In / Log Out</text>
+  </g>
+    
+  <g class="use-case">
+    <ellipse cx="1660" cy="312" rx="180" ry="24" fill="#ffffff" stroke="#18181b" stroke-width="1.8"  />
+    <text x="1660" y="316.5" text-anchor="middle" font-size="13.5" font-weight="500" fill="#18181b">View Operations Dashboard &amp; KPIs</text>
+  </g>
+    
+  <g class="use-case">
+    <ellipse cx="1660" cy="369" rx="180" ry="24" fill="#ffffff" stroke="#18181b" stroke-width="1.8"  />
+    <text x="1660" y="373.5" text-anchor="middle" font-size="13.5" font-weight="500" fill="#18181b">Manage Products, Sizes &amp; Recipes</text>
+  </g>
+    
+  <g class="use-case">
+    <ellipse cx="1660" cy="426" rx="180" ry="24" fill="#ffffff" stroke="#18181b" stroke-width="1.8"  />
+    <text x="1660" y="430.5" text-anchor="middle" font-size="13.5" font-weight="500" fill="#18181b">Manage Category Settings</text>
+  </g>
+    
+  <g class="use-case">
+    <ellipse cx="1660" cy="483" rx="180" ry="24" fill="#ffffff" stroke="#18181b" stroke-width="1.8"  />
+    <text x="1660" y="487.5" text-anchor="middle" font-size="13.5" font-weight="500" fill="#18181b">Manage Raw Materials &amp; Receive Stock</text>
+  </g>
+    
+  <g class="use-case">
+    <ellipse cx="1660" cy="540" rx="180" ry="24" fill="#ffffff" stroke="#18181b" stroke-width="1.8"  />
+    <text x="1660" y="544.5" text-anchor="middle" font-size="13.5" font-weight="500" fill="#18181b">Manage Suppliers &amp; Compare Prices</text>
+  </g>
+    
+  <g class="use-case">
+    <ellipse cx="1660" cy="597" rx="180" ry="24" fill="#ffffff" stroke="#18181b" stroke-width="1.8"  />
+    <text x="1660" y="601.5" text-anchor="middle" font-size="13.5" font-weight="500" fill="#18181b">Manage Purchase Orders &amp; Proposals</text>
+  </g>
+    
+  <g class="use-case">
+    <ellipse cx="1660" cy="654" rx="180" ry="24" fill="#ffffff" stroke="#18181b" stroke-width="1.8"  />
+    <text x="1660" y="658.5" text-anchor="middle" font-size="13.5" font-weight="500" fill="#18181b">View Sales Receipt Journal</text>
+  </g>
+    
+  <g class="use-case">
+    <ellipse cx="1660" cy="711" rx="180" ry="24" fill="#ffffff" stroke="#18181b" stroke-width="1.8"  />
+    <text x="1660" y="715.5" text-anchor="middle" font-size="13.5" font-weight="500" fill="#18181b">Generate &amp; Export Reports (CSV / Print)</text>
+  </g>
+    
+  <g class="use-case">
+    <ellipse cx="1660" cy="768" rx="180" ry="24" fill="#ffffff" stroke="#18181b" stroke-width="1.8"  />
+    <text x="1660" y="772.5" text-anchor="middle" font-size="13.5" font-weight="500" fill="#18181b">View Demand Forecasting &amp; AI Restock</text>
+  </g>
+    
+  <g class="use-case">
+    <ellipse cx="1660" cy="825" rx="180" ry="24" fill="#ffffff" stroke="#18181b" stroke-width="1.8"  />
+    <text x="1660" y="829.5" text-anchor="middle" font-size="13.5" font-weight="500" fill="#18181b">View System Audit Logs</text>
+  </g>
+    
+  <g class="use-case">
+    <ellipse cx="1660" cy="882" rx="180" ry="24" fill="#ffffff" stroke="#18181b" stroke-width="1.8"  />
+    <text x="1660" y="886.5" text-anchor="middle" font-size="13.5" font-weight="500" fill="#18181b">Manage Accounts &amp; Role Permissions</text>
+  </g>
+    
+  <g class="use-case">
+    <ellipse cx="1660" cy="939" rx="180" ry="24" fill="#ffffff" stroke="#18181b" stroke-width="1.8"  />
+    <text x="1660" y="943.5" text-anchor="middle" font-size="13.5" font-weight="500" fill="#18181b">Manage Website Content (CMS &amp; Favicon)</text>
+  </g>
+  </g>
+
+  <!-- Actors -->
+  <g class="actors">
+    
+  <g class="actor">
+    <circle cx="145" cy="187" r="16" fill="#ffffff" stroke="#18181b" stroke-width="2.4" />
+    <line x1="145" y1="203" x2="145" y2="241" stroke="#18181b" stroke-width="2.4" stroke-linecap="round" />
+    <line x1="121" y1="213" x2="169" y2="213" stroke="#18181b" stroke-width="2.4" stroke-linecap="round" />
+    <line x1="145" y1="241" x2="127" y2="269" stroke="#18181b" stroke-width="2.4" stroke-linecap="round" />
+    <line x1="145" y1="241" x2="163" y2="269" stroke="#18181b" stroke-width="2.4" stroke-linecap="round" />
+    <text x="145" y="291" text-anchor="middle" font-size="16" font-weight="700" fill="#18181b">Customer</text>
+    <text x="145" y="309" text-anchor="middle" font-size="12.5" font-weight="500" fill="#52525b">(Walk-in / Public)</text>
+  </g>
+    
+  <g class="actor">
+    <circle cx="145" cy="587" r="16" fill="#ffffff" stroke="#18181b" stroke-width="2.4" />
+    <line x1="145" y1="603" x2="145" y2="641" stroke="#18181b" stroke-width="2.4" stroke-linecap="round" />
+    <line x1="121" y1="613" x2="169" y2="613" stroke="#18181b" stroke-width="2.4" stroke-linecap="round" />
+    <line x1="145" y1="641" x2="127" y2="669" stroke="#18181b" stroke-width="2.4" stroke-linecap="round" />
+    <line x1="145" y1="641" x2="163" y2="669" stroke="#18181b" stroke-width="2.4" stroke-linecap="round" />
+    <text x="145" y="691" text-anchor="middle" font-size="16" font-weight="700" fill="#18181b">Staff</text>
+    <text x="145" y="709" text-anchor="middle" font-size="12.5" font-weight="500" fill="#52525b">(Cashier / Barista)</text>
+  </g>
+    
+  <g class="actor">
+    <circle cx="145" cy="1052" r="16" fill="#ffffff" stroke="#18181b" stroke-width="2.4" />
+    <line x1="145" y1="1068" x2="145" y2="1106" stroke="#18181b" stroke-width="2.4" stroke-linecap="round" />
+    <line x1="121" y1="1078" x2="169" y2="1078" stroke="#18181b" stroke-width="2.4" stroke-linecap="round" />
+    <line x1="145" y1="1106" x2="127" y2="1134" stroke="#18181b" stroke-width="2.4" stroke-linecap="round" />
+    <line x1="145" y1="1106" x2="163" y2="1134" stroke="#18181b" stroke-width="2.4" stroke-linecap="round" />
+    <text x="145" y="1156" text-anchor="middle" font-size="16" font-weight="700" fill="#18181b">Supplier</text>
+    <text x="145" y="1174" text-anchor="middle" font-size="12.5" font-weight="500" fill="#52525b">(External Partner)</text>
+  </g>
+    
+  <g class="actor">
+    <circle cx="2045" cy="137" r="16" fill="#ffffff" stroke="#18181b" stroke-width="2.4" />
+    <line x1="2045" y1="153" x2="2045" y2="191" stroke="#18181b" stroke-width="2.4" stroke-linecap="round" />
+    <line x1="2021" y1="163" x2="2069" y2="163" stroke="#18181b" stroke-width="2.4" stroke-linecap="round" />
+    <line x1="2045" y1="191" x2="2027" y2="219" stroke="#18181b" stroke-width="2.4" stroke-linecap="round" />
+    <line x1="2045" y1="191" x2="2063" y2="219" stroke="#18181b" stroke-width="2.4" stroke-linecap="round" />
+    <text x="2045" y="241" text-anchor="middle" font-size="16" font-weight="700" fill="#18181b">Owner</text>
+    <text x="2045" y="259" text-anchor="middle" font-size="12.5" font-weight="500" fill="#52525b">(Full Access)</text>
+  </g>
+    
+  <g class="actor">
+    <circle cx="2045" cy="557" r="16" fill="#ffffff" stroke="#18181b" stroke-width="2.4" />
+    <line x1="2045" y1="573" x2="2045" y2="611" stroke="#18181b" stroke-width="2.4" stroke-linecap="round" />
+    <line x1="2021" y1="583" x2="2069" y2="583" stroke="#18181b" stroke-width="2.4" stroke-linecap="round" />
+    <line x1="2045" y1="611" x2="2027" y2="639" stroke="#18181b" stroke-width="2.4" stroke-linecap="round" />
+    <line x1="2045" y1="611" x2="2063" y2="639" stroke="#18181b" stroke-width="2.4" stroke-linecap="round" />
+    <text x="2045" y="661" text-anchor="middle" font-size="16" font-weight="700" fill="#18181b">Admin</text>
+    <text x="2045" y="679" text-anchor="middle" font-size="12.5" font-weight="500" fill="#52525b">(Store Manager)</text>
+  </g>
+    
+  <g class="system-actor">
+    <rect x="1973" y="1171" width="144" height="68" rx="8" fill="#fafafa" stroke="#18181b" stroke-width="2.2" />
+    <text x="2045" y="1195" text-anchor="middle" font-size="11.5" font-weight="600" fill="#52525b">«external system»</text>
+    <text x="2045" y="1215" text-anchor="middle" font-size="15" font-weight="700" fill="#18181b">Google Gemini AI</text>
+    <text x="2045" y="1231" text-anchor="middle" font-size="11.5" font-weight="500" fill="#52525b">(Forecast API)</text>
+  </g>
+  </g>
+
+  <!-- UML Note for Custom Role Permissions -->
+  <g class="uml-note">
+    <path d="M 340 1300 L 1060 1300 L 1078 1318 L 1078 1410 L 340 1410 Z" fill="#fafafa" stroke="#52525b" stroke-width="1.5" />
+    <path d="M 1060 1300 L 1060 1318 L 1078 1318" fill="none" stroke="#52525b" stroke-width="1.5" />
+    <text x="360" y="1326" font-size="13" font-weight="700" fill="#18181b">Note — Custom Role &amp; Permission-Scoped Accounts:</text>
+    <text x="360" y="1348" font-size="12.5" fill="#3f3f46">Admin and Owner can grant Staff or Custom Role accounts granular page-level permissions across</text>
+    <text x="360" y="1367" font-size="12.5" fill="#3f3f46">POS, Wastage, Products, Inventory, Suppliers, Purchase Orders, Reports, Audit Logs, and Forecasting.</text>
+    <text x="360" y="1386" font-size="12.5" fill="#3f3f46">Transaction Logs remain strictly Owner-only; CMS &amp; Account Management are restricted to Admin / Owner.</text>
+  </g>
+
+  <!-- Legend Box -->
+  <g class="legend">
+    <rect x="1110" y="1300" width="750" height="110" rx="6" fill="#fafafa" stroke="#d4d4d8" stroke-width="1.4" />
+    <text x="1130" y="1325" font-size="13" font-weight="700" fill="#18181b">Notation Legend</text>
+
+    <ellipse cx="1175" cy="1355" rx="34" ry="13" fill="#ffffff" stroke="#18181b" stroke-width="1.5" />
+    <text x="1220" y="1359" font-size="12" fill="#27272a">Actor Use Case</text>
+
+    <ellipse cx="1370" cy="1355" rx="34" ry="13" fill="#f4f4f5" stroke="#18181b" stroke-width="1.5" />
+    <text x="1415" y="1359" font-size="12" fill="#27272a">Automated / Core System Process</text>
+
+    <ellipse cx="1665" cy="1355" rx="34" ry="13" fill="#fefce8" stroke="#18181b" stroke-width="1.5" />
+    <text x="1710" y="1359" font-size="12" fill="#27272a">Owner-Only Use Case</text>
+
+    <line x1="1140" y1="1390" x2="1205" y2="1390" stroke="#18181b" stroke-width="1.6" />
+    <text x="1215" y="1394" font-size="12" fill="#27272a">Association</text>
+
+    <line x1="1335" y1="1390" x2="1405" y2="1390" stroke="#3f3f46" stroke-width="1.4" stroke-dasharray="5,3" marker-end="url(#openArrow)" />
+    <text x="1415" y="1394" font-size="12" fill="#27272a">«include» / «extend» Dependency</text>
+
+    <line x1="1645" y1="1390" x2="1710" y2="1390" stroke="#18181b" stroke-width="1.8" marker-end="url(#triangleArrow)" />
+    <text x="1720" y="1394" font-size="12" fill="#27272a">Role Inheritance</text>
+  </g>
+</svg>

@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Docs/UML: Updated System UML Use Case Diagram - 2026-11-12]
+- **Created Updated UML Use Case Diagram ([`CofTea_UML_UseCase_Diagram.svg`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/docs/diagrams/CofTea_UML_UseCase_Diagram.svg) & [`CofTea_UML_UseCase_Diagram.png`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/docs/diagrams/CofTea_UML_UseCase_Diagram.png))**:
+  - Updated actors to match current RBAC & external integrations: **Customer**, **Staff (Cashier / Barista)**, **Supplier**, **Admin**, **Owner** (with generalization to Admin), and **Google Gemini AI** (external forecast API).
+  - Documented new & updated capabilities: CMS public menu board, POS sizes/add-ons/hold orders/VAT & discounts, Supplier Portal & PO proposal negotiation, PO unit conversion, 4-year multi-seasonal & AI demand forecasting, Sales Receipt Journal, 4-module Reports (CSV/Print), Audit & Owner-only Transaction Logs, and granular Custom Role permissions.
+
 ## [AI/Forecasting: Google Gemini API Free Tier Integration & Service Optimization - 2026-11-11]
 - **Activated Gemini AI Demand Forecasting**:
   - Successfully connected and verified user's Google Gemini API key via the official free tier.
