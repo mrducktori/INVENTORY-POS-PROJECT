@@ -506,10 +506,13 @@ export const forecastStockUsingAI = async (dto) => {
   };
   const salesJson = JSON.stringify(promptPayload);
 
-  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  const apiKeys = [
+    process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY,
+    process.env.GEMINI_API_KEY_BACKUP
+  ].filter(Boolean);
 
-  // 2. If Gemini API Key is available, prompt Gemini AI
-  if (apiKey) {
+  // 2. If Gemini API Key(s) are available, prompt Gemini AI (with automatic backup key failover)
+  if (apiKeys.length > 0) {
     try {
       const prompt = `
 You are an inventory forecasting system.
@@ -593,36 +596,44 @@ Do not include markdown backticks.
       };
 
       // Call Gemini API (defaults to fast, free-tier gemini-3.5-flash-lite)
+      // Automatically fails over to GEMINI_API_KEY_BACKUP if primary key hits quota (429) or auth error
       const targetModel = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKey}`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-        signal: AbortSignal.timeout(10000)
-      });
+      for (let i = 0; i < apiKeys.length; i++) {
+        const keyLabel = i === 0 ? 'primary' : 'backup';
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKeys[i]}`;
+        try {
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody),
+            signal: AbortSignal.timeout(10000)
+          });
 
-      if (response.ok) {
-        const geminiResponse = await response.json();
-        const text = geminiResponse?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (text) {
-          const parsed = JSON.parse(text.replace(/```json|```/gi, '').trim());
-          if (parsed.confidenceScore !== undefined && parsed.confidenceScore <= 1) {
-            parsed.confidenceScore = Math.round(parsed.confidenceScore * 100);
+          if (response.ok) {
+            const geminiResponse = await response.json();
+            const text = geminiResponse?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text) {
+              const parsed = JSON.parse(text.replace(/```json|```/gi, '').trim());
+              if (parsed.confidenceScore !== undefined && parsed.confidenceScore <= 1) {
+                parsed.confidenceScore = Math.round(parsed.confidenceScore * 100);
+              }
+              const ensembleBaseline = runDeterministicEnsembleForecast(forecastingData);
+              return {
+                ...ensembleBaseline,
+                ...parsed,
+                factors: ensembleBaseline.factors,
+                engine: 'gemini_ai',
+                daysInMonth: forecastingData.forecastTarget.daysInMonth,
+                targetPeriod: `${targetYear}-${String(targetMonth).padStart(2, '0')}`,
+                recentSummary: forecastingData.recentSummary
+              };
+            }
+          } else {
+            console.warn(`[Gemini API Warning] (${keyLabel} key) Status ${response.status}. ${i < apiKeys.length - 1 ? 'Trying backup key...' : 'Falling back to deterministic ensemble.'}`);
           }
-          const ensembleBaseline = runDeterministicEnsembleForecast(forecastingData);
-          return {
-            ...ensembleBaseline,
-            ...parsed,
-            factors: ensembleBaseline.factors,
-            engine: 'gemini_ai',
-            daysInMonth: forecastingData.forecastTarget.daysInMonth,
-            targetPeriod: `${targetYear}-${String(targetMonth).padStart(2, '0')}`,
-            recentSummary: forecastingData.recentSummary
-          };
+        } catch (keyErr) {
+          console.warn(`[Gemini API Warning] (${keyLabel} key) ${keyErr.message}. ${i < apiKeys.length - 1 ? 'Trying backup key...' : 'Falling back to deterministic ensemble.'}`);
         }
-      } else {
-        console.warn(`[Gemini API Warning] Status ${response.status}. Falling back to deterministic ensemble.`);
       }
     } catch (aiErr) {
       console.warn("[Gemini API Fallback] Invoking deterministic ensemble model due to error:", aiErr.message);

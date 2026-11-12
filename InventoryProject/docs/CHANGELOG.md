@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [AI/Forecasting: Backup Gemini API Key Failover - 2026-11-12]
+- **Automatic Backup Key Failover (`aiForecastingService.js`, `server/.env.example`)**:
+  - Added support for `GEMINI_API_KEY_BACKUP` in [`aiForecastingService.js`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/server/services/aiForecastingService.js#L509-L645). If the primary `GEMINI_API_KEY` hits a rate limit (`429`) or auth/network error, the forecasting engine automatically retries using `GEMINI_API_KEY_BACKUP` before falling back to the local deterministic ensemble model.
+  - Documented `GEMINI_API_KEY_BACKUP` in [`server/.env.example`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/server/.env.example).
+
 ## [UI/Products: Clean Modify Product Modal & Action Buttons - 2026-11-12]
 - **Removed Redundant Overrides (`src/features/inventory/ManageProducts.jsx`)**:
   - Removed the confusing per-product Sizes Configuration and Add-ons Configuration override tables and tip banner from the "Modify Product" modal. Category-wide sizes and add-ons are managed cleanly and centrally via "Add-on Defaults".
