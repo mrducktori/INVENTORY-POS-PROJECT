@@ -8,6 +8,7 @@ import { TableSkeleton, CardGridSkeleton } from '../../components/shared/Skeleto
 const Products = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState('ALL');
   const [viewMode, setViewMode] = useState('table'); // 'table' | 'grid'
@@ -33,10 +34,12 @@ const Products = () => {
   const fetchProducts = async () => {
     try {
       setLoading(true);
+      setError(null);
       const data = await getAllProducts();
       setProducts(data || []);
     } catch (err) {
       console.error('Failed to load products:', err);
+      setError(err?.message || 'Unable to load products. Please check your network connection.');
     } finally {
       setLoading(false);
     }
@@ -241,6 +244,26 @@ const Products = () => {
               ) : (
                 <CardGridSkeleton count={8} />
               )}
+            </div>
+          ) : error ? (
+            <div className="py-16 px-6 flex flex-col items-center justify-center text-center">
+              <div className="w-12 h-12 rounded-full bg-red-50 text-red-600 flex items-center justify-center mb-3">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <h3 className="text-base font-bold text-zinc-900 m-0 mb-1">Failed to Load Products</h3>
+              <p className="text-sm text-zinc-500 m-0 mb-4 max-w-md">{error}</p>
+              <button
+                type="button"
+                onClick={fetchProducts}
+                className="px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm font-semibold hover:bg-zinc-800 transition-colors shadow-2xs cursor-pointer flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Retry
+              </button>
             </div>
           ) : sortedProducts.length === 0 ? (
             <div className="py-20 px-6 flex flex-col items-center justify-center text-center">

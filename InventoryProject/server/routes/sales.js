@@ -27,6 +27,9 @@ router.get('/', async (req, res) => {
 
     if (!needsInMemoryFilter) {
       query = query.range(offset, offset + limit - 1);
+    } else {
+      // Safety ceiling: prevent unbounded queries from exhausting Node.js heap memory
+      query = query.limit(1000);
     }
 
     // Date range filtering (supports both snake_case and camelCase)

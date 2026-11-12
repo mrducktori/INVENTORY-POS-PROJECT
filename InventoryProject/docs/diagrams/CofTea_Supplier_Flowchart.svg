@@ -1,0 +1,316 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 1450" width="1100" height="1450" style="font-family: 'Segoe UI', Arial, sans-serif; background: #ffffff;">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1 L 9 5 L 0 9 z" fill="#27272a" />
+    </marker>
+  </defs>
+
+  <!-- Outer frame -->
+  <rect x="35" y="25" width="1030" height="1400" rx="14" fill="#fafafa" stroke="#e4e4e7" stroke-width="2" />
+
+  <!-- Title Banner -->
+  <text x="550" y="70" text-anchor="middle" font-size="22" font-weight="800" fill="#18181b" letter-spacing="0.3">
+    CofTea Cafe — Supplier Portal &amp; PO Fulfillment Flowchart
+  </text>
+  <text x="550" y="95" text-anchor="middle" font-size="13" font-weight="500" fill="#52525b">
+    End-to-End Interaction between External Supplier and CofTea Cafe Store Management
+  </text>
+  <line x1="60" y1="112" x2="1040" y2="112" stroke="#e4e4e7" stroke-width="1.5" />
+
+  <!-- 2 Swimlanes -->
+  <!-- Left Lane: Supplier (width: 610, x: 55 to 665) -->
+  <rect x="55" y="130" width="610" height="1270" rx="10" fill="#ffffff" stroke="#e4e4e7" stroke-width="1.5" />
+  
+    <g>
+      <rect x="55" y="130" width="610" height="56" rx="8" fill="#18181b" />
+      <text x="360" y="154" text-anchor="middle" font-size="15" font-weight="800" fill="#ffffff" letter-spacing="0.5">SUPPLIER PORTAL (EXTERNAL PARTNER)</text>
+      <text x="360" y="172" text-anchor="middle" font-size="11.5" font-weight="500" fill="#a1a1aa">Accesses Supplier Portal view only • Manages POs and Catalog</text>
+    </g>
+
+  <!-- Right Lane: Cafe Admin & Store (width: 360, x: 685 to 1045) -->
+  <rect x="685" y="130" width="360" height="1270" rx="10" fill="#f8fafc" stroke="#e4e4e7" stroke-width="1.5" />
+  
+    <g>
+      <rect x="685" y="130" width="360" height="56" rx="8" fill="#18181b" />
+      <text x="865" y="154" text-anchor="middle" font-size="15" font-weight="800" fill="#ffffff" letter-spacing="0.5">COFTEA CAFE MANAGEMENT</text>
+      <text x="865" y="172" text-anchor="middle" font-size="11.5" font-weight="500" fill="#a1a1aa">Admin / Owner &amp; Store Staff operations</text>
+    </g>
+
+  <!-- Divider line between swimlanes -->
+  <line x1="675" y1="130" x2="675" y2="1400" stroke="#cbd5e1" stroke-width="1.4" stroke-dasharray="6,4" />
+
+  <!-- ========================================== -->
+  <!-- STEP 1: AUTHENTICATION                     -->
+  <!-- ========================================== -->
+  
+    <g>
+      <rect x="250" y="211" width="220" height="38" rx="19" fill="#18181b" stroke="#18181b" stroke-width="2" />
+      <text x="360" y="235" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">Start: Supplier Login</text>
+    </g>
+  
+    <g>
+      <polygon points="360,285 465,320 360,355 255,320" fill="#fefce8" stroke="#ca8a04" stroke-width="2" />
+      <text x="360" y="324.5" text-anchor="middle" font-size="12.5" font-weight="700" fill="#713f12">Role = Supplier?</text>
+    </g>
+  
+    <g>
+      <rect x="70" y="298" width="150" height="44" rx="8" fill="#fef2f2" stroke="#ef4444" stroke-width="1.8" />
+      <text x="145" y="316.25" text-anchor="middle" font-size="13" font-weight="600" fill="#991b1b">Access Denied</text>
+      <text x="145" y="333.75" text-anchor="middle" font-size="13" font-weight="600" fill="#991b1b">(Wrong role/password)</text>
+    </g>
+  
+  
+    <g>
+      <path d="M 360 249 L 360 285" fill="none" stroke="#27272a" stroke-width="1.8" marker-end="url(#arrowhead)" />
+      
+    </g>
+  
+    <g>
+      <path d="M 255 320 L 220 320" fill="none" stroke="#27272a" stroke-width="1.8" marker-end="url(#arrowhead)" />
+      <rect x="230.5" y="301" width="15" height="18" rx="4" fill="#ffffff" stroke="#d4d4d8" stroke-width="1" />
+       <text x="238" y="314" text-anchor="middle" font-size="11" font-weight="700" fill="#27272a">No</text>
+    </g>
+  
+    <g>
+      <path d="M 360 355 L 360 396" fill="none" stroke="#27272a" stroke-width="1.8" marker-end="url(#arrowhead)" />
+      <rect x="368.75" y="366" width="22.5" height="18" rx="4" fill="#ffffff" stroke="#d4d4d8" stroke-width="1" />
+       <text x="380" y="379" text-anchor="middle" font-size="11" font-weight="700" fill="#27272a">Yes</text>
+    </g>
+
+  <!-- ========================================== -->
+  <!-- STEP 2: PORTAL HUB & MODULES               -->
+  <!-- ========================================== -->
+  
+    <g>
+      <rect x="190" y="401" width="340" height="48" rx="8" fill="#ffffff" stroke="#27272a" stroke-width="1.8" />
+      <text x="360" y="421.25" text-anchor="middle" font-size="13" font-weight="600" fill="#18181b">Supplier Portal Dashboard</text>
+      <text x="360" y="438.75" text-anchor="middle" font-size="13" font-weight="600" fill="#18181b">(Real-time Supabase Synchronized)</text>
+    </g>
+  
+  <!-- Side module: Catalog Management -->
+  
+    <g>
+      <rect x="65" y="494" width="140" height="52" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8" />
+      <text x="135" y="516.25" text-anchor="middle" font-size="13" font-weight="600" fill="#1e3a8a">Update Catalog</text>
+      <text x="135" y="533.75" text-anchor="middle" font-size="13" font-weight="600" fill="#1e3a8a">(Wholesale prices &amp; units)</text>
+    </g>
+  
+    <g>
+      <rect x="65" y="591" width="140" height="48" rx="8" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.8" />
+      <text x="135" y="611.25" text-anchor="middle" font-size="13" font-weight="600" fill="#14532d">Price Changes Saved</text>
+      <text x="135" y="628.75" text-anchor="middle" font-size="13" font-weight="600" fill="#14532d">(Cafe notified live)</text>
+    </g>
+
+  <!-- Main module: View POs -->
+  
+    <g>
+      <rect x="350" y="494" width="260" height="52" rx="8" fill="#ffffff" stroke="#27272a" stroke-width="1.8" />
+      <text x="480" y="516.25" text-anchor="middle" font-size="13" font-weight="600" fill="#18181b">View Assigned Purchase Orders</text>
+      <text x="480" y="533.75" text-anchor="middle" font-size="13" font-weight="600" fill="#18181b">(Pending, Active, Proposals, Overdue)</text>
+    </g>
+
+  
+    <g>
+      <path d="M 260 449 L 135 449 L 135 494" fill="none" stroke="#27272a" stroke-width="1.8" marker-end="url(#arrowhead)" />
+      <rect x="147.5" y="431" width="75" height="18" rx="4" fill="#ffffff" stroke="#d4d4d8" stroke-width="1" />
+       <text x="185" y="444" text-anchor="middle" font-size="11" font-weight="700" fill="#27272a">My Catalog</text>
+    </g>
+  
+    <g>
+      <path d="M 460 449 L 480 449 L 480 494" fill="none" stroke="#27272a" stroke-width="1.8" marker-end="url(#arrowhead)" />
+      <rect x="440" y="461" width="90" height="18" rx="4" fill="#ffffff" stroke="#d4d4d8" stroke-width="1" />
+       <text x="485" y="474" text-anchor="middle" font-size="11" font-weight="700" fill="#27272a">Incoming POs</text>
+    </g>
+  
+    <g>
+      <path d="M 135 546 L 135 591" fill="none" stroke="#27272a" stroke-width="1.8" marker-end="url(#arrowhead)" />
+      
+    </g>
+  
+    <g>
+      <path d="M 135 639 L 135 670 L 65 670 L 65 425 L 190 425" fill="none" stroke="#27272a" stroke-width="1.8" marker-end="url(#arrowhead)" />
+      <rect x="68.75" y="651" width="52.5" height="18" rx="4" fill="#ffffff" stroke="#d4d4d8" stroke-width="1" />
+       <text x="95" y="664" text-anchor="middle" font-size="11" font-weight="700" fill="#27272a">Updated</text>
+    </g>
+
+  <!-- ========================================== -->
+  <!-- STEP 3: PO DECISION                        -->
+  <!-- ========================================== -->
+  
+    <g>
+      <polygon points="480,587.5 595,625 480,662.5 365,625" fill="#fefce8" stroke="#ca8a04" stroke-width="2" />
+      <text x="480" y="629.5" text-anchor="middle" font-size="12.5" font-weight="700" fill="#713f12">Can You Fulfill Order?</text>
+    </g>
+  
+    <g>
+      <path d="M 480 546 L 480 587" fill="none" stroke="#27272a" stroke-width="1.8" marker-end="url(#arrowhead)" />
+      
+    </g>
+
+  <!-- 3 Decision Branches -->
+  <!-- Branch 1: Accept Fully (Left) -->
+  
+    <g>
+      <rect x="170" y="719" width="140" height="52" rx="8" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.8" />
+      <text x="240" y="741.25" text-anchor="middle" font-size="13" font-weight="600" fill="#14532d">Accept Order Fully</text>
+      <text x="240" y="758.75" text-anchor="middle" font-size="13" font-weight="600" fill="#14532d">(Status: 'To Be Delivered')</text>
+    </g>
+
+  <!-- Branch 2: Counter-Proposal / Postpone (Center) -->
+  
+    <g>
+      <rect x="335" y="717" width="170" height="56" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8" />
+      <text x="420" y="732.5" text-anchor="middle" font-size="13" font-weight="600" fill="#1e3a8a">Propose New Date</text>
+      <text x="420" y="750" text-anchor="middle" font-size="13" font-weight="600" fill="#1e3a8a">or Item Adjustments</text>
+      <text x="420" y="767.5" text-anchor="middle" font-size="13" font-weight="600" fill="#1e3a8a">(SupplierReviewPOModal.jsx)</text>
+    </g>
+
+  <!-- Branch 3: Decline (Right) -->
+  
+    <g>
+      <rect x="525" y="719" width="120" height="52" rx="8" fill="#fef2f2" stroke="#ef4444" stroke-width="1.8" />
+      <text x="585" y="741.25" text-anchor="middle" font-size="13" font-weight="600" fill="#991b1b">Decline Order</text>
+      <text x="585" y="758.75" text-anchor="middle" font-size="13" font-weight="600" fill="#991b1b">(Input Reason)</text>
+    </g>
+  
+    <g>
+      <rect x="525" y="827" width="120" height="36" rx="18" fill="#991b1b" stroke="#18181b" stroke-width="2" />
+      <text x="585" y="850" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">Order Closed</text>
+    </g>
+
+  
+    <g>
+      <path d="M 365 625 L 240 625 L 240 719" fill="none" stroke="#27272a" stroke-width="1.8" marker-end="url(#arrowhead)" />
+      <rect x="272.5" y="606" width="45" height="18" rx="4" fill="#ffffff" stroke="#d4d4d8" stroke-width="1" />
+       <text x="295" y="619" text-anchor="middle" font-size="11" font-weight="700" fill="#27272a">Accept</text>
+    </g>
+  
+    <g>
+      <path d="M 480 662 L 420 690 L 420 717" fill="none" stroke="#27272a" stroke-width="1.8" marker-end="url(#arrowhead)" />
+      <rect x="423.75" y="681" width="52.5" height="18" rx="4" fill="#ffffff" stroke="#d4d4d8" stroke-width="1" />
+       <text x="450" y="694" text-anchor="middle" font-size="11" font-weight="700" fill="#27272a">Propose</text>
+    </g>
+  
+    <g>
+      <path d="M 595 625 L 585 625 L 585 719" fill="none" stroke="#27272a" stroke-width="1.8" marker-end="url(#arrowhead)" />
+      <rect x="568.75" y="661" width="52.5" height="18" rx="4" fill="#ffffff" stroke="#d4d4d8" stroke-width="1" />
+       <text x="595" y="674" text-anchor="middle" font-size="11" font-weight="700" fill="#27272a">Decline</text>
+    </g>
+  
+    <g>
+      <path d="M 585 771 L 585 827" fill="none" stroke="#27272a" stroke-width="1.8" marker-end="url(#arrowhead)" />
+      
+    </g>
+
+  <!-- ========================================== -->
+  <!-- STEP 4: CAFE ADMIN PROPOSAL REVIEW         -->
+  <!-- ========================================== -->
+  
+    <g>
+      <rect x="740" y="718" width="250" height="54" rx="8" fill="#f4f4f5" stroke="#27272a" stroke-width="1.8" />
+      <text x="865" y="741.25" text-anchor="middle" font-size="13" font-weight="600" fill="#18181b">Cafe Admin Reviews Proposal</text>
+      <text x="865" y="758.75" text-anchor="middle" font-size="13" font-weight="600" fill="#18181b">(In PurchaseOrders.jsx)</text>
+    </g>
+  
+    <g>
+      <polygon points="865,822.5 960,855 865,887.5 770,855" fill="#fefce8" stroke="#ca8a04" stroke-width="2" />
+      <text x="865" y="859.5" text-anchor="middle" font-size="12.5" font-weight="700" fill="#713f12">Admin Approves?</text>
+    </g>
+  
+    <g>
+      <rect x="770" y="933" width="190" height="44" rx="8" fill="#fef2f2" stroke="#ef4444" stroke-width="1.8" />
+      <text x="865" y="951.25" text-anchor="middle" font-size="13" font-weight="600" fill="#991b1b">PO Cancelled / Modified</text>
+      <text x="865" y="968.75" text-anchor="middle" font-size="13" font-weight="600" fill="#991b1b">(Renegotiate with Supplier)</text>
+    </g>
+
+  <!-- Clean horizontal bridge from Propose to Cafe Admin Review -->
+  
+    <g>
+      <path d="M 505 745 L 740 745" fill="none" stroke="#27272a" stroke-width="1.8" marker-end="url(#arrowhead)" />
+      <rect x="578.75" y="726" width="112.5" height="18" rx="4" fill="#ffffff" stroke="#d4d4d8" stroke-width="1" />
+       <text x="635" y="739" text-anchor="middle" font-size="11" font-weight="700" fill="#27272a">Submit Proposal</text>
+    </g>
+  
+    <g>
+      <path d="M 865 772 L 865 822" fill="none" stroke="#27272a" stroke-width="1.8" marker-end="url(#arrowhead)" />
+      
+    </g>
+  
+    <g>
+      <path d="M 865 887 L 865 933" fill="none" stroke="#27272a" stroke-width="1.8" marker-end="url(#arrowhead)" />
+      <rect x="877.5" y="901" width="15" height="18" rx="4" fill="#ffffff" stroke="#d4d4d8" stroke-width="1" />
+       <text x="885" y="914" text-anchor="middle" font-size="11" font-weight="700" fill="#27272a">No</text>
+    </g>
+
+  <!-- ========================================== -->
+  <!-- STEP 5: DELIVERY & RECEIVING               -->
+  <!-- ========================================== -->
+  <!-- Supplier delivers goods -->
+  
+    <g>
+      <rect x="230" y="1025" width="260" height="50" rx="8" fill="#ffffff" stroke="#27272a" stroke-width="1.8" />
+      <text x="360" y="1046.25" text-anchor="middle" font-size="13" font-weight="600" fill="#18181b">Transport &amp; Deliver Goods</text>
+      <text x="360" y="1063.75" text-anchor="middle" font-size="13" font-weight="600" fill="#18181b">to CofTea Cafe Store</text>
+    </g>
+
+  <!-- Accept flows to delivery -->
+  
+    <g>
+      <path d="M 240 771 L 240 1050 L 230 1050" fill="none" stroke="#27272a" stroke-width="1.8" marker-end="url(#arrowhead)" />
+      
+    </g>
+  <!-- Admin approved proposal flows back to supplier delivery -->
+  
+    <g>
+      <path d="M 770 855 L 420 855 L 420 1025" fill="none" stroke="#27272a" stroke-width="1.8" marker-end="url(#arrowhead)" />
+      <rect x="477.5" y="836" width="105" height="18" rx="4" fill="#ffffff" stroke="#d4d4d8" stroke-width="1" />
+       <text x="530" y="849" text-anchor="middle" font-size="11" font-weight="700" fill="#27272a">Yes (Approved)</text>
+    </g>
+
+  <!-- Cross-lane flow into Cafe Store Receiving -->
+  
+    <g>
+      <rect x="730" y="1023" width="270" height="54" rx="8" fill="#f4f4f5" stroke="#18181b" stroke-width="1.8" />
+      <text x="865" y="1046.25" text-anchor="middle" font-size="13" font-weight="600" fill="#18181b">Store Staff Inspects Goods</text>
+      <text x="865" y="1063.75" text-anchor="middle" font-size="13" font-weight="600" fill="#18181b">Receives PO in StockReceived.jsx</text>
+    </g>
+  
+    <g>
+      <path d="M 490 1050 L 730 1050" fill="none" stroke="#27272a" stroke-width="1.8" marker-end="url(#arrowhead)" />
+      <rect x="555" y="1031" width="120" height="18" rx="4" fill="#ffffff" stroke="#d4d4d8" stroke-width="1" />
+       <text x="615" y="1044" text-anchor="middle" font-size="11" font-weight="700" fill="#27272a">Deliver to Store</text>
+    </g>
+
+  <!-- Unit Conversion & Stock Inflow -->
+  
+    <g>
+      <rect x="720" y="1133" width="290" height="64" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8" />
+      <text x="865" y="1152.5" text-anchor="middle" font-size="13" font-weight="600" fill="#1e3a8a">Automatic Unit Conversion Applied</text>
+      <text x="865" y="1170" text-anchor="middle" font-size="13" font-weight="600" fill="#1e3a8a">e.g., 5 Bags × 1,000g = 5,000g</text>
+      <text x="865" y="1187.5" text-anchor="middle" font-size="13" font-weight="600" fill="#1e3a8a">Raw material stock updated in Supabase</text>
+    </g>
+  
+    <g>
+      <path d="M 865 1077 L 865 1133" fill="none" stroke="#27272a" stroke-width="1.8" marker-end="url(#arrowhead)" />
+      
+    </g>
+
+  <!-- Final Status Complete -->
+  
+    <g>
+      <rect x="740" y="1254" width="250" height="42" rx="21" fill="#15803d" stroke="#18181b" stroke-width="2" />
+      <text x="865" y="1280" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">PO Status: 'Received' (Done)</text>
+    </g>
+  
+    <g>
+      <path d="M 865 1197 L 865 1254" fill="none" stroke="#27272a" stroke-width="1.8" marker-end="url(#arrowhead)" />
+      
+    </g>
+
+  <!-- Audit Trail Note -->
+  <rect x="70" y="1295" width="550" height="48" rx="8" fill="#f4f4f5" stroke="#cbd5e1" stroke-width="1.2" />
+  <text x="85" y="1316" font-size="12" font-weight="700" fill="#18181b">System Audit Logging:</text>
+  <text x="85" y="1333" font-size="11.5" fill="#52525b">Every order acceptance, proposal, status shift, and receiving quantity is automatically written to audit_logs.</text>
+
+</svg>

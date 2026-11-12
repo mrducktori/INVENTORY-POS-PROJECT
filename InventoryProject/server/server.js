@@ -145,14 +145,34 @@ app.use('/api/purchase-orders', requireAuth, purchasingRoutes);
 app.use('/purchase-orders', requireAuth, purchasingRoutes);
 app.use('/api/cms', looseLimiter, cmsRoutes);
 
+// Catch unmatched /api/* requests so API clients always receive clean JSON 404
+app.all('/api/*', (req, res) => {
+  res.status(404).json({ error: 'API endpoint not found' });
+});
+
 // ==========================================
-// ERROR HANDLER — Prevent leaking sensitive info
+// ERROR HANDLER — Intercept unhandled errors & malformed JSON
 // ==========================================
 app.use((err, req, res, next) => {
-  console.error('[Error]', err);
+  if (res.headersSent) {
+    return next(err);
+  }
+
+  // Handle malformed JSON body from client requests
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    return res.status(400).json({ error: 'Malformed JSON payload in request body' });
+  }
+
+  // Handle CORS blocked requests
+  if (err.message && err.message.includes('CORS')) {
+    return res.status(403).json({ error: 'CORS request blocked' });
+  }
+
+  console.error('[Unhandled Server Error]', err);
   const isDev = process.env.NODE_ENV !== 'production';
-  res.status(err.status || 500).json({
-    error: isDev ? err.message : 'An unexpected internal error occurred'
+  const statusCode = typeof err.status === 'number' && err.status >= 400 && err.status < 600 ? err.status : 500;
+  res.status(statusCode).json({
+    error: isDev ? (err.message || 'Internal server error') : 'An unexpected internal server error occurred'
   });
 });
 

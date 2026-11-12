@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Docs/Diagrams: Supplier Portal Operational Flowchart - 2026-11-13]
+- **Generated Supplier Workflow Flowchart ([`CofTea_Supplier_Flowchart.svg`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/docs/diagrams/CofTea_Supplier_Flowchart.svg) & [`CofTea_Supplier_Flowchart.png`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/docs/diagrams/CofTea_Supplier_Flowchart.png))**:
+  - Outlined full end-to-end operational flowchart for the Supplier Portal: authentication & security lockout, catalog wholesale pricing updates, purchase order status inspection (`Pending`, `Active`, `Proposals`, `Overdue`), 4-way decision handling (`Accept All`, `Postpone Date`, `Decline PO with Reason`, and item-by-item proposal negotiation via `SupplierReviewPOModal`), admin review, store goods receipt, and automatic purchase-unit-to-stock-unit conversion.
+
+## [Resilience: Priority 3 Products Catalog Error State & Retry - 2026-11-13]
+- **Frontend Error Boundary & Retry Action (`src/features/inventory/Products.jsx`)**:
+  - Added dedicated `error` state and clean error presentation in `Products.jsx`.
+  - If fetching products fails due to network loss or server unavailability, staff and managers are presented with a clear error banner and a one-click "Retry" button instead of a confusing empty table ("No products found").
+
+
+## [Robustness: Priority 2 Error Handling & Memory Protection - 2026-11-13]
+- **Global Error Handling & Stack-Trace Concealment (`server/server.js`)**:
+  - Enhanced the centralized 4-parameter Express error-handling middleware. Handles malformed JSON payloads (`SyntaxError: 400`) gracefully and returns clean JSON errors without leaking stack traces or internal paths in production.
+  - Added dedicated `app.all('/api/*', ...)` handler returning standard JSON 404 for any unmatched API endpoints, preventing them from falling through to the HTML SPA router.
+- **In-Memory Search Memory Protection (`server/routes/sales.js`)**:
+  - Implemented a 1,000-record safety ceiling on in-memory keyword and category sales filters, preventing unbounded queries from exhausting Node.js heap memory on high-volume datasets while keeping active searches fast and responsive.
+
+
 ## [Security: Priority 1 Security Hardening & Audit Protection - 2026-11-12]
 - **Cryptographic `JWT_SECRET` Deployment (`.env`, `server/.env`, `server/routes/auth.js`)**:
   - Generated and saved a strong 256-bit random cryptographic secret in `.env` and `server/.env`, removing vulnerability to forged tokens from the default fallback key.
