@@ -68,7 +68,7 @@ router.post('/', async (req, res) => {
 
     invalidateAnalyticsCache();
 
-    await logAudit('PRODUCT_CREATED', req.user?.id || user_id || null, {
+    await logAudit('PRODUCT_CREATED', req.user.id, {
       product_id: data.id,
       name: data.name,
       category: data.category,
@@ -109,7 +109,7 @@ router.put('/:id', async (req, res) => {
     await recalculateProductEstimatedCost(req.params.id);
     invalidateAnalyticsCache();
 
-    await logAudit('PRODUCT_UPDATED', req.user?.id || user_id || null, {
+    await logAudit('PRODUCT_UPDATED', req.user.id, {
       product_id: req.params.id,
       name,
       category,
@@ -136,7 +136,7 @@ router.put('/:id/archive', async (req, res) => {
 
     invalidateAnalyticsCache();
 
-    await logAudit('PRODUCT_ARCHIVED', req.user?.id || user_id || null, {
+    await logAudit('PRODUCT_ARCHIVED', req.user.id, {
       product_id: req.params.id,
       name: data.name
     });
@@ -161,7 +161,7 @@ router.put('/:id/restore', async (req, res) => {
 
     invalidateAnalyticsCache();
 
-    await logAudit('PRODUCT_RESTORED', req.user?.id || user_id || null, {
+    await logAudit('PRODUCT_RESTORED', req.user.id, {
       product_id: req.params.id,
       name: data.name
     });
@@ -203,7 +203,7 @@ router.post('/:id/receive', async (req, res) => {
 
     invalidateAnalyticsCache();
 
-    await logAudit('PRODUCT_STOCK_RECEIVED', req.user?.id || user_id || null, {
+    await logAudit('PRODUCT_STOCK_RECEIVED', req.user.id, {
       product_id: productId,
       name: product.name,
       quantity_added: parsedQty,

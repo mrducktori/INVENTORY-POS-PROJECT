@@ -18,7 +18,7 @@ export const createSupplier = async (req, res) => {
     const data = await purchasingService.createSupplier(body);
     
     // Log audit
-    await logAudit('SUPPLIER_CREATED', req.user?.id || user_id || null, {
+    await logAudit('SUPPLIER_CREATED', req.user.id, {
       supplier_id: data.id,
       name: data.name
     });
@@ -35,7 +35,7 @@ export const updateSupplier = async (req, res) => {
     const { user_id, ...body } = req.body;
     const data = await purchasingService.updateSupplier(id, body);
     
-    await logAudit('SUPPLIER_UPDATED', req.user?.id || user_id || null, {
+    await logAudit('SUPPLIER_UPDATED', req.user.id, {
       supplier_id: data.id,
       name: data.name
     });
@@ -102,7 +102,7 @@ export const createPurchaseOrder = async (req, res) => {
     const data = await purchasingService.createPurchaseOrder(body);
     
     // Log audit
-    await logAudit('PURCHASE_ORDER_CREATED', req.user?.id || user_id || null, {
+    await logAudit('PURCHASE_ORDER_CREATED', req.user.id, {
       po_id: data.id,
       supplier_id: data.supplier_id,
       total_amount: data.total_amount,
@@ -139,7 +139,7 @@ export const updatePurchaseOrderStatus = async (req, res) => {
     }
 
     const reason = rawReason && typeof rawReason === 'string' ? rawReason.trim() : null;
-    const authUserId = req.user?.id || user_id || null;
+    const authUserId = req.user.id;
     
     const data = await purchasingService.updatePurchaseOrderStatus(id, status, items_received, expected_date, reason);
     

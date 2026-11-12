@@ -2,6 +2,7 @@ import express from 'express';
 import { supabase } from '../config/supabaseClient.js';
 import { toManilaStartOfDay, toManilaEndOfDay } from '../utils/dateUtils.js';
 import { logAudit } from '../utils/auditLogger.js';
+import { requireRole } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -44,10 +45,10 @@ router.get('/', async (req, res) => {
 });
 
 // Create audit log entry
-router.post('/', async (req, res) => {
+router.post('/', requireRole('Admin', 'Owner'), async (req, res) => {
   try {
-    const { action, user_id, details, entity_type, entity_id } = req.body;
-    const authUserId = req.user?.id || user_id || null;
+    const { action, details, entity_type, entity_id } = req.body;
+    const authUserId = req.user.id;
     await logAudit({
       action: action || 'CUSTOM_AUDIT',
       user_id: authUserId,

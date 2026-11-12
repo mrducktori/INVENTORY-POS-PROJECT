@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Security: Priority 1 Security Hardening & Audit Protection - 2026-11-12]
+- **Cryptographic `JWT_SECRET` Deployment (`.env`, `server/.env`, `server/routes/auth.js`)**:
+  - Generated and saved a strong 256-bit random cryptographic secret in `.env` and `server/.env`, removing vulnerability to forged tokens from the default fallback key.
+  - Added module-level checks that alert if `JWT_SECRET` is unset in production environments.
+- **Audit Log Spoofing Elimination (`inventoryController.js`, `products.js`, `purchasingController.js`)**:
+  - Removed all `req.body.user_id` and `user_id || req.user?.id` fallbacks across controllers. All audit trail insertions (`RAW_MATERIAL_CREATED`, `RAW_MATERIAL_UPDATED`, `RAW_MATERIAL_DELETED`, `RAW_MATERIAL_STOCK_RECEIVED`, `RAW_MATERIAL_ARCHIVED`, `RAW_MATERIAL_RESTORED`, `PRODUCT_CREATED`, `PRODUCT_UPDATED`, `PRODUCT_ARCHIVED`, `PRODUCT_RESTORED`, `PRODUCT_STOCK_RECEIVED`, `SUPPLIER_CREATED`, `SUPPLIER_UPDATED`, `PURCHASE_ORDER_CREATED`, `PURCHASE_ORDER_STATUS_UPDATED`) strictly use `req.user.id` from the verified session.
+- **Secured Manual Audit Route (`server/routes/audit.js`)**:
+  - Protected `POST /api/audit` with `requireRole('Admin', 'Owner')` and strictly bound manual audit rows to `req.user.id`, preventing unauthorized clients from injecting arbitrary log records.
+- **Isolated Login Rate Limiting (`server/routes/auth.js`, `server/server.js`)**:
+  - Attached `authLimiter` strictly to `POST /api/auth/login` rather than the entire `/api/auth` router, ensuring background heartbeat pings (`POST /api/auth/activity`) and user logouts are never throttled by login attempt counters.
+
+
 ## [AI/Forecasting: Backup Gemini API Key Failover - 2026-11-12]
 - **Automatic Backup Key Failover (`aiForecastingService.js`, `server/.env.example`)**:
   - Added support for `GEMINI_API_KEY_BACKUP` in [`aiForecastingService.js`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/server/services/aiForecastingService.js#L509-L645). If the primary `GEMINI_API_KEY` hits a rate limit (`429`) or auth/network error, the forecasting engine automatically retries using `GEMINI_API_KEY_BACKUP` before falling back to the local deterministic ensemble model.

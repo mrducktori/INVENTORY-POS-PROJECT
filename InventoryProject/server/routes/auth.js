@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { supabase } from "../config/supabaseClient.js";
 import { logAudit } from "../utils/auditHelper.js";
+import { authLimiter } from "../middleware/rateLimiter.js";
 import {
   invalidateUserAuthCache,
   touchUserServerActivity,
@@ -43,7 +44,7 @@ function recordFailedAttempt(username) {
 // FIX #8: Removed the /test endpoint that publicly dumped all users and password_hash fields.
 
 // LOGIN — Public route (no auth required)
-router.post("/login", async (req, res) => {
+router.post("/login", authLimiter, async (req, res) => {
   try {
     const { username, password } = req.body;
 
