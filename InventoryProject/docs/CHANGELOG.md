@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [UI/Products: Clean Modify Product Modal & Action Buttons - 2026-11-12]
+- **Removed Redundant Overrides (`src/features/inventory/ManageProducts.jsx`)**:
+  - Removed the confusing per-product Sizes Configuration and Add-ons Configuration override tables and tip banner from the "Modify Product" modal. Category-wide sizes and add-ons are managed cleanly and centrally via "Add-on Defaults".
+- **Modal Action Layout (`src/features/inventory/ManageProducts.jsx`)**:
+  - Removed the floating "Save Changes" button in the middle of the modal form.
+  - Linked the modal form via HTML5 `id="modify-product-form"` to the modal footer, placing `Cancel` and `Save Changes` side by side at the bottom right.
+
+
 ## [Perf/System: Faster Loading Without Compromising Security - 2026-11-12]
 - **Login Screen & Auth (`src/features/auth/LoginPage.jsx`, `server/routes/auth.js`)**:
   - Removed the artificial `1500ms` blocking splash delay on [`LoginPage`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/src/features/auth/LoginPage.jsx).

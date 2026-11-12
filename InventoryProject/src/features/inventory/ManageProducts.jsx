@@ -36,8 +36,6 @@ const ManageProducts = () => {
     formData, handleInputChange, handleImageUpload,
     selectedProduct, setSelectedProduct,
     recipe, allIngredients,
-    newSize, setNewSize,
-    newAddOn, setNewAddOn,
     newRecipeItem, setNewRecipeItem,
     editPrice, setEditPrice,
     editName, setEditName,
@@ -46,10 +44,6 @@ const ManageProducts = () => {
     editTrackStock, setEditTrackStock,
     editStockQty,
     editThreshold, setEditThreshold,
-    editSizes,
-    editAddOns,
-    handleAddSize, handleRemoveSize,
-    handleAddAddOn, handleRemoveAddOn,
     handleReceiveProductStock,
     handleAddProduct,
     handleArchiveToggle,
@@ -566,7 +560,7 @@ const ManageProducts = () => {
             </div>
             
             <div className="p-6 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200">
-              <form onSubmit={handleUpdateProduct} className="flex flex-col gap-5">
+              <form id="modify-product-form" onSubmit={handleUpdateProduct} className="flex flex-col gap-5">
                 <div className="flex flex-col sm:flex-row gap-5">
                   <div className="flex flex-col gap-1.5 flex-1">
                     <label className="text md:text-sm font-bold text-gray-700 uppercase tracking-wider">Product Name</label>
@@ -648,129 +642,8 @@ const ManageProducts = () => {
                      </div>
                    </div>
                  )}
-                 <div className="flex justify-end">
-                  <button type="submit" className="px-6 py-2.5 bg-gray-900 text-white rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-black hover:shadow-lg transition-all hover:-translate-y-0.5">Save Changes</button>
-                 </div>
                </form>
 
-              <div className="mt-8 pt-8 border-t border-gray-200">
-                <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl mb-6 text-sm text-blue-800 leading-relaxed">
-                  <strong className="text-blue-900">Tip:</strong> You don't need to add anything here if you already set <strong>Add-on Defaults</strong>. 
-                  Sizes and Add-ons added below will <em>override or add to</em> the category settings just for this specific product. 
-                  Leave them empty to simply inherit the defaults!
-                </div>
-                
-                <div className="flex flex-col md:flex-row gap-8 items-start">
-                  {/* SIZES CONFIGURATION */}
-                  <div className="flex-1 w-full bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-                    <h3 className="m-0 text-base font-bold text-gray-900 mb-4 tracking-tight">Sizes Configuration</h3>
-                    {editSizes.length > 0 ? (
-                      <div className="overflow-x-auto mb-4 border border-gray-100 rounded-lg">
-                        <table className="w-full text-left border-collapse">
-                          <thead>
-                            <tr className="bg-gray-50 border-b border-gray-100">
-                              <th className="px-3 py-2.5 text font-bold text-gray-700 uppercase tracking-wider">Size Name</th>
-                              <th className="px-3 py-2.5 text font-bold text-gray-700 uppercase tracking-wider">Price Add (₱)</th>
-                              <th className="px-3 py-2.5 text font-bold text-gray-700 uppercase tracking-wider">Cup Mat.</th>
-                              <th className="px-3 py-2.5"></th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-50">
-                            {editSizes.map((sz, i) => (
-                              <tr key={i} className="hover:bg-gray-50/50">
-                                <td className="px-3 py-2.5 text-sm md:text-base font-bold text-gray-900">{sz.name}</td>
-                                <td className="px-3 py-2.5 text-sm md:text-base font-semibold text-gray-700">+{sz.price_add}</td>
-                                <td className="px-3 py-2.5 text md:text-sm text-gray-600">{allIngredients.find(ing => ing.id === sz.ingredient_id)?.name || '-'}</td>
-                                <td className="px-3 py-2.5 text-right"><button type="button" className="text-gray-400 hover:text-red-600 transition-colors bg-transparent border-none cursor-pointer text-base font-bold" onClick={() => handleRemoveSize(i)} aria-label="Close"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button></td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-gray-500 italic mb-4">No sizes configured.</p>
-                    )}
-                    
-                    <div className="flex flex-col gap-3 p-4 bg-gray-50 rounded-lg border border-gray-100">
-                      <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-gray-500" placeholder="Size Name (e.g., 16 oz)" value={newSize.name} onChange={e => setNewSize({...newSize, name: e.target.value})} />
-                      <input type="number" className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-gray-500" placeholder="Price Increase (₱)" value={newSize.price_add} onChange={e => setNewSize({...newSize, price_add: e.target.value})} min="0" />
-                      
-                      <div className="flex flex-col gap-1">
-                        <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">Cup Material (Optional)</label>
-                        <SearchableIngredientSelect
-                          ingredients={allIngredients}
-                          value={newSize.ingredient_id}
-                          onChange={(id) => setNewSize({...newSize, ingredient_id: id})}
-                          placeholder="Search cup material (e.g. 16 oz cups)..."
-                        />
-                      </div>
-
-                      <button type="button" className="w-full py-2.5 bg-white border border-gray-300 text-gray-800 text md:text-sm font-bold uppercase tracking-wider rounded-lg hover:bg-gray-100 transition-colors mt-1 cursor-pointer" onClick={handleAddSize}>Add Size</button>
-                    </div>
-                  </div>
-
-                  {/* ADD-ONS CONFIGURATION */}
-                  <div className="flex-1 w-full bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-                    <h3 className="m-0 text-base font-bold text-gray-900 mb-4 tracking-tight">Add-ons Configuration</h3>
-                    {editAddOns.length > 0 ? (
-                      <div className="overflow-x-auto mb-4 border border-gray-100 rounded-lg">
-                        <table className="w-full text-left border-collapse">
-                          <thead>
-                            <tr className="bg-gray-50 border-b border-gray-100">
-                              <th className="px-3 py-2.5 text font-bold text-gray-700 uppercase tracking-wider">Add-on</th>
-                              <th className="px-3 py-2.5 text font-bold text-gray-700 uppercase tracking-wider">Price (₱)</th>
-                              <th className="px-3 py-2.5 text font-bold text-gray-700 uppercase tracking-wider">Mat. Used</th>
-                              <th className="px-3 py-2.5"></th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-50">
-                            {editAddOns.map((ao, i) => (
-                              <tr key={i} className="hover:bg-gray-50/50">
-                                <td className="px-3 py-2.5 text-sm md:text-base font-bold text-gray-900">{ao.name}</td>
-                                <td className="px-3 py-2.5 text-sm md:text-base font-semibold text-gray-700">+{ao.price}</td>
-                                <td className="px-3 py-2.5 text md:text-sm text-gray-600">{ao.quantity}{ao.unit} {allIngredients.find(ing => ing.id === ao.ingredient_id)?.name || '-'}</td>
-                                <td className="px-3 py-2.5 text-right"><button type="button" className="text-gray-400 hover:text-red-600 transition-colors bg-transparent border-none cursor-pointer text-base font-bold" onClick={() => handleRemoveAddOn(i)} aria-label="Close"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button></td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-gray-500 italic mb-4">No add-ons configured.</p>
-                    )}
-
-                    <div className="flex flex-col gap-3 p-4 bg-gray-50 rounded-lg border border-gray-100">
-                      <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-gray-500" placeholder="Add-on Name (e.g., Pearl)" value={newAddOn.name} onChange={e => setNewAddOn({...newAddOn, name: e.target.value})} />
-                      <input type="number" className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-gray-500" placeholder="Price (₱)" value={newAddOn.price} onChange={e => setNewAddOn({...newAddOn, price: e.target.value})} min="0" />
-                      
-                      <div className="flex flex-col gap-1">
-                        <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">Inventory Material Used (Optional)</label>
-                        <SearchableIngredientSelect
-                          ingredients={allIngredients}
-                          value={newAddOn.ingredient_id}
-                          onChange={(id, ing) => {
-                            setNewAddOn({
-                              ...newAddOn,
-                              ingredient_id: id,
-                              unit: (ing?.unit || '').toUpperCase()
-                            });
-                          }}
-                          placeholder="Search material used (e.g. Tapioca, Syrup)..."
-                        />
-                      </div>
-
-                      {newAddOn.ingredient_id && (
-                        <div className="flex gap-2 items-center">
-                          <input type="number" className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-gray-500" placeholder="Qty Used" value={newAddOn.quantity} onChange={e => setNewAddOn({...newAddOn, quantity: e.target.value})} min="0" />
-                          <span className="flex items-center justify-center px-4 py-2 bg-gray-200 rounded-md text font-bold text-gray-700">{newAddOn.unit}</span>
-                        </div>
-                      )}
-                      <button type="button" className="w-full py-2.5 bg-white border border-gray-300 text-gray-800 text md:text-sm font-bold uppercase tracking-wider rounded-lg hover:bg-gray-100 transition-colors mt-1 cursor-pointer" onClick={handleAddAddOn}>Add Add-on</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
               <div className="mt-8 pt-8 border-t border-gray-200">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
                   <div>
@@ -1046,8 +919,21 @@ const ManageProducts = () => {
               </div>
             </div>
             
-            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end shrink-0">
-              <button className="px-6 py-2.5 bg-white border border-gray-300 text-gray-800 rounded-lg text-sm md:text-base font-bold uppercase tracking-wider hover:bg-gray-100 transition-colors" onClick={() => setSelectedProduct(null)}>Close</button>
+            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-end gap-3 shrink-0">
+              <button 
+                type="button" 
+                className="px-6 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm md:text-base font-bold uppercase tracking-wider hover:bg-gray-100 transition-colors cursor-pointer" 
+                onClick={() => setSelectedProduct(null)}
+              >
+                Cancel
+              </button>
+              <button 
+                form="modify-product-form" 
+                type="submit" 
+                className="px-6 py-2.5 bg-gray-900 text-white rounded-lg text-sm md:text-base font-bold uppercase tracking-wider hover:bg-black hover:shadow-lg transition-all hover:-translate-y-0.5 cursor-pointer"
+              >
+                Save Changes
+              </button>
             </div>
           </div>
         </div>
