@@ -62,9 +62,10 @@ router.get('/stats', async (req, res) => {
     } else if (period === 'day') {
       boundStart = `${todayStr}T00:00:00+08:00`;
       boundEnd = `${todayStr}T23:59:59.999+08:00`;
-    } else if (period === 'week') {
+    } else if (period === 'week' || period === '7d' || period === '14d' || period === '30d') {
+      const daysBack = period === '30d' ? 29 : period === '14d' ? 13 : 6;
       const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }));
-      now.setDate(now.getDate() - 6);
+      now.setDate(now.getDate() - daysBack);
       const wy = now.getFullYear();
       const wm = String(now.getMonth() + 1).padStart(2, '0');
       const wd = String(now.getDate()).padStart(2, '0');

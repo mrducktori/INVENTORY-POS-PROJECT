@@ -80,6 +80,11 @@ const useDashboardStats = () => {
   const [sortCategorySalesAsc, setSortCategorySalesAsc] = useState(false);
   const [isTrendExpanded, setIsTrendExpanded] = useState(false);
   const [activeTrendCategory, setActiveTrendCategory] = useState('All');
+  const [trendPeriod, setTrendPeriod] = useState('7d'); // '7d' | '14d' | '30d' | 'month' | 'custom'
+  const [trendStartDate, setTrendStartDate] = useState('');
+  const [trendEndDate, setTrendEndDate] = useState('');
+  const [trendStats, setTrendStats] = useState(null);
+  const [trendLoading, setTrendLoading] = useState(false);
   const [isLowStockExpanded, setIsLowStockExpanded] = useState(false);
   const [topSalesPeriod, setTopSalesPeriod] = useState('day'); // 'day' | 'week' | 'month'
   const [startDate, setStartDate] = useState('');
@@ -101,12 +106,71 @@ const useDashboardStats = () => {
     fetchStats();
   }, [topSalesPeriod, startDate, endDate]); // re-fetch whenever the period or dates change
 
+  const canReuseOverviewTrend =
+    trendPeriod === '7d' &&
+    !trendStartDate &&
+    !trendEndDate &&
+    (topSalesPeriod === 'day' || topSalesPeriod === 'week') &&
+    !startDate &&
+    !endDate &&
+    Boolean(stats?.salesTrend);
+
+  useEffect(() => {
+    if (!isTrendExpanded) return;
+    if (canReuseOverviewTrend) {
+      setTrendLoading(false);
+      return;
+    }
+    if (trendPeriod === 'custom' && !trendStartDate && !trendEndDate) {
+      return;
+    }
+
+    let cancelled = false;
+    const fetchTrendStats = async () => {
+      try {
+        setTrendLoading(true);
+        const data = await getDashboardStats(
+          trendPeriod === 'custom' ? 'custom' : trendPeriod,
+          trendStartDate,
+          trendEndDate
+        );
+        if (!cancelled) setTrendStats(data);
+      } catch (err) {
+        console.error('Failed to load category trend breakdown:', err);
+      } finally {
+        if (!cancelled) setTrendLoading(false);
+      }
+    };
+
+    fetchTrendStats();
+    return () => {
+      cancelled = true;
+    };
+  }, [isTrendExpanded, trendPeriod, trendStartDate, trendEndDate, canReuseOverviewTrend]);
+
   // --- Derived / computed values ---
 
-  const trendCategories = deriveTrendCategories(stats?.salesTrend);
+  const activeSalesTrend = canReuseOverviewTrend
+    ? stats.salesTrend
+    : (trendStats?.salesTrend || stats?.salesTrend || []);
+
+  const trendCategories = Array.from(
+    new Set([
+      ...deriveTrendCategories(stats?.salesTrend),
+      ...deriveTrendCategories(activeSalesTrend),
+    ])
+  );
+
+  const trendCategoryTotals = trendCategories.reduce((acc, cat) => {
+    acc[cat] = activeSalesTrend.reduce(
+      (sum, day) => sum + ((day.categories && day.categories[cat]) || 0),
+      0
+    );
+    return acc;
+  }, {});
 
   const trendChartData = buildTrendChartData(
-    stats?.salesTrend,
+    activeSalesTrend,
     activeTrendCategory,
     trendCategories
   );
@@ -146,6 +210,10 @@ const useDashboardStats = () => {
     // UI state
     isTrendExpanded,
     activeTrendCategory,
+    trendPeriod,
+    trendStartDate,
+    trendEndDate,
+    trendLoading,
     sortCategorySalesAsc,
     isLowStockExpanded,
     topSalesPeriod,
@@ -154,6 +222,9 @@ const useDashboardStats = () => {
     // Actions (state setters)
     setIsTrendExpanded,
     setActiveTrendCategory,
+    setTrendPeriod,
+    setTrendStartDate,
+    setTrendEndDate,
     setSortCategorySalesAsc,
     setTopSalesPeriod,
     setStartDate,
@@ -162,6 +233,7 @@ const useDashboardStats = () => {
     // Derived data ready for components
     kpiCards,
     trendCategories,
+    trendCategoryTotals,
     trendChartData,
     getSortedCategoryProducts,
     COLORS,

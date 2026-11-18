@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [UI/API: Timeframe, Date Range & Chart Type Filters in Dashboard Category Breakdown - 2026-11-18]
+- **`server/routes/dashboard.js`**:
+  - Extended `GET /api/dashboard/stats` `period` handling to support `7d`, `14d`, and `30d` rolling windows alongside `day`, `week`, and `month`.
+- **`useDashboardStats.js` & `DashboardOverview.jsx`**:
+  - Added independent breakdown filter state (`trendPeriod`, `trendStartDate`, `trendEndDate`, `trendStats`, `trendLoading`) and `trendCategoryTotals` calculation so filtering the category breakdown does not overwrite the overview revenue card.
+- **`ExpandedTrendChart.jsx`**:
+  - Added timeframe preset filters (`Past 7 Days`, `Past 14 Days`, `Past 30 Days`, `This Month`, `Custom`) with custom `Start Date` / `End Date` inputs.
+  - Added a `Line` / `Bar` chart mode toggle, category revenue totals inside filter pills, and adaptive X-axis label intervals for longer ranges.
+  - Fixed `"MM/DD"` date parsing (`parseChartDate`) using the current Manila year so weekday names render accurately.
+
+## [UI/Receipt Journal: Default Latest Preset to Fetch 250 Receipts - 2026-11-18]
+- **`SalesReceiptJournal.jsx`**:
+  - Changed initial `fetchLimit` and `RECENT` (`Latest`) preset from `'all'` / `100` to `250`, so opening Receipt Journal or clicking `Latest` fetches the 250 most recent sales.
+  - Added `250` to the high-volume `fetchOptions` tier list (`[250, 500, 1000, 2500, 5000]`) and added a safe option fallback on the `Fetch` dropdown when total matches are `<= 250`.
+
 ## [UI/API: Dedicated Archived Accounts Section & 30-Day Permanent Deletion for Products, Raw Materials, Accounts - 2026-11-18]
 - **`server/utils/archiveHelper.js`**:
   - Created centralized archive timestamp tracking helper (`getArchiveTimestampsMap`, `getDaysSinceArchived`, `invalidateArchiveMap`) reading from `audit_logs` (`PRODUCT_ARCHIVED`, `RAW_MATERIAL_ARCHIVED`, `USER_STATUS_CHANGED`) with short TTL caching and instant cache busting.

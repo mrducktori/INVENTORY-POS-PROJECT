@@ -20,14 +20,22 @@ const DashboardOverview = ({ onNavigate }) => {
     loading,
     isTrendExpanded,
     activeTrendCategory,
+    trendPeriod,
+    trendStartDate,
+    trendEndDate,
+    trendLoading,
     sortCategorySalesAsc,
     setIsTrendExpanded,
     setActiveTrendCategory,
+    setTrendPeriod,
+    setTrendStartDate,
+    setTrendEndDate,
     setSortCategorySalesAsc,
     isLowStockExpanded,
     toggleLowStock,
     kpiCards,
     trendCategories,
+    trendCategoryTotals,
     trendChartData,
     getSortedCategoryProducts,
     COLORS,
@@ -98,11 +106,18 @@ const DashboardOverview = ({ onNavigate }) => {
       {/* Expanded Trend Chart */}
       {isTrendExpanded && (
         <ExpandedTrendChart
-          loading={loading}
+          loading={loading || trendLoading}
           trendChartData={trendChartData}
           trendCategories={trendCategories}
+          trendCategoryTotals={trendCategoryTotals}
           activeTrendCategory={activeTrendCategory}
           onCategoryChange={setActiveTrendCategory}
+          trendPeriod={trendPeriod}
+          onPeriodChange={setTrendPeriod}
+          trendStartDate={trendStartDate}
+          trendEndDate={trendEndDate}
+          onStartDateChange={setTrendStartDate}
+          onEndDateChange={setTrendEndDate}
           onCollapse={() => setIsTrendExpanded(false)}
           COLORS={COLORS}
         />

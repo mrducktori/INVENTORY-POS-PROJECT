@@ -53,7 +53,7 @@ const SalesReceiptJournal = () => {
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [pageSize, setPageSize] = useState(10);
-  const [fetchLimit, setFetchLimit] = useState('all');
+  const [fetchLimit, setFetchLimit] = useState(250);
   const [currentPage, setCurrentPage] = useState(1);
 
   // Server request date range & filters
@@ -89,7 +89,7 @@ const SalesReceiptJournal = () => {
     if (preset === 'RECENT') {
       setStartDate('');
       setEndDate('');
-      setFetchLimit(100);
+      setFetchLimit(250);
     } else if (preset === 'TODAY') {
       setStartDate(todayStr);
       setEndDate(todayStr);
@@ -127,7 +127,7 @@ const SalesReceiptJournal = () => {
         filters.discounted = true;
       }
 
-      const limitParam = fetchLimit === 'all' ? 'all' : Number(fetchLimit) || 100;
+      const limitParam = fetchLimit === 'all' ? 'all' : Number(fetchLimit) || 250;
       const result = await getSales(filters, limitParam, 1);
       const list = Array.isArray(result) ? result : (result?.data || []);
       setSales(list);
@@ -210,7 +210,7 @@ const SalesReceiptJournal = () => {
     }
 
     // High volume totals > 1000 (e.g. 14,044 matching receipts)
-    const tiers = [500, 1000, 2500, 5000].filter((t) => t < total);
+    const tiers = [250, 500, 1000, 2500, 5000].filter((t) => t < total);
     return [
       ...tiers.map((t) => ({ value: t, label: `${t.toLocaleString()} receipts` })),
       { value: 'all', label: `All (${total.toLocaleString()} receipts)` },
@@ -627,7 +627,7 @@ const SalesReceiptJournal = () => {
             <span>Fetch:</span>
             <select
               aria-label="Fetch receipt limit"
-              value={fetchLimit}
+              value={fetchOptions.some((o) => String(o.value) === String(fetchLimit)) ? fetchLimit : 'all'}
               onChange={(e) => {
                 const val = e.target.value === 'all' ? 'all' : Number(e.target.value);
                 setFetchLimit(val);
