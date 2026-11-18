@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../../../config/supabaseClient';
 import { getAllProducts, createProduct, updateProduct, archiveProduct, restoreProduct, receiveProductStock } from '../../../api/productsApi';
 import { checkDuplicateOrSimilar } from '../../../utils/productUtils';
@@ -28,6 +28,10 @@ export const useManageProducts = () => {
   });
 
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const selectedProductRef = useRef(selectedProduct);
+  useEffect(() => {
+    selectedProductRef.current = selectedProduct;
+  }, [selectedProduct]);
   const [recipe, setRecipe] = useState([]);
   const [allIngredients, setAllIngredients] = useState([]);
   const [newRecipeItem, setNewRecipeItem] = useState({ ingredient_id: '', quantity: '', input_unit: '' });
@@ -44,27 +48,23 @@ export const useManageProducts = () => {
   const [newSize, setNewSize] = useState({ name: '', price_add: '', ingredient_id: '' });
   const [newAddOn, setNewAddOn] = useState({ name: '', price: '', ingredient_id: '', quantity: '', unit: '' });
 
-  useEffect(() => {
-    fetchProducts();
-    fetchIngredients();
-  }, []);
-
-  const fetchIngredients = async () => {
+  const fetchIngredients = useCallback(async () => {
     try {
       const data = await getIngredients();
       setAllIngredients(data || []);
     } catch (err) {
       console.error('Failed to load ingredients:', err);
     }
-  };
+  }, []);
 
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
       const data = await getAllProducts();
       setProducts(data || []);
-      if (selectedProduct) {
-        const prod = (data || []).find(p => p.id === selectedProduct.id);
+      const currentSelected = selectedProductRef.current;
+      if (currentSelected) {
+        const prod = (data || []).find(p => p.id === currentSelected.id);
         if (prod) {
           setSelectedProduct(prod);
           setEditPrice(prod.price);
@@ -81,7 +81,12 @@ export const useManageProducts = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchProducts();
+    fetchIngredients();
+  }, [fetchProducts, fetchIngredients]);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;

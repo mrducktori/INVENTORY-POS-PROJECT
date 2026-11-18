@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import PermissionGrid from './PermissionGrid';
 import PasswordRulesList from './PasswordRulesList';
 import { STAFF_DEFAULT_PERMISSIONS } from '../../../utils/permissions';
@@ -38,13 +38,6 @@ const AccountForm = ({
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formError, setFormError] = useState(null);
-
-  useEffect(() => {
-    setConfirmPassword('');
-    setFormError(null);
-    setShowPassword(false);
-    setShowConfirmPassword(false);
-  }, [isEditing, formData.username]);
 
   const roleOptions = useMemo(() => {
     const opts = ['Staff', 'Custom', 'Admin', 'Supplier'];

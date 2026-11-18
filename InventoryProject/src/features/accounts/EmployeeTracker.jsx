@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getEmployeeShifts } from '../../api/usersApi';
 import Pagination from '../../components/shared/Pagination';
 
@@ -10,21 +10,13 @@ const EmployeeTracker = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [dateStr]);
-
   const totalPages = Math.max(1, Math.ceil(shifts.length / itemsPerPage));
   const paginatedShifts = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
     return shifts.slice(start, start + itemsPerPage);
   }, [shifts, currentPage, itemsPerPage]);
 
-  useEffect(() => {
-    fetchShifts();
-  }, [dateStr]);
-
-  const fetchShifts = async () => {
+  const fetchShifts = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -36,7 +28,11 @@ const EmployeeTracker = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [dateStr]);
+
+  useEffect(() => {
+    fetchShifts();
+  }, [fetchShifts]);
 
   const calculateHours = (clockIn, clockOut) => {
     if (!clockIn || !clockOut) return 'Ongoing';
@@ -58,7 +54,7 @@ const EmployeeTracker = () => {
           <input 
             type="date" 
             value={dateStr} 
-            onChange={(e) => setDateStr(e.target.value)}
+            onChange={(e) => { setDateStr(e.target.value); setCurrentPage(1); }}
             className="tracker-date-input"
           />
         </div>

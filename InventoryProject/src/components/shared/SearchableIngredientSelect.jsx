@@ -88,10 +88,10 @@ const SearchableIngredientSelect = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Reset highlighted index on filter changes
-  useEffect(() => {
-    setHighlightedIndex(0);
-  }, [filteredIngredients.length, activeCategory]);
+  // Clamp highlighted index to valid bounds of filteredIngredients
+  const safeHighlightedIndex = filteredIngredients.length > 0
+    ? Math.min(highlightedIndex, filteredIngredients.length - 1)
+    : 0;
 
   const handleSelect = (ingredient) => {
     onChange(ingredient ? ingredient.id : '', ingredient);
@@ -129,23 +129,25 @@ const SearchableIngredientSelect = ({
 
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setHighlightedIndex(prev => (prev < filteredIngredients.length - 1 ? prev + 1 : 0));
+      const nextIdx = safeHighlightedIndex < filteredIngredients.length - 1 ? safeHighlightedIndex + 1 : 0;
+      setHighlightedIndex(nextIdx);
       // Scroll into view
       if (listRef.current) {
-        const item = listRef.current.children[highlightedIndex + 1];
+        const item = listRef.current.children[nextIdx];
         if (item) item.scrollIntoView({ block: 'nearest' });
       }
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setHighlightedIndex(prev => (prev > 0 ? prev - 1 : filteredIngredients.length - 1));
+      const prevIdx = safeHighlightedIndex > 0 ? safeHighlightedIndex - 1 : filteredIngredients.length - 1;
+      setHighlightedIndex(prevIdx);
       if (listRef.current) {
-        const item = listRef.current.children[highlightedIndex - 1];
+        const item = listRef.current.children[prevIdx];
         if (item) item.scrollIntoView({ block: 'nearest' });
       }
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      if (filteredIngredients[highlightedIndex]) {
-        handleSelect(filteredIngredients[highlightedIndex]);
+      if (filteredIngredients[safeHighlightedIndex]) {
+        handleSelect(filteredIngredients[safeHighlightedIndex]);
       }
     } else if (e.key === 'Escape') {
       e.preventDefault();
@@ -201,6 +203,7 @@ const SearchableIngredientSelect = ({
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
+                setHighlightedIndex(0);
                 if (!isOpen) setIsOpen(true);
               }}
               onFocus={() => setIsOpen(true)}
@@ -255,7 +258,7 @@ const SearchableIngredientSelect = ({
                 <button
                   key={cat.id}
                   type="button"
-                  onClick={() => setActiveCategory(cat.id)}
+                  onClick={() => { setActiveCategory(cat.id); setHighlightedIndex(0); }}
                   className={`px-2.5 py-1 rounded-md font-semibold whitespace-nowrap transition-colors cursor-pointer ${
                     activeCategory === cat.id
                       ? 'bg-gray-900 text-white shadow-xs'
@@ -276,7 +279,7 @@ const SearchableIngredientSelect = ({
             {filteredIngredients.length > 0 ? (
               filteredIngredients.map((ing, idx) => {
                 const isSelected = selectedIngredient && selectedIngredient.id === ing.id;
-                const isHighlighted = idx === highlightedIndex;
+                const isHighlighted = idx === safeHighlightedIndex;
 
                 return (
                   <div

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { getCmsContent, updateCmsContent, uploadCmsImage } from '../../api/cmsApi';
 
 const DEFAULT_SECTIONS = [
@@ -197,18 +197,14 @@ export default function CMSDashboard() {
   const [uploadingKey, setUploadingKey] = useState(null);
   const [notice, setNotice] = useState({ text: '', type: '' });
 
-  useEffect(() => {
-    fetchCMSData();
-  }, []);
-
-  const showNotice = (text, type = 'success') => {
+  const showNotice = useCallback((text, type = 'success') => {
     setNotice({ text, type });
     setTimeout(() => {
       setNotice((prev) => (prev.text === text ? { text: '', type: '' } : prev));
     }, 3500);
-  };
+  }, []);
 
-  const fetchCMSData = async () => {
+  const fetchCMSData = useCallback(async () => {
     try {
       setLoading(true);
       const data = await getCmsContent(true);
@@ -245,7 +241,11 @@ export default function CMSDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showNotice]);
+
+  useEffect(() => {
+    fetchCMSData();
+  }, [fetchCMSData]);
 
   const updateField = (sectionKey, field, value) => {
     setSections((prev) => ({
@@ -470,9 +470,10 @@ export default function CMSDashboard() {
           <button
             type="button"
             onClick={() => setNotice({ text: '', type: '' })}
-            className="text-xs opacity-75 hover:opacity-100 cursor-pointer bg-transparent border-none text-current ml-4"
+            className="opacity-75 hover:opacity-100 cursor-pointer bg-transparent border-none text-current ml-4 inline-flex items-center justify-center"
+            aria-label="Dismiss notice"
           >
-            ✕
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
       )}
@@ -527,7 +528,7 @@ export default function CMSDashboard() {
                   <span className="text-xs font-medium text-zinc-800 truncate">
                     {liveTabTitle}
                   </span>
-                  <span className="text-[10px] text-zinc-400 ml-1">✕</span>
+                  <svg className="w-3 h-3 text-zinc-400 ml-1 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                 </div>
               </div>
             </div>

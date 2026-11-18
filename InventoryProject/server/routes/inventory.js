@@ -1,7 +1,9 @@
 import express from "express";
 import * as inventoryController from "../controllers/inventoryController.js";
+import { requireRole } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
+router.use(requireRole("Owner", "Admin", "Staff", "Custom"));
 
 router.get("/ingredients", inventoryController.getIngredients);
 router.get("/ingredients/:id", inventoryController.getIngredientById);

@@ -28,7 +28,11 @@ router.get('/', requireAuth, async (req, res) => {
 
     const { data, error } = await query;
     if (error) throw error;
-    res.json(data);
+    const maskedUsers = (data || []).map((u) => ({
+      ...u,
+      current_session_id: u.current_session_id ? 'active' : null
+    }));
+    res.json(maskedUsers);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -159,7 +163,10 @@ router.put('/:id/status', requireAuth, requireRole('Admin', 'Owner'), userManage
       changed_by: req.user.name
     });
 
-    res.json(data);
+    res.json(data ? {
+      ...data,
+      current_session_id: data.current_session_id ? 'active' : null
+    } : data);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -168,7 +175,7 @@ router.put('/:id/status', requireAuth, requireRole('Admin', 'Owner'), userManage
 // Update a user (name, username, password, role) — FIX #7: requires Admin or Owner
 router.put('/:id', requireAuth, requireRole('Admin', 'Owner'), userManagementLimiter, async (req, res) => {
   try {
-    const { name, username, password, role, supplier_id, permissions, custom_role_name } = req.body;
+    const { name, username, password, role, status, supplier_id, permissions, custom_role_name } = req.body;
     if (!name || !username || !role) {
       return res.status(400).json({ error: 'Name, username, and role are required' });
     }
@@ -178,12 +185,23 @@ router.put('/:id', requireAuth, requireRole('Admin', 'Owner'), userManagementLim
       return res.status(400).json({ error: `Invalid role. Must be one of: ${ALLOWED_ROLES.join(', ')}` });
     }
 
+    if (status !== undefined && !['ACTIVE', 'INACTIVE'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    if (req.params.id === req.user.id && status === 'INACTIVE') {
+      return res.status(400).json({ error: 'You cannot deactivate your own account.' });
+    }
+
+    const { data: existingTarget } = await supabase
+      .from('users')
+      .select('role, status')
+      .eq('id', req.params.id)
+      .single();
+
     // Admins cannot modify the Owner
-    if (req.user.role !== 'Owner') {
-      const { data: targetUser } = await supabase.from('users').select('role').eq('id', req.params.id).single();
-      if (targetUser && targetUser.role === 'Owner') {
-        return res.status(403).json({ error: 'Admins cannot modify the Owner account.' });
-      }
+    if (req.user.role !== 'Owner' && existingTarget?.role === 'Owner') {
+      return res.status(403).json({ error: 'Admins cannot modify the Owner account.' });
     }
 
     if (role === 'Owner') {
@@ -207,12 +225,9 @@ router.put('/:id', requireAuth, requireRole('Admin', 'Owner'), userManagementLim
           .update({ role: 'Admin' })
           .eq('role', 'Owner');
       }
-    } else {
+    } else if (existingTarget?.role === 'Owner') {
       // Prevent demoting the ONLY owner directly
-      const { data: targetUser } = await supabase.from('users').select('role').eq('id', req.params.id).single();
-      if (targetUser && targetUser.role === 'Owner') {
-        return res.status(400).json({ error: 'Cannot demote the Owner. Transfer ownership to another user instead.' });
-      }
+      return res.status(400).json({ error: 'Cannot demote the Owner. Transfer ownership to another user instead.' });
     }
 
     if (role === 'Supplier' && !supplier_id) {
@@ -224,20 +239,28 @@ router.put('/:id', requireAuth, requireRole('Admin', 'Owner'), userManagementLim
       return res.status(400).json({ error: access.error });
     }
 
+    const roleChanged = Boolean(existingTarget && existingTarget.role !== role);
+    const passwordProvided = Boolean(password && password.trim() !== '');
+
     const updates = {
       name, username, role,
       permissions: access.permissions,
       custom_role_name: access.custom_role_name
     };
+    if (status !== undefined) updates.status = status;
     if (role === 'Supplier') updates.supplier_id = supplier_id;
 
-    if (password && password.trim() !== '') {
+    if (passwordProvided) {
       const passwordValidation = validatePasswordRules(password);
       if (!passwordValidation.valid) {
         return res.status(400).json({ error: passwordValidation.error });
       }
       const saltRounds = 10;
       updates.password_hash = await bcrypt.hash(password, saltRounds);
+    }
+
+    if (passwordProvided || roleChanged || status === 'INACTIVE') {
+      updates.current_session_id = null;
     }
 
     const { data, error } = await supabase
@@ -320,6 +343,10 @@ router.get('/shifts', requireAuth, async (req, res) => {
       const uid = log.user_id;
       if (!uid) continue;
 
+      const safeUser = log.users
+        ? { ...log.users, current_session_id: log.users.current_session_id ? 'active' : null }
+        : { id: uid, name: 'Staff', role: 'Staff' };
+
       if (log.action === 'LOGIN') {
         const shiftObj = {
           id: log.id,
@@ -327,7 +354,7 @@ router.get('/shifts', requireAuth, async (req, res) => {
           shift_date: date,
           clock_in: log.created_at,
           clock_out: null,
-          users: log.users || { id: uid, name: 'Staff', role: 'Staff' }
+          users: safeUser
         };
         shifts.push(shiftObj);
         openShiftByUser.set(uid, shiftObj);
@@ -343,7 +370,7 @@ router.get('/shifts', requireAuth, async (req, res) => {
             shift_date: date,
             clock_in: null,
             clock_out: log.created_at,
-            users: log.users || { id: uid, name: 'Staff', role: 'Staff' }
+            users: safeUser
           });
         }
       }

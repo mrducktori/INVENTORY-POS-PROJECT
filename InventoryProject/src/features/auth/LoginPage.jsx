@@ -7,19 +7,27 @@ import { getCmsImage } from '../../api/cmsApi';
 const DEFAULT_HERO_IMAGE = 'https://zngerymqycuxpxdmfftj.supabase.co/storage/v1/object/public/cms-images/public/landing_hero-0.8481000269201046.jpg';
 
 function LoginPage() {
-  const [sessionNotice, setSessionNotice] = useState('');
+  const [sessionNotice] = useState(() => {
+    try {
+      const expiredMsg = sessionStorage.getItem('session_expired_msg');
+      if (!expiredMsg) return '';
+      try {
+        return JSON.parse(expiredMsg);
+      } catch {
+        return { title: 'Session Timed Out', message: expiredMsg };
+      }
+    } catch {
+      return '';
+    }
+  });
   const [bgImage, setBgImage] = useState(DEFAULT_HERO_IMAGE);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const expiredMsg = sessionStorage.getItem('session_expired_msg');
-    if (expiredMsg) {
-      try {
-        setSessionNotice(JSON.parse(expiredMsg));
-      } catch {
-        setSessionNotice({ title: 'Session Timed Out', message: expiredMsg });
-      }
+    try {
       sessionStorage.removeItem('session_expired_msg');
+    } catch {
+      // ignore storage errors
     }
 
     getCmsImage('landing_hero', DEFAULT_HERO_IMAGE).then(setBgImage);

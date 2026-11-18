@@ -636,6 +636,26 @@ export const createPurchaseOrder = async (poData) => {
 };
 
 export const updatePurchaseOrderStatus = async (id, status = null, items_received = [], expected_date = null, reason = null) => {
+  const { data: existingPO, error: existingErr } = await supabase
+    .from("purchase_orders")
+    .select("id, status")
+    .eq("id", id)
+    .single();
+
+  if (existingErr || !existingPO) {
+    const err = new Error("Purchase order not found.");
+    err.status = 404;
+    throw err;
+  }
+
+  const currentStatusLower = String(existingPO.status || "").toLowerCase();
+  const isTerminalStatus = ["received", "cancelled", "declined"].includes(currentStatusLower);
+  if (isTerminalStatus) {
+    const err = new Error(`Cannot update purchase order because its status is already ${existingPO.status}.`);
+    err.status = 400;
+    throw err;
+  }
+
   const updates = {};
   if (status) {
     updates.status = status;
@@ -692,15 +712,19 @@ export const updatePurchaseOrderStatus = async (id, status = null, items_receive
   }
 
   // If items_received is provided, update those items and inventory stock
-  if (items_received && items_received.length > 0) {
+  const appliedReceipts = [];
+  if (items_received && items_received.length > 0 && !isTerminalStatus) {
     for (const item of items_received) {
-      // Fetch current item to properly add quantities
+      const rawQtyNow = Number(item.quantity_received_now);
+      if (!Number.isFinite(rawQtyNow) || rawQtyNow <= 0) continue;
+
+      // Fetch current item to properly add quantities and prefer authoritative conversion factor
       let currentItem;
       let hasReceiptHistory = true;
 
       const { data: itemWithHistory, error: historyErr } = await supabase
         .from("purchase_order_items")
-        .select("quantity_received, quantity, receipt_history")
+        .select("quantity_received, quantity, conversion_factor, ingredient_id, purchase_order_id, receipt_history")
         .eq("id", item.id)
         .single();
 
@@ -708,7 +732,7 @@ export const updatePurchaseOrderStatus = async (id, status = null, items_receive
         hasReceiptHistory = false;
         const { data: itemWithoutHistory } = await supabase
           .from("purchase_order_items")
-          .select("quantity_received, quantity")
+          .select("quantity_received, quantity, conversion_factor, ingredient_id, purchase_order_id")
           .eq("id", item.id)
           .single();
         currentItem = itemWithoutHistory;
@@ -716,10 +740,14 @@ export const updatePurchaseOrderStatus = async (id, status = null, items_receive
         currentItem = itemWithHistory;
       }
         
-      if (!currentItem) continue;
+      if (!currentItem || String(currentItem.purchase_order_id) !== String(id)) continue;
 
-      const newQtyReceived = Number(currentItem.quantity_received || 0) + Number(item.quantity_received_now);
-      const isFullyReceived = newQtyReceived >= currentItem.quantity;
+      const remainingQty = Math.max(0, Number(currentItem.quantity) - Number(currentItem.quantity_received || 0));
+      const qtyToReceive = Math.min(rawQtyNow, remainingQty);
+      if (qtyToReceive <= 0) continue;
+
+      const newQtyReceived = Number(currentItem.quantity_received || 0) + qtyToReceive;
+      const isFullyReceived = newQtyReceived >= Number(currentItem.quantity);
       
       const itemUpdate = { 
         quantity_received: newQtyReceived,
@@ -740,37 +768,54 @@ export const updatePurchaseOrderStatus = async (id, status = null, items_receive
         
         const newHistoryEvent = {
           date: new Date().toISOString(),
-          quantity: Number(item.quantity_received_now)
+          quantity: qtyToReceive
         };
         itemUpdate.receipt_history = [...currentHistory, newHistoryEvent];
       }
 
       // 1. Update purchase_order_items
-      await supabase
+      const { error: itemUpdateErr } = await supabase
         .from("purchase_order_items")
         .update(itemUpdate)
         .eq("id", item.id);
+      if (itemUpdateErr) throw itemUpdateErr;
         
       // 2. Update stock
-      if (item.ingredient_id && item.quantity_received_now > 0) {
+      const targetIngredientId = currentItem.ingredient_id || item.ingredient_id;
+      const conversion = Number(currentItem.conversion_factor) || Number(item.conversion_factor) || 1;
+      if (targetIngredientId) {
         const { data: ingData } = await supabase
           .from("ingredients")
           .select("stock_quantity")
-          .eq("id", item.ingredient_id)
+          .eq("id", targetIngredientId)
           .single();
           
         if (ingData) {
-          const conversion = Number(item.conversion_factor || 1);
-          const baseUnitsReceived = Number(item.quantity_received_now) * conversion;
+          const baseUnitsReceived = qtyToReceive * conversion;
           const newStock = Number(ingData.stock_quantity || 0) + baseUnitsReceived;
           
-          await supabase
+          const { error: ingUpdateErr } = await supabase
             .from("ingredients")
             .update({ stock_quantity: newStock })
-            .eq("id", item.ingredient_id);
+            .eq("id", targetIngredientId);
+          if (ingUpdateErr) throw ingUpdateErr;
         }
+
+        appliedReceipts.push({
+          ingredient_id: targetIngredientId,
+          quantity_received_now: qtyToReceive,
+          conversion_factor: conversion,
+          purchase_unit: item.purchase_unit || 'Unit'
+        });
       }
     }
+  }
+
+  if (data && typeof data === 'object') {
+    Object.defineProperty(data, '_appliedReceipts', {
+      value: appliedReceipts,
+      enumerable: false
+    });
   }
 
   return data;
@@ -858,21 +903,23 @@ export const respondToSupplierProposal = async (poId, itemId, decision, splitInt
 
     // If split into a new backorder PO is enabled
     if (splitIntoBackorder && targetItem && origPO) {
-      const backorderTotal = Number(targetItem.quantity) * Number(targetItem.unit_price);
+      const boTotal = Number(targetItem.quantity) * Number(targetItem.unit_price);
       const { data: createdPO, error: boErr } = await supabase
         .from('purchase_orders')
         .insert([{
           supplier_id: origPO.supplier_id,
           expected_date: proposedDate,
-          total_amount: backorderTotal,
+          total_amount: boTotal,
           status: 'Accepted'
         }])
         .select()
         .single();
 
-      if (!boErr && createdPO) {
+      if (boErr) throw boErr;
+
+      if (createdPO) {
         backorderPO = createdPO;
-        await supabase
+        const { error: boItemError } = await supabase
           .from('purchase_order_items')
           .insert([{
             purchase_order_id: createdPO.id,
@@ -883,6 +930,30 @@ export const respondToSupplierProposal = async (poId, itemId, decision, splitInt
             purchase_unit: targetItem.purchase_unit,
             conversion_factor: targetItem.conversion_factor
           }]);
+
+        if (boItemError) {
+          await supabase.from('purchase_orders').delete().eq('id', createdPO.id);
+          throw boItemError;
+        }
+
+        const { error: deleteOrigItemErr } = await supabase
+          .from('purchase_order_items')
+          .delete()
+          .eq('id', targetItem.id)
+          .eq('purchase_order_id', poId);
+
+        if (deleteOrigItemErr) throw deleteOrigItemErr;
+
+        const updatedOrigTotal = Math.max(
+          0,
+          Math.round(((Number(origPO.total_amount) || 0) - boTotal) * 100) / 100
+        );
+        const { error: updateOrigPoErr } = await supabase
+          .from('purchase_orders')
+          .update({ total_amount: updatedOrigTotal })
+          .eq('id', poId);
+
+        if (updateOrigPoErr) throw updateOrigPoErr;
 
         await logAudit('BACKORDER_PO_CREATED', userId, {
           parent_po_id: poId,

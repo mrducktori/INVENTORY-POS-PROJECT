@@ -48,10 +48,15 @@ export const getCmsSection = async (section_key) => {
   return data;
 };
 
-export const updateCmsContent = async (section_key, updates) => {
+export const updateCmsContent = async (section_key, updates = {}) => {
+  const payload = { section_key };
+  if (updates.title !== undefined) payload.title = updates.title;
+  if (updates.description !== undefined) payload.description = updates.description;
+  if (updates.image_url !== undefined) payload.image_url = updates.image_url;
+
   const { data, error } = await supabase
     .from("cms_content")
-    .upsert({ section_key, ...updates })
+    .upsert(payload)
     .select()
     .single();
     
@@ -60,9 +65,68 @@ export const updateCmsContent = async (section_key, updates) => {
   return data;
 };
 
+const ALLOWED_IMAGE_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "image/x-icon",
+  "image/vnd.microsoft.icon"
+]);
+const ALLOWED_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp", "gif", "ico"]);
+
+export const validateCmsImageUpload = ({ fileName, mimeType, base64Data }) => {
+  if (!base64Data || typeof base64Data !== "string") {
+    const err = new Error("Missing image data.");
+    err.status = 400;
+    throw err;
+  }
+
+  const trimmedData = base64Data.trim();
+  if (trimmedData.startsWith("data:")) {
+    const dataUriMatch = /^data:([^;,]+)(?:;[^,]*)?;base64,/i.exec(trimmedData);
+    if (!dataUriMatch || !ALLOWED_IMAGE_MIME_TYPES.has(dataUriMatch[1].trim().toLowerCase())) {
+      const err = new Error("Unsupported image MIME type. Only JPG, PNG, WEBP, GIF, or ICO images are allowed.");
+      err.status = 400;
+      throw err;
+    }
+  }
+
+  const resolvedMime = String(mimeType || "image/png").split(";")[0].trim().toLowerCase();
+  if (!ALLOWED_IMAGE_MIME_TYPES.has(resolvedMime)) {
+    const err = new Error("Unsupported image MIME type. Only JPG, PNG, WEBP, GIF, or ICO images are allowed.");
+    err.status = 400;
+    throw err;
+  }
+
+  const rawName = String(fileName || "image.png").trim();
+  const ext = rawName.includes(".") ? rawName.split(".").pop().toLowerCase() : "";
+  if (!ext || !ALLOWED_IMAGE_EXTENSIONS.has(ext)) {
+    const err = new Error("Unsupported image file extension. Only .jpg, .jpeg, .png, .webp, .gif, or .ico files are allowed.");
+    err.status = 400;
+    throw err;
+  }
+
+  const cleanedBase64 = trimmedData.replace(/^data:[^;]+;base64,/i, "");
+  const buffer = Buffer.from(cleanedBase64, "base64");
+  if (!buffer || buffer.length === 0) {
+    const err = new Error("Invalid or empty image payload.");
+    err.status = 400;
+    throw err;
+  }
+
+  const headText = buffer.subarray(0, 256).toString("utf8").trimStart().toLowerCase();
+  if (headText.startsWith("<svg") || headText.startsWith("<?xml") || headText.startsWith("<!doctype") || headText.startsWith("<html")) {
+    const err = new Error("SVG and HTML/XML uploads are not allowed.");
+    err.status = 400;
+    throw err;
+  }
+
+  return { resolvedMime, buffer };
+};
+
 export const uploadCmsImageToStorage = async ({ fileName, mimeType, base64Data }) => {
-  const cleanedBase64 = base64Data.replace(/^data:[^;]+;base64,/, '');
-  const buffer = Buffer.from(cleanedBase64, 'base64');
+  const { resolvedMime, buffer } = validateCmsImageUpload({ fileName, mimeType, base64Data });
 
   const safeName = String(fileName || 'upload.png')
     .replace(/[^a-zA-Z0-9._-]/g, '_')
@@ -72,7 +136,7 @@ export const uploadCmsImageToStorage = async ({ fileName, mimeType, base64Data }
   const { error: uploadError } = await supabase.storage
     .from("cms-images")
     .upload(storagePath, buffer, {
-      contentType: mimeType || 'image/png',
+      contentType: resolvedMime,
       cacheControl: '3600',
       upsert: true
     });

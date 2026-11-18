@@ -1,11 +1,12 @@
 import express from 'express';
 import { supabase } from "../config/supabaseClient.js";
 import { logAudit } from "../utils/auditHelper.js";
+import { requireRole } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
 // Get all category settings
-router.get('/', async (req, res) => {
+router.get('/', requireRole('Owner', 'Admin', 'Staff', 'Custom'), async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('category_settings')
@@ -18,7 +19,7 @@ router.get('/', async (req, res) => {
 });
 
 // Create new category setting
-router.post('/', async (req, res) => {
+router.post('/', requireRole('Owner', 'Admin'), async (req, res) => {
   try {
     const { category, sizes, add_ons } = req.body;
     const uppercaseCategory = String(category || '').toUpperCase();
@@ -35,7 +36,7 @@ router.post('/', async (req, res) => {
       
     if (error) throw error;
 
-    await logAudit('CATEGORY_SETTINGS_CREATED', req.user?.id || null, {
+    await logAudit('CATEGORY_SETTINGS_CREATED', req.user.id, {
       category: uppercaseCategory,
       sizes_count: (sizes || []).length,
       addons_count: (add_ons || []).length
@@ -48,7 +49,7 @@ router.post('/', async (req, res) => {
 });
 
 // Upsert category settings (Update if exists, insert if not)
-router.put('/:category', async (req, res) => {
+router.put('/:category', requireRole('Owner', 'Admin'), async (req, res) => {
   try {
     const { sizes, add_ons } = req.body;
     const uppercaseCategory = req.params.category.toUpperCase();
@@ -67,7 +68,7 @@ router.put('/:category', async (req, res) => {
       
     if (error) throw error;
 
-    await logAudit('CATEGORY_SETTINGS_UPDATED', req.user?.id || null, {
+    await logAudit('CATEGORY_SETTINGS_UPDATED', req.user.id, {
       category: uppercaseCategory,
       sizes_count: (sizes || []).length,
       addons_count: (add_ons || []).length

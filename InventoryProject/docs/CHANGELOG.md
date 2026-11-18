@@ -2,6 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Security/Fixes/Menu Photos: Lean-Swarm Hardening & Plastic-Cup Product Images - 2026-11-18]
+- **Menu Product Image Audit & Regeneration (`products`, `cms-images` Supabase bucket)**:
+  - Audited all `44` rows in `products`: preserved `3` non-real/archived test items (`KAHIT ANO`, `TESTPRODUCT`, `SPAGHETTI`) without images, kept `16` already-accurate plastic-cup/pastry images, and generated/uploaded **25 new 800×800 clear plastic-cup menu photos** across `COFFEE` (8), `FRAPPE` (7), `FRUIT DRINKS` (4), and `MILK TEA` (6: `BROWN SUGAR`, `OKINAWA`, `ORIGINAL MILKTEA`, `PURPLE TARO`, `RED VELVAT`, `WINTERMELON`).
+- **Backend RBAC, CORS, Session, POS, Purchasing, CMS & Timezone Fixes (`InventoryProject/server/`)**:
+  - `server.js`: Replaced the permissive CORS fallback with an error callback rejection (`Not allowed by CORS`), and added `generalLimiter` to `/purchase-orders`.
+  - Applied `requireRole('Owner', 'Admin', 'Staff', 'Custom')` across internal routes (`wastage.js`, `sales.js`, `dashboard.js`, `analytics.js`, `products.js`, `inventory.js`, `requests.js`, `recipes.js`, `audit.js`, `categorySettings.js`, `pos.js` `POST /sale`, and internal `purchasing.js` routes), restricted admin mutations (`PUT /requests/:id/status`, `POST`/`DELETE` in `recipes.js`, `POST`/`PUT` in `categorySettings.js`) to `Owner`/`Admin`, and allowed `Custom` on supplier archive/restore routes.
+  - `posController.js` & `posService.js`: Enforced integer `item.qty` (`1..99`), integer add-on quantities (`0..5`, non-negative), `req.user.id` staff attribution, Manila-dated `generateReceiptNumber` with collision suffix, active non-archived product checks, explicit `amount_received` handling, and `sale_items` cleanup during rollback.
+  - `users.js`: Masked `current_session_id` (`'active' | null`) in responses and revoked `current_session_id` on password/role/inactive updates alongside auth cache invalidation.
+  - `purchasingController.js` & `purchasingService.js`: Blocked updates on terminal POs (`Received`, `Cancelled`, `Declined`), validated supplier catalog ownership (`existingMap`) and positive prices/conversion factors, capped/validated PO receiving quantities, and cleaned up split parent `purchase_order_items` / `total_amount` on backorders.
+  - `wastageService.js`: Blocked archived ingredients, restored deducted stock if `wastage.insert` fails, and selected `unit_cost` / `estimated_cost` in `getWastageStats`.
+  - `cmsController.js` & `cmsService.js`: Validated CMS uploads to safe image MIME types/extensions (rejecting SVG/HTML/XML) and restricted `updateCmsContent` fields to `title`, `description`, `image_url`.
+  - `server/utils/dateUtils.js` & `dashboard.js`: Added Manila `+08:00` day boundary helpers and Manila date math for the 7-day trend start query.
+- **Frontend Bug Fixes, ESLint Zero-Error Hygiene & Rule 16 Icons (`InventoryProject/vite.config.js`, `InventoryProject/src/`)**:
+  - Fixed `vite.config.js` `__dirname` (`fileURLToPath`) and resolved all `10` ESLint errors + `16` hook warnings across `SearchableIngredientSelect.jsx`, `AccountForm.jsx`, `AccountManager.jsx`, `UsersTable.jsx`, `LoginPage.jsx`, `NotificationInbox.jsx`, `useNotifications.js`, `ManageProducts.jsx`, `Dashboard.jsx`, and `10` data-fetching hooks/components (`npm run lint` passes with `0` errors and `0` warnings).
+  - Fixed divide-by-zero `NaN` in `SalesSummaryReport.jsx`, `await`/error handling and silent realtime refreshes in `PurchaseOrders.jsx` and `SupplierPortal.jsx`, decimal parsing and null `quantity_received` in `ReceivePOModal.jsx`, filtered `byReason` aggregation in `WastageReport.jsx`, 1500ms delay removal in `useLogin.js`, `http(s)://` link sanitization in `LandingPage.jsx`, and `NaN` date checks in `src/utils/dateUtils.js`.
+  - Replaced `19` raw `✕` characters across `11` frontend files with clean inline SVG icons per Rule 16.
+
+## [Tooling/Skills: Added Lean Swarm Token-Budget Skill - 2026-11-18]
+- **Workspace Skill (`.agents/skills/lean-swarm/SKILL.md`)**:
+  - Added a progressive-disclosure `lean-swarm` skill to reduce token and quota usage during `/swarm` and multi-agent runs (right-sizing `invoke_subagent` / `run_workflow` vs `swarm`, capping worker count, skipping unnecessary optional roles, optional model tiering with user consent, bounded `rg` + `read_file` line-range budgets, compact report formats, and phased execution).
+
+## [Cleanup: Removed Seed Scripts & Unused Frontend Files - 2026-11-18]
+- **Seeding Scripts Removed (`docs/database/`)**:
+  - Removed temporary `seed_missing_nov_sales.mjs` (after running backfill) and legacy `seed_all_supplier_materials.sql`.
+- **Unused Frontend Modules & Empty Directories Removed (`src/`, `scripts/`)**:
+  - Removed unreferenced files (`src/api/supplierApi.js`, `src/components/ProductCard.jsx`, `src/components/shared/ColumnVisibilityDropdown.jsx`, `src/features/logs/components/SalesReceiptModal.jsx`, `src/hooks/useDemandForecast.js`, `src/utils/uploadImage.js`) and empty folders (`scripts/`, `src/features/settings/`, `src/hooks/`, `src/features/logs/components/`).
+- **Documentation Sync**: Updated the file map in `docs/PROJECT_REFERENCE.md`.
+
+## [Data/Seed: Historical Sales Gap Backfill (Nov 11, 14–17) - 2026-11-18]
+- **Backfilled Missing Past Days**:
+  - Seeded `212` realistic historical POS orders (`404` `sale_items`, `₱25,701.20` total revenue) across the 5 missing past days (`2026-11-11`, `2026-11-14`, `2026-11-15`, `2026-11-16`, `2026-11-17`) in `Asia/Manila` (`+08:00`) operating hours, strictly attributed to active non-archived staff (`Kuya Ben`).
+  - Applied corresponding recipe, cup-size, add-on, and tracked-product stock deductions (`1` tracked product and `36` raw ingredients) with zero negative balances, and recorded matching `SALE` entries in `audit_logs`.
+
 ## [Security/Fixes/Cleanup: System Audit, Bug Fixes, & ESLint Hygiene - 2026-11-18]
 - **Server Startup & Auth Hardening (`server/server.js`, `server/middleware/authMiddleware.js`, `server/routes/auth.js`)**:
   - Fixed Express 5 `PathError` crash on `app.all('/api/*', ...)` in `server/server.js` by replacing it with `app.use('/api', ...)`.

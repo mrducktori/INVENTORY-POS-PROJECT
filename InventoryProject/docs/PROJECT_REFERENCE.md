@@ -58,7 +58,6 @@ InventoryProject/
 │   │   └── ...                 # (reportsApi, salesApi, usersApi, etc.)
 │   ├── components/             # Shared/reusable components
 │   │   ├── Navbar.jsx          # Sidebar navigation (role-aware)
-│   │   ├── ProductCard.jsx     # Reusable product display card
 │   │   └── SalesReceiptModal.jsx
 │   ├── config/
 │   │   └── supabaseClient.js   # Frontend Supabase client (anon key, for storage uploads)
@@ -74,12 +73,10 @@ InventoryProject/
 │   │   ├── accounts/           # AccountManager (user CRUD)
 │   │   ├── wastage/            # ReportWastage
 │   │   └── requests/           # ViewRequests
-│   ├── hooks/                  # Custom hooks (useDemandForecast)
 │   └── utils/                  # Frontend utilities
 │       ├── authUtils.js        # Role checking helpers
 │       ├── dateUtils.js        # Date formatting
 │       ├── productUtils.js     # Product calculation helpers
-│       ├── uploadImage.js      # Supabase storage upload helper
 │       └── constants.js        # App-wide constants
 │
 ├── server/                     # Express.js backend (Node 20+)

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { getProducts, createSale } from '../../api/posApi';
 import { getCategorySettings } from '../../api/categorySettingsApi';
 import { getRecipesByProduct } from "../../api/recipesApi";
@@ -111,7 +111,7 @@ export const usePOS = () => {
     }
   };
 
-  const getVirtualProduct = (product) => {
+  const getVirtualProduct = useCallback((product) => {
     if (!product) return null;
     const catSettings = categorySettings[product.category?.toUpperCase()];
     const virtualProduct = {
@@ -134,13 +134,14 @@ export const usePOS = () => {
       }
     }
     return virtualProduct;
-  };
+  }, [categorySettings]);
 
   // Sync cart prices with latest fetched products
   useEffect(() => {
-    if (products.length === 0 || cart.length === 0 || Object.keys(categorySettings).length === 0) return;
+    if (products.length === 0 || Object.keys(categorySettings).length === 0) return;
     
     setCart(prevCart => {
+      if (prevCart.length === 0) return prevCart;
       let hasChanges = false;
       const updatedCart = prevCart.map(item => {
         let latestProd = products.find(p => p.id === item.id);
@@ -175,7 +176,7 @@ export const usePOS = () => {
       });
       return hasChanges ? updatedCart : prevCart;
     });
-  }, [products, categorySettings]);
+  }, [products, categorySettings, getVirtualProduct]);
 
   // FETCH RECIPE FOR MODAL
   useEffect(() => {

@@ -4,9 +4,9 @@ const SupplierCatalogModal = ({ supplier, onClose }) => {
   const [searchTerm, setSearchTerm] = useState('');
 
   const recentUpdates = supplier?.recent_price_updates || null;
-  const recentItemsMap = recentUpdates?.items || {};
 
   const catalogItems = useMemo(() => {
+    const recentItemsMap = recentUpdates?.items || {};
     return (supplier?.supplier_ingredients || []).map((si) => {
       const ingName = si.ingredients?.name || 'Unknown Ingredient';
       const baseUnit = si.ingredients?.unit || 'Unit';
@@ -27,7 +27,7 @@ const SupplierCatalogModal = ({ supplier, onClose }) => {
         priceChange
       };
     });
-  }, [supplier, recentItemsMap]);
+  }, [supplier, recentUpdates]);
 
   const filteredItems = useMemo(() => {
     if (!searchTerm.trim()) return catalogItems;

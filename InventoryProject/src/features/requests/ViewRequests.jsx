@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getRequests, updateRequestStatus } from '../../api/requestsApi';
 import Pagination from '../../components/shared/Pagination';
 
@@ -20,11 +20,7 @@ const ViewRequests = () => {
     return requests.slice(start, start + itemsPerPage);
   }, [requests, currentPage, itemsPerPage]);
 
-  useEffect(() => {
-    fetchRequests();
-  }, [filter]);
-
-  const fetchRequests = async () => {
+  const fetchRequests = useCallback(async () => {
     try {
       setLoading(true);
       const data = await getRequests({ status: filter === 'ALL' ? undefined : filter });
@@ -34,7 +30,11 @@ const ViewRequests = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter]);
+
+  useEffect(() => {
+    fetchRequests();
+  }, [fetchRequests]);
 
   const handleUpdateStatus = async (id, newStatus) => {
     try {

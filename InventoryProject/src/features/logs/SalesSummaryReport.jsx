@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getSalesReportByPeriod } from '../../api/logsApi';
 import { getSales } from '../../api/salesApi';
 import { downloadCSV } from '../reports/reportUtils';
@@ -21,11 +21,7 @@ const SalesSummaryReport = () => {
     setAuditPage(1);
   }, [auditSearch, selectedStaff]);
 
-  useEffect(() => {
-    fetchSummary();
-  }, [period]);
-
-  const fetchSummary = async () => {
+  const fetchSummary = useCallback(async () => {
     try {
       setLoading(true);
       const data = await getSalesReportByPeriod(null, null, period);
@@ -35,7 +31,11 @@ const SalesSummaryReport = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [period]);
+
+  useEffect(() => {
+    fetchSummary();
+  }, [fetchSummary]);
 
   const fetchStaffDetails = async (staff) => {
     setSelectedStaff(staff);
@@ -206,17 +206,17 @@ const SalesSummaryReport = () => {
                             <td className="px-6 py-5"><span className="inline-flex px-3 py-1 rounded-full text-sm md:text-base font-bold bg-gray-100 text-gray-800 border border-gray-200">{staff.name}</span></td>
                             <td className="px-6 py-5"><span className="text-sm md:text-base font-black text-green-700 bg-green-50 px-2 py-1 rounded">₱{staff.total_sales.toFixed(2)}</span></td>
                             <td className="px-6 py-5 text-center font-black text-gray-900">{staff.transactions}</td>
-                            <td className="px-6 py-5 text-center text-sm md:text-base font-mono text-gray-500 font-bold">₱{(staff.total_sales / staff.transactions).toFixed(2)}</td>
+                            <td className="px-6 py-5 text-center text-sm md:text-base font-mono text-gray-500 font-bold">₱{(staff.transactions > 0 ? staff.total_sales / staff.transactions : 0).toFixed(2)}</td>
                             <td className="px-6 py-5">
                               <div className="flex items-center gap-3 w-full max-w-[200px]">
                                 <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
                                   <div 
                                     className="h-full bg-gray-500 rounded-full" 
-                                    style={{ width: `${(staff.total_sales / summary.total_sales) * 100}%` }} 
+                                    style={{ width: `${summary.total_sales > 0 ? (staff.total_sales / summary.total_sales) * 100 : 0}%` }} 
                                   />
                                 </div>
                                 <span className="text-sm md:text-base font-bold text-gray-500 whitespace-nowrap min-w-[40px] text-right">
-                                  {((staff.total_sales / summary.total_sales) * 100).toFixed(1)}%
+                                  {(summary.total_sales > 0 ? (staff.total_sales / summary.total_sales) * 100 : 0).toFixed(1)}%
                                 </span>
                               </div>
                             </td>

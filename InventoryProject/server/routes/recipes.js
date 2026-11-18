@@ -2,8 +2,10 @@ import express from "express";
 import * as recipesService from "../services/recipesService.js";
 import { logAudit } from "../utils/auditHelper.js";
 import { invalidateAnalyticsCache } from "./analytics.js";
+import { requireRole } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
+router.use(requireRole("Owner", "Admin", "Staff", "Custom"));
 
 // Get all recipes
 router.get("/", async (req, res) => {
@@ -26,11 +28,11 @@ router.get("/product/:product_id", async (req, res) => {
 });
 
 // Create recipe
-router.post("/", async (req, res) => {
+router.post("/", requireRole("Owner", "Admin"), async (req, res) => {
   try {
     const recipe = await recipesService.createRecipe(req.body);
     invalidateAnalyticsCache();
-    await logAudit("RECIPE_CREATED", req.user?.id || null, {
+    await logAudit("RECIPE_CREATED", req.user.id, {
       recipe_id: recipe.id,
       product_id: recipe.product_id,
       ingredient_id: recipe.ingredient_id,
@@ -48,7 +50,7 @@ router.put("/:id", async (req, res) => {
   try {
     const recipe = await recipesService.updateRecipe(req.params.id, req.body);
     invalidateAnalyticsCache();
-    await logAudit("RECIPE_UPDATED", req.user?.id || null, {
+    await logAudit("RECIPE_UPDATED", req.user.id, {
       recipe_id: recipe.id,
       product_id: recipe.product_id,
       ingredient_id: recipe.ingredient_id,
@@ -62,11 +64,11 @@ router.put("/:id", async (req, res) => {
 });
 
 // Delete recipe
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", requireRole("Owner", "Admin"), async (req, res) => {
   try {
     const result = await recipesService.deleteRecipe(req.params.id);
     invalidateAnalyticsCache();
-    await logAudit("RECIPE_DELETED", req.user?.id || null, {
+    await logAudit("RECIPE_DELETED", req.user.id, {
       recipe_id: req.params.id,
       ...(result?.deleted || {})
     });

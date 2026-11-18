@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getPurchaseOrders, updatePurchaseOrderStatus, respondToSupplierProposal, reschedulePurchaseOrder } from '../../api/purchasingApi';
 import PurchaseOrderForm from './PurchaseOrderForm';
 import ReceivePOModal from './components/ReceivePOModal';
@@ -26,18 +26,18 @@ const PurchaseOrders = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async (silent = false) => {
     try {
-      if (orders.length === 0) setLoading(true);
+      if (!silent) setLoading(true);
       const data = await getPurchaseOrders();
       setOrders(data || []);
     } catch (err) {
       console.error(err);
-      setError('Failed to load purchase orders.');
+      if (!silent) setError('Failed to load purchase orders.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchOrders();
@@ -47,25 +47,25 @@ const PurchaseOrders = () => {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'purchase_orders' },
-        () => fetchOrders()
+        () => fetchOrders(true)
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'purchase_order_items' },
-        () => fetchOrders()
+        () => fetchOrders(true)
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [fetchOrders]);
 
   const handleReceiveSubmit = async (id, newStatus, items_received) => {
     try {
       await updatePurchaseOrderStatus(id, newStatus, items_received);
       setReceivingPO(null);
-      fetchOrders();
+      await fetchOrders(true);
     } catch (err) {
       console.error(err);
       setError('Failed to update status.');
@@ -78,7 +78,7 @@ const PurchaseOrders = () => {
       setActionLoading(true);
       await updatePurchaseOrderStatus(id, 'Cancelled', [], null, reason);
       setCancellingPO(null);
-      fetchOrders();
+      await fetchOrders(true);
     } catch (err) {
       console.error(err);
       setError('Failed to cancel order: ' + (err.message || ''));
@@ -93,7 +93,7 @@ const PurchaseOrders = () => {
       setActionLoading(true);
       await reschedulePurchaseOrder(id, newDate, reason);
       setReschedulingPO(null);
-      fetchOrders();
+      await fetchOrders(true);
     } catch (err) {
       console.error(err);
       setError('Failed to reschedule delivery date: ' + (err.message || ''));
@@ -107,7 +107,7 @@ const PurchaseOrders = () => {
     try {
       setProcessingProposalId(itemId);
       await respondToSupplierProposal(poId, itemId, decision, splitIntoBackorder);
-      await fetchOrders();
+      await fetchOrders(true);
     } catch (err) {
       console.error(err);
       setError('Failed to respond to proposal: ' + err.message);
@@ -119,7 +119,7 @@ const PurchaseOrders = () => {
 
   const handleCreateSuccess = () => {
     setShowModal(false);
-    fetchOrders();
+    fetchOrders(true);
   };
 
   const [expandedRow, setExpandedRow] = useState(null);
@@ -439,8 +439,21 @@ const PurchaseOrders = () => {
                                   </button>
                                   {!isOverdue && po.status === 'Postponed' && (
                                     <button 
-                                      className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors border border-blue-200 whitespace-nowrap cursor-pointer"
-                                      onClick={() => updatePurchaseOrderStatus(po.id, 'To Be Delivered')}
+                                      className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors border border-blue-200 whitespace-nowrap cursor-pointer disabled:opacity-50"
+                                      disabled={actionLoading}
+                                      onClick={async () => {
+                                        try {
+                                          setActionLoading(true);
+                                          await updatePurchaseOrderStatus(po.id, 'To Be Delivered');
+                                          await fetchOrders(true);
+                                        } catch (err) {
+                                          console.error(err);
+                                          setError('Failed to accept postponed date: ' + (err.message || ''));
+                                          setTimeout(() => setError(''), 4000);
+                                        } finally {
+                                          setActionLoading(false);
+                                        }
+                                      }}
                                     >
                                       Accept Date
                                     </button>

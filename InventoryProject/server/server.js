@@ -94,8 +94,8 @@ const corsOptions = {
       return callback(null, true);
     }
 
-    // Default permissive callback so newly deployed frontends are not blocked by default
-    return callback(null, true);
+    // Reject unknown origins in production
+    return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
@@ -147,7 +147,7 @@ app.use('/api/analytics', requireAuth, analyticsRoutes);
 app.use('/api/categories/settings', requireAuth, categorySettingsRoutes);
 app.use('/api/purchasing', requireAuth, purchasingRoutes);
 app.use('/api/purchase-orders', requireAuth, purchasingRoutes);
-app.use('/purchase-orders', requireAuth, purchasingRoutes);
+app.use('/purchase-orders', generalLimiter, requireAuth, purchasingRoutes);
 app.use('/api/cms', looseLimiter, cmsRoutes);
 
 // Catch unmatched /api/* requests so API clients always receive clean JSON 404

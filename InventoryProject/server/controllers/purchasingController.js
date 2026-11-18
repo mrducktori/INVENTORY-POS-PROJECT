@@ -163,10 +163,12 @@ export const updatePurchaseOrderStatus = async (req, res) => {
 
     // Log individual stock receipts for each received item so they show in
     // Transaction Logs and Stock Movement reports
-    if (items_received && items_received.length > 0) {
-      for (const item of items_received) {
-        if (!item.ingredient_id || !item.quantity_received_now || Number(item.quantity_received_now) <= 0) continue;
-        
+    const receiptsToLog = Array.isArray(data?._appliedReceipts)
+      ? data._appliedReceipts
+      : (items_received || []).filter((item) => item.ingredient_id && Number(item.quantity_received_now) > 0);
+
+    if (receiptsToLog.length > 0) {
+      for (const item of receiptsToLog) {
         // Fetch the ingredient to get its name and current stock for the log
         const { getIngredientById } = await import("../services/inventoryService.js");
         const ingredient = await getIngredientById(item.ingredient_id);
@@ -192,7 +194,7 @@ export const updatePurchaseOrderStatus = async (req, res) => {
 
     res.json(data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 };
 
@@ -267,12 +269,18 @@ export const updateSupplierOrderStatus = async (req, res) => {
     // Verify this PO belongs to the supplier
     const { data: po } = await supabase
       .from('purchase_orders')
-      .select('id, supplier_id')
+      .select('id, supplier_id, status')
       .eq('id', id)
       .single();
 
     if (!po || po.supplier_id !== userData.supplier_id) {
       return res.status(403).json({ error: 'You can only update your own purchase orders.' });
+    }
+
+    if (['received', 'cancelled', 'declined'].includes(String(po.status || '').toLowerCase())) {
+      return res.status(400).json({
+        error: `Cannot update purchase order because its status is already ${po.status}.`
+      });
     }
 
     const data = await purchasingService.updatePurchaseOrderStatus(id, matchedStatus, [], expected_date, declineReason);
@@ -422,15 +430,39 @@ export const updateSupplierOwnCatalog = async (req, res) => {
       .select('ingredient_id, default_price, default_purchase_unit, default_conversion_factor, ingredients(id, name)')
       .eq('supplier_id', supplierId);
 
-    const existingMap = new Map((existingRows || []).map(r => [r.ingredient_id, r]));
-    const priceChanges = [];
+    const existingMap = new Map((existingRows || []).map(r => [String(r.ingredient_id), r]));
+    const validatedItems = [];
 
     for (const item of items) {
-      const existing = existingMap.get(item.ingredient_id);
-      const oldPrice = parseFloat(existing?.default_price) || 0;
-      const newPrice = parseFloat(item.default_price ?? item.price) || 0;
+      if (!item || !item.ingredient_id) {
+        return res.status(400).json({ error: 'Each catalog item must include an ingredient_id.' });
+      }
+      const existing = existingMap.get(String(item.ingredient_id));
+      if (!existing) {
+        return res.status(403).json({ error: 'You can only update ingredients assigned to your supplier catalog.' });
+      }
 
-      if (existing && Math.abs(oldPrice - newPrice) > 0.001) {
+      const rawPrice = item.default_price ?? item.price ?? existing.default_price ?? 0;
+      const newPrice = Number(rawPrice);
+      const rawFactor = item.default_conversion_factor ?? item.conversion_factor ?? existing.default_conversion_factor ?? 1;
+      const convFactor = Number(rawFactor);
+
+      if (!Number.isFinite(newPrice) || newPrice < 0) {
+        return res.status(400).json({ error: 'Item price must be a valid non-negative number.' });
+      }
+      if (!Number.isFinite(convFactor) || convFactor <= 0) {
+        return res.status(400).json({ error: 'Conversion factor must be a positive number.' });
+      }
+
+      validatedItems.push({ item, existing, newPrice, convFactor });
+    }
+
+    const priceChanges = [];
+
+    for (const { item, existing, newPrice, convFactor } of validatedItems) {
+      const oldPrice = parseFloat(existing.default_price) || 0;
+
+      if (Math.abs(oldPrice - newPrice) > 0.001) {
         priceChanges.push({
           ingredient_id: item.ingredient_id,
           ingredient_name: existing.ingredients?.name || 'Raw Material',
@@ -445,15 +477,14 @@ export const updateSupplierOwnCatalog = async (req, res) => {
         .from('supplier_ingredients')
         .update({
           default_price: newPrice,
-          default_purchase_unit: item.default_purchase_unit || item.purchase_unit || existing?.default_purchase_unit || 'Unit',
-          default_conversion_factor: parseFloat(item.default_conversion_factor || item.conversion_factor) || existing?.default_conversion_factor || 1
+          default_purchase_unit: item.default_purchase_unit || item.purchase_unit || existing.default_purchase_unit || 'Unit',
+          default_conversion_factor: convFactor
         })
         .match({ supplier_id: supplierId, ingredient_id: item.ingredient_id });
       if (upErr) throw upErr;
 
       // Sync the ingredient's cost_per_purchase_unit and unit_cost in the database
       if (newPrice > 0) {
-        const convFactor = parseFloat(item.default_conversion_factor || item.conversion_factor) || existing?.default_conversion_factor || 1;
         const unitCost = Math.round((newPrice / convFactor) * 10000) / 10000;
         await supabase
           .from('ingredients')
@@ -478,11 +509,11 @@ export const updateSupplierOwnCatalog = async (req, res) => {
     await logAudit('SUPPLIER_CATALOG_PRICES_UPDATED', req.user.id, {
       supplier_id: supplierId,
       supplier_name: supplierName,
-      items_count: items.length,
+      items_count: validatedItems.length,
       price_changes: priceChanges
     });
 
-    res.json({ success: true, count: items.length, price_changes: priceChanges });
+    res.json({ success: true, count: validatedItems.length, price_changes: priceChanges });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

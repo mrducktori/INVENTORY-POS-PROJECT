@@ -39,6 +39,9 @@ export const reportWastage = async ({ ingredient_id, quantity, reason, reported_
 
   // Check current stock BEFORE logging or deducting
   const ingredient = await getIngredientById(ingredient_id);
+  if (ingredient.is_archived) {
+    throw new Error("Cannot report wastage for an archived ingredient");
+  }
   if (parseFloat(ingredient.stock_quantity) < qty) {
     throw new Error(
       `Cannot report wastage of ${qty} ${ingredient.unit} for "${ingredient.name}". ` +
@@ -49,25 +52,37 @@ export const reportWastage = async ({ ingredient_id, quantity, reason, reported_
   // Deduct from stock first (most important step)
   await updateStock(ingredient_id, qty, "subtract");
 
-  const estimated_cost = computeWastageEntryCost({
-    quantity: qty,
-    ingredient
-  });
-
-  // Only log the wastage record AFTER the deduction succeeds
-  const { data, error } = await supabase
-    .from("wastage")
-    .insert([{
-      ingredient_id,
+  let data;
+  let estimated_cost;
+  try {
+    estimated_cost = computeWastageEntryCost({
       quantity: qty,
-      reason,
-      reported_by,
-      estimated_cost
-    }])
-    .select()
-    .single();
+      ingredient
+    });
 
-  if (error) throw error;
+    // Only log the wastage record AFTER the deduction succeeds
+    const { data: inserted, error } = await supabase
+      .from("wastage")
+      .insert([{
+        ingredient_id,
+        quantity: qty,
+        reason,
+        reported_by,
+        estimated_cost
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+    data = inserted;
+  } catch (insertErr) {
+    try {
+      await updateStock(ingredient_id, qty, "add");
+    } catch (rollbackErr) {
+      console.error("[Wastage Rollback] Failed to restore stock after insert error:", rollbackErr.message);
+    }
+    throw insertErr;
+  }
 
   invalidateAnalyticsCache();
 
@@ -88,7 +103,7 @@ export const getWastageHistory = async (filters = {}) => {
     .from("wastage")
     .select(`
       *,
-      ingredients(id, name, unit, cost_per_purchase_unit, conversion_factor),
+      ingredients(id, name, unit, unit_cost, cost_per_purchase_unit, conversion_factor),
       users(id, name, username)
     `)
     .order("created_at", { ascending: false });
@@ -121,7 +136,7 @@ export const getWastageHistory = async (filters = {}) => {
 export const getWastageStats = async () => {
   const { data, error } = await supabase
     .from("wastage")
-    .select("ingredient_id, quantity, created_at, ingredients(id, name, unit, cost_per_purchase_unit, conversion_factor)")
+    .select("ingredient_id, quantity, estimated_cost, created_at, ingredients(id, name, unit, unit_cost, cost_per_purchase_unit, conversion_factor)")
     .order("created_at", { ascending: false })
     .limit(500);
 

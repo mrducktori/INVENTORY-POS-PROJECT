@@ -315,6 +315,7 @@ const AccountManager = () => {
           </div>
           <div className="p-6">
             <AccountForm
+              key={editingUserId || 'new'}
               formData={formData}
               setFormData={setFormData}
               isEditing={!!editingUserId}

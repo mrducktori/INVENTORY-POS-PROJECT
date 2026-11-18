@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getSupplierOwnOrders, updateSupplierOrderStatus, submitSupplierItemResponses } from '../../api/purchasingApi';
 import { supabase } from '../../config/supabaseClient';
 import { formatDisplayDate, isDatePast, getDaysOverdue } from '../../utils/dateUtils';
@@ -25,17 +25,17 @@ const SupplierPortal = () => {
   const [reviewModal, setReviewModal] = useState({ show: false, order: null });
   const [declineModal, setDeclineModal] = useState({ show: false, orderId: null, reason: '' });
 
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async (silent = false) => {
     try {
-      if (orders.length === 0) setLoading(true);
+      if (!silent) setLoading(true);
       const data = await getSupplierOwnOrders();
       setOrders(data || []);
     } catch (err) {
-      setError('Failed to load orders: ' + err.message);
+      if (!silent) setError('Failed to load orders: ' + err.message);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchOrders();
@@ -45,19 +45,19 @@ const SupplierPortal = () => {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'purchase_orders' },
-        () => fetchOrders()
+        () => fetchOrders(true)
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'purchase_order_items' },
-        () => fetchOrders()
+        () => fetchOrders(true)
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [fetchOrders]);
 
   const handleStatusChange = async (id, newStatus) => {
     if (newStatus === 'Postponed') {
@@ -70,7 +70,7 @@ const SupplierPortal = () => {
     }
     try {
       await updateSupplierOrderStatus(id, newStatus);
-      fetchOrders();
+      fetchOrders(true);
     } catch (err) {
       setError('Failed to update status: ' + err.message);
       setTimeout(() => setError(''), 5000);
@@ -87,7 +87,7 @@ const SupplierPortal = () => {
     try {
       await updateSupplierOrderStatus(declineModal.orderId, 'Declined', null, declineModal.reason.trim());
       setDeclineModal({ show: false, orderId: null, reason: '' });
-      fetchOrders();
+      fetchOrders(true);
     } catch (err) {
       setError('Failed to decline order: ' + err.message);
       setTimeout(() => setError(''), 5000);
@@ -100,7 +100,7 @@ const SupplierPortal = () => {
     try {
       await updateSupplierOrderStatus(postponeModal.orderId, 'Postponed', postponeModal.date);
       setPostponeModal({ show: false, orderId: null, date: '' });
-      fetchOrders();
+      fetchOrders(true);
     } catch (err) {
       setError('Failed to postpone: ' + err.message);
       setTimeout(() => setError(''), 5000);
@@ -110,7 +110,7 @@ const SupplierPortal = () => {
   const handleReviewSubmit = async (poId, itemsPayload) => {
     await submitSupplierItemResponses(poId, itemsPayload);
     setReviewModal({ show: false, order: null });
-    fetchOrders();
+    fetchOrders(true);
   };
 
   const toggleExpand = (id) => {

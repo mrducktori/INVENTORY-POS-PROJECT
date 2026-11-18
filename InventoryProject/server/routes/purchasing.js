@@ -3,24 +3,25 @@ import * as purchasingController from "../controllers/purchasingController.js";
 import { requireAuth, requireRole } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
+const requireCafeRole = requireRole("Owner", "Admin", "Staff", "Custom");
 
 // Suppliers
-router.get("/suppliers", purchasingController.getSuppliers);
-router.get("/price-updates", requireAuth, purchasingController.getSupplierPriceUpdates);
-router.post("/suppliers", purchasingController.createSupplier);
-router.put("/suppliers/:id", purchasingController.updateSupplier);
-router.put("/suppliers/:id/archive", requireAuth, requireRole("Admin", "Owner"), purchasingController.archiveSupplier);
-router.put("/suppliers/:id/restore", requireAuth, requireRole("Admin", "Owner"), purchasingController.restoreSupplier);
+router.get("/suppliers", requireAuth, requireCafeRole, purchasingController.getSuppliers);
+router.get("/price-updates", requireAuth, requireCafeRole, purchasingController.getSupplierPriceUpdates);
+router.post("/suppliers", requireAuth, requireCafeRole, purchasingController.createSupplier);
+router.put("/suppliers/:id", requireAuth, requireCafeRole, purchasingController.updateSupplier);
+router.put("/suppliers/:id/archive", requireAuth, requireRole("Owner", "Admin", "Custom"), purchasingController.archiveSupplier);
+router.put("/suppliers/:id/restore", requireAuth, requireRole("Owner", "Admin", "Custom"), purchasingController.restoreSupplier);
 router.delete("/suppliers/:id", requireAuth, requireRole("Admin", "Owner"), purchasingController.deleteSupplier);
 
 // Purchase Orders
-router.get("/", purchasingController.getPurchaseOrders);
-router.post("/", purchasingController.createPurchaseOrder);
-router.put("/:id/status", purchasingController.updatePurchaseOrderStatus);
-router.patch("/:id/status", purchasingController.updatePurchaseOrderStatus);
-router.patch("/:id", purchasingController.updatePurchaseOrderStatus);
-router.patch("/purchase-orders/:id", purchasingController.updatePurchaseOrderStatus);
-router.put("/:id/proposals/respond", requireAuth, purchasingController.respondToSupplierProposal);
+router.get("/", requireAuth, requireCafeRole, purchasingController.getPurchaseOrders);
+router.post("/", requireAuth, requireCafeRole, purchasingController.createPurchaseOrder);
+router.put("/:id/status", requireAuth, requireCafeRole, purchasingController.updatePurchaseOrderStatus);
+router.patch("/:id/status", requireAuth, requireCafeRole, purchasingController.updatePurchaseOrderStatus);
+router.patch("/:id", requireAuth, requireCafeRole, purchasingController.updatePurchaseOrderStatus);
+router.patch("/purchase-orders/:id", requireAuth, requireCafeRole, purchasingController.updatePurchaseOrderStatus);
+router.put("/:id/proposals/respond", requireAuth, requireCafeRole, purchasingController.respondToSupplierProposal);
 
 // === Supplier Portal Routes ===
 // Suppliers can only see their own POs

@@ -2,6 +2,7 @@ import { supabase } from "../config/supabaseClient.js";
 import { convertToBaseUnit } from "../utils/unitUtils.js";
 import { logAuditBatch } from "../utils/auditHelper.js";
 import { invalidateAnalyticsCache } from "../routes/analytics.js";
+import { getManilaDateString } from "../utils/dateUtils.js";
 
 export const getProducts = async () => {
   // 1. Fetch active products, recipes, and ingredients concurrently for maximum speed
@@ -67,8 +68,10 @@ export const getProducts = async () => {
 
 const generateReceiptNumber = () => {
   const date = new Date();
-  const timestamp = date.getTime();
-  return `RCP-${date.getFullYear()}${(date.getMonth()+1).toString().padStart(2,'0')}${date.getDate().toString().padStart(2,'0')}-${timestamp.toString().slice(-6)}`;
+  const datePart = getManilaDateString(date).replace(/-/g, '');
+  const timestamp = date.getTime().toString().slice(-6);
+  const rand = Math.floor(Math.random() * 100).toString().padStart(2, '0');
+  return `RCP-${datePart}-${timestamp}${rand}`;
 };
 
 export const createSale = async ({ 
@@ -115,6 +118,7 @@ export const createSale = async ({
     supabase
       .from("products")
       .select("id, name, track_stock, stock_quantity")
+      .eq("is_archived", false)
       .in("id", productIds),
     supabase
       .from("recipes")
@@ -133,6 +137,9 @@ export const createSale = async ({
   if (extraIngredientsRes?.error) throw extraIngredientsRes.error;
 
   const productMap = new Map((fetchedProducts || []).map(p => [p.id, p]));
+  if (productMap.size !== productIds.length) {
+    throw new Error("One or more selected products are archived or unavailable.");
+  }
   const recipesByProduct = new Map();
   (fetchedRecipes || []).forEach(r => {
     if (!recipesByProduct.has(r.product_id)) recipesByProduct.set(r.product_id, []);
@@ -195,8 +202,10 @@ export const createSale = async ({
 
           const ingData = ingredientMap.get(addon.ingredient_id);
           if (ingData) {
-            const deductionPerUnit = convertToBaseUnit(addon.quantity || 0, addon.unit || ingData.unit, ingData.unit);
-            const totalDeduction = deductionPerUnit * item.qty * (addon.customer_qty || 1);
+            const perAddonQty = Math.max(0, Number(addon.quantity) || 0);
+            const aoQty = Math.max(0, parseInt(addon.customer_qty ?? addon.quantity ?? 1, 10) || 0);
+            const deductionPerUnit = convertToBaseUnit(perAddonQty, addon.unit || ingData.unit, ingData.unit);
+            const totalDeduction = deductionPerUnit * item.qty * aoQty;
 
             if (!requiredIngredients[addon.ingredient_id]) {
               requiredIngredients[addon.ingredient_id] = { name: ingData.name, qty: 0 };
@@ -242,6 +251,11 @@ export const createSale = async ({
   }
 
   // --- 2. ATOMIC EXECUTION (Single Database Transaction) ---
+  const parsedReceived = (amount_received !== undefined && amount_received !== null && amount_received !== '')
+    ? Number(amount_received)
+    : resolvedTotal;
+  const resolvedReceived = Number.isFinite(parsedReceived) ? parsedReceived : resolvedTotal;
+
   const saleData = {
     total_amount: resolvedTotal,
     payment_method,
@@ -251,7 +265,7 @@ export const createSale = async ({
     tax_amount,
     status,
     payment_status,
-    amount_received: amount_received || resolvedTotal,
+    amount_received: resolvedReceived,
     change_amount,
     transaction_reference,
     notes
@@ -322,6 +336,10 @@ export const createSale = async ({
   } catch (atomicError) {
     // ROLLBACK COMPENSATION: Undo all partial operations concurrently
     console.error('[POS Transaction Rollback] An error occurred during checkout, rolling back:', atomicError);
+
+    if (createdSaleId) {
+      await supabase.from("sale_items").delete().eq("sale_id", createdSaleId);
+    }
 
     await Promise.allSettled([
       ...appliedProductDeductions.map((item) =>

@@ -40,12 +40,13 @@ const NotificationInbox = ({ onNavigate, lowStockItems = [], variant = 'default'
     clearReadNotifications
   } = useNotifications(lowStockItems, user);
 
-  // Tab safety on role permission switches
-  useEffect(() => {
-    if (activeTab === 'PO' && !canViewPOs) setActiveTab('ALL');
-    if (activeTab === 'SUPPLIER' && !canViewSuppliers) setActiveTab('ALL');
-    if (activeTab === 'STOCK' && !canViewStock) setActiveTab('ALL');
-  }, [activeTab, canViewPOs, canViewSuppliers, canViewStock]);
+  // Tab safety on role permission switches (derived during render)
+  const effectiveTab =
+    (activeTab === 'PO' && !canViewPOs) ||
+    (activeTab === 'SUPPLIER' && !canViewSuppliers) ||
+    (activeTab === 'STOCK' && !canViewStock)
+      ? 'ALL'
+      : activeTab;
 
   // Close drawer on ESC
   useEffect(() => {
@@ -66,10 +67,10 @@ const NotificationInbox = ({ onNavigate, lowStockItems = [], variant = 'default'
 
   // Tab filtered items
   const filteredNotifications = notifications.filter((item) => {
-    if (activeTab === 'UNREAD') return !item.isRead;
-    if (activeTab === 'PO') return item.category === 'PO';
-    if (activeTab === 'STOCK') return item.category === 'STOCK';
-    if (activeTab === 'SUPPLIER') return item.category === 'SUPPLIER';
+    if (effectiveTab === 'UNREAD') return !item.isRead;
+    if (effectiveTab === 'PO') return item.category === 'PO';
+    if (effectiveTab === 'STOCK') return item.category === 'STOCK';
+    if (effectiveTab === 'SUPPLIER') return item.category === 'SUPPLIER';
     return true;
   });
 
@@ -281,7 +282,7 @@ const NotificationInbox = ({ onNavigate, lowStockItems = [], variant = 'default'
                   <button
                     onClick={() => setActiveTab('ALL')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                      activeTab === 'ALL'
+                      effectiveTab === 'ALL'
                         ? 'bg-zinc-900 text-white shadow-xs'
                         : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
                     }`}
@@ -291,7 +292,7 @@ const NotificationInbox = ({ onNavigate, lowStockItems = [], variant = 'default'
                   <button
                     onClick={() => setActiveTab('UNREAD')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                      activeTab === 'UNREAD'
+                      effectiveTab === 'UNREAD'
                         ? 'bg-zinc-900 text-white shadow-xs'
                         : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
                     }`}
@@ -302,7 +303,7 @@ const NotificationInbox = ({ onNavigate, lowStockItems = [], variant = 'default'
                     <button
                       onClick={() => setActiveTab('STOCK')}
                       className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                        activeTab === 'STOCK'
+                        effectiveTab === 'STOCK'
                           ? 'bg-zinc-900 text-white shadow-xs'
                           : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
                       }`}
@@ -314,7 +315,7 @@ const NotificationInbox = ({ onNavigate, lowStockItems = [], variant = 'default'
                     <button
                       onClick={() => setActiveTab('PO')}
                       className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                        activeTab === 'PO'
+                        effectiveTab === 'PO'
                           ? 'bg-zinc-900 text-white shadow-xs'
                           : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
                       }`}
@@ -326,7 +327,7 @@ const NotificationInbox = ({ onNavigate, lowStockItems = [], variant = 'default'
                     <button
                       onClick={() => setActiveTab('SUPPLIER')}
                       className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                        activeTab === 'SUPPLIER'
+                        effectiveTab === 'SUPPLIER'
                           ? 'bg-zinc-900 text-white shadow-xs'
                           : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
                       }`}
@@ -354,7 +355,7 @@ const NotificationInbox = ({ onNavigate, lowStockItems = [], variant = 'default'
                     </div>
                     <h3 className="text-base font-bold text-zinc-800 m-0">All caught up!</h3>
                     <p className="text-xs text-zinc-500 max-w-xs mt-1 mb-0">
-                      {activeTab === 'UNREAD'
+                      {effectiveTab === 'UNREAD'
                         ? 'You have zero unread notifications. Great job keeping on top of operations!'
                         : 'No alerts found in this section right now.'}
                     </p>

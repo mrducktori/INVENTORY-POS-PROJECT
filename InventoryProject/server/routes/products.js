@@ -4,8 +4,10 @@ import { logAudit } from "../utils/auditHelper.js";
 import { findSimilarName } from "../utils/stringHelper.js";
 import { recalculateProductEstimatedCost } from "../services/recipesService.js";
 import { invalidateAnalyticsCache } from "./analytics.js";
+import { requireRole } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
+router.use(requireRole('Owner', 'Admin', 'Staff', 'Custom'));
 
 // Get all products (active and archived)
 router.get('/', async (req, res) => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { createRequest, getRequests } from '../../api/requestsApi';
 import { getCurrentUser } from '../../api/authApi';
 import { getProducts } from '../../api/posApi';
@@ -72,15 +72,9 @@ const RequestProduct = () => {
   }, [history, historyPage, historyItemsPerPage]);
 
   const user = getCurrentUser();
+  const userId = user?.id;
 
-  useEffect(() => {
-    fetchDropdownData();
-    if (activeTab === 'HISTORY') {
-      fetchHistory();
-    }
-  }, [activeTab]);
-
-  const fetchDropdownData = async () => {
+  const fetchDropdownData = useCallback(async () => {
     try {
       const [prodData, ingData] = await Promise.all([
         getProducts(),
@@ -91,19 +85,27 @@ const RequestProduct = () => {
     } catch (err) {
       console.error('Failed to load data:', err);
     }
-  };
+  }, []);
 
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async () => {
+    if (!userId) return;
     try {
       setLoading(true);
-      const data = await getRequests({ requested_by: user.id });
+      const data = await getRequests({ requested_by: userId });
       setHistory(data || []);
     } catch (err) {
       console.error('Failed to load history:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId]);
+
+  useEffect(() => {
+    fetchDropdownData();
+    if (activeTab === 'HISTORY') {
+      fetchHistory();
+    }
+  }, [activeTab, fetchDropdownData, fetchHistory]);
 
   const handleProductSelect = async (productId) => {
     setSelectedProductId(productId);

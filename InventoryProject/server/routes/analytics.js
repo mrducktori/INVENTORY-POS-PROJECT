@@ -1,8 +1,10 @@
 import express from 'express';
 import { supabase } from '../config/supabaseClient.js';
 import { convertToBaseUnit } from '../utils/unitUtils.js';
+import { requireRole } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
+router.use(requireRole('Owner', 'Admin', 'Staff', 'Custom'));
 
 let cached30DaySales = null;
 let cached30DayAt = 0;

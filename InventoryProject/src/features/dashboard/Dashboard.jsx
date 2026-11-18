@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, lazy, useCallback } from 'react';
+import React, { useState, useEffect, Suspense, lazy, useCallback, useMemo } from 'react';
 import { supabase } from '../../config/supabaseClient';
 import { clearUserSession, getCurrentUser } from '../../utils/authUtils';
 import { canAccess, getUserPermissions } from '../../utils/permissions';
@@ -34,7 +34,7 @@ const CMSDashboard = lazy(() => import('../cms/CMSDashboard'));
 const SupplierPortal = lazy(() => import('../inventory/SupplierPortal'));
 
 const Dashboard = () => {
-  const user = getCurrentUser() || {};
+  const user = useMemo(() => getCurrentUser() || {}, []);
   const getDefaultTab = useCallback(() => {
     if (user.role === 'Supplier') return 'SupplierPortal';
     if (user.role === 'Admin' || user.role === 'Owner') return 'Dashboard';
@@ -65,39 +65,47 @@ const Dashboard = () => {
 
   const [activeTab, setActiveTab] = useState(getInitialTab);
 
+  const isAuthorized = useCallback((tab) => canAccess(user, tab), [user]);
+  const defaultTab = getDefaultTab();
+  const effectiveTab = isAuthorized(activeTab)
+    ? activeTab
+    : (isAuthorized(defaultTab) ? defaultTab : null);
+
   const handleTabChange = useCallback((newTab) => {
-    setActiveTab(newTab);
+    const targetTab = isAuthorized(newTab) ? newTab : getDefaultTab();
+    setActiveTab(targetTab);
     try {
-      localStorage.setItem('coftea_active_tab', newTab);
+      localStorage.setItem('coftea_active_tab', targetTab);
       if (typeof window !== 'undefined') {
         const currentHash = window.location.hash.replace(/^#\/?/, '');
-        if (!currentHash.startsWith(newTab)) {
-          window.history.replaceState(null, '', `#${newTab}`);
+        if (!currentHash.startsWith(targetTab)) {
+          window.history.replaceState(null, '', `#${targetTab}`);
         }
       }
     } catch {
       // ignore
     }
-  }, []);
+  }, [isAuthorized, getDefaultTab]);
 
   // Sync state with URL hash and localStorage on tab changes
   useEffect(() => {
+    if (!effectiveTab) return;
     if (typeof window !== 'undefined') {
       const currentMain = window.location.hash.replace(/^#\/?/, '').split('/')[0];
-      if (currentMain !== activeTab) {
-        window.history.replaceState(null, '', `#${activeTab}`);
+      if (currentMain !== effectiveTab) {
+        window.history.replaceState(null, '', `#${effectiveTab}`);
       }
     }
     try {
-      localStorage.setItem('coftea_active_tab', activeTab);
+      localStorage.setItem('coftea_active_tab', effectiveTab);
     } catch { /* ignore storage errors */ }
-  }, [activeTab]);
+  }, [effectiveTab]);
 
   // Handle browser Back / Forward navigation
   useEffect(() => {
     const handleHashChange = () => {
       const hashTab = window.location.hash.replace(/^#\/?/, '').split('/')[0];
-      if (hashTab && hashTab !== activeTab && canAccess(user, hashTab)) {
+      if (hashTab && hashTab !== effectiveTab && canAccess(user, hashTab)) {
         setActiveTab(hashTab);
         try {
           localStorage.setItem('coftea_active_tab', hashTab);
@@ -106,7 +114,7 @@ const Dashboard = () => {
     };
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
-  }, [activeTab, user]);
+  }, [effectiveTab, user]);
 
   // Monitor account active status and session validity in real time
   useEffect(() => {
@@ -157,15 +165,8 @@ const Dashboard = () => {
     };
   }, [user?.id]);
 
-  const isAuthorized = (tab) => canAccess(user, tab);
-
   const renderContent = () => {
-    if (!isAuthorized(activeTab)) {
-      const fallback = getDefaultTab();
-      if (fallback !== activeTab && isAuthorized(fallback)) {
-        setTimeout(() => setActiveTab(fallback), 0);
-        return null;
-      }
+    if (!effectiveTab) {
       return (
         <div className="p-8 flex-1 bg-gray-50">
           <h2 className="text-lg font-bold text-zinc-900 m-0">No pages assigned</h2>
@@ -174,7 +175,7 @@ const Dashboard = () => {
       );
     }
 
-    switch (activeTab) {
+    switch (effectiveTab) {
       case 'Dashboard':         return <DashboardOverview onNavigate={handleTabChange} />;
       case 'POS':               return <POS />;
       case 'ReportWastage':     return <ReportWastage />;
@@ -229,13 +230,15 @@ const Dashboard = () => {
     }
   };
 
+  const displayTab = effectiveTab || activeTab;
+
   return (
     <div className="w-full h-screen bg-[#f8fafc] text-zinc-900 font-sans flex flex-col">
       <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
-        <Navbar activeTab={activeTab} onTabChange={handleTabChange} />
+        <Navbar activeTab={displayTab} onTabChange={handleTabChange} />
         <main className="flex-1 overflow-y-auto bg-[#f8fafc] scrollbar-thin scrollbar-thumb-zinc-300 hover:scrollbar-thumb-zinc-400">
-          <div key={activeTab} className="tab-pane-transition min-h-full">
-            <ErrorBoundary key={activeTab} level="tab">
+          <div key={displayTab} className="tab-pane-transition min-h-full">
+            <ErrorBoundary key={displayTab} level="tab">
               <Suspense
                 fallback={
                   <div className="p-8 space-y-4">

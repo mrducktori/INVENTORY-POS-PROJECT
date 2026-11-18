@@ -7,7 +7,7 @@ import { requireRole } from '../middleware/authMiddleware.js';
 const router = express.Router();
 
 // Get audit logs with optional filters
-router.get('/', async (req, res) => {
+router.get('/', requireRole('Owner', 'Admin', 'Staff', 'Custom'), async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 100, 2000);
     const offset = parseInt(req.query.offset) || 0;

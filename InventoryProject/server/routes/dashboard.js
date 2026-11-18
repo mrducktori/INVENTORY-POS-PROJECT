@@ -2,8 +2,10 @@ import express from 'express';
 import { supabase } from '../config/supabaseClient.js';
 import * as inventoryService from '../services/inventoryService.js';
 import { toManilaStartOfDay, toManilaEndOfDay, getManilaDateOnly } from '../utils/dateUtils.js';
+import { requireRole } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
+router.use(requireRole('Owner', 'Admin', 'Staff', 'Custom'));
 
 /**
  * Fetches bounded sales records bypassing PostgREST's 1,000-row single-query limit when needed.
@@ -83,7 +85,7 @@ router.get('/stats', async (req, res) => {
     const endDateObj = new Date(new Date(boundEnd).toLocaleString("en-US", { timeZone: "Asia/Manila" }));
     const needsTrendHistory = period === 'day' && !reqStart && !reqEnd;
     const salesQueryStart = needsTrendHistory
-      ? toManilaStartOfDay(new Date(endDateObj.getTime() - 6 * 86400000).toISOString())
+      ? toManilaStartOfDay(new Date(new Date(`${todayStr}T00:00:00+08:00`).getTime() - 6 * 86400000))
       : boundStart;
 
     // 2. Execute all independent dashboard queries concurrently (single bounded sales scan covers both today & 7-day trend)

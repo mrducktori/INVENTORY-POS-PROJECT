@@ -59,25 +59,30 @@ export const updateCmsContent = async (req, res) => {
 export const uploadCmsImage = async (req, res) => {
   try {
     const { fileName, mimeType, base64Data } = req.body || {};
-    if (!base64Data || typeof base64Data !== 'string') {
-      return res.status(400).json({ error: "Missing image data." });
-    }
+    const resolvedFileName = fileName || 'image.png';
+    const resolvedMimeType = mimeType || 'image/png';
+
+    cmsService.validateCmsImageUpload({
+      fileName: resolvedFileName,
+      mimeType: resolvedMimeType,
+      base64Data
+    });
 
     const publicUrl = await cmsService.uploadCmsImageToStorage({
-      fileName: fileName || 'image.png',
-      mimeType: mimeType || 'image/png',
+      fileName: resolvedFileName,
+      mimeType: resolvedMimeType,
       base64Data
     });
 
     const userId = req.user?.id || null;
     await logAudit('CMS_IMAGE_UPLOADED', userId, {
-      file_name: fileName,
+      file_name: resolvedFileName,
       public_url: publicUrl,
       uploaded_by: req.user?.name
     });
 
     res.json({ publicUrl });
   } catch (err) {
-    res.status(500).json({ error: err.message || "Failed to upload image." });
+    res.status(err.status || 500).json({ error: err.message || "Failed to upload image." });
   }
 };

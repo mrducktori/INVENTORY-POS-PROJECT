@@ -22,18 +22,24 @@ export const createSale = async (req, res) => {
     }
 
     for (const item of cart) {
-      if (!item.id || typeof item.qty !== 'number' || item.qty < 1 || item.qty > 99) {
+      if (!item.id || !Number.isInteger(item.qty) || item.qty < 1 || item.qty > 99) {
         return res.status(400).json({
-          error: `Invalid quantity for item "${item.name || item.id}". Quantity must be between 1 and 99.`
+          error: `Invalid quantity for item "${item.name || item.id}". Quantity must be an integer between 1 and 99.`
         });
       }
 
       if (Array.isArray(item.add_ons)) {
         for (const ao of item.add_ons) {
-          const aoQty = ao.customer_qty || 1;
-          if (aoQty < 0 || aoQty > 5) {
+          const rawAoQty = ao?.customer_qty ?? ao?.quantity ?? 1;
+          const aoQty = Number(rawAoQty);
+          if (!Number.isInteger(aoQty) || aoQty < 0 || aoQty > 5) {
             return res.status(400).json({
-              error: `Invalid add-on quantity for "${ao.name}". Must be between 0 and 5.`
+              error: `Invalid add-on quantity for "${ao?.name || 'add-on'}". Must be between 0 and 5.`
+            });
+          }
+          if (ao?.quantity !== undefined && (!Number.isFinite(Number(ao.quantity)) || Number(ao.quantity) < 0)) {
+            return res.status(400).json({
+              error: `Invalid add-on recipe quantity for "${ao?.name || 'add-on'}".`
             });
           }
         }
@@ -60,7 +66,7 @@ export const createSale = async (req, res) => {
 
     const sale = await posService.createSale({
       ...req.body,
-      staff_id: req.user?.id || req.body?.staff_id || null,
+      staff_id: req.user.id,
     });
     res.json({ message: "Sale completed", sale });
   } catch (err) {

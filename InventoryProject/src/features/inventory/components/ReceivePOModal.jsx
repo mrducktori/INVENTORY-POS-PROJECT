@@ -12,7 +12,13 @@ const ReceivePOModal = ({ po, onClose, onSubmit }) => {
   const [isReviewStep, setIsReviewStep] = useState(false);
 
   const handleQuantityChange = (id, val) => {
-    setItems(prev => prev.map(item => item.id === id ? { ...item, received_now: parseInt(val) || 0 } : item));
+    const parsed = parseFloat(val);
+    setItems(prev => prev.map(item => {
+      if (item.id !== id) return item;
+      const maxRemaining = Math.max(0, (item.quantity || 0) - (item.quantity_received || 0));
+      const clamped = Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, maxRemaining) : 0;
+      return { ...item, received_now: clamped };
+    }));
   };
   
   const setMaxQuantity = (id, fullQuantity) => {
@@ -24,7 +30,7 @@ const ReceivePOModal = ({ po, onClose, onSubmit }) => {
     .filter(item => item.received_now > 0)
     .map(item => ({ ...item, quantity_received_now: item.received_now }));
 
-  const isComplete = items.every(item => item.is_received || (item.quantity_received + (item.received_now || 0)) >= item.quantity);
+  const isComplete = items.every(item => item.is_received || ((item.quantity_received || 0) + (item.received_now || 0)) >= item.quantity);
   const newStatus = isComplete ? 'Received' : 'Partial';
 
   const handleProceedToReview = (e) => {
@@ -103,7 +109,7 @@ const ReceivePOModal = ({ po, onClose, onSubmit }) => {
                                 type="number"
                                 min="0"
                                 max={maxRemaining}
-                                step="1"
+                                step="any"
                                 className="w-20 px-3 py-2 text-sm md:text-base font-bold text-zinc-900 text-center border-none focus:outline-none"
                                 value={item.received_now === 0 ? '' : item.received_now}
                                 onChange={(e) => handleQuantityChange(item.id, e.target.value)}

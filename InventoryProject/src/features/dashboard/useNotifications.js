@@ -275,17 +275,21 @@ export const getRelativeTimeString = (timestamp) => {
  */
 export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK, userOverride = null) => {
   const [snapshot, setSnapshot] = useState(() => ({ ...sharedStore }));
-  const [activeUser, setActiveUser] = useState(() => userOverride || getCurrentUser());
+  const [storedUser, setStoredUser] = useState(() => getCurrentUser());
   const [snapshotNowMs] = useState(() => Date.now());
 
-  // Keep active user in sync if userOverride changes or on auth state changes
+  // Derive active user synchronously and listen for cross-tab storage changes
+  const activeUser = userOverride || storedUser;
+
   useEffect(() => {
-    if (userOverride) {
-      setActiveUser(userOverride);
-    } else {
-      setActiveUser(getCurrentUser());
-    }
-  }, [userOverride]);
+    const handleStorageChange = (e) => {
+      if (!e.key || e.key === 'user') {
+        setStoredUser(getCurrentUser());
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   const userKey = activeUser?.id || 'guest';
   const userState = getUserState(userKey);

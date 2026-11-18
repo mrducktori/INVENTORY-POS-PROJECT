@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useEffect } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { useManageProducts } from './hooks/useManageProducts';
 import ConfirmModal from '../../components/shared/ConfirmModal';
 import { CATEGORIES, CATEGORIES_WITH_ALL } from '../../utils/constants';
@@ -67,11 +67,24 @@ const ManageProducts = () => {
     });
   }, [products, searchTerm, statusFilter, categoryFilter]);
 
-  // Reset pagination on search or filter change
-  useEffect(() => {
+  // Reset pagination helpers on search or filter change
+  const handleSearchChange = (val) => {
+    setSearchTerm(val);
     setCurrentPage(1);
     setModifyCurrentPage(1);
-  }, [searchTerm, statusFilter, categoryFilter]);
+  };
+
+  const handleStatusFilterChange = (val) => {
+    setStatusFilter(val);
+    setCurrentPage(1);
+    setModifyCurrentPage(1);
+  };
+
+  const handleCategoryFilterChange = (val) => {
+    setCategoryFilter(val);
+    setCurrentPage(1);
+    setModifyCurrentPage(1);
+  };
 
   // Sort Handlers
   const handlePriceSort = () => {
@@ -265,19 +278,19 @@ const ManageProducts = () => {
                   placeholder="Search name..."
                   className="w-full sm:w-48 px-4 py-2.5 border border-gray-300 rounded-lg text-sm md:text-base font-medium bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
                   value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
+                  onChange={e => handleSearchChange(e.target.value)}
                 />
                 <select
                   className="w-full sm:w-40 px-4 py-2.5 border border-gray-300 rounded-lg text-sm md:text-base font-medium bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
                   value={categoryFilter}
-                  onChange={e => setCategoryFilter(e.target.value)}
+                  onChange={e => handleCategoryFilterChange(e.target.value)}
                 >
                   {CATEGORIES_WITH_ALL.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
                 <select
                   className="w-full sm:w-40 px-4 py-2.5 border border-gray-300 rounded-lg text-sm md:text-base font-medium bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
                   value={statusFilter}
-                  onChange={e => setStatusFilter(e.target.value)}
+                  onChange={e => handleStatusFilterChange(e.target.value)}
                 >
                   <option value="ALL">All Status</option>
                   <option value="ACTIVE">Active Only</option>
@@ -498,12 +511,12 @@ const ManageProducts = () => {
                 placeholder="Search products..."
                 className="w-full sm:w-48 px-4 py-2.5 border border-gray-300 rounded-lg text-sm md:text-base font-medium bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
                 value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
+                onChange={e => handleSearchChange(e.target.value)}
               />
               <select
                 className="w-full sm:w-40 px-4 py-2.5 border border-gray-300 rounded-lg text-sm md:text-base font-medium bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
                 value={categoryFilter}
-                onChange={e => setCategoryFilter(e.target.value)}
+                onChange={e => handleCategoryFilterChange(e.target.value)}
               >
                 {CATEGORIES_WITH_ALL.map(c => <option key={c} value={c}>{c}</option>)}
               </select>

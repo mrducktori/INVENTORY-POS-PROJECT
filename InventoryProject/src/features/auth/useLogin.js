@@ -92,9 +92,6 @@ export const useLogin = () => {
     setError('');
     setLoading(true);
     
-    // Artificial delay so login doesn't feel instantly abrupt
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
     try {
       const data = await loginUser(username, form.password);
       clearRecord(username);

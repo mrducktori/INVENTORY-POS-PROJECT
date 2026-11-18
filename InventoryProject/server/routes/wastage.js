@@ -1,14 +1,16 @@
 import express from "express";
 import * as wastageService from "../services/wastageService.js";
+import { requireRole } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
+router.use(requireRole("Owner", "Admin", "Staff", "Custom"));
 
 // Report wastage
 router.post("/", async (req, res) => {
   try {
     const wastage = await wastageService.reportWastage({
       ...req.body,
-      reported_by: req.user?.id || req.body?.reported_by || null,
+      reported_by: req.user.id,
     });
     res.status(201).json(wastage);
   } catch (err) {

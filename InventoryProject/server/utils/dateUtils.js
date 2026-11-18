@@ -48,23 +48,28 @@ export const formatDisplayDate = (dateStr) => {
 };
 
 /**
+ * Returns YYYY-MM-DD string in Asia/Manila timezone for a given Date or date-like input.
+ */
+export const getManilaDateString = (dateInput = new Date()) => {
+  const parsed = dateInput instanceof Date ? dateInput : new Date(dateInput);
+  if (isNaN(parsed.getTime())) {
+    return getManilaDateOnly();
+  }
+  return parsed.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+};
+
+/**
  * Returns an ISO-formatted start of day in Manila timezone (+08:00)
- * Example: "2026-10-23" -> "2026-10-23T00:00:00+08:00"
+ * Example: "2026-10-23" -> "2026-10-23T00:00:00.000+08:00"
  * Handles both plain YYYY-MM-DD and full ISO strings with timezone
  */
 export const toManilaStartOfDay = (dateInput) => {
   if (!dateInput) return null;
-  let dStr;
-  if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateInput.trim())) {
-    dStr = dateInput.trim();
-  } else {
-    try {
-      dStr = new Date(dateInput).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
-    } catch {
-      dStr = getManilaDateOnly();
-    }
-  }
-  return `${dStr}T00:00:00+08:00`;
+  const trimmed = typeof dateInput === 'string' ? dateInput.trim() : '';
+  const dStr = /^\d{4}-\d{2}-\d{2}$/.test(trimmed)
+    ? trimmed
+    : getManilaDateString(dateInput);
+  return `${dStr}T00:00:00.000+08:00`;
 };
 
 /**
@@ -74,16 +79,13 @@ export const toManilaStartOfDay = (dateInput) => {
  */
 export const toManilaEndOfDay = (dateInput) => {
   if (!dateInput) return null;
-  let dStr;
-  if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateInput.trim())) {
-    dStr = dateInput.trim();
-  } else {
-    try {
-      dStr = new Date(dateInput).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
-    } catch {
-      dStr = getManilaDateOnly();
-    }
-  }
+  const trimmed = typeof dateInput === 'string' ? dateInput.trim() : '';
+  const dStr = /^\d{4}-\d{2}-\d{2}$/.test(trimmed)
+    ? trimmed
+    : getManilaDateString(dateInput);
   return `${dStr}T23:59:59.999+08:00`;
 };
+
+export const getStartOfDay = toManilaStartOfDay;
+export const getEndOfDay = toManilaEndOfDay;
 

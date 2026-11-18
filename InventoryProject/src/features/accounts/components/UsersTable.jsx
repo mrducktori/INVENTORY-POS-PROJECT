@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { getRoleLabel, getUserPermissions } from '../../../utils/permissions';
 import Pagination from '../../../components/shared/Pagination';
 
@@ -20,10 +20,6 @@ const UsersTable = ({ users, loading, currentUser, onEdit, onToggleStatus }) => 
   const [roleFilter, setRoleFilter] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [search, roleFilter]);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -50,7 +46,7 @@ const UsersTable = ({ users, loading, currentUser, onEdit, onToggleStatus }) => 
           <input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
             placeholder="Search name, username or role"
             className="w-full pl-9 pr-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent"
           />
@@ -60,7 +56,7 @@ const UsersTable = ({ users, loading, currentUser, onEdit, onToggleStatus }) => 
             <button
               key={r}
               type="button"
-              onClick={() => setRoleFilter(r)}
+              onClick={() => { setRoleFilter(r); setCurrentPage(1); }}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider border transition-colors cursor-pointer ${
                 roleFilter === r ? 'bg-zinc-900 text-white border-zinc-900' : 'bg-white text-zinc-500 border-zinc-200 hover:border-zinc-400'
               }`}

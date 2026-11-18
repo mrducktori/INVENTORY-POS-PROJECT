@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { getDemandForecast, getIngredientDepletionForecast, getAIForecast } from '../../api/analyticsApi';
 import { getSuppliers, createPurchaseOrder } from '../../api/purchasingApi';
@@ -174,22 +174,14 @@ const DemandForecasting = () => {
   const [submittingPO, setSubmittingPO] = useState(false);
   const [toast, setToast] = useState(null);
 
-  useEffect(() => {
-    fetchIngredientForecast();
-    fetchSuppliersList();
-    if (activeTab === 'products') {
-      fetchProductForecasts();
-    }
-  }, []);
-
-  const showToast = (type, message) => {
+  const showToast = useCallback((type, message) => {
     setToast({ type, message });
     setTimeout(() => {
       setToast(null);
     }, 4000);
-  };
+  }, []);
 
-  const fetchIngredientForecast = async (refresh = false) => {
+  const fetchIngredientForecast = useCallback(async (refresh = false) => {
     try {
       setLoadingIngredients(true);
       const res = await getIngredientDepletionForecast(refresh);
@@ -202,18 +194,18 @@ const DemandForecasting = () => {
     } finally {
       setLoadingIngredients(false);
     }
-  };
+  }, [showToast]);
 
-  const fetchSuppliersList = async () => {
+  const fetchSuppliersList = useCallback(async () => {
     try {
       const data = await getSuppliers();
       setSuppliers(data || []);
     } catch (err) {
       console.error('Failed to load suppliers:', err);
     }
-  };
+  }, []);
 
-  const fetchProductForecasts = async (refresh = false) => {
+  const fetchProductForecasts = useCallback(async (refresh = false) => {
     try {
       setLoadingProducts(true);
       const data = await getDemandForecast(refresh);
@@ -224,13 +216,24 @@ const DemandForecasting = () => {
     } finally {
       setLoadingProducts(false);
     }
-  };
+  }, [showToast]);
+
+  const hasFetchedProductsRef = useRef(false);
+
+  useEffect(() => {
+    fetchIngredientForecast();
+    fetchSuppliersList();
+  }, [fetchIngredientForecast, fetchSuppliersList]);
+
+  useEffect(() => {
+    if (activeTab === 'products' && !hasFetchedProductsRef.current) {
+      hasFetchedProductsRef.current = true;
+      fetchProductForecasts();
+    }
+  }, [activeTab, fetchProductForecasts]);
 
   const handleTabSwitch = (tab) => {
     handleTabChange(tab);
-    if (tab === 'products' && productForecasts.length === 0) {
-      fetchProductForecasts();
-    }
   };
 
   const handleOpenMonthlyModal = (product) => {
@@ -661,9 +664,10 @@ const DemandForecasting = () => {
           <button
             type="button"
             onClick={() => setToast(null)}
-            className="text-zinc-400 hover:text-white cursor-pointer bg-transparent border-none p-0.5"
+            className="text-zinc-400 hover:text-white cursor-pointer bg-transparent border-none p-0.5 inline-flex items-center justify-center"
+            aria-label="Dismiss notification"
           >
-            ✕
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
       )}
@@ -790,10 +794,10 @@ const DemandForecasting = () => {
                     <button
                       type="button"
                       onClick={() => setSearchTerm('')}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 text-xs cursor-pointer bg-transparent border-none"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 cursor-pointer bg-transparent border-none inline-flex items-center justify-center"
                       aria-label="Clear search"
                     >
-                      ✕
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                   )}
                 </div>
@@ -1214,10 +1218,10 @@ const DemandForecasting = () => {
                     <button
                       type="button"
                       onClick={() => setProductSearch('')}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 text-xs cursor-pointer bg-transparent border-none"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 cursor-pointer bg-transparent border-none inline-flex items-center justify-center"
                       aria-label="Clear search"
                     >
-                      ✕
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                   )}
                 </div>
@@ -1507,9 +1511,10 @@ const DemandForecasting = () => {
                 <button
                   type="button"
                   onClick={() => setPoModalOpen(false)}
-                  className="text-zinc-400 hover:text-white p-1 rounded-lg transition-colors cursor-pointer bg-transparent border-none text-lg leading-none"
+                  className="text-zinc-400 hover:text-white p-1 rounded-lg transition-colors cursor-pointer bg-transparent border-none inline-flex items-center justify-center"
+                  aria-label="Close"
                 >
-                  ✕
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
               </div>
 
@@ -1598,10 +1603,11 @@ const DemandForecasting = () => {
                               <button
                                 type="button"
                                 onClick={() => handleRemovePoItem(idx)}
-                                className="text-zinc-400 hover:text-red-600 p-1 cursor-pointer bg-transparent border-none"
+                                className="text-zinc-400 hover:text-red-600 p-1 cursor-pointer bg-transparent border-none inline-flex items-center justify-center"
                                 title="Remove"
+                                aria-label="Remove item"
                               >
-                                ✕
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                               </button>
                             )}
                           </td>
@@ -1680,9 +1686,10 @@ const DemandForecasting = () => {
                 <button
                   type="button"
                   onClick={() => setAiModalOpen(false)}
-                  className="text-zinc-400 hover:text-white p-1 cursor-pointer bg-transparent border-none text-lg leading-none"
+                  className="text-zinc-400 hover:text-white p-1 cursor-pointer bg-transparent border-none inline-flex items-center justify-center"
+                  aria-label="Close"
                 >
-                  ✕
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
               </div>
 
@@ -1886,9 +1893,10 @@ const DemandForecasting = () => {
                 <button
                   type="button"
                   onClick={() => setInfoModalOpen(false)}
-                  className="text-zinc-400 hover:text-white p-1 cursor-pointer bg-transparent border-none text-lg leading-none"
+                  className="text-zinc-400 hover:text-white p-1 cursor-pointer bg-transparent border-none inline-flex items-center justify-center"
+                  aria-label="Close"
                 >
-                  ✕
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
               </div>
 
