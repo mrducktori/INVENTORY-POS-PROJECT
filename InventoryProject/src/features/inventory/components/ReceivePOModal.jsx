@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { formatDisplayDateTime } from '../../../utils/dateUtils';
 import InfoTip from '../../../components/shared/InfoTip';
 
 const ReceivePOModal = ({ po, onClose, onSubmit }) => {

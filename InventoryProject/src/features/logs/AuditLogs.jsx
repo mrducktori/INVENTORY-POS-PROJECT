@@ -94,7 +94,6 @@ const PAGE_SIZE_OPTIONS = [25, 50, 100];
 const AuditLogs = () => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [totalCount, setTotalCount] = useState(0);
   const [pageSize, setPageSize] = useState(50);
   const [currentPage, setCurrentPage] = useState(1);
   const today = getManilaDateOnly();
@@ -120,7 +119,6 @@ const AuditLogs = () => {
         const result = await getAuditLogs(adjustedFilters);
         const list = result?.data || (Array.isArray(result) ? result : []);
         setLogs(list);
-        setTotalCount(result?.total || list.length);
       } catch (error) {
         console.error("Failed to fetch audit logs:", error);
       } finally {

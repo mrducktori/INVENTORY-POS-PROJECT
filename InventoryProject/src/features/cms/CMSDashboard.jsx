@@ -168,7 +168,7 @@ export default function CMSDashboard() {
     try {
       const saved = localStorage.getItem('coftea_cms_tab');
       if (saved && CMS_TABS.includes(saved)) return saved;
-    } catch {}
+    } catch { /* ignore storage/history errors */ }
     return 'branding';
   };
 
@@ -181,7 +181,7 @@ export default function CMSDashboard() {
       if (typeof window !== 'undefined') {
         window.history.replaceState(null, '', `#CMSDashboard/${tab}`);
       }
-    } catch {}
+    } catch { /* ignore storage/history errors */ }
   };
 
   useEffect(() => {
@@ -190,7 +190,7 @@ export default function CMSDashboard() {
       if (typeof window !== 'undefined') {
         window.history.replaceState(null, '', `#CMSDashboard/${activeTab}`);
       }
-    } catch {}
+    } catch { /* ignore storage/history errors */ }
   }, [activeTab]);
   const [loading, setLoading] = useState(true);
   const [savingKey, setSavingKey] = useState(null);

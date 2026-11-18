@@ -37,7 +37,12 @@ import categorySettingsRoutes from './routes/categorySettings.js';
 import purchasingRoutes from './routes/purchasing.js';
 import cmsRoutes from './routes/cms.js';
 import { requireAuth } from './middleware/authMiddleware.js';
-import { generalLimiter, authLimiter, looseLimiter, createLimiter } from './middleware/rateLimiter.js';
+import { generalLimiter, looseLimiter, createLimiter } from './middleware/rateLimiter.js';
+
+if (!process.env.JWT_SECRET) {
+  console.error('[FATAL] JWT_SECRET environment variable is required. Refusing to start.');
+  process.exit(1);
+}
 
 const app = express();
 
@@ -146,7 +151,7 @@ app.use('/purchase-orders', requireAuth, purchasingRoutes);
 app.use('/api/cms', looseLimiter, cmsRoutes);
 
 // Catch unmatched /api/* requests so API clients always receive clean JSON 404
-app.all('/api/*', (req, res) => {
+app.use('/api', (req, res) => {
   res.status(404).json({ error: 'API endpoint not found' });
 });
 

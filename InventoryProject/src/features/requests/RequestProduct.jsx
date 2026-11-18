@@ -17,7 +17,7 @@ const RequestProduct = () => {
     try {
       const saved = localStorage.getItem('coftea_request_tab');
       if (saved === 'SUBMIT' || saved === 'HISTORY') return saved;
-    } catch {}
+    } catch { /* ignore storage/history errors */ }
     return 'SUBMIT';
   };
 
@@ -30,7 +30,7 @@ const RequestProduct = () => {
       if (typeof window !== 'undefined') {
         window.history.replaceState(null, '', `#RequestProduct/${tab}`);
       }
-    } catch {}
+    } catch { /* ignore storage/history errors */ }
   };
 
   useEffect(() => {
@@ -39,7 +39,7 @@ const RequestProduct = () => {
       if (typeof window !== 'undefined') {
         window.history.replaceState(null, '', `#RequestProduct/${activeTab}`);
       }
-    } catch {}
+    } catch { /* ignore storage/history errors */ }
   }, [activeTab]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');

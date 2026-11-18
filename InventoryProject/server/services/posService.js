@@ -335,7 +335,7 @@ export const createSale = async ({
         : [])
     ]);
 
-    throw new Error(`Transaction aborted: ${atomicError.message}`);
+    throw new Error(`Transaction aborted: ${atomicError.message}`, { cause: atomicError });
   }
 
   // --- 3. NON-BLOCKING BATCH AUDIT LOGGING (Post-commit) ---

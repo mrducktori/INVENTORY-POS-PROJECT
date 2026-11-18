@@ -14,7 +14,7 @@ export const getSuppliers = async (req, res) => {
 
 export const createSupplier = async (req, res) => {
   try {
-    const { user_id, ...body } = req.body;
+    const { user_id: _userId, ...body } = req.body;
     const data = await purchasingService.createSupplier(body);
     
     // Log audit
@@ -32,7 +32,7 @@ export const createSupplier = async (req, res) => {
 export const updateSupplier = async (req, res) => {
   try {
     const { id } = req.params;
-    const { user_id, ...body } = req.body;
+    const { user_id: _userId, ...body } = req.body;
     const data = await purchasingService.updateSupplier(id, body);
     
     await logAudit('SUPPLIER_UPDATED', req.user.id, {
@@ -98,7 +98,7 @@ export const getPurchaseOrders = async (req, res) => {
 
 export const createPurchaseOrder = async (req, res) => {
   try {
-    const { user_id, ...body } = req.body;
+    const { user_id: _userId, ...body } = req.body;
     const data = await purchasingService.createPurchaseOrder(body);
     
     // Log audit
@@ -118,7 +118,7 @@ export const createPurchaseOrder = async (req, res) => {
 export const updatePurchaseOrderStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, items_received, user_id, expected_date } = req.body;
+    const { status, items_received, expected_date } = req.body;
     const rawReason = req.body.declineReason || req.body.decline_reason || req.body.cancellationReason || req.body.cancellation_reason || req.body.reason || req.body.reschedule_reason;
 
     const statusUpper = (status || '').toUpperCase();

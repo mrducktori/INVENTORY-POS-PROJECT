@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getSuppliers, createSupplier, updateSupplier, archiveSupplier, restoreSupplier, deleteSupplier } from '../../api/purchasingApi';
+import { getSuppliers, createSupplier, updateSupplier, archiveSupplier, restoreSupplier } from '../../api/purchasingApi';
 import { getIngredients } from '../../api/inventoryApi';
 import ConfirmModal from '../../components/shared/ConfirmModal';
 import Pagination from '../../components/shared/Pagination';
@@ -16,7 +16,7 @@ const ManageSuppliers = () => {
     try {
       const saved = localStorage.getItem('coftea_suppliers_tab');
       if (saved === 'suppliers' || saved === 'prices') return saved;
-    } catch {}
+    } catch { /* ignore storage/history errors */ }
     return 'suppliers';
   };
 
@@ -29,7 +29,7 @@ const ManageSuppliers = () => {
       if (typeof window !== 'undefined') {
         window.history.replaceState(null, '', `#ManageSuppliers/${tab}`);
       }
-    } catch {}
+    } catch { /* ignore storage/history errors */ }
   };
 
   useEffect(() => {
@@ -38,7 +38,7 @@ const ManageSuppliers = () => {
       if (typeof window !== 'undefined') {
         window.history.replaceState(null, '', `#ManageSuppliers/${activeTab}`);
       }
-    } catch {}
+    } catch { /* ignore storage/history errors */ }
   }, [activeTab]);
   const [suppliers, setSuppliers] = useState([]);
   const [ingredients, setIngredients] = useState([]);

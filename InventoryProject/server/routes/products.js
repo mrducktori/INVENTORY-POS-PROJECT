@@ -24,7 +24,7 @@ router.get('/', async (req, res) => {
 // Create new product
 router.post('/', async (req, res) => {
   try {
-    const { name, category, price, description, track_stock, stock_quantity, low_stock_threshold, sizes, add_ons, image_url, user_id, force_create } = req.body;
+    const { name, category, price, description, track_stock, stock_quantity, low_stock_threshold, sizes, add_ons, image_url, force_create } = req.body;
     if (!name || !category || !price) {
       return res.status(400).json({ error: 'Name, category, and price are required' });
     }
@@ -86,7 +86,7 @@ router.post('/', async (req, res) => {
 // Stock can only be changed through POST /:id/receive (add) or the POS/wastage flow (subtract).
 router.put('/:id', async (req, res) => {
   try {
-    const { name, category, price, description, track_stock, low_stock_threshold, sizes, add_ons, image_url, user_id } = req.body;
+    const { name, category, price, description, track_stock, low_stock_threshold, sizes, add_ons, image_url } = req.body;
     
     const { data, error } = await supabase
       .from('products')
@@ -125,7 +125,6 @@ router.put('/:id', async (req, res) => {
 // Archive product
 router.put('/:id/archive', async (req, res) => {
   try {
-    const { user_id } = req.body || {};
     const { data, error } = await supabase
       .from('products')
       .update({ is_archived: true })
@@ -150,7 +149,6 @@ router.put('/:id/archive', async (req, res) => {
 // Restore archived product
 router.put('/:id/restore', async (req, res) => {
   try {
-    const { user_id } = req.body || {};
     const { data, error } = await supabase
       .from('products')
       .update({ is_archived: false })
@@ -176,7 +174,7 @@ router.put('/:id/restore', async (req, res) => {
 // FIX #11: Validates that quantity is a positive number before adding to stock.
 router.post('/:id/receive', async (req, res) => {
   try {
-    const { quantity, user_id } = req.body;
+    const { quantity } = req.body;
     const productId = req.params.id;
 
     const parsedQty = parseFloat(quantity);

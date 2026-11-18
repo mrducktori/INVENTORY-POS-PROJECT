@@ -147,20 +147,6 @@ const TransactionLogs = () => {
     fetchLogs();
   }, [filters, user]);
 
-  if (!user || user.role !== 'Owner') {
-    return (
-      <div className="p-8 flex-1 bg-white min-h-screen flex flex-col items-center justify-center text-center">
-        <div className="w-14 h-14 rounded-2xl bg-zinc-100 border border-zinc-200 flex items-center justify-center text-zinc-600 mb-4 shadow-2xs">
-          <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-          </svg>
-        </div>
-        <h2 className="text-xl font-extrabold text-zinc-900 mb-1 tracking-tight">Access Restricted</h2>
-        <p className="text-zinc-500 font-medium text-sm max-w-md m-0">Transaction Logs are confidential and exclusively accessible to the system Owner.</p>
-      </div>
-    );
-  }
-
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
     if (name === 'start_date' || name === 'end_date') {
@@ -278,6 +264,20 @@ const TransactionLogs = () => {
     }
     return pages;
   };
+
+  if (!user || user.role !== 'Owner') {
+    return (
+      <div className="p-8 flex-1 bg-white min-h-screen flex flex-col items-center justify-center text-center">
+        <div className="w-14 h-14 rounded-2xl bg-zinc-100 border border-zinc-200 flex items-center justify-center text-zinc-600 mb-4 shadow-2xs">
+          <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+        </div>
+        <h2 className="text-xl font-extrabold text-zinc-900 mb-1 tracking-tight">Access Restricted</h2>
+        <p className="text-zinc-500 font-medium text-sm max-w-md m-0">Transaction Logs are confidential and exclusively accessible to the system Owner.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-8 flex-1 bg-white min-h-screen overflow-y-auto w-full space-y-6">

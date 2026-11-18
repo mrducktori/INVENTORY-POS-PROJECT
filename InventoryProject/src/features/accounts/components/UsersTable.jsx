@@ -118,12 +118,12 @@ const UsersTable = ({ users, loading, currentUser, onEdit, onToggleStatus }) => 
                         </span>
                         {active && (
                           <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${
-                            Boolean(u.current_session_id)
+                            u.current_session_id
                               ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
                               : 'bg-zinc-100 text-zinc-400 border-zinc-200'
                           }`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${Boolean(u.current_session_id) ? 'bg-emerald-500' : 'bg-zinc-400'}`} />
-                            {Boolean(u.current_session_id) ? 'Online' : 'Offline'}
+                            <span className={`w-1.5 h-1.5 rounded-full ${u.current_session_id ? 'bg-emerald-500' : 'bg-zinc-400'}`} />
+                            {u.current_session_id ? 'Online' : 'Offline'}
                           </span>
                         )}
                       </div>

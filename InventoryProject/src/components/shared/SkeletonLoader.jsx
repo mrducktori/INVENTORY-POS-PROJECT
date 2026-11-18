@@ -5,7 +5,7 @@ import React from 'react';
  * @param {number} rows - Number of skeleton rows to render (default 6)
  * @param {number} cols - Number of columns to simulate (default 5)
  */
-export const TableSkeleton = ({ rows = 6, cols = 5 }) => {
+export const TableSkeleton = ({ rows = 6 }) => {
   return (
     <div className="w-full bg-white rounded-xl overflow-hidden border border-zinc-200 shadow-xs animate-pulse">
       {/* Table Header Placeholder */}
@@ -97,7 +97,7 @@ export const StatCardsSkeleton = ({ count = 4 }) => {
 /**
  * FullModuleSkeleton — Renders a full module view with header, filter bar, and table.
  */
-export const FullModuleSkeleton = ({ title = 'Loading module...', showCards = true }) => {
+export const FullModuleSkeleton = ({ showCards = true }) => {
   return (
     <div className="p-4 md:p-8 flex-1 bg-zinc-50 overflow-y-auto w-full space-y-6 animate-pulse">
       {/* Header */}

@@ -113,13 +113,13 @@ export const extractProductForecastingFeatures = async (productId, targetYear, t
     if (!item.sales || !item.sales.created_at) return;
     const sale = item.sales;
 
-    // Parse Asia/Manila date string
+    // Parse Asia/Manila date string without UTC back-shift
     const localDateObj = new Date(new Date(sale.created_at).toLocaleString("en-US", { timeZone: "Asia/Manila" }));
-    const dateKey = localDateObj.toISOString().split('T')[0]; // "YYYY-MM-DD"
     const year = localDateObj.getFullYear();
     const month = localDateObj.getMonth() + 1;
     const day = localDateObj.getDate();
     const dayOfWeek = localDateObj.getDay();
+    const dateKey = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`; // "YYYY-MM-DD"
 
     if (!dailyMap[dateKey]) {
       const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6) ? 1 : 0;

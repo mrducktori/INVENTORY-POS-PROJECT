@@ -90,7 +90,7 @@ const Dashboard = () => {
     }
     try {
       localStorage.setItem('coftea_active_tab', activeTab);
-    } catch {}
+    } catch { /* ignore storage errors */ }
   }, [activeTab]);
 
   // Handle browser Back / Forward navigation
@@ -101,7 +101,7 @@ const Dashboard = () => {
         setActiveTab(hashTab);
         try {
           localStorage.setItem('coftea_active_tab', hashTab);
-        } catch {}
+        } catch { /* ignore storage errors */ }
       }
     };
     window.addEventListener('hashchange', handleHashChange);

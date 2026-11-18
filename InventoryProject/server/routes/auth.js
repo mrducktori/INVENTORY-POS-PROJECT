@@ -6,6 +6,7 @@ import { supabase } from "../config/supabaseClient.js";
 import { logAudit } from "../utils/auditHelper.js";
 import { authLimiter } from "../middleware/rateLimiter.js";
 import {
+  getJwtSecret,
   invalidateUserAuthCache,
   touchUserServerActivity,
   getUserServerActivity,
@@ -178,7 +179,7 @@ router.post("/login", authLimiter, async (req, res) => {
     // Create JWT token (sid ties the token to this specific session)
     const token = jwt.sign(
       { userId: data.id, role: data.role, sid: sessionId },
-      process.env.JWT_SECRET || 'fallback-secret-key-change-me',
+      getJwtSecret(),
       { expiresIn: '8h' }
     );
     
@@ -196,7 +197,7 @@ router.post("/activity", async (req, res) => {
     const token = authHeader.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
     if (!token) return res.status(401).json({ error: "No token" });
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret-key-change-me');
+    const decoded = jwt.verify(token, getJwtSecret());
     if (decoded?.userId) {
       touchUserServerActivity(decoded.userId);
     }
@@ -217,7 +218,7 @@ router.post("/logout", async (req, res) => {
     let decoded;
     try {
       // Allow ignoreExpiration so an inactivity-expired token still clears current_session_id and logs out cleanly
-      decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret-key-change-me', { ignoreExpiration: true });
+      decoded = jwt.verify(token, getJwtSecret(), { ignoreExpiration: true });
     } catch {
       return res.json({ success: true });
     }

@@ -23,7 +23,7 @@ export const getIngredientById = async (req, res) => {
 
 export const createIngredient = async (req, res) => {
   try {
-    const { user_id, ...body } = req.body;
+    const { user_id: _userId, ...body } = req.body;
     const data = await inventoryService.createIngredient(body);
     invalidateAnalyticsCache();
 
@@ -44,7 +44,7 @@ export const createIngredient = async (req, res) => {
 
 export const updateIngredient = async (req, res) => {
   try {
-    const { user_id, ...body } = req.body;
+    const { user_id: _userId, ...body } = req.body;
     const data = await inventoryService.updateIngredient(req.params.id, body);
     invalidateAnalyticsCache();
 
@@ -82,7 +82,7 @@ export const deleteIngredient = async (req, res) => {
 
 export const receiveStock = async (req, res) => {
   try {
-    const { quantity, user_id } = req.body;
+    const { quantity } = req.body;
     // Fetch ingredient name before updating
     const existing = await inventoryService.getIngredientById(req.params.id).catch(() => null);
     const data = await inventoryService.receiveStock(req.params.id, parseFloat(quantity));

@@ -162,9 +162,20 @@ const WastageReport = () => {
   }, [entries]);
 
   const handleExport = () => {
-    const dateRange = startDate && endDate
-      ? `${startDate} to ${endDate}`
-      : startDate ? `From ${startDate}` : endDate ? `Up to ${endDate}` : 'All Time';
+    const dateRange =
+      period === 'daily'
+        ? 'Today'
+        : period === 'weekly'
+          ? 'This Week'
+          : period === 'monthly'
+            ? 'This Month'
+            : (customStart && customEnd
+                ? `${customStart} to ${customEnd}`
+                : customStart
+                  ? `From ${customStart}`
+                  : customEnd
+                    ? `Up to ${customEnd}`
+                    : 'All Time');
     const exportRows = [
       ['COF/TEA CAFE — WASTAGE & LOSS REPORT'],
       ['Store Name', 'Cof/Tea Cafe'],

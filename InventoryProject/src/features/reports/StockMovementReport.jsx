@@ -59,15 +59,6 @@ const getStatusLabel = (statusKey) => {
   return 'In Stock';
 };
 
-// ─── Date helpers ─────────────────────────────────────────────────────────────
-const getPeriodStart = (period) => {
-  const now = new Date();
-  if (period === 'daily')   { now.setHours(0,0,0,0); return now.toISOString(); }
-  if (period === 'weekly')  { now.setDate(now.getDate() - 6); now.setHours(0,0,0,0); return now.toISOString(); }
-  if (period === 'monthly') { now.setDate(1); now.setHours(0,0,0,0); return now.toISOString(); }
-  return null;
-};
-
 // ─── Main Component ───────────────────────────────────────────────────────────
 const StockMovementReport = () => {
   const [period, setPeriod]       = useState('weekly');
@@ -179,7 +170,7 @@ const StockMovementReport = () => {
 
       // 3. Parse comprehensive stock movement audit events (IN, OUT, WASTAGE)
       const parsedAuditMovements = auditList.map(log => {
-        let details = {};
+        let details;
         if (typeof log.details === 'string') {
           try {
             details = JSON.parse(log.details);

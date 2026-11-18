@@ -164,7 +164,6 @@ export const getLowStockAlerts = async () => {
     const threshold = maxStock * 0.5;
     return currentStock <= threshold;
   }).map(i => {
-    const currentStock = parseFloat(i.stock_quantity) || 0;
     const maxStock = parseFloat(i.max_stock) || parseFloat(i.max_capacity) || (parseFloat(i.low_stock_alert || 10) * 2);
     return {
       ...i,

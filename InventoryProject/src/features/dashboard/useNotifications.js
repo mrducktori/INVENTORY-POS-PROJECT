@@ -276,6 +276,7 @@ export const getRelativeTimeString = (timestamp) => {
 export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK, userOverride = null) => {
   const [snapshot, setSnapshot] = useState(() => ({ ...sharedStore }));
   const [activeUser, setActiveUser] = useState(() => userOverride || getCurrentUser());
+  const [snapshotNowMs] = useState(() => Date.now());
 
   // Keep active user in sync if userOverride changes or on auth state changes
   useEffect(() => {
@@ -423,7 +424,7 @@ export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK, userOverride =
               actionTab: actionInfo.actionTab,
               actionLabel: actionInfo.actionLabel,
               unit: item.unit,
-              timestamp: Date.now() - 60000,
+              timestamp: snapshotNowMs - 60000,
               isRead,
             });
           } else {
@@ -438,7 +439,7 @@ export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK, userOverride =
               actionTab: actionInfo.actionTab,
               actionLabel: actionInfo.actionLabel,
               unit: item.unit,
-              timestamp: Date.now() - 120000,
+              timestamp: snapshotNowMs - 120000,
               isRead,
             });
           }
@@ -453,7 +454,7 @@ export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK, userOverride =
         const supplierName = po.suppliers?.name || 'Supplier';
         const totalFormatted = `₱${Number(po.total_amount || 0).toLocaleString()}`;
         const rawTime = po.updated_at || po.received_at || po.created_at;
-        const timeNum = rawTime ? new Date(rawTime).getTime() : Date.now();
+        const timeNum = rawTime ? new Date(rawTime).getTime() : snapshotNowMs;
 
         const itemsCount = po.purchase_order_items?.length || 0;
         const firstItem = po.purchase_order_items?.[0]?.ingredients?.name;
@@ -658,7 +659,8 @@ export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK, userOverride =
     priceUpdates,
     readIds,
     dismissedIds,
-    activeUser
+    activeUser,
+    snapshotNowMs
   ]);
 
   // Derived counts tailored for the current user

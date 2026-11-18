@@ -265,7 +265,9 @@ const enrichPOsWithReceiptHistory = async (pos, preloadedLogs = null) => {
             quantity: Number(d.purchase_qty || 1)
           });
         }
-      } catch (e) {}
+      } catch {
+        // Ignore malformed audit JSON details
+      }
     }
 
     // Attach to items if they don't already have multi-batch receipt_history
@@ -346,7 +348,9 @@ const enrichPOsWithMetadata = async (pos, preloadedLogs = null) => {
           if (log.action === 'PURCHASE_ORDER_CREATED' && d?.notes && !notesMap[poId]) {
             notesMap[poId] = d.notes;
           }
-        } catch (e) {}
+        } catch {
+        // Ignore malformed audit JSON details
+      }
       }
     }
 
@@ -434,7 +438,9 @@ const enrichPOsWithSupplierProposals = async (pos, preloadedLogs = null) => {
             split_into_backorder: d.split_into_backorder
           };
         }
-      } catch (e) {}
+      } catch {
+        // Ignore malformed audit JSON details
+      }
     }
 
     for (const po of pos) {
@@ -517,7 +523,6 @@ export const getPurchaseOrders = async () => {
 
     if (fallback.error) throw fallback.error;
     data = fallback.data;
-    error = null;
   } else if (error) {
     throw error;
   }
@@ -551,7 +556,6 @@ export const getPurchaseOrdersBySupplier = async (supplierId) => {
 
     if (fallback.error) throw fallback.error;
     data = fallback.data;
-    error = null;
   } else if (error) {
     throw error;
   }
@@ -577,8 +581,8 @@ export const createPurchaseOrder = async (poData) => {
   };
 
   // 1. Insert PO (attempt with notes if provided; if column is missing from schema cache, fallback gracefully)
-  let po = null;
-  let poError = null;
+  let po;
+  let poError;
 
   if (notes) {
     const resWithNotes = await supabase
@@ -651,7 +655,7 @@ export const updatePurchaseOrderStatus = async (id, status = null, items_receive
     }
   }
 
-  let data = null;
+  let data;
   const result = await supabase
     .from("purchase_orders")
     .update(updates)
@@ -691,7 +695,7 @@ export const updatePurchaseOrderStatus = async (id, status = null, items_receive
   if (items_received && items_received.length > 0) {
     for (const item of items_received) {
       // Fetch current item to properly add quantities
-      let currentItem = null;
+      let currentItem;
       let hasReceiptHistory = true;
 
       const { data: itemWithHistory, error: historyErr } = await supabase
@@ -730,7 +734,7 @@ export const updatePurchaseOrderStatus = async (id, status = null, items_receive
           } else if (Array.isArray(currentItem.receipt_history)) {
             currentHistory = currentItem.receipt_history;
           }
-        } catch (e) {
+        } catch {
           currentHistory = [];
         }
         
@@ -847,7 +851,9 @@ export const respondToSupplierProposal = async (poId, itemId, decision, splitInt
             break;
           }
         }
-      } catch (e) {}
+      } catch {
+        // Ignore malformed audit JSON details
+      }
     }
 
     // If split into a new backorder PO is enabled

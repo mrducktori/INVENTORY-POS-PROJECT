@@ -42,7 +42,6 @@ const SalesReceiptJournal = () => {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
 
   // Filters matching reference UI
   const [selectedType, setSelectedType] = useState('ALL');
@@ -77,9 +76,7 @@ const SalesReceiptJournal = () => {
         1
       );
       const list = Array.isArray(result) ? result : (result?.data || []);
-      const total = Math.max(Number(result?.total) || 0, list.length);
       setSales(list);
-      setTotalCount(total);
     } catch (err) {
       console.error('Failed to load sales journal:', err);
     } finally {

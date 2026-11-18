@@ -2,7 +2,7 @@
 
 > **Purpose:** A single source of truth for the entire codebase — architecture, conventions, CMS plan, known debt, and best practices.  
 > **Audience:** The developer (Glory), and any AI agent continuing work on this project.  
-> **Last Updated:** 2026-09-24
+> **Last Updated:** 2026-11-18
 
 ---
 
@@ -88,8 +88,8 @@ InventoryProject/
 │   ├── config/
 │   │   └── supabaseClient.js   # Server Supabase client (SERVICE_ROLE_KEY — bypasses RLS)
 │   ├── middleware/
-│   │   ├── authMiddleware.js   # requireAuth, requireRole
-│   │   └── rateLimiter.js      # ⚠️ Defined but NOT wired up yet
+│   │   ├── authMiddleware.js   # requireAuth (JWT + single-session), requireRole
+│   │   └── rateLimiter.js      # generalLimiter, authLimiter, looseLimiter, createLimiter (wired in server.js & auth.js)
 │   ├── routes/                 # Express route definitions
 │   │   ├── auth.js             # POST /login, /logout (public, with lockout)
 │   │   ├── pos.js              # GET /products (public), POST /sale (auth)
@@ -152,7 +152,7 @@ The app does NOT use `react-router-dom` for internal dashboard pages. Instead:
 | **Backend** | Express.js 5 (ESM) | Node 20+, ES modules (`"type": "module"`) |
 | **Database** | PostgreSQL via Supabase | Hosted, uses JS client (`@supabase/supabase-js`) |
 | **Storage** | Supabase Storage | `cms-images` bucket for CMS uploads |
-| **Auth** | Custom (bcrypt + header-based) | ⚠️ Should upgrade to JWT (see security audit) |
+| **Auth** | JWT (`jsonwebtoken`) + bcrypt + single-session ID | ✅ Upgraded from `x-user-id` headers |
 | **Hosting** | cPanel | Node.js app, custom domain |
 
 ---
@@ -907,21 +907,22 @@ The login endpoint tells the attacker exactly how many attempts remain before lo
 
 **Fix:** Return the same generic error message regardless of remaining attempts.
 
-### Priority Action Plan
+### Priority Action Plan & Current Status (Updated 2026-11-18)
 
-| Priority | Issue | Effort | What to Do |
-|----------|-------|--------|------------|
-| 🔴 **Now** | C1 — Rotate secrets | 30 min | Regenerate keys in Supabase dashboard |
-| 🔴 **Now** | C2 — Replace x-user-id with JWT | 2–3 hrs | Install `jsonwebtoken`, sign on login, verify in middleware |
-| 🟠 **This week** | H2 — Enable rate limiters | 10 min | Import and apply in `server.js` (code already exists) |
-| 🟠 **This week** | H1 — Add Helmet | 10 min | `npm install helmet` + 1 line |
-| 🟠 **This week** | H3 — Body size limit | 2 min | Add `{ limit: '1mb' }` to `express.json()` |
-| 🟠 **This week** | H4 — Error handler | 30 min | Create centralized error handler middleware |
-| 🟡 **Soon** | M1 — CMS role restriction | 5 min | Add `requireRole()` to CMS PUT route |
-| 🟡 **Soon** | M4 — Fix audit user_id | 20 min | Replace all `req.body.user_id` with `req.user.id` |
-| 🟡 **Soon** | M5 — Input validation | 1–2 hrs | Add express-validator to write endpoints |
-| 🟡 **Later** | M3 — Remove debugger tricks | 5 min | Delete the code from `main.jsx` |
-| 🟢 **Nice to have** | M2 — Persist lockout to DB | 1 hr | Replace in-memory store |
+| Priority | Issue | Status | Notes |
+|----------|-------|--------|-------|
+| 🔴 **Now** | C1 — Rotate secrets & clean history | ⚠️ **Manual** | `.env` is gitignored now; historical commit `b64955f` still warrants Supabase key rotation if not rotated yet |
+| 🔴 **Now** | C2 — Replace x-user-id with JWT | ✅ **Resolved** | `jsonwebtoken` + `requireAuth` + single-session `sid` implemented; hardcoded fallback secret removed |
+| 🟠 **This week** | H2 — Enable rate limiters | ✅ **Resolved** | `generalLimiter`, `looseLimiter`, `createLimiter` wired in `server.js`; `authLimiter` wired on `POST /api/auth/login` |
+| 🟠 **This week** | H1 — Add Helmet | ✅ **Resolved** | `helmet` configured in `server/server.js` |
+| 🟠 **This week** | H3 — Body size limit | ✅ **Resolved** | `express.json({ limit: '10mb' })` configured in `server/server.js` (supports CMS image uploads) |
+| 🟠 **This week** | H4 — Centralized error handler | ✅ **Resolved** | 4-parameter Express error handler in `server/server.js` hides stack traces in production |
+| 🟡 **Soon** | M1 — CMS role restriction | ✅ **Resolved** | `requireRole("Admin", "Owner")` applied to `POST /upload-image` and `PUT /:section_key` in `server/routes/cms.js` |
+| 🟡 **Soon** | M4 — Fix audit user_id | ✅ **Resolved** | Controllers & routes strictly use `req.user.id`; `POST /api/audit` restricted to Admin/Owner |
+| 🟡 **Soon** | M5 — Input validation | ⚠️ **Open** | Partial manual checks exist; consider `express-validator` / `zod` across write endpoints |
+| 🟡 **Later** | M3 — Remove debugger tricks | ✅ **Resolved** | DevTools blocking & `debugger` loop removed from `src/main.jsx` |
+| 🟢 **Nice to have** | M2 — Persist lockout to DB | ⚠️ **Open** | `loginAttempts` in `server/routes/auth.js` is still in-memory |
+| 🟢 **Low** | L2 — CORS strictness | ⚠️ **Open** | `server/server.js` currently has a permissive fallback callback (`return callback(null, true)`) |
 
 ---
 
@@ -936,22 +937,18 @@ The login endpoint tells the attacker exactly how many attempts remain before lo
 | Large component files (ManageProducts = 45KB) | `src/features/inventory/` | Medium — break into sub-components |
 | Duplicated date formatting logic | `dateUtils.js` exists in both `src/utils/` and `server/utils/` | Low |
 | No TypeScript | Whole project | Low — would help but not required |
-| `debugger` loop in `main.jsx` | `src/main.jsx:54-58` | Medium — wastes CPU, remove it |
 | Frontend Supabase client used for image uploads | `CMSDashboard.jsx` | Low — works fine, anon key is safe for this |
-| Logic Bug: `is_received > quantity` | `ReceivePOModal.jsx:59` | High — Breaks PO Receiving |
 | Hardcoded Category Filters | `Products.jsx:44-45` | Medium — Rigid "PASTRIES" vs "PASTRY" |
-| Missing `useEffect` Dependencies | Multiple components | Medium — Possible stale closures |
-| Missing UI Error Handling | `Products.jsx`, etc. | Low — Fails silently on API error |
-| Unused variables | Multiple files | Low — Clutters code |
+| Missing `useEffect` Dependencies | Multiple components | Low — review selectively |
 
 ### Architecture
 
 | Issue | Notes |
 |-------|-------|
-| **No global error boundary** | A React error crashes the whole app; wrap `<App>` in an `ErrorBoundary` |
-| **No loading skeleton components** | Pages flash blank then content; skeletons look more polished |
-| **localStorage-only auth** | No token expiry; user stays "logged in" until they manually log out or clear storage |
-| **No pagination on most list endpoints** | Sales route has pagination; products, ingredients, audit logs don't |
+| **React Error Boundaries** | ✅ Implemented via `ErrorBoundary` in `App.jsx` and `Dashboard.jsx` |
+| **Loading skeleton components** | ✅ Implemented via `SkeletonLoader.jsx` across core tables & cards |
+| **JWT auth with single-session tracking** | ✅ Implemented (`authMiddleware.js`, `routes/auth.js`, 8h expiry + 2h inactivity timeout) |
+| **Pagination** | ✅ Implemented via shared `Pagination.jsx` across tables and lists |
 
 ---
 
@@ -959,35 +956,35 @@ The login endpoint tells the attacker exactly how many attempts remain before lo
 
 ### High Priority
 
-- [ ] **Implement JWT authentication** — Replace `x-user-id` header with signed tokens
-- [ ] **Wire up rate limiters** — Import and apply in `server.js` (code already exists)
-- [ ] **Add Helmet security headers** — `npm install helmet` + 1 line in `server.js`
-- [ ] **Rotate Supabase secrets** — Keys were committed in initial git push
+- [x] **Implement JWT authentication** — Replaced `x-user-id` header with signed tokens & removed fallback secret
+- [x] **Wire up rate limiters** — Applied in `server.js` and `routes/auth.js`
+- [x] **Add Helmet security headers** — Configured in `server.js`
+- [ ] **Rotate Supabase secrets** — Keys were committed in initial git push (`b64955f`)
 
 ### Medium Priority
 
 - [ ] **Expand CMS** — Add more editable sections (about, hours, promos, socials)
 - [ ] **CMS live preview** — Show landing page preview while editing
 - [ ] **CMS promo toggle** — `is_active` column to enable/disable sections
-- [ ] **Role-restrict CMS route** — Add `requireRole('Admin', 'Owner')` to PUT endpoint
-- [ ] **Centralized error handler** — Stop leaking `err.message` to clients
+- [x] **Role-restrict CMS route** — `requireRole('Admin', 'Owner')` applied to CMS write endpoints
+- [x] **Centralized error handler** — Implemented in `server/server.js`
 - [ ] **Input validation** — Add `express-validator` or `zod` for request body validation
-- [ ] **Fix audit logging** — Use `req.user.id` instead of `req.body.user_id`
-- [ ] **Fix PO Receiving Logic** — Fix `item.is_received > item.quantity` in `ReceivePOModal.jsx`
-- [ ] **Fix React `useEffect` Warnings** — Add missing dependencies or use `useCallback`
+- [x] **Fix audit logging** — Strictly uses `req.user.id` instead of `req.body.user_id`
+- [x] **Fix PO Receiving Logic** — Fixed in `ReceivePOModal.jsx`
+- [ ] **Fix React `useEffect` Warnings** — Remaining `exhaustive-deps` warnings in select components
 - [ ] **Remove Hardcoded Categories** — Fix "PASTRIES" workaround in `Products.jsx` filter logic
 
 ### Low Priority / Polish
 
 - [ ] **Refactor large components** — Split `ManageProducts.jsx` (45KB) into sub-components
-- [ ] **Add loading skeletons** — Replace "Loading..." text with shimmer placeholders
-- [ ] **Remove DevTools blocking** — Delete the debugger loop and right-click prevention
+- [x] **Add loading skeletons** — Implemented in `SkeletonLoader.jsx`
+- [x] **Remove DevTools blocking** — Removed from `src/main.jsx`
 - [ ] **Add `updated_at` to CMS** — So owner knows when content was last changed
 - [ ] **Gradually migrate to Tailwind** — Refactor CSS-class pages when modifying them
-- [ ] **Add React Error Boundary** — Prevent full-app crashes on component errors
+- [x] **Add React Error Boundary** — Implemented in `App.jsx` and `Dashboard.jsx`
 - [ ] **Image upload validation** — Check file type and size before uploading to Supabase
-- [ ] **Handle API Failures in UI** — Show error states instead of failing silently in components
-- [ ] **Cleanup Unused Variables** — Remove unused variables to resolve linter errors
+- [x] **Handle API Failures in UI** — Added error & retry state in `Products.jsx`
+- [x] **Cleanup Unused Variables & Hooks Rules** — Cleaned up unused variables, `no-empty` blocks, `WastageReport` export bug, and conditional hooks in `ManageProducts` / `TransactionLogs`
 
 ---
 

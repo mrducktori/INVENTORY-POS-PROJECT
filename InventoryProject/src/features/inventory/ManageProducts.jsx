@@ -40,11 +40,10 @@ const ManageProducts = () => {
     editPrice, setEditPrice,
     editName, setEditName,
     editCategory, setEditCategory,
-    editImageUrl, setEditImageUrl,
+    editImageUrl,
     editTrackStock, setEditTrackStock,
     editStockQty,
     editThreshold, setEditThreshold,
-    handleReceiveProductStock,
     handleAddProduct,
     handleArchiveToggle,
     handleSetRecipe,
@@ -53,10 +52,6 @@ const ManageProducts = () => {
     handleAddRecipeItem,
     handleUpdateRecipeItem
   } = useManageProducts();
-
-  if (!canAccess(user, 'ManageProducts')) {
-    return <div className="p-6 flex-1 bg-gray-50"><h2 className="text-xl font-bold text-red-600">Access Denied</h2></div>;
-  }
 
   const archivedProductsList = useMemo(() => {
     return products.filter(p => p.is_archived);
@@ -144,6 +139,10 @@ const ManageProducts = () => {
     const start = (modifyCurrentPage - 1) * modifyItemsPerPage;
     return activeModifyProducts.slice(start, start + modifyItemsPerPage);
   }, [activeModifyProducts, modifyCurrentPage, modifyItemsPerPage]);
+
+  if (!canAccess(user, 'ManageProducts')) {
+    return <div className="p-6 flex-1 bg-gray-50"><h2 className="text-xl font-bold text-red-600">Access Denied</h2></div>;
+  }
 
   return (
     <div className="p-4 md:p-8 flex-1 bg-gray-50 overflow-y-auto w-full">

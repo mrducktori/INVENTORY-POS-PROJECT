@@ -116,6 +116,18 @@ setInterval(() => {
 }, 60000).unref?.();
 
 /**
+ * Returns the configured JWT signing secret or throws if missing.
+ * Evaluated at call time so ESM import hoisting does not precede dotenv loading.
+ */
+export const getJwtSecret = () => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET environment variable is not configured.');
+  }
+  return secret;
+};
+
+/**
  * requireAuth — Validates the JWT token in the Authorization header.
  * Attaches the validated user object to req.user.
  */
@@ -128,7 +140,7 @@ export const requireAuth = async (req, res, next) => {
   const token = authHeader.split(' ')[1];
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret-key-change-me');
+    const decoded = jwt.verify(token, getJwtSecret());
     const cacheKey = String(decoded.userId);
     const now = Date.now();
     const cached = userAuthCache.get(cacheKey);
@@ -205,7 +217,7 @@ export const requireAuth = async (req, res, next) => {
     const { current_session_id: _sid, ...user } = data;
     req.user = user;
     next();
-  } catch (err) {
+  } catch {
     return res.status(401).json({ error: 'Session expired or invalid. Please log in again.' });
   }
 };

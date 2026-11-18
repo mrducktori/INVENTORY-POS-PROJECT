@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Security/Fixes/Cleanup: System Audit, Bug Fixes, & ESLint Hygiene - 2026-11-18]
+- **Server Startup & Auth Hardening (`server/server.js`, `server/middleware/authMiddleware.js`, `server/routes/auth.js`)**:
+  - Fixed Express 5 `PathError` crash on `app.all('/api/*', ...)` in `server/server.js` by replacing it with `app.use('/api', ...)`.
+  - Removed unused `authLimiter` import from `server/server.js` (already scoped to `POST /api/auth/login` in `server/routes/auth.js`).
+  - Removed hardcoded `'fallback-secret-key-change-me'` JWT fallback in `authMiddleware.js` and `routes/auth.js`, added `getJwtSecret()`, and added startup validation requiring `JWT_SECRET` in `server/server.js`.
+- **Frontend Bug & React Hooks Fixes (`WastageReport.jsx`, `ManageProducts.jsx`, `TransactionLogs.jsx`, `useNotifications.js`)**:
+  - Fixed `ReferenceError: startDate is not defined` in `WastageReport.jsx` CSV export (`handleExport`) by deriving the export date range from `period`, `customStart`, and `customEnd`.
+  - Moved conditional access early returns after all `useMemo`/`useEffect` hook calls in `ManageProducts.jsx` and `TransactionLogs.jsx` to comply with React Rules of Hooks.
+  - Replaced `Date.now()` inside `useMemo` in `useNotifications.js` with a lazy `useState` snapshot timestamp for render purity.
+- **ESLint & Code Hygiene (`eslint.config.js`, controllers, services, frontend components)**:
+  - Added Node globals (`globals.node`) for `server/**/*.js` in `eslint.config.js`.
+  - Cleaned up unused `user_id` destructures and dead variables across `inventoryController.js`, `purchasingController.js`, `routes/products.js`, `inventoryService.js`, `purchasingService.js`, `POS.jsx`, `AuditLogs.jsx`, `SalesReceiptJournal.jsx`, `StockMovementReport.jsx`, `SkeletonLoader.jsx`, and `UsersTable.jsx`, preserved error cause in `posService.js`, and documented intentional empty storage/audit JSON `catch` blocks.
+- **Forecasting Reliability & Refresh Fixes (`server/routes/analytics.js`, `server/services/aiForecastingService.js`, `src/api/analyticsApi.js`, `src/features/analytics/DemandForecasting.jsx`)**:
+  - Added `refresh` cache-bypass support (`?refresh=true`) to `getIngredientDepletionForecast` and `getDemandForecast` and wired it to the Refresh buttons in `DemandForecasting.jsx`.
+  - Removed non-deterministic `Math.random()` usage and fixed falsy `0`-day sorting (`daysRemaining ?? 100`) on `GET /api/analytics/inventory-depletion`, and formatted `depletionDate` using `Asia/Manila` local calendar dates.
+  - Fixed `Asia/Manila` daily sales date bucketing in `aiForecastingService.js` (`extractProductForecastingFeatures`) so midnight–8 AM Manila sales are not shifted back 1 day by `.toISOString()`.
+- **Documentation Sync (`docs/PROJECT_REFERENCE.md`)**:
+  - Updated Security Status, Known Technical Debt, and Backlog sections to reflect completed security and architecture upgrades.
+
+## [Config/AI: Updated Primary & Backup Gemini API Keys - 2026-11-17]
+- **Configured Backup Failover Key (`server/.env`, `.env`)**:
+  - Validated and updated `GEMINI_API_KEY_BACKUP` with the newly provisioned key (`AQ...`) across local and server environment configurations.
+  - Retained `GEMINI_API_KEY` (`AIzaSy...`) as the primary key. If the primary key exhausts rate limits (`429`) or encounters an authentication error during demand forecasting, the engine will automatically fail over to `GEMINI_API_KEY_BACKUP`.
+
+
 ## [Docs/Diagrams: Supplier Portal Operational Flowchart - 2026-11-13]
 - **Generated Supplier Workflow Flowchart ([`CofTea_Supplier_Flowchart.svg`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/docs/diagrams/CofTea_Supplier_Flowchart.svg) & [`CofTea_Supplier_Flowchart.png`](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/docs/diagrams/CofTea_Supplier_Flowchart.png))**:
   - Outlined full end-to-end operational flowchart for the Supplier Portal: authentication & security lockout, catalog wholesale pricing updates, purchase order status inspection (`Pending`, `Active`, `Proposals`, `Overdue`), 4-way decision handling (`Accept All`, `Postpone Date`, `Decline PO with Reason`, and item-by-item proposal negotiation via `SupplierReviewPOModal`), admin review, store goods receipt, and automatic purchase-unit-to-stock-unit conversion.

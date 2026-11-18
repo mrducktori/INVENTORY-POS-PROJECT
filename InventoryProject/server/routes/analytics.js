@@ -107,14 +107,13 @@ router.get('/inventory-depletion', async (req, res) => {
     // For a real implementation, we'd look at ingredient_logs or calculate from recipes
     // Here we'll use a mix of real data and weighted averages
     const insights = (ingredients || []).map(item => {
-      // Base usage logic: if low stock alert is high, usage is usually high
-      const baseUsage = item.low_stock_alert / 10; 
-      const randomFactor = 0.8 + (Math.random() * 0.4); // 0.8 to 1.2 variation
-      const avgDailyUsage = Math.max(0.1, baseUsage * randomFactor);
-      
-      const daysRemaining = Math.floor(item.stock_quantity / avgDailyUsage);
-      const depletionPercentage = Math.min(Math.round(((item.low_stock_alert * 1.2) / (item.stock_quantity || 1)) * 100), 100);
-      
+      // Base usage logic: deterministic estimate from low_stock_alert threshold
+      const baseUsage = (parseFloat(item.low_stock_alert) || 1) / 10;
+      const avgDailyUsage = Math.max(0.1, baseUsage);
+
+      const daysRemaining = Math.floor((parseFloat(item.stock_quantity) || 0) / avgDailyUsage);
+      const depletionPercentage = Math.min(Math.round((((parseFloat(item.low_stock_alert) || 1) * 1.2) / (parseFloat(item.stock_quantity) || 1)) * 100), 100);
+
       return {
         id: item.id,
         name: item.name,
@@ -123,7 +122,7 @@ router.get('/inventory-depletion', async (req, res) => {
         daysRemaining: daysRemaining > 45 ? null : daysRemaining,
         depletionPercentage
       };
-    }).sort((a, b) => (a.daysRemaining || 100) - (b.daysRemaining || 100));
+    }).sort((a, b) => (a.daysRemaining ?? 100) - (b.daysRemaining ?? 100));
 
     res.json(insights);
   } catch (err) {
@@ -139,6 +138,9 @@ router.get('/inventory-depletion', async (req, res) => {
  */
 router.get('/ingredient-forecast', async (req, res) => {
   try {
+    if (req.query.refresh === 'true') {
+      invalidateAnalyticsCache();
+    }
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const fourteenDaysAgo = new Date();
@@ -238,7 +240,7 @@ router.get('/ingredient-forecast', async (req, res) => {
 
         const targetDate = new Date();
         targetDate.setDate(targetDate.getDate() + Math.round(rawDays));
-        depletionDate = targetDate.toISOString().split('T')[0];
+        depletionDate = targetDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
 
         const maxStock = parseFloat(item.max_stock) || parseFloat(item.max_capacity) || (lowStockAlert * 2) || 20;
         const lowStockThreshold = maxStock * 0.5;
@@ -365,6 +367,9 @@ router.post('/ai-forecast', async (req, res) => {
  */
 router.get('/demand-forecast', async (req, res) => {
   try {
+    if (req.query.refresh === 'true') {
+      invalidateAnalyticsCache();
+    }
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 

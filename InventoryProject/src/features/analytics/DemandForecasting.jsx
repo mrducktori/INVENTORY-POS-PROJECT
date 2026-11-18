@@ -62,7 +62,7 @@ const DemandForecasting = () => {
     try {
       const saved = localStorage.getItem('coftea_forecasting_tab');
       if (saved === 'ingredients' || saved === 'products') return saved;
-    } catch {}
+    } catch { /* ignore storage/history errors */ }
     return 'ingredients';
   };
 
@@ -75,7 +75,7 @@ const DemandForecasting = () => {
       if (typeof window !== 'undefined') {
         window.history.replaceState(null, '', `#Forecasting/${tab}`);
       }
-    } catch {}
+    } catch { /* ignore storage/history errors */ }
   };
 
   useEffect(() => {
@@ -84,7 +84,7 @@ const DemandForecasting = () => {
       if (typeof window !== 'undefined') {
         window.history.replaceState(null, '', `#Forecasting/${activeTab}`);
       }
-    } catch {}
+    } catch { /* ignore storage/history errors */ }
   }, [activeTab]);
 
   const [infoModalOpen, setInfoModalOpen] = useState(false);
@@ -189,10 +189,10 @@ const DemandForecasting = () => {
     }, 4000);
   };
 
-  const fetchIngredientForecast = async () => {
+  const fetchIngredientForecast = async (refresh = false) => {
     try {
       setLoadingIngredients(true);
-      const res = await getIngredientDepletionForecast();
+      const res = await getIngredientDepletionForecast(refresh);
       if (res && res.ingredients) {
         setIngredientData(res);
       }
@@ -213,10 +213,10 @@ const DemandForecasting = () => {
     }
   };
 
-  const fetchProductForecasts = async () => {
+  const fetchProductForecasts = async (refresh = false) => {
     try {
       setLoadingProducts(true);
-      const data = await getDemandForecast();
+      const data = await getDemandForecast(refresh);
       setProductForecasts(data || []);
     } catch (err) {
       console.error('Failed to fetch product forecasts:', err);
@@ -835,7 +835,7 @@ const DemandForecasting = () => {
 
                   <button
                     type="button"
-                    onClick={fetchIngredientForecast}
+                    onClick={() => fetchIngredientForecast(true)}
                     disabled={loadingIngredients}
                     className="p-1.5 border border-zinc-200 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 rounded-lg transition-colors disabled:opacity-40 cursor-pointer"
                     title="Refresh ingredient forecast"
@@ -1237,7 +1237,7 @@ const DemandForecasting = () => {
                   </button>
                   <button
                     type="button"
-                    onClick={fetchProductForecasts}
+                    onClick={() => fetchProductForecasts(true)}
                     disabled={loadingProducts}
                     className="p-1.5 border border-zinc-200 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 rounded-lg transition-colors disabled:opacity-40 cursor-pointer"
                     title="Refresh menu forecasts"
