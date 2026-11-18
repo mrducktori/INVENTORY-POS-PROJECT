@@ -1,9 +1,14 @@
 import React, { useState, useMemo } from 'react';
 
-const SupplierCatalogModal = ({ supplier, onClose }) => {
+const SupplierCatalogModal = ({ supplier, onClose, onEdit }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterMode, setFilterMode] = useState('ALL'); // 'ALL' | 'UPDATED'
 
   const recentUpdates = supplier?.recent_price_updates || null;
+  const hasPriceUpdates = Boolean(recentUpdates && recentUpdates.changes_count > 0);
+
+  // Default to sorting updated items first if any price updates exist
+  const [sortUpdatedFirst, setSortUpdatedFirst] = useState(hasPriceUpdates);
 
   const catalogItems = useMemo(() => {
     const recentItemsMap = recentUpdates?.items || {};
@@ -29,15 +34,38 @@ const SupplierCatalogModal = ({ supplier, onClose }) => {
     });
   }, [supplier, recentUpdates]);
 
-  const filteredItems = useMemo(() => {
-    if (!searchTerm.trim()) return catalogItems;
-    const term = searchTerm.toLowerCase();
-    return catalogItems.filter(
-      (item) =>
-        item.name.toLowerCase().includes(term) ||
-        item.purchaseUnit.toLowerCase().includes(term)
-    );
-  }, [catalogItems, searchTerm]);
+  const updatedCount = useMemo(() => {
+    return catalogItems.filter((i) => Boolean(i.priceChange)).length;
+  }, [catalogItems]);
+
+  const displayedItems = useMemo(() => {
+    let items = catalogItems;
+
+    // Filter by tab / mode
+    if (filterMode === 'UPDATED') {
+      items = items.filter((item) => Boolean(item.priceChange));
+    }
+
+    // Filter by search term
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      items = items.filter(
+        (item) =>
+          item.name.toLowerCase().includes(term) ||
+          item.purchaseUnit.toLowerCase().includes(term)
+      );
+    }
+
+    // Sort: if sortUpdatedFirst is active, place items with priceChange on top
+    return [...items].sort((a, b) => {
+      if (sortUpdatedFirst) {
+        const aHas = a.priceChange ? 1 : 0;
+        const bHas = b.priceChange ? 1 : 0;
+        if (aHas !== bHas) return bHas - aHas; // Updated items on top
+      }
+      return a.name.localeCompare(b.name);
+    });
+  }, [catalogItems, filterMode, searchTerm, sortUpdatedFirst]);
 
   if (!supplier) return null;
 
@@ -63,7 +91,7 @@ const SupplierCatalogModal = ({ supplier, onClose }) => {
                 <h3 className="m-0 text-lg font-black text-white tracking-tight">{supplier.name}</h3>
                 {recentUpdates?.changes_count > 0 && (
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                    Price Changes
+                    Price Changes ({recentUpdates.changes_count})
                   </span>
                 )}
               </div>
@@ -107,7 +135,7 @@ const SupplierCatalogModal = ({ supplier, onClose }) => {
             )}
           </div>
 
-          {/* Supplier-Maintained Pricing Badge (No Admin Edit) */}
+          {/* Supplier-Maintained Pricing Badge */}
           <div className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 border border-zinc-200 rounded-lg text-xs font-semibold text-zinc-700">
             <svg className="w-3.5 h-3.5 text-zinc-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
@@ -118,19 +146,49 @@ const SupplierCatalogModal = ({ supplier, onClose }) => {
 
         {/* Notice Banner when Supplier recently updated prices */}
         {recentUpdates?.changes_count > 0 && (
-          <div className="mx-6 mt-4 p-3 bg-amber-50/90 border border-amber-200 rounded-xl flex items-start gap-3 text-xs text-amber-900 animate-[fadeIn_0.2s_ease-out]">
-            <svg className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-            </svg>
-            <div>
-              <span className="font-bold">Supplier Price Adjustment Notice: </span>
-              {supplier.name} updated pricing for {recentUpdates.changes_count} raw material(s) on their portal. Adjusted items are indicated with badge highlights below.
+          <div className="mx-6 mt-4 p-3.5 bg-amber-50/90 border border-amber-200 rounded-xl flex flex-wrap items-center justify-between gap-3 text-xs text-amber-900 animate-[fadeIn_0.2s_ease-out]">
+            <div className="flex items-start gap-2.5">
+              <svg className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+              </svg>
+              <div>
+                <span className="font-bold">Supplier Price Adjustment Notice: </span>
+                {supplier.name} updated pricing for {recentUpdates.changes_count} raw material(s) on their portal.
+                {sortUpdatedFirst && filterMode === 'ALL' && (
+                  <span className="text-amber-800 block sm:inline sm:ml-1">
+                    Updated materials are pinned to the top of the list below.
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setFilterMode(filterMode === 'UPDATED' ? 'ALL' : 'UPDATED')}
+                className="px-2.5 py-1 rounded-md text-[11px] font-bold bg-amber-600 hover:bg-amber-700 text-white transition-colors cursor-pointer inline-flex items-center gap-1.5 shadow-2xs"
+              >
+                {filterMode === 'UPDATED' ? (
+                  <>
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                    Show All Materials
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Filter Updated Only ({recentUpdates.changes_count})
+                  </>
+                )}
+              </button>
             </div>
           </div>
         )}
 
-        {/* Search */}
-        <div className="p-4 border-b border-zinc-100 flex items-center gap-3">
+        {/* Search & Filter Controls Toolbar */}
+        <div className="p-4 border-b border-zinc-200/80 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-zinc-50/40">
           <div className="relative flex-1">
             <svg className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 110-15 7.5 7.5 0 010 15z" />
@@ -140,19 +198,86 @@ const SupplierCatalogModal = ({ supplier, onClose }) => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search items in catalog..."
-              className="w-full pl-9 pr-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent bg-white"
+              className="w-full pl-9 pr-3 py-2 border border-zinc-300 rounded-lg text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent bg-white"
             />
           </div>
-          <span className="text-xs font-semibold text-zinc-500 tabular-nums">
-            {filteredItems.length} of {catalogItems.length} items
-          </span>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Filter Pills: All vs Updated */}
+            <div className="inline-flex p-0.5 bg-zinc-200/70 rounded-lg border border-zinc-200 text-xs">
+              <button
+                type="button"
+                onClick={() => setFilterMode('ALL')}
+                className={`px-3 py-1 rounded-md font-semibold transition-all cursor-pointer ${
+                  filterMode === 'ALL'
+                    ? 'bg-white text-zinc-900 shadow-2xs font-bold'
+                    : 'text-zinc-600 hover:text-zinc-900'
+                }`}
+              >
+                All ({catalogItems.length})
+              </button>
+              {updatedCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setFilterMode('UPDATED')}
+                  className={`px-3 py-1 rounded-md transition-all cursor-pointer inline-flex items-center gap-1.5 ${
+                    filterMode === 'UPDATED'
+                      ? 'bg-amber-500 text-white shadow-2xs font-bold'
+                      : 'text-amber-800 hover:text-amber-950 font-semibold'
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${filterMode === 'UPDATED' ? 'bg-white' : 'bg-amber-600'}`} />
+                  Updated ({updatedCount})
+                </button>
+              )}
+            </div>
+
+            {/* Sort Toggle Button (Updated on top vs A-Z order) */}
+            {updatedCount > 0 && filterMode === 'ALL' && (
+              <button
+                type="button"
+                onClick={() => setSortUpdatedFirst((prev) => !prev)}
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer inline-flex items-center gap-1.5 ${
+                  sortUpdatedFirst
+                    ? 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100 shadow-2xs'
+                    : 'bg-white text-zinc-700 border-zinc-300 hover:bg-zinc-50'
+                }`}
+                title={sortUpdatedFirst ? 'Currently sorting updated items first. Click to sort purely A-Z.' : 'Click to pin updated items to top'}
+              >
+                <svg className={`w-3.5 h-3.5 ${sortUpdatedFirst ? 'text-amber-600' : 'text-zinc-500'}`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 7.5L7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5" />
+                </svg>
+                <span>{sortUpdatedFirst ? 'Updated on Top' : 'A-Z Order'}</span>
+              </button>
+            )}
+
+            <span className="text-xs font-semibold text-zinc-500 tabular-nums pl-1">
+              {displayedItems.length} of {catalogItems.length} items
+            </span>
+          </div>
         </div>
 
         {/* Catalog Table */}
         <div className="overflow-y-auto flex-1 p-0">
-          {filteredItems.length === 0 ? (
+          {displayedItems.length === 0 ? (
             <div className="p-12 text-center text-sm text-zinc-400">
-              No catalog items match your search.
+              <p className="font-semibold text-zinc-600 mb-1">
+                {filterMode === 'UPDATED'
+                  ? 'No price-updated materials found.'
+                  : 'No catalog items match your search.'}
+              </p>
+              {(searchTerm || filterMode !== 'ALL') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setFilterMode('ALL');
+                  }}
+                  className="mt-2 text-xs text-zinc-900 underline font-semibold hover:text-black cursor-pointer"
+                >
+                  Reset filters and search
+                </button>
+              )}
             </div>
           ) : (
             <table className="w-full text-left border-collapse whitespace-nowrap">
@@ -166,21 +291,24 @@ const SupplierCatalogModal = ({ supplier, onClose }) => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 text-sm">
-                {filteredItems.map((item) => {
+                {displayedItems.map((item) => {
                   const change = item.priceChange;
                   return (
                     <tr
                       key={item.id}
                       className={`transition-colors ${
-                        change ? 'bg-amber-50/40 hover:bg-amber-50/70' : 'hover:bg-zinc-50/60'
+                        change
+                          ? 'bg-amber-50/70 hover:bg-amber-100/60 border-l-4 border-l-amber-500'
+                          : 'hover:bg-zinc-50/60'
                       }`}
                     >
                       <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-bold text-zinc-900">{item.name}</span>
                           {change && (
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300">
-                              Updated
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                              Price Updated
                             </span>
                           )}
                         </div>
@@ -222,7 +350,16 @@ const SupplierCatalogModal = ({ supplier, onClose }) => {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3.5 bg-zinc-50 border-t border-zinc-200 flex justify-end shrink-0">
+        <div className="px-6 py-3.5 bg-zinc-50 border-t border-zinc-200 flex items-center justify-between shrink-0">
+          <div className="text-xs text-zinc-500">
+            {updatedCount > 0 ? (
+              <span>
+                <strong className="text-amber-700">{updatedCount}</strong> material{updatedCount === 1 ? '' : 's'} updated recently by supplier
+              </span>
+            ) : (
+              <span>All catalog pricing up to date</span>
+            )}
+          </div>
           <button
             type="button"
             onClick={onClose}

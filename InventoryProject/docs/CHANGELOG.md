@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [UI/Dashboard: Auto-Adjusting Typography & Single-Line Category Header in TopSalesGrid - 2026-11-18]
+- **`TopSalesGrid.jsx`**:
+  - Implemented dynamic auto-adjusting font size helpers (`getCategoryHeaderFontSize` and `getProductItemFontSize`) scaling typography cleanly based on character length so category titles and product names fit without premature clipping or awkward multiline wrapping.
+  - Reorganized card header layout with category title on the left (`min-w-0 flex-1 truncate`) and action controls grouped on the right (`shrink-0 whitespace-nowrap` for the `Compact` button and `Items` badge), eliminating the horizontal squeeze that caused "FRUIT DRINKS" and "7 Items" to break across multiple lines.
+
+
+## [UI/Supplier Catalog: Pinned Updated Materials, Dedicated Badge & Sort/Filter Controls - 2026-11-18]
+- **`SupplierCatalogModal.jsx`**:
+  - Pinned raw materials with price adjustments to the top of the supplier catalog table by default (`sortUpdatedFirst` enabled when price changes exist).
+  - Added dedicated `Price Updated` badge with animated indicator and highlighted left-border row accent (`border-l-4 border-l-amber-500 bg-amber-50/70`) for all updated materials.
+  - Added filter pills (`All` vs `Updated`) and sort toggle button (`Updated on Top` vs `A-Z Order`) allowing the catalog list to be instantly filtered to updated items or un-sorted back to alphabetical order.
+  - Added quick filter action in the price adjustment notice banner (`Filter Updated Only` / `Show All Materials`).
+
+
 ## [UI/Accounts: Auto-Switch Role to Custom on Permission Changes - 2026-11-18]
 - **`AccountForm.jsx`**:
   - Added `handlePermissionsChange()` and `isStaffDefaultPermissions()` so modifying `Staff` page access away from `STAFF_DEFAULT_PERMISSIONS` automatically switches the account role to `Custom` while preserving the selected permissions.

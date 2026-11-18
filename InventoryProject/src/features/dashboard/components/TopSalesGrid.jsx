@@ -59,7 +59,24 @@ const TopSalesGrid = ({
     if (count === 1) return 'grid-cols-1';
     if (count === 2) return 'grid-cols-1 md:grid-cols-2';
     if (count === 3) return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3';
-    return 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4';
+    return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4';
+  };
+
+  // Auto-adjust font size based on category name length so it fits cleanly on one line
+  const getCategoryHeaderFontSize = (title) => {
+    const len = title?.length || 0;
+    if (len <= 7) return 'text-base md:text-lg'; // e.g. "COFFEE", "PASTAS"
+    if (len <= 12) return 'text-sm md:text-base'; // e.g. "FRUIT DRINKS", "APPETIZERS"
+    if (len <= 16) return 'text-xs md:text-sm';  // e.g. "SPECIALTY COFFEE"
+    return 'text-[11px] md:text-xs';             // e.g. "NON-COFFEE BEVERAGES"
+  };
+
+  // Auto-adjust font size based on product name length so names fit without premature clipping
+  const getProductItemFontSize = (name) => {
+    const len = name?.length || 0;
+    if (len <= 12) return 'text-sm md:text-base';
+    if (len <= 18) return 'text-xs md:text-sm';
+    return 'text-[11px] md:text-xs leading-tight';
   };
 
   return (
@@ -234,40 +251,48 @@ const TopSalesGrid = ({
                     isCompacted ? 'bg-zinc-50/40' : ''
                   }`}
                 >
-                  {/* Category Header with Compacting & Enlarged Items Indicator */}
+                  {/* Category Header with Compacting & Items Indicator */}
                   <div 
                     onClick={() => toggleCategoryCompact(category)}
-                    className={`flex items-center justify-between cursor-pointer select-none group transition-all ${
-                      isCompacted ? 'pb-0 mb-0' : 'pb-4 mb-4 border-b border-zinc-200'
+                    className={`flex items-center justify-between gap-2 cursor-pointer select-none group transition-all ${
+                      isCompacted ? 'pb-0 mb-0' : 'pb-3.5 mb-4 border-b border-zinc-200'
                     }`}
                   >
-                    <div className="flex items-center gap-2">
-                      <span className="text-base md:text-lg font-black uppercase tracking-wide text-zinc-900 group-hover:text-black">
+                    {/* Category Title: Auto-adjusts size & stays on a single line */}
+                    <div className="min-w-0 flex-1 pr-1">
+                      <span 
+                        className={`font-black uppercase tracking-wide text-zinc-900 group-hover:text-black block truncate leading-tight ${getCategoryHeaderFontSize(category)}`}
+                        title={category}
+                      >
                         {category}
                       </span>
+                    </div>
+
+                    {/* Action Controls: Compact Button + Items Badge (Never wraps) */}
+                    <div className="flex items-center gap-1.5 shrink-0">
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           toggleCategoryCompact(category);
                         }}
-                        className={`text-xs font-bold px-2 py-0.5 rounded-md border transition-colors cursor-pointer flex items-center gap-1 ${
+                        className={`text-[11px] font-bold px-2 py-0.5 rounded-md border transition-colors cursor-pointer flex items-center gap-1 shrink-0 whitespace-nowrap ${
                           isCompacted 
                             ? 'bg-zinc-900 text-white border-zinc-900 hover:bg-black' 
                             : 'bg-zinc-200/80 text-zinc-700 border-zinc-300 hover:bg-zinc-300'
                         }`}
                       >
-                        <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" d={isCompacted ? "M19 9l-7 7-7-7" : "M5 15l7-7 7 7"} />
                         </svg>
                         <span>{isCompacted ? 'Open' : 'Compact'}</span>
                       </button>
-                    </div>
 
-                    {/* ENLARGED, HIGH-VISIBILITY ITEMS INDICATOR */}
-                    <span className="text-sm md:text-m font-black px-3.5 py-1.5 rounded-xl bg-zinc-900 text-white tracking-wide shadow-2xs">
-                      {products.length} {products.length === 1 ? 'Item' : 'Items'}
-                    </span>
+                      {/* Items Badge: Single line, proportional padding */}
+                      <span className="text-xs font-black px-2.5 py-1 rounded-lg bg-zinc-900 text-white tracking-wide shrink-0 whitespace-nowrap shadow-2xs">
+                        {products.length} {products.length === 1 ? 'Item' : 'Items'}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Body: Compact Summary vs Full List */}
@@ -275,12 +300,12 @@ const TopSalesGrid = ({
                     /* COMPACTED / COLLAPSED STATE */
                     <div 
                       onClick={() => toggleCategoryCompact(category)}
-                      className="mt-3 py-2.5 px-3.5 rounded-xl bg-zinc-100/90 hover:bg-zinc-200/80 transition-colors cursor-pointer flex items-center justify-between text-xs md:text-sm"
+                      className="mt-3 py-2.5 px-3.5 rounded-xl bg-zinc-100/90 hover:bg-zinc-200/80 transition-colors cursor-pointer flex items-center justify-between text-xs md:text-sm gap-2"
                     >
-                      <span className="font-semibold text-zinc-600">
+                      <span className="font-semibold text-zinc-600 truncate">
                         Total Units: <strong className="text-zinc-900 font-black">{totalCategorySold} sold</strong>
                       </span>
-                      <span className="font-bold text-zinc-800 flex items-center gap-1">
+                      <span className="font-bold text-zinc-800 flex items-center gap-1 shrink-0 whitespace-nowrap">
                         Click to view items <svg className="w-3.5 h-3.5 text-zinc-500 inline-block" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
                       </span>
                     </div>
@@ -295,8 +320,8 @@ const TopSalesGrid = ({
                             key={product.name} 
                             className="flex flex-col gap-1.5"
                           >
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="flex items-center justify-between gap-2.5">
+                              <div className="flex items-center gap-2 min-w-0 flex-1">
                                 <span className={`w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold shrink-0 ${
                                   index === 0 
                                     ? 'bg-zinc-900 text-white' 
@@ -306,13 +331,16 @@ const TopSalesGrid = ({
                                 }`}>
                                   {index + 1}
                                 </span>
-                                <span className="font-bold text-sm md:text-base text-zinc-800 truncate" title={product.name}>
+                                <span 
+                                  className={`font-bold text-zinc-800 truncate ${getProductItemFontSize(product.name)}`} 
+                                  title={product.name}
+                                >
                                   {product.name}
                                 </span>
                               </div>
-                              <span className="tabular-nums shrink-0 text-right whitespace-nowrap">
-                                <span className="text-base md:text-lg font-black text-zinc-900 mr-1.5">{product.value}</span>
-                                <span className="text-sm md:text-base font-extrabold text-zinc-700">sold</span>
+                              <span className="tabular-nums shrink-0 text-right whitespace-nowrap pl-1">
+                                <span className="text-base md:text-lg font-black text-zinc-900 mr-1">{product.value}</span>
+                                <span className="text-xs md:text-sm font-extrabold text-zinc-600">sold</span>
                               </span>
                             </div>
 
