@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 
-const SupplierCatalogModal = ({ supplier, onClose, onEdit }) => {
+const SupplierCatalogModal = ({ supplier, onClose }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterMode, setFilterMode] = useState('ALL'); // 'ALL' | 'UPDATED'
 
