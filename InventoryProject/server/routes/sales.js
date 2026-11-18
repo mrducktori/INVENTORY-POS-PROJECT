@@ -9,8 +9,11 @@ router.use(requireRole('Owner', 'Admin', 'Staff', 'Custom'));
 // Get all sales with filters
 router.get('/', async (req, res) => {
   try {
-    // Parse pagination parameters (default limit 50, max 500, offset 0)
-    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 500);
+    // Parse pagination & fetch parameters (supports numbers up to 20,000 or 'all')
+    const limitParam = req.query.limit;
+    const isAll = limitParam === 'all' || limitParam === '-1';
+    const parsedLimit = parseInt(limitParam, 10);
+    const limit = isAll ? 20000 : Math.min(Math.max(parsedLimit || 50, 1), 20000);
     const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
     const searchParam = (req.query.search || '').trim().toLowerCase();
     const categoryParam = (req.query.category || '').trim();
@@ -18,6 +21,56 @@ router.get('/', async (req, res) => {
     const discountedOnly = req.query.discounted === 'true';
 
     const needsInMemoryFilter = Boolean(searchParam || categoryParam);
+
+    const applyFilters = (qb) => {
+      // Date range filtering (supports both snake_case and camelCase)
+      const startDateParam = req.query.start_date || req.query.startDate;
+      const endDateParam = req.query.end_date || req.query.endDate;
+
+      if (startDateParam && endDateParam) {
+        qb = qb
+          .gte('created_at', toManilaStartOfDay(startDateParam))
+          .lte('created_at', toManilaEndOfDay(endDateParam));
+      } else if (startDateParam) {
+        qb = qb.gte('created_at', toManilaStartOfDay(startDateParam));
+      } else if (endDateParam) {
+        qb = qb.lte('created_at', toManilaEndOfDay(endDateParam));
+      } else if (req.query.date) {
+        const d = req.query.date;
+        qb = qb.gte('created_at', toManilaStartOfDay(d)).lte('created_at', toManilaEndOfDay(d));
+      } else if (req.query.period) {
+        const period = req.query.period;
+        // Get current date in Manila timezone
+        const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }));
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        
+        let startStr;
+        if (period === 'day' || period === 'daily') {
+          startStr = `${y}-${m}-${d}T00:00:00+08:00`;
+        } else if (period === 'week' || period === 'weekly') {
+          const weekAgo = new Date(now);
+          weekAgo.setDate(weekAgo.getDate() - 7);
+          const wy = weekAgo.getFullYear();
+          const wm = String(weekAgo.getMonth() + 1).padStart(2, '0');
+          const wd = String(weekAgo.getDate()).padStart(2, '0');
+          startStr = `${wy}-${wm}-${wd}T00:00:00+08:00`;
+        } else {
+          startStr = `${y}-${m}-01T00:00:00+08:00`;
+        }
+        qb = qb.gte('created_at', startStr);
+      }
+
+      if (req.query.staff_id) qb = qb.eq('staff_id', req.query.staff_id);
+      if (paymentMethodParam && paymentMethodParam.toUpperCase() !== 'ALL') {
+        qb = qb.ilike('payment_method', paymentMethodParam);
+      }
+      if (discountedOnly) {
+        qb = qb.gt('discount_amount', 0);
+      }
+      return qb;
+    };
 
     let query = supabase
       .from('sales')
@@ -28,58 +81,13 @@ router.get('/', async (req, res) => {
       `, { count: 'exact' })
       .order('created_at', { ascending: false });
 
+    query = applyFilters(query);
+
+    const firstBatchLimit = Math.min(limit, 1000);
     if (!needsInMemoryFilter) {
-      query = query.range(offset, offset + limit - 1);
+      query = query.range(offset, offset + firstBatchLimit - 1);
     } else {
-      // Safety ceiling: prevent unbounded queries from exhausting Node.js heap memory
-      query = query.limit(1000);
-    }
-
-    // Date range filtering (supports both snake_case and camelCase)
-    const startDateParam = req.query.start_date || req.query.startDate;
-    const endDateParam = req.query.end_date || req.query.endDate;
-
-    if (startDateParam && endDateParam) {
-      query = query
-        .gte('created_at', toManilaStartOfDay(startDateParam))
-        .lte('created_at', toManilaEndOfDay(endDateParam));
-    } else if (startDateParam) {
-      query = query.gte('created_at', toManilaStartOfDay(startDateParam));
-    } else if (endDateParam) {
-      query = query.lte('created_at', toManilaEndOfDay(endDateParam));
-    } else if (req.query.date) {
-      const d = req.query.date;
-      query = query.gte('created_at', toManilaStartOfDay(d)).lte('created_at', toManilaEndOfDay(d));
-    } else if (req.query.period) {
-      const period = req.query.period;
-      // Get current date in Manila timezone
-      const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }));
-      const y = now.getFullYear();
-      const m = String(now.getMonth() + 1).padStart(2, '0');
-      const d = String(now.getDate()).padStart(2, '0');
-      
-      let startStr;
-      if (period === 'day' || period === 'daily') {
-        startStr = `${y}-${m}-${d}T00:00:00+08:00`;
-      } else if (period === 'week' || period === 'weekly') {
-        const weekAgo = new Date(now);
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        const wy = weekAgo.getFullYear();
-        const wm = String(weekAgo.getMonth() + 1).padStart(2, '0');
-        const wd = String(weekAgo.getDate()).padStart(2, '0');
-        startStr = `${wy}-${wm}-${wd}T00:00:00+08:00`;
-      } else {
-        startStr = `${y}-${m}-01T00:00:00+08:00`;
-      }
-      query = query.gte('created_at', startStr);
-    }
-
-    if (req.query.staff_id) query = query.eq('staff_id', req.query.staff_id);
-    if (paymentMethodParam && paymentMethodParam.toUpperCase() !== 'ALL') {
-      query = query.ilike('payment_method', paymentMethodParam);
-    }
-    if (discountedOnly) {
-      query = query.gt('discount_amount', 0);
+      query = query.limit(Math.min(limit, 5000));
     }
 
     const { data, error, count } = await query;
@@ -87,6 +95,34 @@ router.get('/', async (req, res) => {
 
     let filteredData = data || [];
     let total = Math.max(count || 0, filteredData.length);
+
+    // If user requested > 1000 rows without in-memory filter, fetch subsequent chunks up to requested limit
+    if (!needsInMemoryFilter && limit > 1000 && total > filteredData.length + offset) {
+      const targetCount = Math.min(limit, total - offset);
+      let currOffset = offset + filteredData.length;
+
+      while (filteredData.length < targetCount && currOffset < total) {
+        const nextBatch = Math.min(1000, targetCount - filteredData.length);
+        let nextQuery = supabase
+          .from('sales')
+          .select(`
+            *,
+            users(id, name, username),
+            sale_items(id, quantity, unit_price, cup_size, add_ons, products(id, name, category))
+          `)
+          .order('created_at', { ascending: false });
+
+        nextQuery = applyFilters(nextQuery);
+        nextQuery = nextQuery.range(currOffset, currOffset + nextBatch - 1);
+
+        const { data: batchData, error: batchErr } = await nextQuery;
+        if (batchErr) throw batchErr;
+        if (!batchData || batchData.length === 0) break;
+        filteredData.push(...batchData);
+        currOffset += batchData.length;
+        if (batchData.length < nextBatch) break;
+      }
+    }
 
     if (categoryParam) {
       filteredData = filteredData.filter(sale =>

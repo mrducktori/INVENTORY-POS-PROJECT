@@ -27,6 +27,7 @@ const ManageRawMaterials = () => {
     UNIT_CHOICES,
     handleAddIngredient,
     handleArchiveToggle,
+    handlePermanentDeleteRawMaterial,
     handleUpdateIngredient,
     handleSetModify,
     fetchIngredients
@@ -341,6 +342,26 @@ const ManageRawMaterials = () => {
                                   )}
                                   {processingId === i.id ? 'Please wait...' : i.is_archived ? 'Restore' : 'Archive'}
                                 </button>
+                                {i.is_archived && (
+                                  <button
+                                    disabled={isProcessing || (i.days_since_archived ?? 0) < 30}
+                                    className={`px-2.5 py-1.5 text-xs font-bold uppercase tracking-wider rounded transition-colors cursor-pointer ${
+                                      (i.days_since_archived ?? 0) >= 30
+                                        ? 'bg-red-600 hover:bg-red-700 text-white'
+                                        : 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed opacity-60'
+                                    }`}
+                                    title={
+                                      (i.days_since_archived ?? 0) >= 30
+                                        ? 'Permanently delete this raw material'
+                                        : `Can be deleted after 30 days (${Math.max(1, 30 - (i.days_since_archived || 0))} days remaining)`
+                                    }
+                                    onClick={() => handlePermanentDeleteRawMaterial(i.id)}
+                                  >
+                                    {(i.days_since_archived ?? 0) >= 30
+                                      ? 'Delete'
+                                      : `Delete (${Math.max(1, 30 - (i.days_since_archived || 0))}d)`}
+                                  </button>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -399,17 +420,43 @@ const ManageRawMaterials = () => {
                   </div>
                   <div className="min-w-0">
                     <div className="text-sm font-bold text-zinc-100 truncate">{i.name}</div>
-                    <div className="text-xs text-zinc-400">{i.category || 'General'} • {i.stock_quantity || 0} {i.unit}</div>
+                    <div className="text-xs text-zinc-400">
+                      {i.category || 'General'} • {i.stock_quantity || 0} {i.unit}
+                      {i.days_since_archived !== undefined && (
+                        <span className="block text-[11px] text-zinc-500 mt-0.5">
+                          Archived {i.days_since_archived}d ago
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleArchiveToggle(i.id, true)}
-                  disabled={processingId === i.id}
-                  className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white rounded-lg border border-zinc-700 transition-colors cursor-pointer shrink-0 disabled:opacity-50"
-                >
-                  {processingId === i.id ? 'Restoring...' : 'Restore'}
-                </button>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => handleArchiveToggle(i.id, true)}
+                    disabled={processingId === i.id}
+                    className="px-2.5 py-1.5 text-xs font-bold uppercase tracking-wider bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white rounded-lg border border-zinc-700 transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    {processingId === i.id ? 'Restoring...' : 'Restore'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handlePermanentDeleteRawMaterial(i.id)}
+                    disabled={processingId === i.id || (i.days_since_archived ?? 0) < 30}
+                    className={`px-2.5 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-colors cursor-pointer ${
+                      (i.days_since_archived ?? 0) >= 30
+                        ? 'bg-red-600 hover:bg-red-700 text-white'
+                        : 'bg-zinc-800/80 text-zinc-500 border border-zinc-700/50 cursor-not-allowed opacity-60'
+                    }`}
+                    title={
+                      (i.days_since_archived ?? 0) >= 30
+                        ? 'Permanently delete this raw material'
+                        : `Can be permanently deleted after 30 days (${Math.max(1, 30 - (i.days_since_archived || 0))} days remaining)`
+                    }
+                  >
+                    {(i.days_since_archived ?? 0) >= 30 ? 'Delete' : `${Math.max(1, 30 - (i.days_since_archived || 0))}d`}
+                  </button>
+                </div>
               </div>
             ))}
           </div>

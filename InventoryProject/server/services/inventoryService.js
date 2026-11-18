@@ -1,4 +1,5 @@
 import { supabase } from "../config/supabaseClient.js";
+import { getArchiveTimestampsMap, getDaysSinceArchived, invalidateArchiveMap } from "../utils/archiveHelper.js";
 
 export const getIngredients = async ({ includeArchived = false } = {}) => {
   let query = supabase
@@ -12,6 +13,20 @@ export const getIngredients = async ({ includeArchived = false } = {}) => {
   const { data, error } = await query.order("name");
 
   if (error) throw error;
+
+  if (includeArchived) {
+    const archiveMap = await getArchiveTimestampsMap();
+    return (data || []).map(item => {
+      if (!item.is_archived) return item;
+      const archivedAt = archiveMap.ingredients[item.id] || item.created_at || null;
+      return {
+        ...item,
+        archived_at: archivedAt,
+        days_since_archived: getDaysSinceArchived(archivedAt)
+      };
+    });
+  }
+
   return data;
 };
 
@@ -182,13 +197,63 @@ export const receiveStock = async (id, quantity) => {
 };
 
 export const deleteIngredient = async (id) => {
+  // 1. Fetch existing
+  const { data: ingredient, error: fetchErr } = await supabase
+    .from("ingredients")
+    .select("id, name, is_archived, created_at")
+    .eq("id", id)
+    .single();
+
+  if (fetchErr || !ingredient) {
+    throw new Error("Raw material not found.");
+  }
+
+  if (!ingredient.is_archived) {
+    throw new Error("Only archived raw materials can be permanently deleted.");
+  }
+
+  // 2. Check 30 days elapsed
+  const archiveMap = await getArchiveTimestampsMap(true);
+  const archivedAt = archiveMap.ingredients[id] || ingredient.created_at;
+  const daysElapsed = getDaysSinceArchived(archivedAt);
+
+  if (!archivedAt || daysElapsed < 30) {
+    const remaining = Math.max(1, 30 - daysElapsed);
+    throw new Error(`Cannot permanently delete raw material yet. Must be archived for at least 30 days (${remaining} day(s) remaining).`);
+  }
+
+  // 3. Check purchase orders and wastage
+  const { count: poCount } = await supabase
+    .from("purchase_order_items")
+    .select("id", { count: "exact", head: true })
+    .eq("ingredient_id", id);
+
+  if (poCount && poCount > 0) {
+    throw new Error(`Cannot delete raw material "${ingredient.name}" because it is referenced in ${poCount} purchase order item(s). For auditing integrity, it must remain archived.`);
+  }
+
+  const { count: wastageCount } = await supabase
+    .from("wastage")
+    .select("id", { count: "exact", head: true })
+    .eq("ingredient_id", id);
+
+  if (wastageCount && wastageCount > 0) {
+    throw new Error(`Cannot delete raw material "${ingredient.name}" because it is referenced in ${wastageCount} wastage record(s). For auditing integrity, it must remain archived.`);
+  }
+
+  // 4. Remove dependent recipes & supplier links
+  await supabase.from("recipes").delete().eq("ingredient_id", id);
+  await supabase.from("supplier_ingredients").delete().eq("ingredient_id", id);
+
+  // 5. Delete ingredient
   const { error } = await supabase
     .from("ingredients")
     .delete()
     .eq("id", id);
 
   if (error) throw error;
-  return { success: true };
+  invalidateArchiveMap();
+  return { success: true, name: ingredient.name };
 };
 
 export const archiveIngredient = async (id) => {
@@ -200,6 +265,7 @@ export const archiveIngredient = async (id) => {
     .single();
 
   if (error) throw error;
+  invalidateArchiveMap();
   return data;
 };
 
@@ -212,5 +278,6 @@ export const restoreIngredient = async (id) => {
     .single();
 
   if (error) throw error;
+  invalidateArchiveMap();
   return data;
 };

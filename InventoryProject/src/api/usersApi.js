@@ -32,6 +32,12 @@ export const updateUserStatus = async (id, status) => {
   });
 };
 
+export const deleteUser = async (id) => {
+  return apiCall(`/users/${id}`, {
+    method: 'DELETE'
+  });
+};
+
 export const getEmployeeShifts = async (date) => {
   const params = date ? `?date=${date}` : '';
   return apiCall(`/users/shifts${params}`);

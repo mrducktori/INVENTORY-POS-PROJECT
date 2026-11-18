@@ -5,6 +5,7 @@ import { findSimilarName } from "../utils/stringHelper.js";
 import { recalculateProductEstimatedCost } from "../services/recipesService.js";
 import { invalidateAnalyticsCache } from "./analytics.js";
 import { requireRole } from "../middleware/authMiddleware.js";
+import { getArchiveTimestampsMap, getDaysSinceArchived, invalidateArchiveMap } from "../utils/archiveHelper.js";
 
 const router = express.Router();
 router.use(requireRole('Owner', 'Admin', 'Staff', 'Custom'));
@@ -17,7 +18,19 @@ router.get('/', async (req, res) => {
       .select('*')
       .order('name');
     if (error) throw error;
-    res.json(data);
+
+    const archiveMap = await getArchiveTimestampsMap();
+    const productsWithArchive = (data || []).map(p => {
+      if (!p.is_archived) return p;
+      const archivedAt = archiveMap.products[p.id] || p.created_at || null;
+      return {
+        ...p,
+        archived_at: archivedAt,
+        days_since_archived: getDaysSinceArchived(archivedAt)
+      };
+    });
+
+    res.json(productsWithArchive);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -136,6 +149,7 @@ router.put('/:id/archive', async (req, res) => {
     if (error) throw error;
 
     invalidateAnalyticsCache();
+    invalidateArchiveMap();
 
     await logAudit('PRODUCT_ARCHIVED', req.user.id, {
       product_id: req.params.id,
@@ -160,6 +174,7 @@ router.put('/:id/restore', async (req, res) => {
     if (error) throw error;
 
     invalidateAnalyticsCache();
+    invalidateArchiveMap();
 
     await logAudit('PRODUCT_RESTORED', req.user.id, {
       product_id: req.params.id,
@@ -167,6 +182,75 @@ router.put('/:id/restore', async (req, res) => {
     });
 
     res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Permanently delete archived product (Owner/Admin only, >= 30 days archived, 0 sales)
+router.delete('/:id', requireRole('Owner', 'Admin'), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { data: product, error: fetchErr } = await supabase
+      .from('products')
+      .select('id, name, is_archived, created_at')
+      .eq('id', id)
+      .single();
+
+    if (fetchErr || !product) {
+      return res.status(404).json({ error: 'Product not found.' });
+    }
+
+    if (!product.is_archived) {
+      return res.status(400).json({ error: 'Only archived products can be permanently deleted.' });
+    }
+
+    // Check 30 days elapsed
+    const archiveMap = await getArchiveTimestampsMap(true);
+    const archivedAt = archiveMap.products[id] || product.created_at;
+    const daysElapsed = getDaysSinceArchived(archivedAt);
+
+    if (!archivedAt || daysElapsed < 30) {
+      const remaining = Math.max(1, 30 - daysElapsed);
+      return res.status(400).json({
+        error: `Cannot permanently delete product yet. Product must be archived for at least 30 days (${remaining} day(s) remaining).`
+      });
+    }
+
+    // Check foreign key integrity (sale_items)
+    const { count: salesCount, error: salesErr } = await supabase
+      .from('sale_items')
+      .select('id', { count: 'exact', head: true })
+      .eq('product_id', id);
+    if (salesErr) throw salesErr;
+
+    if (salesCount && salesCount > 0) {
+      return res.status(400).json({
+        error: `Cannot delete product "${product.name}" because it is linked to ${salesCount} historical sales record(s). For auditing and accounting integrity, it must remain archived.`
+      });
+    }
+
+    // Remove dependent recipes
+    await supabase.from('recipes').delete().eq('product_id', id);
+
+    // Delete product
+    const { error: delErr } = await supabase
+      .from('products')
+      .delete()
+      .eq('id', id);
+    if (delErr) throw delErr;
+
+    invalidateAnalyticsCache();
+    invalidateArchiveMap();
+
+    await logAudit('PRODUCT_DELETED', req.user.id, {
+      product_id: id,
+      name: product.name,
+      deleted_by: req.user.name
+    });
+
+    res.json({ success: true, message: `Product "${product.name}" permanently deleted.` });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

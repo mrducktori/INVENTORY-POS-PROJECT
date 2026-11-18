@@ -46,6 +46,7 @@ const ManageProducts = () => {
     editThreshold, setEditThreshold,
     handleAddProduct,
     handleArchiveToggle,
+    handlePermanentDeleteProduct,
     handleSetRecipe,
     handleUpdateProduct,
     handleDeleteRecipeItem,
@@ -423,6 +424,26 @@ const ManageProducts = () => {
                                   )}
                                   {processingId === p.id ? 'Please wait...' : p.is_archived ? 'Restore' : 'Archive'}
                                 </button>
+                                {p.is_archived && (
+                                  <button
+                                    disabled={isProcessing || (p.days_since_archived ?? 0) < 30}
+                                    className={`px-3.5 py-1.5 text-xs md:text-sm font-bold uppercase tracking-wider rounded-lg transition-colors cursor-pointer ${
+                                      (p.days_since_archived ?? 0) >= 30
+                                        ? 'bg-red-600 hover:bg-red-700 text-white'
+                                        : 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed opacity-60'
+                                    }`}
+                                    title={
+                                      (p.days_since_archived ?? 0) >= 30
+                                        ? 'Permanently delete this product'
+                                        : `Can be deleted after 30 days (${Math.max(1, 30 - (p.days_since_archived || 0))} days remaining)`
+                                    }
+                                    onClick={() => handlePermanentDeleteProduct(p.id)}
+                                  >
+                                    {(p.days_since_archived ?? 0) >= 30
+                                      ? 'Delete'
+                                      : `Delete (${Math.max(1, 30 - (p.days_since_archived || 0))}d)`}
+                                  </button>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -484,17 +505,43 @@ const ManageProducts = () => {
                   )}
                   <div className="min-w-0">
                     <div className="text-sm font-bold text-zinc-100 truncate">{p.name}</div>
-                    <div className="text-xs text-zinc-400">{p.category} • ₱{Number(p.price).toFixed(2)}</div>
+                    <div className="text-xs text-zinc-400">
+                      {p.category} • ₱{Number(p.price).toFixed(2)}
+                      {p.days_since_archived !== undefined && (
+                        <span className="block text-[11px] text-zinc-500 mt-0.5">
+                          Archived {p.days_since_archived}d ago
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleArchiveToggle(p.id, true)}
-                  disabled={processingId === p.id}
-                  className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white rounded-lg border border-zinc-700 transition-colors cursor-pointer shrink-0 disabled:opacity-50"
-                >
-                  {processingId === p.id ? 'Restoring...' : 'Restore'}
-                </button>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => handleArchiveToggle(p.id, true)}
+                    disabled={processingId === p.id}
+                    className="px-2.5 py-1.5 text-xs font-bold uppercase tracking-wider bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white rounded-lg border border-zinc-700 transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    {processingId === p.id ? 'Restoring...' : 'Restore'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handlePermanentDeleteProduct(p.id)}
+                    disabled={processingId === p.id || (p.days_since_archived ?? 0) < 30}
+                    className={`px-2.5 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-colors cursor-pointer ${
+                      (p.days_since_archived ?? 0) >= 30
+                        ? 'bg-red-600 hover:bg-red-700 text-white'
+                        : 'bg-zinc-800/80 text-zinc-500 border border-zinc-700/50 cursor-not-allowed opacity-60'
+                    }`}
+                    title={
+                      (p.days_since_archived ?? 0) >= 30
+                        ? 'Permanently delete this product'
+                        : `Can be permanently deleted after 30 days (${Math.max(1, 30 - (p.days_since_archived || 0))} days remaining)`
+                    }
+                  >
+                    {(p.days_since_archived ?? 0) >= 30 ? 'Delete' : `${Math.max(1, 30 - (p.days_since_archived || 0))}d`}
+                  </button>
+                </div>
               </div>
             ))}
           </div>

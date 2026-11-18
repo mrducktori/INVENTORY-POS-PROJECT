@@ -36,6 +36,12 @@ export const restoreProduct = async (id) => {
   });
 };
 
+export const deleteProduct = async (id) => {
+  return apiCall(`/products/${id}`, {
+    method: 'DELETE'
+  });
+};
+
 export const receiveProductStock = async (id, quantity) => {
   return apiCall(`/products/${id}/receive`, {
     method: 'POST',

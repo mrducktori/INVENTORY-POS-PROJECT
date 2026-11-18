@@ -53,7 +53,7 @@ const SalesReceiptJournal = () => {
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [pageSize, setPageSize] = useState(10);
-  const [fetchLimit, setFetchLimit] = useState(100);
+  const [fetchLimit, setFetchLimit] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
 
   // Server request date range & filters
@@ -89,15 +89,19 @@ const SalesReceiptJournal = () => {
     if (preset === 'RECENT') {
       setStartDate('');
       setEndDate('');
+      setFetchLimit(100);
     } else if (preset === 'TODAY') {
       setStartDate(todayStr);
       setEndDate(todayStr);
+      setFetchLimit('all');
     } else if (preset === '7D') {
       setStartDate(getOffsetManilaDate(6));
       setEndDate(todayStr);
+      setFetchLimit('all');
     } else if (preset === 'MONTH') {
       setStartDate(`${todayStr.slice(0, 8)}01`);
       setEndDate(todayStr);
+      setFetchLimit('all');
     }
   };
 
@@ -123,7 +127,8 @@ const SalesReceiptJournal = () => {
         filters.discounted = true;
       }
 
-      const result = await getSales(filters, fetchLimit, 1);
+      const limitParam = fetchLimit === 'all' ? 'all' : Number(fetchLimit) || 100;
+      const result = await getSales(filters, limitParam, 1);
       const list = Array.isArray(result) ? result : (result?.data || []);
       setSales(list);
       setTotalServerCount(typeof result?.total === 'number' ? result.total : list.length);
@@ -168,13 +173,49 @@ const SalesReceiptJournal = () => {
     });
 
     return {
-      all: sales.length,
+      all: totalServerCount > 0 ? totalServerCount : sales.length,
       today,
       cash,
       gcash,
       discounted,
     };
-  }, [sales, isSaleToday]);
+  }, [sales, totalServerCount, isSaleToday]);
+
+  // Dynamic fetch options based on the total records matching active filters
+  const fetchOptions = useMemo(() => {
+    const total = totalServerCount;
+    if (!total || total <= 0) {
+      return [{ value: 'all', label: 'All (0 matching)' }];
+    }
+
+    if (total <= 100) {
+      return [{ value: 'all', label: `All (${total} receipts)` }];
+    }
+
+    if (total <= 500) {
+      return [
+        { value: 100, label: '100 receipts' },
+        ...(total > 250 ? [{ value: 250, label: '250 receipts' }] : []),
+        { value: 'all', label: `All (${total.toLocaleString()} receipts)` },
+      ];
+    }
+
+    if (total <= 1000) {
+      return [
+        { value: 100, label: '100 receipts' },
+        { value: 250, label: '250 receipts' },
+        { value: 500, label: '500 receipts' },
+        { value: 'all', label: `All (${total.toLocaleString()} receipts)` },
+      ];
+    }
+
+    // High volume totals > 1000 (e.g. 14,044 matching receipts)
+    const tiers = [500, 1000, 2500, 5000].filter((t) => t < total);
+    return [
+      ...tiers.map((t) => ({ value: t, label: `${t.toLocaleString()} receipts` })),
+      { value: 'all', label: `All (${total.toLocaleString()} receipts)` },
+    ];
+  }, [totalServerCount]);
 
   // KPI Calculations
   const metrics = useMemo(() => {
@@ -410,12 +451,12 @@ const SalesReceiptJournal = () => {
             Total Receipts
           </div>
           <div className="text-2xl font-bold text-zinc-900 tabular-nums mt-1">
-            {sales.length.toLocaleString()}
+            {totalServerCount > 0 ? totalServerCount.toLocaleString() : sales.length.toLocaleString()}
           </div>
           <div className="text-xs text-zinc-400 mt-1">
             {totalServerCount > sales.length
               ? `Loaded ${sales.length.toLocaleString()} of ${totalServerCount.toLocaleString()} matching`
-              : `${counts.today} processed today`}
+              : `All ${sales.length.toLocaleString()} matching loaded`}
           </div>
         </div>
 
@@ -427,7 +468,9 @@ const SalesReceiptJournal = () => {
             ₱{metrics.totalRevenue.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <div className="text-xs text-zinc-400 mt-1">
-            Cumulative completed volume
+            {totalServerCount > sales.length
+              ? `Volume for ${sales.length.toLocaleString()} loaded receipts`
+              : `Cumulative completed volume`}
           </div>
         </div>
 
@@ -581,19 +624,20 @@ const SalesReceiptJournal = () => {
           </div>
 
           <div className="flex items-center gap-2 text-xs text-zinc-500">
-            <span>Fetch up to:</span>
+            <span>Fetch:</span>
             <select
               aria-label="Fetch receipt limit"
               value={fetchLimit}
               onChange={(e) => {
-                setFetchLimit(Number(e.target.value));
+                const val = e.target.value === 'all' ? 'all' : Number(e.target.value);
+                setFetchLimit(val);
                 setCurrentPage(1);
               }}
               className="px-2 py-1 bg-zinc-50 border border-zinc-200 rounded-md text-xs font-semibold text-zinc-800 focus:outline-none focus:border-zinc-400 cursor-pointer"
             >
-              {[100, 250, 500].map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt} receipts
+              {fetchOptions.map((opt) => (
+                <option key={String(opt.value)} value={opt.value}>
+                  {opt.label}
                 </option>
               ))}
             </select>

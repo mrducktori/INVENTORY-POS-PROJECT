@@ -2,6 +2,37 @@
 
 All notable changes to this project will be documented in this file.
 
+## [UI/API: Dedicated Archived Accounts Section & 30-Day Permanent Deletion for Products, Raw Materials, Accounts - 2026-11-18]
+- **`server/utils/archiveHelper.js`**:
+  - Created centralized archive timestamp tracking helper (`getArchiveTimestampsMap`, `getDaysSinceArchived`, `invalidateArchiveMap`) reading from `audit_logs` (`PRODUCT_ARCHIVED`, `RAW_MATERIAL_ARCHIVED`, `USER_STATUS_CHANGED`) with short TTL caching and instant cache busting.
+- **Backend Enpoints & Protections**:
+  - **`products.js`**: `GET /` attaches `archived_at` and `days_since_archived` to archived products. Added `DELETE /products/:id` restricted to `Owner`/`Admin`, enforcing that the item is archived, has passed 30 days, has 0 historical sales records (`sale_items`), and deletes dependent recipes while preserving audit history.
+  - **`inventory.js`, `inventoryController.js`, `inventoryService.js`**: `getIngredients` attaches `archived_at` and `days_since_archived`. `DELETE /inventory/ingredients/:id` requires `Owner`/`Admin`, enforces 30 days elapsed, verifies 0 purchase orders and 0 wastage records, and cleans up dependent recipes/supplier links.
+  - **`users.js`**: `GET /` attaches `archived_at` and `days_since_archived` to inactive accounts. Added `DELETE /users/:id` requiring `Owner`/`Admin`, protecting self, Owner, and Admin hierarchy, enforcing 30 days elapsed, and guarding against deleting staff with historical sales receipts.
+- **Frontend UI & API**:
+  - **`AccountManager.jsx` & `UsersTable.jsx`**:
+    - Separated active accounts from archived accounts: the main accounts table now only lists active accounts (`status === 'ACTIVE'`), preventing active and archived users from being mixed.
+    - Added dedicated `Archived` tab in the role filter bar with count badge.
+    - Added dedicated bottom `Archived Accounts` section matching the dark-card style of `ManageProducts` and `ManageRawMaterials`, showing avatar, name, username, role, elapsed archive days, `Restore` button, and `Delete` button.
+    - Added 30-day safeguard on account deletion: enabled red `Delete` button when `>= 30 days`, disabled with countdown tooltip (`Delete (Xd left)`) when `< 30 days`.
+  - **`ManageProducts.jsx` & `useManageProducts.js`**:
+    - Added 30-day permanent `Delete` button alongside `Restore` in both the table (when viewing archived products) and the bottom dedicated `Archived Products` dark-card section.
+    - Active and clickable if `>= 30 days`, disabled with countdown (`Delete (Xd left)`) if `< 30 days`.
+  - **`ManageRawMaterials.jsx` & `useManageRawMaterials.js`**:
+    - Added 30-day permanent `Delete` button alongside `Restore` in both the materials table (when viewing archived materials) and the bottom dedicated `Archived Raw Materials` dark-card section.
+    - Active and clickable if `>= 30 days`, disabled with countdown (`Delete (Xd left)`) if `< 30 days`.
+  - Exported `deleteProduct()` in `productsApi.js` and `deleteUser()` in `usersApi.js`.
+
+## [UI/API: Dynamic Fetch Sizing Based on Filter Total in Receipt Journal - 2026-11-18]
+- **`server/routes/sales.js`**:
+  - Replaced the hardcoded 500-row limit ceiling with support for dynamic batch limits up to 20,000 or `'all'`.
+  - Added chunked iteration fetching (in 1,000-row Supabase query batches) so large date ranges and filter results beyond PostgREST's 1,000-row max page limit are fetched without truncation.
+- **`SalesReceiptJournal.jsx`**:
+  - Dynamic fetch dropdown (`fetchOptions`): Dropdown options are now calculated directly from the total matching records for the active filters (`totalServerCount`), offering `All (X matching)` as well as sensible fractional batch tiers (`500`, `1,000`, `2,500`, `5,000`).
+  - Total receipts & KPI cards: The `Total Receipts` card and secondary `All` pill now show the true filtered total (`14,044`, `631`, `185`, etc.) with clear indicators when a partial batch is loaded vs all records loaded.
+  - Automatically defaults date presets (`Today`, `Last 7 Days`, `This Month`) to fetch all matching transactions in that window.
+
+
 ## [UI/Dashboard: Auto-Adjusting Typography & Single-Line Category Header in TopSalesGrid - 2026-11-18]
 - **`TopSalesGrid.jsx`**:
   - Implemented dynamic auto-adjusting font size helpers (`getCategoryHeaderFontSize` and `getProductItemFontSize`) scaling typography cleanly based on character length so category titles and product names fit without premature clipping or awkward multiline wrapping.

@@ -66,17 +66,18 @@ export const deleteIngredient = async (req, res) => {
     const user_id = req.user.id;
     // Fetch name before deleting for the log
     const existing = await inventoryService.getIngredientById(req.params.id).catch(() => null);
-    await inventoryService.deleteIngredient(req.params.id);
+    const result = await inventoryService.deleteIngredient(req.params.id);
     invalidateAnalyticsCache();
 
     await logAudit('RAW_MATERIAL_DELETED', user_id, {
       ingredient_id: req.params.id,
-      name: existing?.name || 'Unknown'
+      name: existing?.name || result?.name || 'Unknown',
+      deleted_by: req.user.name
     });
 
-    res.json({ success: true });
+    res.json({ success: true, message: `Raw material "${existing?.name || result?.name || 'Item'}" permanently deleted.` });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(400).json({ error: err.message });
   }
 };
 

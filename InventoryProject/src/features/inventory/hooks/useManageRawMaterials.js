@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getIngredients, createIngredient, updateIngredient, archiveIngredient, restoreIngredient } from '../../../api/inventoryApi';
+import { getIngredients, createIngredient, updateIngredient, archiveIngredient, restoreIngredient, deleteIngredient } from '../../../api/inventoryApi';
 import { checkDuplicateOrSimilar } from '../../../utils/productUtils';
 
 export const RAW_MATERIAL_CATEGORIES = [
@@ -171,6 +171,39 @@ export const useManageRawMaterials = () => {
     });
   };
 
+  const handlePermanentDeleteRawMaterial = (id) => {
+    if (isProcessing) return;
+    const ingredient = ingredients.find(i => i.id === id);
+    const ingName = ingredient ? `"${ingredient.name}"` : 'this raw material';
+
+    setConfirmConfig({
+      isOpen: true,
+      title: 'Permanently Delete Raw Material?',
+      message: `Are you sure you want to PERMANENTLY delete ${ingName}? This item has been archived for at least 30 days. This action cannot be undone.`,
+      confirmText: 'Yes, Delete Permanently',
+      confirmColor: 'danger',
+      onConfirm: async () => {
+        if (isProcessing) return;
+        setIsProcessing(true);
+        setProcessingId(id);
+        try {
+          await deleteIngredient(id);
+          setMessage(`Raw material ${ingName} permanently deleted.`);
+          setTimeout(() => setMessage(''), 3000);
+          await fetchIngredients();
+        } catch (err) {
+          console.error('Delete error:', err);
+          setMessage('Error deleting raw material: ' + (err.message || 'Please try again.'));
+          setTimeout(() => setMessage(''), 5000);
+        } finally {
+          setIsProcessing(false);
+          setProcessingId(null);
+          setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+        }
+      }
+    });
+  };
+
   const handleUpdateIngredient = async (e) => {
     if (e) e.preventDefault();
     
@@ -272,6 +305,7 @@ export const useManageRawMaterials = () => {
     UNIT_CHOICES,
     handleAddIngredient,
     handleArchiveToggle,
+    handlePermanentDeleteRawMaterial,
     handleUpdateIngredient,
     handleSetModify,
     fetchIngredients

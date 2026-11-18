@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../../../config/supabaseClient';
-import { getAllProducts, createProduct, updateProduct, archiveProduct, restoreProduct, receiveProductStock } from '../../../api/productsApi';
+import { getAllProducts, createProduct, updateProduct, archiveProduct, restoreProduct, deleteProduct, receiveProductStock } from '../../../api/productsApi';
 import { checkDuplicateOrSimilar } from '../../../utils/productUtils';
 import { getRecipesByProduct, createRecipe, updateRecipe, deleteRecipe } from '../../../api/recipesApi';
 import { getIngredients } from '../../../api/inventoryApi';
@@ -264,6 +264,39 @@ export const useManageProducts = () => {
     });
   };
 
+  const handlePermanentDeleteProduct = (id) => {
+    if (isProcessing) return;
+    const product = products.find(p => p.id === id);
+    const prodName = product ? `"${product.name}"` : 'this product';
+
+    setConfirmConfig({
+      isOpen: true,
+      title: 'Permanently Delete Product?',
+      message: `Are you sure you want to PERMANENTLY delete ${prodName}? This item has been archived for at least 30 days. This action cannot be undone.`,
+      confirmText: 'Yes, Delete Permanently',
+      confirmColor: 'danger',
+      onConfirm: async () => {
+        if (isProcessing) return;
+        setIsProcessing(true);
+        setProcessingId(id);
+        try {
+          await deleteProduct(id);
+          setMessage(`Product ${prodName} permanently deleted.`);
+          setTimeout(() => setMessage(''), 3000);
+          await fetchProducts();
+        } catch (err) {
+          console.error('Delete error:', err);
+          setMessage('Error deleting product: ' + (err.message || 'Please try again.'));
+          setTimeout(() => setMessage(''), 5000);
+        } finally {
+          setIsProcessing(false);
+          setProcessingId(null);
+          setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+        }
+      }
+    });
+  };
+
   const handleSetRecipe = async (product) => {
     setSelectedProduct(product);
     setEditPrice(product.price);
@@ -477,6 +510,7 @@ export const useManageProducts = () => {
     handleReceiveProductStock,
     handleAddProduct,
     handleArchiveToggle,
+    handlePermanentDeleteProduct,
     handleSetRecipe,
     handleUpdateProduct,
     handleDeleteRecipeItem,

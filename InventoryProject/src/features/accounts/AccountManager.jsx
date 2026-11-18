@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getUsers, createUser, updateUser, updateUserStatus } from '../../api/usersApi';
+import { getUsers, createUser, updateUser, updateUserStatus, deleteUser } from '../../api/usersApi';
 import { getCurrentUser } from '../../api/authApi';
 import { getSuppliers } from '../../api/purchasingApi';
 import { supabase } from '../../config/supabaseClient';
@@ -29,8 +29,9 @@ const AccountManager = () => {
   const [editingUserId, setEditingUserId] = useState(null);
 
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [confirmAction, setConfirmAction] = useState(null); // 'save' or 'status'
+  const [confirmAction, setConfirmAction] = useState(null); // 'save' | 'status' | 'delete'
   const [statusTarget, setStatusTarget] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [countdown, setCountdown] = useState(0);
 
   const [suppliers, setSuppliers] = useState([]);
@@ -258,6 +259,27 @@ const AccountManager = () => {
     }
   };
 
+  const handleDeleteUserClick = (user) => {
+    setDeleteTarget(user);
+    setConfirmAction('delete');
+    setShowConfirmModal(true);
+  };
+
+  const executeDeleteUser = async () => {
+    setShowConfirmModal(false);
+    if (!deleteTarget) return;
+
+    try {
+      await deleteUser(deleteTarget.id);
+      flash('success', `Account "${deleteTarget.name}" permanently deleted.`);
+      fetchUsers();
+    } catch (err) {
+      flash('error', 'Error deleting account: ' + err.message, 6000);
+    } finally {
+      setDeleteTarget(null);
+    }
+  };
+
   const activeCount = users.filter((u) => u.status === 'ACTIVE').length;
 
   return (
@@ -305,6 +327,7 @@ const AccountManager = () => {
           currentUser={currentUser}
           onEdit={handleEditClick}
           onToggleStatus={handleToggleStatusClick}
+          onDeleteUser={handleDeleteUserClick}
         />
       ) : (
         <div className="bg-white border border-zinc-200 rounded-xl max-w-5xl">
@@ -374,6 +397,44 @@ const AccountManager = () => {
                     onClick={executeToggleStatus}
                   >
                     {countdown > 0 ? `Archive & Terminate (${countdown}s)` : 'Confirm Archive & Force Logout'}
+                  </button>
+                </div>
+              </div>
+            ) : confirmAction === 'delete' ? (
+              <div>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-red-100 text-red-700 flex items-center justify-center shrink-0">
+                    <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="m-0 text-lg font-black text-zinc-900">Permanently Delete Account?</h3>
+                    <p className="text-xs text-zinc-500 m-0 mt-0.5">This action is irreversible.</p>
+                  </div>
+                </div>
+
+                <div className="p-3.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-950 font-medium leading-relaxed mb-6">
+                  Are you sure you want to permanently delete account <strong>"{deleteTarget?.name}"</strong> (@{deleteTarget?.username})? This account has been archived for at least 30 days. All profile access will be permanently removed.
+                </div>
+
+                <div className="flex gap-3 w-full">
+                  <button
+                    type="button"
+                    className="flex-1 px-4 py-2.5 bg-zinc-100 text-zinc-700 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-zinc-200 transition-colors cursor-pointer"
+                    onClick={() => {
+                      setShowConfirmModal(false);
+                      setDeleteTarget(null);
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-red-700 transition-colors cursor-pointer shadow-sm"
+                    onClick={executeDeleteUser}
+                  >
+                    Delete Permanently
                   </button>
                 </div>
               </div>

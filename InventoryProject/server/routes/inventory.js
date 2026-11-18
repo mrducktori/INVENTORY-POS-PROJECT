@@ -9,7 +9,7 @@ router.get("/ingredients", inventoryController.getIngredients);
 router.get("/ingredients/:id", inventoryController.getIngredientById);
 router.post("/ingredients", inventoryController.createIngredient);
 router.put("/ingredients/:id", inventoryController.updateIngredient);
-router.delete("/ingredients/:id", inventoryController.deleteIngredient);
+router.delete("/ingredients/:id", requireRole("Owner", "Admin"), inventoryController.deleteIngredient);
 router.post("/ingredients/:id/receive", inventoryController.receiveStock);
 router.get("/low-stock-alerts", inventoryController.getLowStockAlerts);
 router.get("/alerts", inventoryController.getLowStockAlerts);

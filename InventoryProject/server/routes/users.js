@@ -7,6 +7,7 @@ import { userManagementLimiter } from '../middleware/rateLimiter.js';
 import { normalizeAccessFields } from '../utils/permissions.js';
 import { toManilaStartOfDay, toManilaEndOfDay } from '../utils/dateUtils.js';
 import { validatePasswordRules } from '../utils/passwordValidator.js';
+import { getArchiveTimestampsMap, getDaysSinceArchived, invalidateArchiveMap } from '../utils/archiveHelper.js';
 
 const router = express.Router();
 
@@ -28,10 +29,18 @@ router.get('/', requireAuth, async (req, res) => {
 
     const { data, error } = await query;
     if (error) throw error;
-    const maskedUsers = (data || []).map((u) => ({
-      ...u,
-      current_session_id: u.current_session_id ? 'active' : null
-    }));
+
+    const archiveMap = await getArchiveTimestampsMap();
+    const maskedUsers = (data || []).map((u) => {
+      const isArchived = u.status === 'INACTIVE';
+      const archivedAt = isArchived ? (archiveMap.users[u.id] || u.created_at || null) : null;
+      return {
+        ...u,
+        current_session_id: u.current_session_id ? 'active' : null,
+        archived_at: archivedAt,
+        days_since_archived: isArchived ? getDaysSinceArchived(archivedAt) : 0
+      };
+    });
     res.json(maskedUsers);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -155,6 +164,7 @@ router.put('/:id/status', requireAuth, requireRole('Admin', 'Owner'), userManage
     if (error) throw error;
 
     invalidateUserAuthCache(req.params.id);
+    invalidateArchiveMap();
 
     await logAudit('USER_STATUS_CHANGED', req.user.id, {
       target_user_id: req.params.id,
@@ -167,6 +177,90 @@ router.put('/:id/status', requireAuth, requireRole('Admin', 'Owner'), userManage
       ...data,
       current_session_id: data.current_session_id ? 'active' : null
     } : data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Permanently delete archived user account (Owner/Admin only, >= 30 days inactive, 0 sales)
+router.delete('/:id', requireAuth, requireRole('Admin', 'Owner'), userManagementLimiter, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (id === req.user.id) {
+      return res.status(400).json({ error: 'You cannot delete your own account.' });
+    }
+
+    const { data: targetUser, error: fetchErr } = await supabase
+      .from('users')
+      .select('id, name, username, role, status, created_at')
+      .eq('id', id)
+      .single();
+
+    if (fetchErr || !targetUser) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    // Owner protection
+    if (targetUser.role === 'Owner') {
+      return res.status(403).json({ error: 'The Owner account cannot be deleted.' });
+    }
+
+    // Admin hierarchy protection: Admins cannot delete other Admins
+    if (req.user.role !== 'Owner' && targetUser.role === 'Admin') {
+      return res.status(403).json({ error: 'Admins cannot delete other Admin accounts.' });
+    }
+
+    // Account must be archived (INACTIVE)
+    if (targetUser.status !== 'INACTIVE') {
+      return res.status(400).json({ error: 'Only archived (inactive) user accounts can be permanently deleted.' });
+    }
+
+    // Check 30 days elapsed
+    const archiveMap = await getArchiveTimestampsMap(true);
+    const archivedAt = archiveMap.users[id] || targetUser.created_at;
+    const daysElapsed = getDaysSinceArchived(archivedAt);
+
+    if (!archivedAt || daysElapsed < 30) {
+      const remaining = Math.max(1, 30 - daysElapsed);
+      return res.status(400).json({
+        error: `Cannot permanently delete account yet. Account must be archived for at least 30 days (${remaining} day(s) remaining).`
+      });
+    }
+
+    // Check foreign key integrity (sales receipts)
+    const { count: salesCount, error: salesErr } = await supabase
+      .from('sales')
+      .select('id', { count: 'exact', head: true })
+      .eq('staff_id', id);
+    if (salesErr) throw salesErr;
+
+    if (salesCount && salesCount > 0) {
+      return res.status(400).json({
+        error: `Cannot delete account "${targetUser.name}" because it is linked to ${salesCount} historical sales receipt(s). For auditing and accounting integrity, it must remain archived.`
+      });
+    }
+
+    // Delete user
+    const { error: delErr } = await supabase
+      .from('users')
+      .delete()
+      .eq('id', id);
+
+    if (delErr) throw delErr;
+
+    invalidateUserAuthCache(id);
+    invalidateArchiveMap();
+
+    await logAudit('USER_DELETED', req.user.id, {
+      target_user_id: id,
+      name: targetUser.name,
+      username: targetUser.username,
+      role: targetUser.role,
+      deleted_by: req.user.name
+    });
+
+    res.json({ success: true, message: `Account "${targetUser.name}" permanently deleted.` });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
