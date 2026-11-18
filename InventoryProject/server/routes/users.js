@@ -182,7 +182,7 @@ router.put('/:id/status', requireAuth, requireRole('Admin', 'Owner'), userManage
   }
 });
 
-// Permanently delete archived user account (Owner/Admin only, >= 30 days inactive, 0 sales)
+// Permanently delete archived user account (Owner/Admin only, >= 90 days for Admin, >= 30 days for others, 0 sales)
 router.delete('/:id', requireAuth, requireRole('Admin', 'Owner'), userManagementLimiter, async (req, res) => {
   try {
     const { id } = req.params;
@@ -201,14 +201,9 @@ router.delete('/:id', requireAuth, requireRole('Admin', 'Owner'), userManagement
       return res.status(404).json({ error: 'User not found.' });
     }
 
-    // Owner protection
+    // Owner is the only role that is fully protected from deletion
     if (targetUser.role === 'Owner') {
-      return res.status(403).json({ error: 'The Owner account cannot be deleted.' });
-    }
-
-    // Admin hierarchy protection: Admins cannot delete other Admins
-    if (req.user.role !== 'Owner' && targetUser.role === 'Admin') {
-      return res.status(403).json({ error: 'Admins cannot delete other Admin accounts.' });
+      return res.status(403).json({ error: 'The Owner account is fully protected and cannot be deleted.' });
     }
 
     // Account must be archived (INACTIVE)
@@ -216,15 +211,18 @@ router.delete('/:id', requireAuth, requireRole('Admin', 'Owner'), userManagement
       return res.status(400).json({ error: 'Only archived (inactive) user accounts can be permanently deleted.' });
     }
 
-    // Check 30 days elapsed
+    // Threshold: 90 days for Admin accounts, 30 days for other roles
+    const requiredDays = targetUser.role === 'Admin' ? 90 : 30;
+
+    // Check days elapsed
     const archiveMap = await getArchiveTimestampsMap(true);
     const archivedAt = archiveMap.users[id] || targetUser.created_at;
     const daysElapsed = getDaysSinceArchived(archivedAt);
 
-    if (!archivedAt || daysElapsed < 30) {
-      const remaining = Math.max(1, 30 - daysElapsed);
+    if (!archivedAt || daysElapsed < requiredDays) {
+      const remaining = Math.max(1, requiredDays - daysElapsed);
       return res.status(400).json({
-        error: `Cannot permanently delete account yet. Account must be archived for at least 30 days (${remaining} day(s) remaining).`
+        error: `Cannot permanently delete account yet. ${targetUser.role} accounts must be archived for at least ${requiredDays} days (${remaining} day(s) remaining).`
       });
     }
 

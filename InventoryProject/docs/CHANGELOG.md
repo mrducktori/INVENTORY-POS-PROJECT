@@ -8,13 +8,19 @@ All notable changes to this project will be documented in this file.
 - **Backend Enpoints & Protections**:
   - **`products.js`**: `GET /` attaches `archived_at` and `days_since_archived` to archived products. Added `DELETE /products/:id` restricted to `Owner`/`Admin`, enforcing that the item is archived, has passed 30 days, has 0 historical sales records (`sale_items`), and deletes dependent recipes while preserving audit history.
   - **`inventory.js`, `inventoryController.js`, `inventoryService.js`**: `getIngredients` attaches `archived_at` and `days_since_archived`. `DELETE /inventory/ingredients/:id` requires `Owner`/`Admin`, enforces 30 days elapsed, verifies 0 purchase orders and 0 wastage records, and cleans up dependent recipes/supplier links.
-  - **`users.js`**: `GET /` attaches `archived_at` and `days_since_archived` to inactive accounts. Added `DELETE /users/:id` requiring `Owner`/`Admin`, protecting self, Owner, and Admin hierarchy, enforcing 30 days elapsed, and guarding against deleting staff with historical sales receipts.
+  - **`users.js`**: `GET /` attaches `archived_at` and `days_since_archived` to inactive accounts. Updated `DELETE /users/:id`:
+    - **Owner Account**: Fully protected from deletion permanently (`The Owner account is fully protected and cannot be deleted`).
+    - **Admin Accounts**: Enforces a **90-day archive threshold** before permanent deletion is allowed.
+    - **Staff/Supplier/Custom Accounts**: Enforces standard **30-day archive threshold**.
+    - Removed arbitrary Admin hierarchy block so archived Admin accounts past 90 days can be permanently deleted while keeping Owner completely immune.
+    - Verifies 0 cashier sales receipts (`sales.staff_id`) to preserve audit and transaction integrity.
 - **Frontend UI & API**:
   - **`AccountManager.jsx` & `UsersTable.jsx`**:
     - Separated active accounts from archived accounts: the main accounts table now only lists active accounts (`status === 'ACTIVE'`), preventing active and archived users from being mixed.
     - Added dedicated `Archived` tab in the role filter bar with count badge.
     - Added dedicated bottom `Archived Accounts` section matching the dark-card style of `ManageProducts` and `ManageRawMaterials`, showing avatar, name, username, role, elapsed archive days, `Restore` button, and `Delete` button.
-    - Added 30-day safeguard on account deletion: enabled red `Delete` button when `>= 30 days`, disabled with countdown tooltip (`Delete (Xd left)`) when `< 30 days`.
+    - Account permanent deletion thresholds: **90 days for Admin accounts**, **30 days for other roles**. Displays countdown tooltip and disabled button (`Delete (Xd left)`) until the threshold is met, and enabled red `Delete` button once reached.
+    - Owner accounts display `Owner protected` across the table and card view.
   - **`ManageProducts.jsx` & `useManageProducts.js`**:
     - Added 30-day permanent `Delete` button alongside `Restore` in both the table (when viewing archived products) and the bottom dedicated `Archived Products` dark-card section.
     - Active and clickable if `>= 30 days`, disabled with countdown (`Delete (Xd left)`) if `< 30 days`.

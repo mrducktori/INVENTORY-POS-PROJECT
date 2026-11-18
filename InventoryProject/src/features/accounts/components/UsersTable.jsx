@@ -117,13 +117,14 @@ const UsersTable = ({ users, loading, currentUser, onEdit, onToggleStatus, onDel
               </thead>
               <tbody className="divide-y divide-zinc-100">
                 {paginatedUsers.map((u) => {
-                  const protectedOwner = u.role === 'Owner' && currentUser?.role !== 'Owner';
+                  const isProtectedOwner = u.role === 'Owner';
                   const isSelf = u.id === currentUser?.id;
                   const active = u.status === 'ACTIVE';
                   const daysArchived = u.days_since_archived ?? 0;
-                  const isEligibleForDelete = daysArchived >= 30;
-                  const daysRemaining = Math.max(1, 30 - daysArchived);
-                  const canManage = !protectedOwner && !isSelf && (currentUser?.role === 'Owner' || (currentUser?.role === 'Admin' && u.role !== 'Admin'));
+                  const requiredDays = u.role === 'Admin' ? 90 : 30;
+                  const isEligibleForDelete = daysArchived >= requiredDays;
+                  const daysRemaining = Math.max(1, requiredDays - daysArchived);
+                  const canManage = !isProtectedOwner && !isSelf && (currentUser?.role === 'Owner' || currentUser?.role === 'Admin');
 
                   return (
                     <tr key={u.id} className="hover:bg-zinc-50/60 transition-colors">
@@ -167,7 +168,7 @@ const UsersTable = ({ users, loading, currentUser, onEdit, onToggleStatus, onDel
                         </div>
                       </td>
                       <td className="px-5 py-3.5 text-right">
-                        {protectedOwner ? (
+                        {isProtectedOwner ? (
                           <span className="text-xs text-zinc-400 font-semibold">Owner protected</span>
                         ) : (
                           <div className="flex justify-end items-center gap-2">
@@ -209,7 +210,7 @@ const UsersTable = ({ users, loading, currentUser, onEdit, onToggleStatus, onDel
                                       title={
                                         isEligibleForDelete
                                           ? 'Permanently delete this account'
-                                          : `Can be deleted after 30 days (${daysRemaining} days remaining)`
+                                          : `Can be deleted after ${requiredDays} days (${daysRemaining} day${daysRemaining === 1 ? '' : 's'} remaining)`
                                       }
                                     >
                                       {isEligibleForDelete ? 'Delete' : `Delete (${daysRemaining}d)`}
@@ -263,11 +264,12 @@ const UsersTable = ({ users, loading, currentUser, onEdit, onToggleStatus, onDel
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {archivedAccountsList.map((u) => {
               const daysArchived = u.days_since_archived ?? 0;
-              const isEligible = daysArchived >= 30;
-              const daysRemaining = Math.max(1, 30 - daysArchived);
-              const protectedOwner = u.role === 'Owner' && currentUser?.role !== 'Owner';
+              const requiredDays = u.role === 'Admin' ? 90 : 30;
+              const isEligible = daysArchived >= requiredDays;
+              const daysRemaining = Math.max(1, requiredDays - daysArchived);
+              const isProtectedOwner = u.role === 'Owner';
               const isSelf = u.id === currentUser?.id;
-              const canManage = !protectedOwner && !isSelf && (currentUser?.role === 'Owner' || (currentUser?.role === 'Admin' && u.role !== 'Admin'));
+              const canManage = !isProtectedOwner && !isSelf && (currentUser?.role === 'Owner' || currentUser?.role === 'Admin');
 
               return (
                 <div key={u.id} className="bg-zinc-900/90 border border-zinc-800/80 rounded-xl p-3.5 flex flex-col justify-between gap-3 shadow-sm hover:border-zinc-700 transition-colors">
@@ -279,7 +281,7 @@ const UsersTable = ({ users, loading, currentUser, onEdit, onToggleStatus, onDel
                       <div className="text-sm font-bold text-zinc-100 truncate">{u.name}</div>
                       <div className="text-xs text-zinc-400 truncate">@{u.username} • {getRoleLabel(u)}</div>
                       <div className="text-[11px] text-zinc-500 mt-0.5">
-                        Archived {daysArchived}d ago
+                        Archived {daysArchived}d ago {u.role === 'Admin' ? '• 90d threshold' : ''}
                       </div>
                     </div>
                   </div>
@@ -307,13 +309,15 @@ const UsersTable = ({ users, loading, currentUser, onEdit, onToggleStatus, onDel
                             title={
                               isEligible
                                 ? 'Permanently delete this account'
-                                : `Can be permanently deleted after 30 days (${daysRemaining} day(s) remaining)`
+                                : `Can be permanently deleted after ${requiredDays} days (${daysRemaining} day${daysRemaining === 1 ? '' : 's'} remaining)`
                             }
                           >
                             {isEligible ? 'Delete' : `${daysRemaining}d`}
                           </button>
                         )}
                       </>
+                    ) : isProtectedOwner ? (
+                      <span className="text-xs text-zinc-400 font-semibold">Owner protected</span>
                     ) : (
                       <span className="text-xs text-zinc-500">Protected</span>
                     )}

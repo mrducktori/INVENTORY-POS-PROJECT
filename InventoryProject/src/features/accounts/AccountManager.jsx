@@ -415,7 +415,7 @@ const AccountManager = () => {
                 </div>
 
                 <div className="p-3.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-950 font-medium leading-relaxed mb-6">
-                  Are you sure you want to permanently delete account <strong>"{deleteTarget?.name}"</strong> (@{deleteTarget?.username})? This account has been archived for at least 30 days. All profile access will be permanently removed.
+                  Are you sure you want to permanently delete account <strong>"{deleteTarget?.name}"</strong> (@{deleteTarget?.username})? This {deleteTarget?.role} account has been archived for at least {deleteTarget?.role === 'Admin' ? '90' : '30'} days. All profile access will be permanently removed.
                 </div>
 
                 <div className="flex gap-3 w-full">
