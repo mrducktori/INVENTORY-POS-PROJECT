@@ -11,6 +11,9 @@ export const getSales = async (filters = {}, pageSize = 50, page = 1) => {
   if (filters.payment_method && filters.payment_method !== 'ALL') {
     params.append('payment_method', filters.payment_method);
   }
+  if (filters.discounted) {
+    params.append('discounted', 'true');
+  }
   if (filters.search && filters.search.trim()) {
     params.append('search', filters.search.trim());
   }

@@ -3,24 +3,35 @@ import { getSales } from '../../api/salesApi.js';
 import { getManilaDateOnly } from '../../utils/dateUtils.js';
 import SalesReceiptModal from '../../components/SalesReceiptModal.jsx';
 
-// Format date to: YYYY-MM-DD hh:mm:ss A
+// Format date to: YYYY-MM-DD hh:mm:ss A (Asia/Manila)
 const formatDateTime = (dateStr) => {
   if (!dateStr) return '—';
   try {
     const d = new Date(dateStr);
+    if (Number.isNaN(d.getTime())) return String(dateStr);
+    const manila = new Date(d.toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
     const pad = (n) => String(n).padStart(2, '0');
-    const yyyy = d.getFullYear();
-    const mm = pad(d.getMonth() + 1);
-    const dd = pad(d.getDate());
-    let hh = d.getHours();
-    const min = pad(d.getMinutes());
-    const ss = pad(d.getSeconds());
+    const yyyy = manila.getFullYear();
+    const mm = pad(manila.getMonth() + 1);
+    const dd = pad(manila.getDate());
+    let hh = manila.getHours();
+    const min = pad(manila.getMinutes());
+    const ss = pad(manila.getSeconds());
     const ampm = hh >= 12 ? 'PM' : 'AM';
     hh = hh % 12 || 12;
     return `${yyyy}-${mm}-${dd} ${pad(hh)}:${min}:${ss} ${ampm}`;
   } catch {
     return dateStr;
   }
+};
+
+const getOffsetManilaDate = (daysBack) => {
+  const todayStr = getManilaDateOnly();
+  const base = new Date(`${todayStr}T00:00:00+08:00`);
+  base.setTime(base.getTime() - daysBack * 86400000);
+  const manila = new Date(base.toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${manila.getFullYear()}-${pad(manila.getMonth() + 1)}-${pad(manila.getDate())}`;
 };
 
 const CATEGORY_PILLS = [
@@ -37,11 +48,18 @@ const CATEGORY_PILLS = [
 
 const SalesReceiptJournal = () => {
   const [sales, setSales] = useState([]);
+  const [totalServerCount, setTotalServerCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [pageSize, setPageSize] = useState(10);
+  const [fetchLimit, setFetchLimit] = useState(100);
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Server request date range & filters
+  const [datePreset, setDatePreset] = useState('RECENT'); // 'RECENT' | 'TODAY' | '7D' | 'MONTH' | 'CUSTOM'
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   // Filters matching reference UI
   const [selectedType, setSelectedType] = useState('ALL');
@@ -64,25 +82,57 @@ const SalesReceiptJournal = () => {
     return () => clearTimeout(timer);
   }, [searchInput]);
 
-  // Fetch sales from API
+  const applyDatePreset = (preset) => {
+    setDatePreset(preset);
+    setCurrentPage(1);
+    const todayStr = getManilaDateOnly();
+    if (preset === 'RECENT') {
+      setStartDate('');
+      setEndDate('');
+    } else if (preset === 'TODAY') {
+      setStartDate(todayStr);
+      setEndDate(todayStr);
+    } else if (preset === '7D') {
+      setStartDate(getOffsetManilaDate(6));
+      setEndDate(todayStr);
+    } else if (preset === 'MONTH') {
+      setStartDate(`${todayStr.slice(0, 8)}01`);
+      setEndDate(todayStr);
+    }
+  };
+
+  // Fetch sales from API with active date/type/search request filters
   const fetchSales = useCallback(async () => {
     try {
       setLoading(true);
-      const result = await getSales(
-        {
-          search: debouncedSearch,
-        },
-        100, // Fetch up to 100 recent transactions for high responsiveness
-        1
-      );
+      const filters = {
+        search: debouncedSearch,
+      };
+      if (startDate) filters.start_date = startDate;
+      if (endDate) filters.end_date = endDate;
+      if (selectedType === 'CASH' || selectedType === 'GCASH') {
+        filters.payment_method = selectedType;
+      } else if (selectedType === 'DISCOUNTED') {
+        filters.discounted = true;
+      } else if (selectedType !== 'ALL') {
+        filters.category = selectedType;
+      }
+      if (statusScope === 'CASH' || statusScope === 'GCASH') {
+        filters.payment_method = statusScope;
+      } else if (statusScope === 'DISCOUNTED') {
+        filters.discounted = true;
+      }
+
+      const result = await getSales(filters, fetchLimit, 1);
       const list = Array.isArray(result) ? result : (result?.data || []);
       setSales(list);
+      setTotalServerCount(typeof result?.total === 'number' ? result.total : list.length);
     } catch (err) {
       console.error('Failed to load sales journal:', err);
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch]);
+  }, [debouncedSearch, startDate, endDate, selectedType, statusScope, fetchLimit]);
 
   useEffect(() => {
     fetchSales();
@@ -363,7 +413,9 @@ const SalesReceiptJournal = () => {
             {sales.length.toLocaleString()}
           </div>
           <div className="text-xs text-zinc-400 mt-1">
-            {counts.today} processed today
+            {totalServerCount > sales.length
+              ? `Loaded ${sales.length.toLocaleString()} of ${totalServerCount.toLocaleString()} matching`
+              : `${counts.today} processed today`}
           </div>
         </div>
 
@@ -466,6 +518,85 @@ const SalesReceiptJournal = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
             </button>
+          </div>
+        </div>
+
+        {/* Row 1.5: Date Range & Server Request Filter */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-1 pb-1 border-y border-zinc-100">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {[
+              { id: 'RECENT', label: 'Latest' },
+              { id: 'TODAY', label: 'Today' },
+              { id: '7D', label: 'Last 7 Days' },
+              { id: 'MONTH', label: 'This Month' },
+            ].map((preset) => (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => applyDatePreset(preset.id)}
+                className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer border ${
+                  datePreset === preset.id
+                    ? 'bg-zinc-900 text-white border-zinc-900'
+                    : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50'
+                }`}
+              >
+                {preset.label}
+              </button>
+            ))}
+
+            <div className="flex items-center gap-1.5 ml-0 sm:ml-2">
+              <input
+                type="date"
+                aria-label="Start date"
+                value={startDate}
+                onChange={(e) => {
+                  setDatePreset('CUSTOM');
+                  setStartDate(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="px-2 py-1 bg-zinc-50 border border-zinc-200 rounded-md text-xs text-zinc-800 focus:outline-none focus:border-zinc-400"
+              />
+              <span className="text-xs text-zinc-400">to</span>
+              <input
+                type="date"
+                aria-label="End date"
+                value={endDate}
+                onChange={(e) => {
+                  setDatePreset('CUSTOM');
+                  setEndDate(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="px-2 py-1 bg-zinc-50 border border-zinc-200 rounded-md text-xs text-zinc-800 focus:outline-none focus:border-zinc-400"
+              />
+              {(startDate || endDate) && (
+                <button
+                  type="button"
+                  onClick={() => applyDatePreset('RECENT')}
+                  className="px-2 py-1 text-xs font-semibold text-zinc-500 hover:text-zinc-800 cursor-pointer"
+                >
+                  Clear dates
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 text-xs text-zinc-500">
+            <span>Fetch up to:</span>
+            <select
+              aria-label="Fetch receipt limit"
+              value={fetchLimit}
+              onChange={(e) => {
+                setFetchLimit(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="px-2 py-1 bg-zinc-50 border border-zinc-200 rounded-md text-xs font-semibold text-zinc-800 focus:outline-none focus:border-zinc-400 cursor-pointer"
+            >
+              {[100, 250, 500].map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt} receipts
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 

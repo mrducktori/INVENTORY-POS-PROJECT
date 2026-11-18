@@ -4,6 +4,12 @@ import PasswordRulesList from './PasswordRulesList';
 import { STAFF_DEFAULT_PERMISSIONS } from '../../../utils/permissions';
 import { validatePasswordForSubmission } from '../../../utils/passwordRules';
 
+const isStaffDefaultPermissions = (perms) => {
+  if (!Array.isArray(perms) || perms.length !== STAFF_DEFAULT_PERMISSIONS.length) return false;
+  const set = new Set(perms);
+  return STAFF_DEFAULT_PERMISSIONS.every((k) => set.has(k));
+};
+
 const inputClass =
   'w-full px-4 py-2.5 border border-zinc-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all disabled:bg-zinc-100 disabled:text-zinc-500 disabled:cursor-not-allowed';
 const labelClass = 'text-[11px] font-bold text-zinc-700 uppercase tracking-wider';
@@ -58,9 +64,20 @@ const AccountForm = ({
   const handleRoleChange = (role) => {
     if (isSelfOwner) return;
     const patch = { role };
-    if (role === 'Staff' && formData.role !== 'Staff') patch.permissions = [...STAFF_DEFAULT_PERMISSIONS];
+    if (role === 'Staff' && formData.role !== 'Staff') {
+      patch.permissions = [...STAFF_DEFAULT_PERMISSIONS];
+      patch.custom_role_name = '';
+    }
     if (role === 'Custom' && formData.role !== 'Custom') patch.permissions = [];
     update(patch);
+  };
+
+  const handlePermissionsChange = (permissions) => {
+    if (formData.role === 'Staff' && !isStaffDefaultPermissions(permissions)) {
+      update({ role: 'Custom', permissions });
+      return;
+    }
+    update({ permissions });
   };
 
   const handleTemplate = (e) => {
@@ -317,7 +334,7 @@ const AccountForm = ({
               {formData.permissions.length} selected
             </span>
           </div>
-          <PermissionGrid value={formData.permissions} onChange={(permissions) => update({ permissions })} />
+          <PermissionGrid value={formData.permissions} onChange={handlePermissionsChange} />
         </div>
       )}
 

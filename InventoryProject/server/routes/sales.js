@@ -9,12 +9,13 @@ router.use(requireRole('Owner', 'Admin', 'Staff', 'Custom'));
 // Get all sales with filters
 router.get('/', async (req, res) => {
   try {
-    // Parse pagination parameters (default limit 50, offset 0)
-    const limit = parseInt(req.query.limit) || 50;
-    const offset = parseInt(req.query.offset) || 0;
+    // Parse pagination parameters (default limit 50, max 500, offset 0)
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 500);
+    const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
     const searchParam = (req.query.search || '').trim().toLowerCase();
     const categoryParam = (req.query.category || '').trim();
     const paymentMethodParam = (req.query.payment_method || '').trim();
+    const discountedOnly = req.query.discounted === 'true';
 
     const needsInMemoryFilter = Boolean(searchParam || categoryParam);
 
@@ -76,6 +77,9 @@ router.get('/', async (req, res) => {
     if (req.query.staff_id) query = query.eq('staff_id', req.query.staff_id);
     if (paymentMethodParam && paymentMethodParam.toUpperCase() !== 'ALL') {
       query = query.ilike('payment_method', paymentMethodParam);
+    }
+    if (discountedOnly) {
+      query = query.gt('discount_amount', 0);
     }
 
     const { data, error, count } = await query;

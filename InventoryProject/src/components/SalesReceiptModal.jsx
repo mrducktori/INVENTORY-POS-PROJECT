@@ -4,6 +4,7 @@ import { getSalesReceipt } from '../api/logsApi';
 import {
   formatReceiptDateTime,
   computeReceiptTotals,
+  normalizeAddOn,
   getSavedPaperWidth,
   savePaperWidth,
   printThermalReceipt,
@@ -12,11 +13,13 @@ import {
 const SalesReceiptModal = ({ saleId, initialReceipt = null, onClose }) => {
   const [receipt, setReceipt] = useState(initialReceipt);
   const [loading, setLoading] = useState(!initialReceipt && Boolean(saleId));
+  const [fetchError, setFetchError] = useState('');
   const [paperWidth, setPaperWidth] = useState(getSavedPaperWidth);
 
   useEffect(() => {
     if (initialReceipt) {
       setReceipt(initialReceipt);
+      setFetchError('');
       setLoading(false);
       return;
     }
@@ -24,10 +27,12 @@ const SalesReceiptModal = ({ saleId, initialReceipt = null, onClose }) => {
     const fetchReceipt = async () => {
       try {
         setLoading(true);
+        setFetchError('');
         const data = await getSalesReceipt(saleId);
         setReceipt(data);
       } catch (error) {
         console.error('Failed to fetch receipt:', error);
+        setFetchError(error?.message || 'Failed to load receipt details.');
       } finally {
         setLoading(false);
       }
@@ -121,7 +126,10 @@ const SalesReceiptModal = ({ saleId, initialReceipt = null, onClose }) => {
                       </div>
                       {Array.isArray(item.add_ons) && item.add_ons.length > 0 && (
                         <div className="text-[11px] text-zinc-500 mt-0.5">
-                          + {item.add_ons.map((ao) => `${ao.customer_qty || 1}x ${ao.name}`).join(', ')}
+                          + {item.add_ons.map((rawAo) => {
+                            const ao = normalizeAddOn(rawAo);
+                            return `${ao.customer_qty}x ${ao.name}`;
+                          }).join(', ')}
                         </div>
                       )}
                     </td>
@@ -205,7 +213,9 @@ const SalesReceiptModal = ({ saleId, initialReceipt = null, onClose }) => {
             </div>
           </div>
         ) : (
-          <div className="py-6 text-center text-red-500 font-medium">Receipt not found.</div>
+          <div className="py-6 text-center text-red-500 font-medium">
+            {fetchError || 'Receipt not found.'}
+          </div>
         )}
       </div>
     </div>,

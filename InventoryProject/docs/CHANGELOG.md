@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [UI/Accounts: Auto-Switch Role to Custom on Permission Changes - 2026-11-18]
+- **`AccountForm.jsx`**:
+  - Added `handlePermissionsChange()` and `isStaffDefaultPermissions()` so modifying `Staff` page access away from `STAFF_DEFAULT_PERMISSIONS` automatically switches the account role to `Custom` while preserving the selected permissions.
+
+## [UI/API: Receipt Journal Date-Range Request Filter & Add-On Normalization - 2026-11-18]
+- **Receipt Journal Server Request Filters (`SalesReceiptJournal.jsx`, `salesApi.js`, `server/routes/sales.js`)**:
+  - Added date-range presets (`Latest`, `Today`, `Last 7 Days`, `This Month`, plus `Start` / `End` date inputs) and a `Fetch up to` batch selector (`100 / 250 / 500` receipts) that query `/api/sales` with `start_date`, `end_date`, `category`, `payment_method`, `discounted`, and `search`, unlocking historical receipts beyond the initial 100-row cap.
+  - Updated `formatDateTime` in `SalesReceiptJournal.jsx` to format timestamps in `Asia/Manila` and show `Loaded X of Y matching` when total matches exceed the current batch limit.
+- **Receipt Add-On Parsing & Error Display (`receiptPrint.js`, `SalesReceiptModal.jsx`)**:
+  - Added `normalizeAddOn()` in `receiptPrint.js` and reused it in `SalesReceiptModal.jsx` so PostgreSQL `text[]` JSON add-on strings and plain objects both render/print cleanly, and surfaced fetch errors in `SalesReceiptModal.jsx`.
+
 ## [Security/Fixes/Menu Photos: Lean-Swarm Hardening & Plastic-Cup Product Images - 2026-11-18]
 - **Menu Product Image Audit & Regeneration (`products`, `cms-images` Supabase bucket)**:
   - Audited all `44` rows in `products`: preserved `3` non-real/archived test items (`KAHIT ANO`, `TESTPRODUCT`, `SPAGHETTI`) without images, kept `16` already-accurate plastic-cup/pastry images, and generated/uploaded **25 new 800×800 clear plastic-cup menu photos** across `COFFEE` (8), `FRAPPE` (7), `FRUIT DRINKS` (4), and `MILK TEA` (6: `BROWN SUGAR`, `OKINAWA`, `ORIGINAL MILKTEA`, `PURPLE TARO`, `RED VELVAT`, `WINTERMELON`).

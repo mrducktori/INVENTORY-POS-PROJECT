@@ -75,6 +75,24 @@ const escapeHtml = (value) =>
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 
+/**
+ * Normalizes a sale_items add-on entry (handles Postgres text[] JSON strings or plain objects).
+ */
+export const normalizeAddOn = (ao) => {
+  if (!ao) return { name: 'Add-on', customer_qty: 1 };
+  if (typeof ao === 'string') {
+    try {
+      const parsed = JSON.parse(ao);
+      if (parsed && typeof parsed === 'object') {
+        return { name: parsed.name || 'Add-on', customer_qty: parsed.customer_qty || 1 };
+      }
+    } catch {
+      return { name: ao, customer_qty: 1 };
+    }
+  }
+  return { name: ao.name || 'Add-on', customer_qty: ao.customer_qty || 1 };
+};
+
 const formatCurrency = (value) => `₱${(Number(value) || 0).toFixed(2)}`;
 
 const buildReceiptMarkup = (
@@ -96,7 +114,10 @@ const buildReceiptMarkup = (
       const addOns =
         Array.isArray(item.add_ons) && item.add_ons.length > 0
           ? `<div class="coftea-receipt-addons">+ ${item.add_ons
-              .map((ao) => `${escapeHtml(ao.customer_qty || 1)}x ${escapeHtml(ao.name)}`)
+              .map((rawAo) => {
+                const ao = normalizeAddOn(rawAo);
+                return `${escapeHtml(ao.customer_qty)}x ${escapeHtml(ao.name)}`;
+              })
               .join(', ')}</div>`
           : '';
       const qty = escapeHtml(item.quantity ?? 1);
