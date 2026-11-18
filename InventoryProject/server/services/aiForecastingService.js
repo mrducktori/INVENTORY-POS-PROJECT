@@ -66,19 +66,19 @@ export const isPhilippineHoliday = (date) => {
 };
 
 /**
- * Checks if a given day corresponds to standard Philippine quincena paydays (15th or end of month).
- * @param {Date|string} date 
+ * Checks if a given day falls on Cof/Tea Cafe's peak student foot-traffic days
+ * (Monday and Friday, per owner & co-manager interview records).
+ * @param {Date|string} date
  * @returns {boolean}
  */
-export const isPhilippinePayday = (date) => {
+export const isPeakSchoolDay = (date) => {
   const d = new Date(date);
   if (isNaN(d.getTime())) return false;
-  const day = d.getDate();
-  const nextDay = new Date(d);
-  nextDay.setDate(day + 1);
-  const isMonthEnd = nextDay.getMonth() !== d.getMonth();
-  return day === 15 || day === 30 || (isMonthEnd && day >= 28);
+  const dayOfWeek = d.getDay();
+  return dayOfWeek === 1 || dayOfWeek === 5;
 };
+
+export const isPhilippinePayday = isPeakSchoolDay;
 
 /**
  * Builds rich time-series features from historical sales transactions for a single product.
@@ -93,7 +93,7 @@ export const extractProductForecastingFeatures = async (productId, targetYear, t
   // 1. Fetch product metadata & current stock
   const { data: product, error: prodErr } = await supabase
     .from('products')
-    .select('id, name, category, price, stock_quantity')
+    .select('id, name, category, price, stock_quantity, track_stock')
     .eq('id', productId)
     .single();
 
@@ -342,6 +342,7 @@ export const extractProductForecastingFeatures = async (productId, targetYear, t
       productName,
       category: product.category,
       price: product.price,
+      track_stock: product.track_stock !== false,
       currentStock
     },
     forecastTarget: {
@@ -444,17 +445,25 @@ export const runDeterministicEnsembleForecast = (forecastingData) => {
   const avgWeekday = weekdayItems.length > 0 ? weekdayItems.reduce((s, x) => s + x.unitsSold, 0) / weekdayItems.length : baseDailyRate;
   const weekendMultiplier = avgWeekday > 0 ? Math.max(1.05, Math.min(1.45, avgWeekend / avgWeekday)) : 1.22;
 
-  const paydayItems = dailySales.filter(d => d.isPayday === 1);
-  const avgPayday = paydayItems.length > 0 ? paydayItems.reduce((s, x) => s + x.unitsSold, 0) / paydayItems.length : baseDailyRate;
-  const paydayMultiplier = baseDailyRate > 0 ? Math.max(1.08, Math.min(1.40, avgPayday / Math.max(0.5, shortTermDailyRate))) : 1.20;
+  const peakSchoolItems = dailySales.filter(d => d.isPayday === 1);
+  const midweekItems = dailySales.filter(d => d.isWeekend === 0 && d.isPayday === 0);
+  const avgPeakSchool = peakSchoolItems.length > 0
+    ? peakSchoolItems.reduce((s, x) => s + x.unitsSold, 0) / peakSchoolItems.length
+    : baseDailyRate;
+  const avgMidweek = midweekItems.length > 0
+    ? midweekItems.reduce((s, x) => s + x.unitsSold, 0) / midweekItems.length
+    : shortTermDailyRate;
+  const peakDayMultiplier = avgMidweek > 0
+    ? Math.max(1.08, Math.min(1.40, avgPeakSchool / Math.max(0.5, avgMidweek)))
+    : 1.20;
 
   // Simulate each day of the target month
   let predictedTotal = 0;
   let holidayCount = 0;
-  let paydayCount = 0;
+  let peakSchoolCount = 0;
   let weekendCount = 0;
 
-  // Normalize baseDailyRate so weekend/payday lifts distribute across the month without inflating the mean
+  // Normalize baseDailyRate so weekend/Mon-Fri student lifts distribute across the month without inflating the mean
   const normFactor = 1.10;
   const normalizedBase = baseDailyRate / normFactor;
 
@@ -463,7 +472,7 @@ export const runDeterministicEnsembleForecast = (forecastingData) => {
     const dayOfWeek = dateObj.getDay();
     const isWknd = (dayOfWeek === 0 || dayOfWeek === 6);
     const isHol = isPhilippineHoliday(dateObj);
-    const isPay = isPhilippinePayday(dateObj);
+    const isPeakSchool = isPeakSchoolDay(dateObj);
 
     let dayForecast = normalizedBase * (1 + (clampedGrowth * 0.25));
 
@@ -471,9 +480,9 @@ export const runDeterministicEnsembleForecast = (forecastingData) => {
       dayForecast *= weekendMultiplier;
       weekendCount++;
     }
-    if (isPay) {
-      dayForecast *= paydayMultiplier;
-      paydayCount++;
+    if (isPeakSchool) {
+      dayForecast *= peakDayMultiplier;
+      peakSchoolCount++;
     }
     if (isHol) {
       dayForecast *= 1.15;
@@ -491,7 +500,8 @@ export const runDeterministicEnsembleForecast = (forecastingData) => {
   const predictedUnitsSold = recordedEntry
     ? Math.round(recordedEntry.unitsSold)
     : Math.round(predictedTotal);
-  const recommendedOrderQuantity = isHistorical
+  const trackStock = product.track_stock !== false;
+  const recommendedOrderQuantity = (isHistorical || !trackStock)
     ? 0
     : Math.max(0, predictedUnitsSold - currentStock);
 
@@ -519,14 +529,19 @@ export const runDeterministicEnsembleForecast = (forecastingData) => {
       totalMonthsAnalyzed,
       sameMonthHistory,
       weekendMultiplier: parseFloat(weekendMultiplier.toFixed(2)),
-      paydayMultiplier: parseFloat(paydayMultiplier.toFixed(2)),
+      peakDayMultiplier: parseFloat(peakDayMultiplier.toFixed(2)),
+      paydayMultiplier: parseFloat(peakDayMultiplier.toFixed(2)),
       weekendDays: weekendCount,
-      paydaySurgeDays: paydayCount,
+      peakSchoolDays: peakSchoolCount,
+      paydaySurgeDays: peakSchoolCount,
       holidaySurgeDays: holidayCount
     },
+    price: product.price,
+    track_stock: trackStock,
+    ...(trackStock ? {} : { stockoutRisk: null }),
     reasoning: isHistorical
-      ? `Recorded sales total for ${forecastTarget.year}-${String(targetMonth).padStart(2, '0')} across ${daysInMonth} days.`
-      : `Synthesized from ${yearsAnalyzed} years (${totalMonthsAnalyzed} months, 2023–2026) of historical sales with a ${targetSeasonalIndex.toFixed(2)}x seasonal index for month ${targetMonth}, ${yoyGrowthPct >= 0 ? '+' : ''}${yoyGrowthPct.toFixed(1)}% YoY trend, ${weekendCount} weekend days (${weekendMultiplier.toFixed(2)}x), and ${paydayCount} payday periods (${paydayMultiplier.toFixed(2)}x).`
+      ? null
+      : `Expect about ${predictedUnitsSold} ${trackStock ? 'units' : 'orders'} this month, ${yoyGrowthPct >= 0 ? 'with demand trending up' : 'with demand trending slightly down'} compared to last year. ${trackStock ? 'Mondays, Fridays and weekends are the busiest days.' : 'Mondays, Fridays and weekends will carry the heaviest preparation load.'}`
   };
 };
 
@@ -564,6 +579,7 @@ export const forecastStockUsingAI = async (dto) => {
   const runForecastPromise = (async () => {
     try {
       const isHistorical = isHistoricalManilaMonth(targetYear, targetMonth);
+      const trackStock = forecastingData.product.track_stock !== false;
 
       // Compact 90-day payload for AI prompt (pre-aggregated 7d/30d/90d summary + trailing 12 months + multi-year seasonality)
       // Eliminates raw daily arrays to cut Gemini token consumption by ~70% while feeding full 90-day context
@@ -585,7 +601,48 @@ export const forecastStockUsingAI = async (dto) => {
       // 2. Skip Gemini completely for completed past months; only call Gemini for current/future projections
       if (!isHistorical && apiKeys.length > 0) {
         try {
-          const prompt = `
+          const untrackedPrompt = `
+You are a demand forecasting system for a cafe.
+
+Your task is to forecast the total number of cups/orders of this menu item
+that customers will order during the target month. This item is made fresh
+per order from ingredients, so it has no shelf stock. Do NOT discuss stock,
+restocking, ordering supplies, or inventory levels.
+
+Product:
+- Product ID: ${productId}
+- Product Name: ${forecastingData.product.productName}
+
+Forecast Target:
+- Year: ${targetYear}
+- Month: ${targetMonth}
+- Days in Month: ${forecastingData.forecastTarget.daysInMonth}
+
+Focus on projected customer order volume, peak-day preparation load
+(Mondays, Fridays, and weekends), Philippine holidays, recent 7/30/90-day
+trends, seasonal patterns, and other demand drivers.
+
+predictedUnitsSold is the expected total units ordered during the ENTIRE target month,
+as a whole number.
+
+The reasoning must be at most 2 short, plain sentences written for a cafe owner.
+No formulas, no jargon, no emojis. Do NOT mention AI, machine learning, prompts, or algorithms.
+
+Historical forecasting data:
+${salesJson}
+
+Return ONLY valid JSON using exactly this structure:
+{
+  "productId": ${productId},
+  "productName": "${forecastingData.product.productName}",
+  "predictedUnitsSold": 0,
+  "confidenceScore": 85,
+  "reasoning": "Two short plain sentences."
+}
+Do not include explanations outside the JSON.
+Do not include markdown backticks.
+`;
+          const trackedPrompt = `
 You are an inventory forecasting system.
 
 Your task is to forecast the total number of units that will be sold
@@ -615,7 +672,7 @@ Use the following factors when making the forecast:
 8. Day-of-week behavior
 9. Weekend behavior (Saturdays & Sundays)
 10. Philippine Holidays
-11. Payday behavior (15th and 30th quincena salary surges)
+11. Peak school-week behavior (Monday & Friday student surges and Mon–Fri school foot traffic)
 12. Discounts
 13. Revenue
 14. Order volume
@@ -647,11 +704,12 @@ Return ONLY valid JSON using exactly this structure:
   "predictedUnitsSold": 0,
   "recommendedOrderQuantity": 0,
   "confidenceScore": 85,
-  "reasoning": "Professional 2-sentence summary of demand drivers (e.g. weekend lift, paydays, seasonal velocity). Do NOT mention AI, machine learning, prompts, or algorithms."
+  "reasoning": "Professional 2-sentence summary of demand drivers (e.g. Monday/Friday student peak days, weekend lift, seasonal velocity). Do NOT mention AI, machine learning, prompts, or algorithms."
 }
 Do not include explanations outside the JSON.
 Do not include markdown backticks.
 `;
+          const prompt = trackStock ? trackedPrompt : untrackedPrompt;
 
           const requestBody = {
             contents: [
@@ -697,8 +755,17 @@ Do not include markdown backticks.
                     engine: 'gemini_ai',
                     daysInMonth: forecastingData.forecastTarget.daysInMonth,
                     targetPeriod: `${targetYear}-${String(targetMonth).padStart(2, '0')}`,
-                    recentSummary: forecastingData.recentSummary
+                    recentSummary: forecastingData.recentSummary,
+                    price: forecastingData.product.price,
+                    track_stock: trackStock
                   };
+                  if (typeof result.reasoning !== 'string' || !result.reasoning.trim()) {
+                    result.reasoning = ensembleBaseline.reasoning;
+                  }
+                  if (!trackStock) {
+                    result.recommendedOrderQuantity = 0;
+                    result.stockoutRisk = null;
+                  }
                   aiForecastCache.set(cacheKey, { at: Date.now(), result });
                   return result;
                 }
@@ -720,7 +787,9 @@ Do not include markdown backticks.
         ...ensembleResult,
         daysInMonth: forecastingData.forecastTarget.daysInMonth,
         targetPeriod: `${targetYear}-${String(targetMonth).padStart(2, '0')}`,
-        recentSummary: forecastingData.recentSummary
+        recentSummary: forecastingData.recentSummary,
+        price: forecastingData.product.price,
+        track_stock: trackStock
       };
       aiForecastCache.set(cacheKey, { at: Date.now(), result: fallbackResult });
       return fallbackResult;

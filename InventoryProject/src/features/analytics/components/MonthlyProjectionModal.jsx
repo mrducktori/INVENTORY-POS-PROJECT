@@ -1,6 +1,8 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
+import { formatCurrency } from '../utils/forecastUtils';
 
+const FULL_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 const MonthlyProjectionModal = ({
@@ -29,6 +31,10 @@ const MonthlyProjectionModal = ({
     result?.daysInMonth || new Date(targetYear, targetMonth, 0).getDate() || 30;
   const displayedUnits = result?.predictedUnitsSold || 0;
   const dailyAverage = Math.round((displayedUnits / daysInSelectedMonth) * 10) / 10;
+  const monthLabel = `${FULL_MONTHS[targetMonth - 1] || ''} ${targetYear}`;
+  const unitPrice = Number(result?.price ?? selectedProduct?.price ?? selectedProduct?.selling_price ?? 0);
+  const revenue = displayedUnits * unitPrice;
+  const reasoning = !isPastMonth && typeof result?.reasoning === 'string' ? result.reasoning.trim() : '';
 
   return createPortal(
     <div
@@ -132,6 +138,7 @@ const MonthlyProjectionModal = ({
                   <span className="text-2xl font-bold text-zinc-900 mt-1 block font-mono">
                     {displayedUnits} orders
                   </span>
+                  <span className="text-[10px] text-zinc-400 block mt-0.5">{monthLabel} total</span>
                 </div>
 
                 <div className="p-4 bg-zinc-50 border border-zinc-200 rounded-xl text-center">
@@ -144,6 +151,23 @@ const MonthlyProjectionModal = ({
                 </div>
               </div>
 
+              {unitPrice > 0 && (
+                <div className="px-4 py-3 border border-zinc-200 rounded-xl flex items-center justify-between">
+                  <span className="text-xs text-zinc-500">
+                    {isPastMonth ? 'Recorded Revenue' : 'Est. Revenue'}
+                  </span>
+                  <span className="text-base font-bold text-zinc-900 font-mono">{formatCurrency(revenue)}</span>
+                </div>
+              )}
+
+              {reasoning && (
+                <div className="border border-zinc-200 rounded-xl p-4 bg-zinc-50/60">
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 mb-1.5">
+                    Demand Outlook
+                  </div>
+                  <p className="m-0 text-xs sm:text-sm leading-relaxed text-zinc-700">{reasoning}</p>
+                </div>
+              )}
               <div className="border border-zinc-200 rounded-xl p-4 space-y-2 text-xs sm:text-sm">
                 <div className="font-semibold text-zinc-900 mb-2">Multi-Year &amp; Calendar Factors</div>
                 <div className="flex justify-between text-zinc-600">
@@ -174,9 +198,11 @@ const MonthlyProjectionModal = ({
                   </span>
                 </div>
                 <div className="flex justify-between text-zinc-600">
-                  <span>Payday Period Lift (15th &amp; 30th)</span>
+                  <span>Peak School Days (Mon &amp; Fri)</span>
                   <span className="font-mono font-semibold text-zinc-900">
-                    {result.factors?.paydayMultiplier ? `${result.factors.paydayMultiplier}x` : '1.0x'}
+                    {result.factors?.peakDayMultiplier || result.factors?.paydayMultiplier
+                      ? `${result.factors.peakDayMultiplier || result.factors.paydayMultiplier}x`
+                      : '1.0x'}
                   </span>
                 </div>
                 <div className="flex justify-between text-zinc-600">

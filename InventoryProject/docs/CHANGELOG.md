@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Analytics/AI: Menu Demand Polish - Made-to-Order Prompt, Demand Outlook, Revenue - 2026-11-19]
+- **`server/services/aiForecastingService.js`**: Made-to-order items (`track_stock: false`) now use a dedicated Gemini prompt focused on order volume and Mon/Fri/weekend prep load (no stock/restock wording); they return `recommendedOrderQuantity: 0` and `stockoutRisk: null`. `/ai-forecast` responses now always include `reasoning` (template fallback when Gemini is unavailable, `null` for past months), `price`, and `track_stock`.
+- **`src/features/analytics/components/MonthlyProjectionModal.jsx`**: Added **Demand Outlook** card (current/future months), **Est. Revenue / Recorded Revenue** row, and a "<Month YYYY> total" caption under Projected Volume.
+- **`src/features/analytics/components/MenuDemandTab.jsx`**: Renamed "Est. 30 Days" to **Next 30 Days** with a "Rolling from today" sub-label.
+
+## [Analytics/AI: Replace Payday Factor with Mon/Fri Student Peak School Days - 2026-11-19]
+- **`server/services/aiForecastingService.js`**:
+  - Replaced the 15th/30th salary payday check with `isPeakSchoolDay` (Monday & Friday peak student traffic days, exported with `isPhilippinePayday` alias for compatibility).
+  - Updated `runDeterministicEnsembleForecast` to compute `peakDayMultiplier` comparing Mon/Fri volume against Tue–Thu mid-week volume, returning `peakDayMultiplier`, `peakSchoolDays`, and updated reasoning text.
+  - Updated the Google Gemini prompt factor #11 and reasoning instructions to evaluate Monday/Friday student surges instead of salary paydays.
+- **`src/features/analytics/components/MonthlyProjectionModal.jsx`, `ForecastGuideModal.jsx`, `MenuDemandTab.jsx`**:
+  - Updated factor labels, tooltips, and reference guide copy to display **Peak School Days (Mon & Fri)**.
+
 ## [Analytics/Fix: Historical Month Handling & Historical Sales Display in Projection Modal - 2026-11-19]
 - **`server/services/aiForecastingService.js`**:
   - Added Manila-timezone past-month detection (`isHistoricalMonth`) in `runDeterministicEnsembleForecast` and `forecastStockUsingAI`. Past months now return recorded historical `unitsSold` directly with `isHistorical: true`, `engine: 'historical_record'`, `recommendedOrderQuantity: 0`, and skip calling the Gemini API.

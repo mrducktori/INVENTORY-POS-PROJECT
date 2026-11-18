@@ -177,12 +177,12 @@ const ForecastGuideModal = ({ isOpen, onClose, guideTab, setGuideTab }) => {
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-zinc-900 shrink-0" />
                   <h4 className="m-0 text-sm font-bold text-zinc-900">
-                    3. Philippine Calendar, Weekend &amp; Payday Multipliers
+                    3. Peak School Days (Mon–Fri), Weekends &amp; Holidays
                   </h4>
                 </div>
                 <div className="pl-4 space-y-1.5 border-l-2 border-zinc-100">
                   <p className="m-0">
-                    <span className="font-semibold text-zinc-900">7-Day &amp; Monthly View:</span> Projections adjust for higher Friday–Sunday foot traffic, bi-monthly payday windows (15th and 30th of the month), and national/local holidays. Click <span className="font-semibold text-zinc-900">By Month</span> on any drink to inspect its month-by-month breakdown and 2023–2026 historical comparison.
+                    <span className="font-semibold text-zinc-900">7-Day &amp; Monthly View:</span> Projections adjust for Monday and Friday student foot-traffic surges, weekend hangout demand, and national/local holidays. Click <span className="font-semibold text-zinc-900">By Month</span> on any drink to inspect its month-by-month breakdown and 2023–2026 historical comparison.
                   </p>
                 </div>
               </div>

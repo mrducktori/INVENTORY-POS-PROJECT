@@ -208,7 +208,7 @@ const MenuDemandTab = ({
                           <span>Next 7 Days</span>
                           <SortIcon active={prodSortField === 'predictedNext7Days'} direction={prodSortDirection} />
                         </button>
-                        <InfoTip position="bottom" text="Projected orders for the upcoming 7 days blending recent 14d/30d counter velocity and a 90-day baseline with 4-year (2023–2026) monthly seasonality, weekends, paydays, and holidays." />
+                        <InfoTip position="bottom" text="Projected orders for the upcoming 7 days blending recent 14d/30d counter velocity and a 90-day baseline with 4-year (2023–2026) monthly seasonality, Monday/Friday peak school days, weekends, and holidays." />
                       </div>
                     </th>
                     <th className="py-3 px-4 text-right">
@@ -217,7 +217,7 @@ const MenuDemandTab = ({
                         onClick={() => onProdSort('predictedNext30Days')}
                         className="group inline-flex items-center justify-end gap-1.5 font-semibold text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer bg-transparent border-none p-0 text-xs sm:text-sm ml-auto"
                       >
-                        <span>Est. 30 Days</span>
+                        <span className="flex flex-col items-end leading-tight" title="Rolling from today">Next 30 Days<span className="text-[10px] font-normal text-zinc-400">Rolling from today</span></span>
                         <SortIcon active={prodSortField === 'predictedNext30Days'} direction={prodSortDirection} />
                       </button>
                     </th>
