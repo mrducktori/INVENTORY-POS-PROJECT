@@ -224,10 +224,15 @@ export const useDemandForecasting = () => {
   };
 
   const handleOpenMonthlyModal = (product) => {
+    const now = new Date();
+    const currYear = now.getFullYear();
+    const currMonth = now.getMonth() + 1;
+    setAiTargetYear(currYear);
+    setAiTargetMonth(currMonth);
     setAiSelectedProduct(product);
     setAiResult(null);
     setAiModalOpen(true);
-    runMonthlyForecast(product.id, aiTargetYear, aiTargetMonth);
+    runMonthlyForecast(product.id, currYear, currMonth);
   };
 
   const handleSelectAiYear = (yr) => {

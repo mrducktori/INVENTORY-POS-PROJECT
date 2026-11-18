@@ -1,7 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 
-const YEARS = [2023, 2024, 2025, 2026, 2027];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 const MonthlyProjectionModal = ({
@@ -16,6 +15,20 @@ const MonthlyProjectionModal = ({
   onSelectMonth,
 }) => {
   if (!isOpen) return null;
+
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  const YEARS = [currentYear, currentYear + 1];
+
+  const isPastMonth =
+    targetYear < currentYear ||
+    (targetYear === currentYear && targetMonth < currentMonth) ||
+    Boolean(result?.isHistorical);
+  const daysInSelectedMonth =
+    result?.daysInMonth || new Date(targetYear, targetMonth, 0).getDate() || 30;
+  const displayedUnits = result?.predictedUnitsSold || 0;
+  const dailyAverage = Math.round((displayedUnits / daysInSelectedMonth) * 10) / 10;
 
   return createPortal(
     <div
@@ -32,7 +45,9 @@ const MonthlyProjectionModal = ({
         <div className="px-6 py-4 bg-zinc-900 text-white flex items-center justify-between">
           <div>
             <h3 className="m-0 text-base font-bold">{selectedProduct?.name}</h3>
-            <p className="m-0 text-xs text-zinc-400 mt-0.5">Monthly Demand Projection</p>
+            <p className="m-0 text-xs text-zinc-400 mt-0.5">
+              {isPastMonth ? 'Historical Monthly Performance' : 'Monthly Demand Projection'}
+            </p>
           </div>
           <button
             type="button"
@@ -46,7 +61,7 @@ const MonthlyProjectionModal = ({
           </button>
         </div>
 
-        {/* Month/Year Selector (Custom Pill Grid — No Native Select) */}
+        {/* Month/Year Selector (Current & Upcoming Forecast Horizon) */}
         <div className="p-4 bg-zinc-50 border-b border-zinc-200 space-y-2.5">
           <div className="flex items-center justify-between gap-2">
             <div className="inline-flex bg-zinc-200/70 p-0.5 rounded-lg">
@@ -55,7 +70,7 @@ const MonthlyProjectionModal = ({
                   key={yr}
                   type="button"
                   onClick={() => onSelectYear(yr)}
-                  className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                  className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                     targetYear === yr
                       ? 'bg-zinc-900 text-white shadow-2xs'
                       : 'text-zinc-600 hover:text-zinc-900'
@@ -66,7 +81,11 @@ const MonthlyProjectionModal = ({
               ))}
             </div>
             <span className="text-[11px] text-zinc-500 font-medium">
-              {loading ? 'Updating...' : '4-Yr Multi-Seasonal'}
+              {loading
+                ? 'Updating...'
+                : isPastMonth
+                ? 'Historical Record (Past Month)'
+                : '90-Day + 4-Yr Seasonal Forecast'}
             </span>
           </div>
 
@@ -74,14 +93,19 @@ const MonthlyProjectionModal = ({
             {MONTHS.map((mShort, idx) => {
               const mNum = idx + 1;
               const isSelected = targetMonth === mNum;
+              const isPastBtn =
+                targetYear < currentYear || (targetYear === currentYear && mNum < currentMonth);
               return (
                 <button
                   key={mNum}
                   type="button"
                   onClick={() => onSelectMonth(mNum)}
+                  title={isPastBtn ? 'View recorded historical sales' : 'View demand projection'}
                   className={`py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                     isSelected
                       ? 'bg-zinc-900 text-white shadow-2xs'
+                      : isPastBtn
+                      ? 'bg-zinc-100/80 border border-zinc-200/70 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100'
                       : 'bg-white border border-zinc-200/80 text-zinc-700 hover:bg-zinc-100'
                   }`}
                 >
@@ -96,22 +120,26 @@ const MonthlyProjectionModal = ({
         <div className="p-6 space-y-4">
           {loading ? (
             <div className="py-8 text-center text-sm text-zinc-400">
-              Calculating monthly projection...
+              {isPastMonth ? 'Loading historical sales...' : 'Calculating monthly projection...'}
             </div>
           ) : result ? (
             <>
               <div className="grid grid-cols-2 gap-3">
                 <div className="p-4 bg-zinc-50 border border-zinc-200 rounded-xl text-center">
-                  <span className="text-xs text-zinc-500 block">Projected Volume</span>
+                  <span className="text-xs text-zinc-500 block">
+                    {isPastMonth ? 'Recorded Sales (Actual)' : 'Projected Volume'}
+                  </span>
                   <span className="text-2xl font-bold text-zinc-900 mt-1 block font-mono">
-                    {result.predictedUnitsSold || 0} orders
+                    {displayedUnits} orders
                   </span>
                 </div>
 
                 <div className="p-4 bg-zinc-50 border border-zinc-200 rounded-xl text-center">
-                  <span className="text-xs text-zinc-500 block">Daily Average</span>
+                  <span className="text-xs text-zinc-500 block">
+                    {isPastMonth ? 'Actual Daily Average' : 'Projected Daily Avg'}
+                  </span>
                   <span className="text-2xl font-bold text-zinc-900 mt-1 block font-mono">
-                    {Math.round(((result.predictedUnitsSold || 0) / 30) * 10) / 10} / day
+                    {dailyAverage} / day
                   </span>
                 </div>
               </div>
@@ -174,9 +202,10 @@ const MonthlyProjectionModal = ({
                           <span className="text-[11px] font-semibold text-zinc-500 block">
                             {h.year}
                           </span>
-                          <span className="text-xs sm:text-sm font-bold font-mono text-zinc-900">
-                            {h.qty}
+                          <span className="text-xs sm:text-sm font-bold font-mono text-zinc-900 block">
+                            {h.unitsSold ?? h.qty ?? 0}
                           </span>
+                          <span className="text-[10px] text-zinc-400 block">orders</span>
                         </div>
                       ))}
                     </div>

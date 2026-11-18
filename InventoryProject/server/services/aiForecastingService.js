@@ -357,6 +357,16 @@ export const extractProductForecastingFeatures = async (productId, targetYear, t
 };
 
 /**
+ * Checks whether (year, month) is a completed past month relative to current Asia/Manila time.
+ */
+const isHistoricalManilaMonth = (year, month) => {
+  const manilaNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
+  const nowYear = manilaNow.getFullYear();
+  const nowMonth = manilaNow.getMonth() + 1;
+  return year < nowYear || (year === nowYear && month < nowMonth);
+};
+
+/**
  * Multi-Year Seasonal Decomposition + Year-over-Year (YoY) + Short-Term Velocity Ensemble Model.
  * Synthesizes 4 years (2023-2026) of same-month seasonality, annual YoY growth trajectory,
  * recent 7d/30d/90d counter velocity, weekend multipliers, 15th/30th paydays, and Philippine holidays.
@@ -390,6 +400,7 @@ export const runDeterministicEnsembleForecast = (forecastingData) => {
       year: m.year,
       month: m.month,
       unitsSold: Math.round(m.unitsSold),
+      qty: Math.round(m.unitsSold),
       avgDailyUnits: parseFloat((m.averageDailyUnitsSold || 0).toFixed(2))
     }));
 
@@ -472,12 +483,23 @@ export const runDeterministicEnsembleForecast = (forecastingData) => {
     predictedTotal += dayForecast;
   }
 
-  const predictedUnitsSold = Math.round(predictedTotal);
-  const recommendedOrderQuantity = Math.max(0, predictedUnitsSold - currentStock);
+  const isHistorical = isHistoricalManilaMonth(forecastTarget.year, forecastTarget.month);
+  const recordedEntry = isHistorical
+    ? (monthlySales || []).find(m => m.year === forecastTarget.year && m.month === forecastTarget.month)
+    : null;
+
+  const predictedUnitsSold = recordedEntry
+    ? Math.round(recordedEntry.unitsSold)
+    : Math.round(predictedTotal);
+  const recommendedOrderQuantity = isHistorical
+    ? 0
+    : Math.max(0, predictedUnitsSold - currentStock);
 
   const yearsAnalyzed = multiYearMeta?.yearsCovered?.length || 4;
   const totalMonthsAnalyzed = monthlySales.length || 47;
-  const confidenceScore = Math.min(96, 75 + Math.min(15, Math.floor(totalMonthsAnalyzed / 3)) + (rate30 > 0 ? 6 : 0));
+  const confidenceScore = isHistorical
+    ? 100
+    : Math.min(96, 75 + Math.min(15, Math.floor(totalMonthsAnalyzed / 3)) + (rate30 > 0 ? 6 : 0));
 
   return {
     productId: product.productId,
@@ -486,7 +508,8 @@ export const runDeterministicEnsembleForecast = (forecastingData) => {
     predictedUnitsSold: predictedUnitsSold,
     recommendedOrderQuantity: recommendedOrderQuantity,
     confidenceScore: confidenceScore,
-    engine: 'multi_year_seasonal_ensemble',
+    isHistorical: isHistorical,
+    engine: recordedEntry ? 'historical_record' : 'multi_year_seasonal_ensemble',
     factors: {
       averageDailyUnitsSold: parseFloat((predictedUnitsSold / daysInMonth).toFixed(2)),
       unitsSoldGrowth7Days: parseFloat((clampedGrowth * 100).toFixed(1)),
@@ -501,7 +524,9 @@ export const runDeterministicEnsembleForecast = (forecastingData) => {
       paydaySurgeDays: paydayCount,
       holidaySurgeDays: holidayCount
     },
-    reasoning: `Synthesized from ${yearsAnalyzed} years (${totalMonthsAnalyzed} months, 2023–2026) of historical sales with a ${targetSeasonalIndex.toFixed(2)}x seasonal index for month ${targetMonth}, ${yoyGrowthPct >= 0 ? '+' : ''}${yoyGrowthPct.toFixed(1)}% YoY trend, ${weekendCount} weekend days (${weekendMultiplier.toFixed(2)}x), and ${paydayCount} payday periods (${paydayMultiplier.toFixed(2)}x).`
+    reasoning: isHistorical
+      ? `Recorded sales total for ${forecastTarget.year}-${String(targetMonth).padStart(2, '0')} across ${daysInMonth} days.`
+      : `Synthesized from ${yearsAnalyzed} years (${totalMonthsAnalyzed} months, 2023–2026) of historical sales with a ${targetSeasonalIndex.toFixed(2)}x seasonal index for month ${targetMonth}, ${yoyGrowthPct >= 0 ? '+' : ''}${yoyGrowthPct.toFixed(1)}% YoY trend, ${weekendCount} weekend days (${weekendMultiplier.toFixed(2)}x), and ${paydayCount} payday periods (${paydayMultiplier.toFixed(2)}x).`
   };
 };
 
@@ -538,6 +563,8 @@ export const forecastStockUsingAI = async (dto) => {
 
   const runForecastPromise = (async () => {
     try {
+      const isHistorical = isHistoricalManilaMonth(targetYear, targetMonth);
+
       // Compact 90-day payload for AI prompt (pre-aggregated 7d/30d/90d summary + trailing 12 months + multi-year seasonality)
       // Eliminates raw daily arrays to cut Gemini token consumption by ~70% while feeding full 90-day context
       const promptPayload = {
@@ -555,8 +582,8 @@ export const forecastStockUsingAI = async (dto) => {
         process.env.GEMINI_API_KEY_BACKUP
       ].filter(Boolean);
 
-      // 2. If Gemini API Key(s) are available, prompt Gemini AI (with automatic backup key failover)
-      if (apiKeys.length > 0) {
+      // 2. Skip Gemini completely for completed past months; only call Gemini for current/future projections
+      if (!isHistorical && apiKeys.length > 0) {
         try {
           const prompt = `
 You are an inventory forecasting system.
@@ -666,6 +693,7 @@ Do not include markdown backticks.
                     ...ensembleBaseline,
                     ...parsed,
                     factors: ensembleBaseline.factors,
+                    isHistorical: false,
                     engine: 'gemini_ai',
                     daysInMonth: forecastingData.forecastTarget.daysInMonth,
                     targetPeriod: `${targetYear}-${String(targetMonth).padStart(2, '0')}`,

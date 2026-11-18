@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Analytics/Fix: Historical Month Handling & Historical Sales Display in Projection Modal - 2026-11-19]
+- **`server/services/aiForecastingService.js`**:
+  - Added Manila-timezone past-month detection (`isHistoricalMonth`) in `runDeterministicEnsembleForecast` and `forecastStockUsingAI`. Past months now return recorded historical `unitsSold` directly with `isHistorical: true`, `engine: 'historical_record'`, `recommendedOrderQuantity: 0`, and skip calling the Gemini API.
+  - Added `qty` alongside `unitsSold` inside `sameMonthHistory` items.
+- **`src/features/analytics/hooks/useDemandForecasting.js`**:
+  - Reset `aiTargetYear` and `aiTargetMonth` to the current calendar year/month whenever `handleOpenMonthlyModal` opens.
+- **`src/features/analytics/components/MonthlyProjectionModal.jsx`**:
+  - Restricted top forecast year pills to `[currentYear, currentYear + 1]` (`2026`, `2027`) since `2023–2026` history is displayed at the bottom.
+  - Updated labels and daily average math (`daysInSelectedMonth`) to distinguish **Recorded Sales (Actual)** for past months from **Projected Volume** for current/future months.
+  - Fixed blank boxes in **Same-Month Historical Sales (2023–2026)** by reading `h.unitsSold ?? h.qty ?? 0`.
+
 ## [Chore/Structure: Organize Workspace, Docs & Feature Directories - 2026-11-19]
 - **Workspace & Docs Cleanup**:
   - Removed duplicate presentation PDFs from the repository root and empty `scratch/` directory.
