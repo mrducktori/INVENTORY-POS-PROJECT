@@ -25,6 +25,8 @@ export default function SupplierCatalogSection() {
   const [successMsg, setSuccessMsg] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL' | 'EDITED' | 'SAVED'
+  const [sortOption, setSortOption] = useState('NAME_ASC'); // 'NAME_ASC' | 'NAME_DESC' | 'PRICE_ASC' | 'PRICE_DESC' | 'EDITED_FIRST'
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -61,9 +63,63 @@ export default function SupplierCatalogSection() {
     setCurrentPage(1);
   };
 
+  const handleClearAllFilters = () => {
+    setSearchTerm('');
+    setSelectedCategory('ALL');
+    setStatusFilter('ALL');
+    setSortOption('NAME_ASC');
+    setCurrentPage(1);
+  };
+
+  const isFiltered = Boolean(
+    searchTerm.trim() ||
+    selectedCategory !== 'ALL' ||
+    statusFilter !== 'ALL' ||
+    sortOption !== 'NAME_ASC'
+  );
+
   const items = useMemo(() => {
     return catalog?.supplier_ingredients || [];
   }, [catalog]);
+
+  const categoryCounts = useMemo(() => {
+    const counts = { ALL: items.length };
+    items.forEach(row => {
+      const cat = (row.ingredients?.category || 'GENERAL').toUpperCase();
+      counts[cat] = (counts[cat] || 0) + 1;
+    });
+    return counts;
+  }, [items]);
+
+  const availableCategories = useMemo(() => {
+    const set = new Set();
+    items.forEach(row => {
+      if (row.ingredients?.category) {
+        set.add(row.ingredients.category.toUpperCase());
+      }
+    });
+    const list = RAW_MATERIAL_CATEGORIES.filter(c => set.has(c));
+    set.forEach(c => {
+      if (!list.includes(c)) list.push(c);
+    });
+    return list;
+  }, [items]);
+
+  const statusCounts = useMemo(() => {
+    let edited = 0;
+    items.forEach(row => {
+      const ingredientId = row.ingredient_id || row.ingredients?.id;
+      const editData = edits[ingredientId];
+      if (editData && (editData.price !== undefined || editData.purchase_unit !== undefined || editData.conversion_factor !== undefined)) {
+        edited++;
+      }
+    });
+    return {
+      all: items.length,
+      edited,
+      saved: items.length - edited
+    };
+  }, [items, edits]);
 
   const handlePriceChange = (ingredientId, value) => {
     setEdits(prev => ({
@@ -132,15 +188,65 @@ export default function SupplierCatalogSection() {
   };
 
   const filteredItems = useMemo(() => {
-    return items.filter(row => {
+    const term = searchTerm.trim().toLowerCase();
+
+    const result = items.filter(row => {
       const ing = row.ingredients || {};
       const name = (ing.name || '').toLowerCase();
       const cat = (ing.category || '').toUpperCase();
-      const matchesSearch = !searchTerm.trim() || name.includes(searchTerm.toLowerCase().trim());
+      const ingredientId = row.ingredient_id || ing.id;
+      const editData = edits[ingredientId];
+      const isModified = editData && (
+        editData.price !== undefined || 
+        editData.purchase_unit !== undefined || 
+        editData.conversion_factor !== undefined
+      );
+
+      const matchesSearch = !term || 
+        name.includes(term) || 
+        cat.toLowerCase().includes(term) ||
+        String(row.default_purchase_unit || '').toLowerCase().includes(term);
+
       const matchesCategory = selectedCategory === 'ALL' || cat === selectedCategory;
-      return matchesSearch && matchesCategory;
+
+      let matchesStatus = true;
+      if (statusFilter === 'EDITED') {
+        matchesStatus = Boolean(isModified);
+      } else if (statusFilter === 'SAVED') {
+        matchesStatus = !isModified;
+      }
+
+      return matchesSearch && matchesCategory && matchesStatus;
     });
-  }, [items, searchTerm, selectedCategory]);
+
+    // Sorting
+    return [...result].sort((a, b) => {
+      const aIng = a.ingredients || {};
+      const bIng = b.ingredients || {};
+      const aId = a.ingredient_id || aIng.id;
+      const bId = b.ingredient_id || bIng.id;
+      const aEdit = edits[aId];
+      const bEdit = edits[bId];
+      const aModified = Boolean(aEdit && (aEdit.price !== undefined || aEdit.purchase_unit !== undefined || aEdit.conversion_factor !== undefined));
+      const bModified = Boolean(bEdit && (bEdit.price !== undefined || bEdit.purchase_unit !== undefined || bEdit.conversion_factor !== undefined));
+
+      const aPrice = aEdit?.price !== undefined ? parseFloat(aEdit.price) : (parseFloat(a.default_price) || 0);
+      const bPrice = bEdit?.price !== undefined ? parseFloat(bEdit.price) : (parseFloat(b.default_price) || 0);
+
+      if (sortOption === 'EDITED_FIRST') {
+        if (aModified !== bModified) return bModified ? 1 : -1;
+      } else if (sortOption === 'PRICE_ASC') {
+        if (aPrice !== bPrice) return aPrice - bPrice;
+      } else if (sortOption === 'PRICE_DESC') {
+        if (aPrice !== bPrice) return bPrice - aPrice;
+      } else if (sortOption === 'NAME_DESC') {
+        return (bIng.name || '').localeCompare(aIng.name || '');
+      }
+
+      // Default: NAME_ASC
+      return (aIng.name || '').localeCompare(bIng.name || '');
+    });
+  }, [items, searchTerm, selectedCategory, statusFilter, sortOption, edits]);
 
   const totalPages = Math.ceil(filteredItems.length / itemsPerPage) || 1;
   const paginatedItems = useMemo(() => {
@@ -219,75 +325,192 @@ export default function SupplierCatalogSection() {
       )}
 
       {/* Action Toolbar & Filters */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-xs flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1">
-          {/* Search */}
-          <div className="relative flex-1 max-w-md">
-            <svg className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              type="text"
-              placeholder="Search supplied material..."
-              value={searchTerm}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 text-xs font-semibold bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-zinc-900 focus:outline-none transition-colors"
-            />
+      <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-xs flex flex-col gap-4">
+        {/* Row 1: Search, Sort, Status Scope Pills & Save Updates */}
+        <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1">
+            {/* Search */}
+            <div className="relative flex-1 max-w-md">
+              <svg className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search supplied material or unit..."
+                value={searchTerm}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="w-full pl-9 pr-8 py-2 text-xs font-semibold bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-zinc-900 focus:outline-none transition-colors"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => handleSearchChange('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 p-0.5 cursor-pointer"
+                  title="Clear search"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+
+            {/* Sort Dropdown */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <select
+                value={sortOption}
+                onChange={(e) => {
+                  setSortOption(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="px-3 py-2 text-xs font-semibold bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-zinc-900 focus:outline-none cursor-pointer"
+              >
+                <option value="NAME_ASC">Sort: Name (A to Z)</option>
+                <option value="NAME_DESC">Sort: Name (Z to A)</option>
+                <option value="PRICE_ASC">Sort: Price (Low to High)</option>
+                <option value="PRICE_DESC">Sort: Price (High to Low)</option>
+                <option value="EDITED_FIRST">Sort: Edited First</option>
+              </select>
+            </div>
           </div>
 
-          {/* Category Filter */}
-          <select
-            value={selectedCategory}
-            onChange={(e) => handleCategoryChange(e.target.value)}
-            className="px-3 py-2 text-xs font-semibold bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-zinc-900 focus:outline-none cursor-pointer"
-          >
-            <option value="ALL">All Categories</option>
-            {RAW_MATERIAL_CATEGORIES.map(cat => (
-              <option key={cat} value={cat}>{cat}</option>
-            ))}
-          </select>
-        </div>
+          {/* Status Scope Pills (All, Edited, Saved) & Save Actions */}
+          <div className="flex flex-wrap items-center gap-2 justify-between lg:justify-end">
+            <div className="inline-flex p-1 bg-zinc-100 rounded-xl border border-zinc-200/80 gap-1 text-xs">
+              {[
+                { id: 'ALL', label: 'All', count: statusCounts.all },
+                { id: 'EDITED', label: 'Edited', count: statusCounts.edited, isAlert: statusCounts.edited > 0 },
+                { id: 'SAVED', label: 'Saved', count: statusCounts.saved },
+              ].map((s) => {
+                const isActive = statusFilter === s.id;
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => {
+                      setStatusFilter(s.id);
+                      setCurrentPage(1);
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
+                      isActive
+                        ? s.isAlert
+                          ? 'bg-amber-500 text-white shadow-2xs'
+                          : 'bg-zinc-900 text-white shadow-2xs'
+                        : s.isAlert
+                          ? 'text-amber-800 hover:bg-amber-50 font-black'
+                          : 'text-zinc-600 hover:text-zinc-900'
+                    }`}
+                  >
+                    <span>{s.label}</span>
+                    <span
+                      className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                        isActive
+                          ? 'bg-white/20 text-white'
+                          : s.isAlert
+                            ? 'bg-amber-200 text-amber-900'
+                            : 'bg-zinc-200 text-zinc-700'
+                      }`}
+                    >
+                      {s.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
 
-        {/* Save Bar */}
-        <div className="flex items-center gap-3 justify-end">
-          {dirtyCount > 0 && (
+            {dirtyCount > 0 && (
+              <button
+                type="button"
+                onClick={handleReset}
+                disabled={saving}
+                className="px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors cursor-pointer"
+              >
+                Reset
+              </button>
+            )}
+
             <button
               type="button"
-              onClick={handleReset}
-              disabled={saving}
-              className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors cursor-pointer"
+              onClick={handleSaveAll}
+              disabled={dirtyCount === 0 || saving}
+              className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
+                dirtyCount > 0 && !saving
+                  ? 'bg-zinc-900 text-white hover:bg-black shadow-xs'
+                  : 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed'
+              }`}
             >
-              Reset
+              {saving ? (
+                <>
+                  <svg className="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                  </svg>
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  Save Price Updates {dirtyCount > 0 ? `(${dirtyCount})` : ''}
+                </>
+              )}
             </button>
-          )}
+          </div>
+        </div>
 
+        {/* Row 2: Category Filter Pills & Clear Filters */}
+        <div className="pt-3 border-t border-gray-100 flex flex-wrap items-center gap-1.5">
           <button
             type="button"
-            onClick={handleSaveAll}
-            disabled={dirtyCount === 0 || saving}
-            className={`px-5 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
-              dirtyCount > 0 && !saving
-                ? 'bg-zinc-900 text-white hover:bg-black shadow-xs'
-                : 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed'
+            onClick={() => handleCategoryChange('ALL')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider border transition-colors cursor-pointer flex items-center gap-1.5 ${
+              selectedCategory === 'ALL'
+                ? 'bg-zinc-900 text-white border-zinc-900 shadow-2xs'
+                : 'bg-white text-zinc-600 border-zinc-200 hover:border-zinc-400 hover:text-zinc-900'
             }`}
           >
-            {saving ? (
-              <>
-                <svg className="animate-spin -ml-1 mr-2 h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
-                </svg>
-                Saving Changes...
-              </>
-            ) : (
-              <>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                </svg>
-                Save Price Updates {dirtyCount > 0 ? `(${dirtyCount})` : ''}
-              </>
-            )}
+            <span>All Categories</span>
+            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+              selectedCategory === 'ALL' ? 'bg-zinc-800 text-zinc-300' : 'bg-zinc-100 text-zinc-600'
+            }`}>
+              {items.length}
+            </span>
           </button>
+
+          {availableCategories.map((cat) => {
+            const count = categoryCounts[cat] || 0;
+            const isSelected = selectedCategory === cat;
+            return (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => handleCategoryChange(cat)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider border transition-colors cursor-pointer flex items-center gap-1.5 ${
+                  isSelected
+                    ? 'bg-zinc-900 text-white border-zinc-900 shadow-2xs'
+                    : 'bg-white text-zinc-600 border-zinc-200 hover:border-zinc-400 hover:text-zinc-900'
+                }`}
+              >
+                <span>{cat}</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                  isSelected ? 'bg-zinc-800 text-zinc-300' : 'bg-zinc-100 text-zinc-600'
+                }`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+
+          {isFiltered && (
+            <button
+              type="button"
+              onClick={handleClearAllFilters}
+              className="ml-auto text-xs font-bold text-red-600 hover:text-red-800 hover:underline px-2 py-1 cursor-pointer transition-colors"
+            >
+              Clear all filters
+            </button>
+          )}
         </div>
       </div>
 
@@ -297,20 +520,79 @@ export default function SupplierCatalogSection() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50/80 border-b border-gray-200 text-[11px] font-black uppercase tracking-wider text-gray-500">
-                <th className="py-3 px-4">Raw Material</th>
+                <th
+                  className="py-3 px-4 cursor-pointer select-none hover:text-gray-900 transition-colors"
+                  onClick={() => {
+                    setSortOption(prev => prev === 'NAME_ASC' ? 'NAME_DESC' : 'NAME_ASC');
+                    setCurrentPage(1);
+                  }}
+                  title="Click to sort by material name"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span>Raw Material</span>
+                    {sortOption === 'NAME_ASC' && (
+                      <svg className="w-3.5 h-3.5 text-zinc-900" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
+                    )}
+                    {sortOption === 'NAME_DESC' && (
+                      <svg className="w-3.5 h-3.5 text-zinc-900" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                    )}
+                  </div>
+                </th>
                 <th className="py-3 px-4">Category</th>
                 <th className="py-3 px-4">Packaging / Purchase Unit</th>
                 <th className="py-3 px-4">Yield (Base Units)</th>
-                <th className="py-3 px-4">Agreed Price (₱)</th>
+                <th
+                  className="py-3 px-4 cursor-pointer select-none hover:text-gray-900 transition-colors"
+                  onClick={() => {
+                    setSortOption(prev => prev === 'PRICE_ASC' ? 'PRICE_DESC' : 'PRICE_ASC');
+                    setCurrentPage(1);
+                  }}
+                  title="Click to sort by price"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span>Agreed Price (₱)</span>
+                    {sortOption === 'PRICE_ASC' && (
+                      <svg className="w-3.5 h-3.5 text-zinc-900" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
+                    )}
+                    {sortOption === 'PRICE_DESC' && (
+                      <svg className="w-3.5 h-3.5 text-zinc-900" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                    )}
+                  </div>
+                </th>
                 <th className="py-3 px-4 text-right">Cost Per Base Unit</th>
-                <th className="py-3 px-4 text-center">Status</th>
+                <th
+                  className="py-3 px-4 text-center cursor-pointer select-none hover:text-gray-900 transition-colors"
+                  onClick={() => {
+                    setSortOption(prev => prev === 'EDITED_FIRST' ? 'NAME_ASC' : 'EDITED_FIRST');
+                    setCurrentPage(1);
+                  }}
+                  title="Click to toggle edited items first"
+                >
+                  <div className="flex items-center justify-center gap-1">
+                    <span>Status</span>
+                    {sortOption === 'EDITED_FIRST' && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                    )}
+                  </div>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 text-xs font-medium">
               {filteredItems.length === 0 ? (
                 <tr>
                   <td colSpan="7" className="py-12 text-center text-gray-400 font-semibold">
-                    No materials found matching your filters.
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <span>No materials found matching your filters.</span>
+                      {isFiltered && (
+                        <button
+                          type="button"
+                          onClick={handleClearAllFilters}
+                          className="px-3 py-1.5 text-xs font-bold text-zinc-900 bg-zinc-100 hover:bg-zinc-200 rounded-lg transition-colors cursor-pointer mt-1"
+                        >
+                          Reset Filters
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ) : (

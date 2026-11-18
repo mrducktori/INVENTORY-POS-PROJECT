@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [UI/Supplier Portal: Interactive Category Pills, Status Scope & Sorting in Catalog & Pricing - 2026-11-18]
+- **`SupplierCatalogSection.jsx`**:
+  - **Interactive Category Filter Pills**: Added horizontal category filter pills with live item count badges for all categories supplied in the catalog, matching the project's standard aesthetic.
+  - **Status Scope Filter Pills**: Added `All`, `Edited`, and `Saved` filter pills with badge counts. Selecting `Edited` isolates unsaved price/packaging modifications so suppliers can review changes before saving.
+  - **Sorting Capabilities**: Added sort dropdown and clickable column headers for `Raw Material` and `Agreed Price (₱)` supporting `Name (A-Z)`, `Name (Z-A)`, `Price (Low to High)`, `Price (High to Low)`, and `Edited First`.
+  - **Search Enhancements & Quick Reset**: Added an instant clear (x) button to the search input, an empty state reset button, and a one-click `Clear all filters` button whenever any filter is active.
+
 ## [UI/API: Timeframe, Date Range & Chart Type Filters in Dashboard Category Breakdown - 2026-11-18]
 - **`server/routes/dashboard.js`**:
   - Extended `GET /api/dashboard/stats` `period` handling to support `7d`, `14d`, and `30d` rolling windows alongside `day`, `week`, and `month`.
