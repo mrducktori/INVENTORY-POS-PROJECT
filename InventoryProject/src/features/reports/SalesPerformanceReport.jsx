@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { getSalesPerformanceReport } from '../../api/reportsApi';
-import { downloadCSV, printReport } from './reportUtils';
+import { downloadCSV, printReport } from './utils/reportUtils';
 import { TableSkeleton, StatCardsSkeleton } from '../../components/shared/SkeletonLoader';
 import Pagination from '../../components/shared/Pagination';
 

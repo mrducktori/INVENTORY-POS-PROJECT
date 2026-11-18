@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getSalesReportByPeriod } from '../../api/logsApi';
 import { getSales } from '../../api/salesApi';
-import { downloadCSV } from '../reports/reportUtils';
+import { downloadCSV } from '../reports/utils/reportUtils';
 import Pagination from '../../components/shared/Pagination';
 
 const SalesSummaryReport = () => {

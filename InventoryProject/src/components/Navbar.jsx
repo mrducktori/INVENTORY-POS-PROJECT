@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { logoutUser, getCurrentUser } from '../api/authApi';
-import { useNotifications, EMPTY_LOW_STOCK } from '../features/dashboard/useNotifications';
+import { useNotifications, EMPTY_LOW_STOCK } from '../features/dashboard/hooks/useNotifications';
 import { getCmsMap } from '../api/cmsApi';
 import NotificationInbox from '../features/dashboard/components/NotificationInbox';
 import { PERMISSION_GROUPS, getUserPermissions, usesPagePermissions, getRoleLabel } from '../utils/permissions';

@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { getPurchaseOrders, getSupplierPriceUpdates } from '../../api/purchasingApi.js';
-import { getDashboardStats } from '../../api/dashboardApi.js';
-import { supabase } from '../../config/supabaseClient.js';
-import { formatDisplayDate } from '../../utils/dateUtils.js';
-import { formatQuantity } from '../../utils/productUtils.js';
-import { canAccess } from '../../utils/permissions.js';
-import { getCurrentUser } from '../../utils/authUtils.js';
+import { getPurchaseOrders, getSupplierPriceUpdates } from '../../../api/purchasingApi.js';
+import { getDashboardStats } from '../../../api/dashboardApi.js';
+import { supabase } from '../../../config/supabaseClient.js';
+import { formatDisplayDate } from '../../../utils/dateUtils.js';
+import { formatQuantity } from '../../../utils/productUtils.js';
+import { canAccess } from '../../../utils/permissions.js';
+import { getCurrentUser } from '../../../utils/authUtils.js';
 
 export const EMPTY_LOW_STOCK = [];
 

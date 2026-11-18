@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import InfoTip from '../../../components/shared/InfoTip';
+import InfoTip from '../../../../components/shared/InfoTip';
 
 const CANCELLATION_REASONS = [
   'Supplier failed to deliver / Order is overdue',

@@ -2,51 +2,64 @@ import express from 'express';
 import { supabase } from '../config/supabaseClient.js';
 import { convertToBaseUnit } from '../utils/unitUtils.js';
 import { requireRole } from '../middleware/authMiddleware.js';
+import {
+  forecastStockUsingAI,
+  invalidateAiForecastCache,
+  isPhilippineHoliday,
+  isPhilippinePayday,
+  getMultiYearProductSummary
+} from '../services/aiForecastingService.js';
 
 const router = express.Router();
 router.use(requireRole('Owner', 'Admin', 'Staff', 'Custom'));
 
-let cached30DaySales = null;
-let cached30DayAt = 0;
-let inflight30DayPromise = null;
-const SALES_CACHE_TTL_MS = 45 * 1000;
+let cached90DaySales = null;
+let cached90DayAt = 0;
+let inflight90DayPromise = null;
+const SALES_CACHE_TTL_MS = 60 * 1000;
 
 export function invalidateAnalyticsCache() {
-  cached30DaySales = null;
-  cached30DayAt = 0;
+  cached90DaySales = null;
+  cached90DayAt = 0;
+  invalidateAiForecastCache();
 }
 
 /**
- * Fetches all 30-day sales with their sale_items using indexed two-step queries
+ * Fetches all 90-day (3-month) sales with their sale_items using indexed two-step queries
  * (avoiding slow lateral joins and bypassing PostgREST's 1,000-row single-query cap)
- * with a shared 45-second cache and in-flight request deduplication.
+ * with a shared 60-second cache and in-flight request deduplication.
  */
 async function fetchSalesSince(sinceIso) {
   const now = Date.now();
-  if (cached30DaySales && now - cached30DayAt < SALES_CACHE_TTL_MS) {
-    return cached30DaySales;
+  if (cached90DaySales && now - cached90DayAt < SALES_CACHE_TTL_MS) {
+    return cached90DaySales;
   }
-  if (inflight30DayPromise) {
-    return inflight30DayPromise;
+  if (inflight90DayPromise) {
+    return inflight90DayPromise;
   }
 
-  inflight30DayPromise = (async () => {
+  inflight90DayPromise = (async () => {
     try {
       const PAGE_SIZE = 1000;
-      const [s1, s2, s3] = await Promise.all([
-        supabase.from('sales').select('id, created_at').gte('created_at', sinceIso).order('id', { ascending: true }).range(0, PAGE_SIZE - 1),
-        supabase.from('sales').select('id, created_at').gte('created_at', sinceIso).order('id', { ascending: true }).range(PAGE_SIZE, PAGE_SIZE * 2 - 1),
-        supabase.from('sales').select('id, created_at').gte('created_at', sinceIso).order('id', { ascending: true }).range(PAGE_SIZE * 2, PAGE_SIZE * 3 - 1)
-      ]);
+      const pages = await Promise.all(
+        [0, 1, 2, 3, 4, 5].map(pageIdx =>
+          supabase
+            .from('sales')
+            .select('id, created_at')
+            .gte('created_at', sinceIso)
+            .order('id', { ascending: true })
+            .range(pageIdx * PAGE_SIZE, (pageIdx + 1) * PAGE_SIZE - 1)
+        )
+      );
 
-      if (s1.error) throw s1.error;
-      if (s2.error) throw s2.error;
-      if (s3.error) throw s3.error;
+      for (const page of pages) {
+        if (page.error) throw page.error;
+      }
 
-      const sales = [...(s1.data || []), ...(s2.data || []), ...(s3.data || [])];
+      const sales = pages.flatMap(p => p.data || []);
       if (sales.length === 0) {
-        cached30DaySales = [];
-        cached30DayAt = Date.now();
+        cached90DaySales = [];
+        cached90DayAt = Date.now();
         return [];
       }
 
@@ -80,15 +93,15 @@ async function fetchSalesSince(sinceIso) {
         sale_items: itemsBySale.get(s.id) || []
       }));
 
-      cached30DaySales = result;
-      cached30DayAt = Date.now();
+      cached90DaySales = result;
+      cached90DayAt = Date.now();
       return result;
     } finally {
-      inflight30DayPromise = null;
+      inflight90DayPromise = null;
     }
   })();
 
-  return inflight30DayPromise;
+  return inflight90DayPromise;
 }
 
 /**
@@ -135,7 +148,7 @@ router.get('/inventory-depletion', async (req, res) => {
 
 /**
  * GET /api/analytics/ingredient-forecast
- * Computes ingredient depletion predictions based on actual sales and recipes over the last 30 days.
+ * Computes ingredient depletion predictions based on actual sales and recipes over the last 90 days (3 months).
  * Includes burn rates, days remaining until stockout, and auto-calculated restock quantities in purchase units.
  */
 router.get('/ingredient-forecast', async (req, res) => {
@@ -143,12 +156,14 @@ router.get('/ingredient-forecast', async (req, res) => {
     if (req.query.refresh === 'true') {
       invalidateAnalyticsCache();
     }
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const fourteenDaysAgo = new Date();
     fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
-    // Fetch ingredients, recipes, suppliers mapping, and sales in parallel
+    // Fetch ingredients, recipes, suppliers mapping, and 90-day sales in parallel
     const [
       { data: ingredients, error: ingErr },
       { data: recipes, error: recErr },
@@ -158,7 +173,7 @@ router.get('/ingredient-forecast', async (req, res) => {
       supabase.from('ingredients').select('*').eq('is_archived', false),
       supabase.from('recipes').select('product_id, ingredient_id, quantity_used, recipe_unit'),
       supabase.from('supplier_ingredients').select('*, suppliers(id, name)'),
-      fetchSalesSince(thirtyDaysAgo.toISOString(), 'created_at, sale_items(product_id, quantity)')
+      fetchSalesSince(ninetyDaysAgo.toISOString(), 'created_at, sale_items(product_id, quantity)')
     ]);
 
     if (ingErr) throw ingErr;
@@ -186,12 +201,15 @@ router.get('/ingredient-forecast', async (req, res) => {
       ingredientLookup[ing.id] = ing;
     });
 
-    // Calculate actual ingredient consumption from sales
+    // Calculate actual ingredient consumption across 90d, 30d, and 14d windows
+    const consumption90Days = {};
     const consumption30Days = {};
     const consumption14Days = {};
 
     (salesWithItems || []).forEach(sale => {
-      const isRecent = new Date(sale.created_at) >= fourteenDaysAgo;
+      const saleTime = new Date(sale.created_at);
+      const isWithin30 = saleTime >= thirtyDaysAgo;
+      const isRecent = saleTime >= fourteenDaysAgo;
       (sale.sale_items || []).forEach(si => {
         const prodRecipes = recipeMap[si.product_id] || [];
         const soldQty = parseFloat(si.quantity) || 0;
@@ -201,8 +219,11 @@ router.get('/ingredient-forecast', async (req, res) => {
           if (!ing) return;
 
           const baseAmount = convertToBaseUnit(rec.quantity_used, rec.recipe_unit || ing.unit, ing.unit) * soldQty;
-          
-          consumption30Days[rec.ingredient_id] = (consumption30Days[rec.ingredient_id] || 0) + baseAmount;
+
+          consumption90Days[rec.ingredient_id] = (consumption90Days[rec.ingredient_id] || 0) + baseAmount;
+          if (isWithin30) {
+            consumption30Days[rec.ingredient_id] = (consumption30Days[rec.ingredient_id] || 0) + baseAmount;
+          }
           if (isRecent) {
             consumption14Days[rec.ingredient_id] = (consumption14Days[rec.ingredient_id] || 0) + baseAmount;
           }
@@ -220,14 +241,18 @@ router.get('/ingredient-forecast', async (req, res) => {
       const lowStockAlert = parseFloat(item.low_stock_alert) || 0;
       const unit = item.unit || 'units';
 
+      const totalUsed90 = consumption90Days[item.id] || 0;
       const totalUsed30 = consumption30Days[item.id] || 0;
       const totalUsed14 = consumption14Days[item.id] || 0;
 
+      const dailyRate90 = totalUsed90 / 90;
       const dailyRate30 = totalUsed30 / 30;
       const dailyRate14 = totalUsed14 / 14;
-      
-      // Weighted daily burn rate: 70% recent 14 days, 30% full 30 days
-      const avgDailyBurnRate = dailyRate14 > 0 ? (dailyRate14 * 0.7 + dailyRate30 * 0.3) : dailyRate30;
+
+      // 3-tier weighted daily burn rate: 50% recent 14 days, 30% last 30 days, 20% 90-day quarterly baseline
+      const avgDailyBurnRate = dailyRate14 > 0
+        ? (dailyRate14 * 0.50 + dailyRate30 * 0.30 + dailyRate90 * 0.20)
+        : (dailyRate30 > 0 ? (dailyRate30 * 0.65 + dailyRate90 * 0.35) : dailyRate90);
 
       let daysRemaining = null;
       let depletionDate = null;
@@ -335,13 +360,6 @@ router.get('/ingredient-forecast', async (req, res) => {
   }
 });
 
-import {
-  forecastStockUsingAI,
-  isPhilippineHoliday,
-  isPhilippinePayday,
-  getMultiYearProductSummary
-} from '../services/aiForecastingService.js';
-
 /**
  * POST /api/analytics/ai-forecast
  * Generates an AI-driven stock & demand forecast for a target product and month.
@@ -365,22 +383,26 @@ router.post('/ai-forecast', async (req, res) => {
 
 /**
  * GET /api/analytics/demand-forecast
- * Computes detailed demand forecasts across active products with Philippine calendar intelligence.
+ * Computes detailed demand forecasts across active products using a 90-day (3-month) rolling baseline and Philippine calendar intelligence.
  */
 router.get('/demand-forecast', async (req, res) => {
   try {
     if (req.query.refresh === 'true') {
       invalidateAnalyticsCache();
     }
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const fourteenDaysAgo = new Date();
+    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
-    // 1. Fetch sale items and products with current stock in parallel
+    // 1. Fetch 90-day sale items and products with current stock in parallel
     const [
       salesWithItems,
       { data: allProducts, error: prodError }
     ] = await Promise.all([
-      fetchSalesSince(thirtyDaysAgo.toISOString(), 'created_at, sale_items(product_id, quantity, unit_price)'),
+      fetchSalesSince(ninetyDaysAgo.toISOString(), 'created_at, sale_items(product_id, quantity, unit_price)'),
       supabase
         .from('products')
         .select('id, name, category, price, stock_quantity')
@@ -397,7 +419,8 @@ router.get('/demand-forecast', async (req, res) => {
         category: p.category || 'General',
         currentStock: parseFloat(p.stock_quantity) || 0,
         price: parseFloat(p.price) || 0,
-        totalQty: 0,
+        totalQty: 0,  // last 90 days
+        qty30: 0,     // last 30 days
         recentQty: 0, // last 14 days
         priorQty: 0,  // 14-30 days ago
         weekendQty: 0,
@@ -405,11 +428,9 @@ router.get('/demand-forecast', async (req, res) => {
       };
     });
 
-    const fourteenDaysAgo = new Date();
-    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
-
     (salesWithItems || []).forEach(s => {
       const saleDate = new Date(s.created_at);
+      const isWithin30 = saleDate >= thirtyDaysAgo;
       const isRecent = saleDate >= fourteenDaysAgo;
       const dayOfWeek = saleDate.getDay();
       const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
@@ -426,6 +447,7 @@ router.get('/demand-forecast', async (req, res) => {
             currentStock: parseFloat(matchedProd?.stock_quantity) || 0,
             price: parseFloat(si.unit_price) || 0,
             totalQty: 0,
+            qty30: 0,
             recentQty: 0,
             priorQty: 0,
             weekendQty: 0,
@@ -435,18 +457,23 @@ router.get('/demand-forecast', async (req, res) => {
 
         const qty = parseFloat(si.quantity) || 0;
         productMap[pid].totalQty += qty;
-        if (isRecent) productMap[pid].recentQty += qty;
-        else productMap[pid].priorQty += qty;
+        if (isWithin30) {
+          productMap[pid].qty30 += qty;
+          if (isRecent) productMap[pid].recentQty += qty;
+          else productMap[pid].priorQty += qty;
+        }
 
         if (isWeekend) productMap[pid].weekendQty += qty;
         if (isPayday) productMap[pid].paydayQty += qty;
       });
     });
 
-    // 2. Generate Forecasts with Multi-Year Seasonality (2023-2026), YoY Trends, Short-Term Velocity & Calendar Intelligence
+    // 2. Generate Forecasts with Multi-Year Seasonality (2023-2026), YoY Trends, 90-Day Velocity & Calendar Intelligence
     const currentMonth = new Date().getMonth() + 1;
     const forecasts = Object.values(productMap).map(stats => {
-      const avgDaily = stats.totalQty / 30;
+      const avgDaily90 = stats.totalQty / 90;
+      const avgDaily30 = stats.qty30 / 30;
+      const avgDaily = avgDaily30 > 0 ? avgDaily30 : avgDaily90;
 
       // Short-term velocity growth: recent 14 days vs prior 16 days
       const recentDaily = stats.recentQty / 14;
@@ -483,8 +510,10 @@ router.get('/demand-forecast', async (req, res) => {
         multiYearDailyBaseline = avgPriorSameMonthDaily * yoyLift;
       }
 
-      // Blended daily rate: 65% recent short-term counter velocity + 35% 4-year seasonal YoY baseline
-      const weightedRecentDaily = recentDaily > 0 ? (recentDaily * 0.7 + avgDaily * 0.3) : avgDaily;
+      // 3-tier weighted counter velocity: 50% 14d, 30% 30d, 20% 90d baseline; blended 65/35 with 4-year YoY seasonality
+      const weightedRecentDaily = recentDaily > 0
+        ? (recentDaily * 0.50 + avgDaily30 * 0.30 + avgDaily90 * 0.20)
+        : (avgDaily30 > 0 ? (avgDaily30 * 0.65 + avgDaily90 * 0.35) : avgDaily90);
       const blendedBaseDaily = multiYearDailyBaseline > 0
         ? (weightedRecentDaily * 0.65 + multiYearDailyBaseline * 0.35)
         : weightedRecentDaily;

@@ -2,6 +2,43 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Chore/Structure: Organize Workspace, Docs & Feature Directories - 2026-11-19]
+- **Workspace & Docs Cleanup**:
+  - Removed duplicate presentation PDFs from the repository root and empty `scratch/` directory.
+  - Moved defense presentations, test cases, questionnaires, and weekly update into `docs/defense/`, keeping core references (`PROJECT_REFERENCE.md`, `CHANGELOG.md`, `DEPLOYMENT_GUIDE_VERCEL_RENDER.md`) at `docs/`.
+  - Updated `InventoryProject/.gitignore` (`logs/` → `/logs/`) so Git tracks `src/features/logs/`.
+- **Feature Directory Standardization**:
+  - Moved loose hooks and utils into consistent folders: `auth/hooks/useLogin.js`, `auth/components/PageLoader.jsx`, `dashboard/hooks/useDashboardStats.js`, `dashboard/hooks/useNotifications.js`, `pos/hooks/usePOS.js`, and `reports/utils/reportUtils.js`.
+  - Grouped the 17 components inside `src/features/inventory/components/` by domain: `products/`, `purchasing/`, and `suppliers/`.
+  - Updated all relative imports across affected files and documented the structure in `docs/PROJECT_REFERENCE.md`.
+
+## [Refactor/Frontend: Modularize Large Feature Pages into Hooks & Sub-Components - 2026-11-19]
+- **`src/features/analytics/DemandForecasting.jsx`** (`2,069` → `220` lines): Extracted state/API/sorting logic to `hooks/useDemandForecasting.js`, helper utils to `utils/forecastUtils.js`, and UI sections/modals to `components/ForecastBadges.jsx`, `IngredientRestockTab.jsx`, `MenuDemandTab.jsx`, `ForecastCreatePOModal.jsx`, `MonthlyProjectionModal.jsx`, and `ForecastGuideModal.jsx`.
+- **`src/features/cms/CMSDashboard.jsx`** (`1,107` → `178` lines): Extracted CMS parsing, uploads, and save logic to `hooks/useCMSDashboard.js` and tabs/uploader UI to `components/ImageUploadField.jsx`, `CMSBrandTab.jsx`, `CMSHeroTab.jsx`, `CMSPromotionsTab.jsx`, and `CMSLocationFooterTab.jsx`.
+- **`src/features/inventory/ManageProducts.jsx`** (`1,023` → `309` lines): Extracted UI sections into `components/AddProductFormSection.jsx`, `ProductListSection.jsx`, `ArchivedProductsSection.jsx`, `ModifyProductSection.jsx`, and `ModifyProductModal.jsx`.
+- **`src/features/inventory/SupplierPortal.jsx`** (`818` → `185` lines): Extracted Realtime subscription and PO handlers to `hooks/useSupplierPortal.js` and table/modals to `components/SupplierOrderActionModals.jsx`, `SupplierOrderDetailsRow.jsx`, and `SupplierOrdersTable.jsx`.
+- **`src/features/auth/LandingPage.jsx`** (`873` → `224` lines): Extracted CMS/menu/carousel logic to `hooks/useLandingPage.js` and UI sections to `components/LandingMenuBoard.jsx` and `LandingPromoCarousel.jsx`.
+- **`src/features/logs/SalesReceiptJournal.jsx`** (`1,112` → `171` lines): Extracted receipt fetching/filtering/pagination to `hooks/useSalesReceiptJournal.js` and UI to `components/ReceiptJournalToolbar.jsx`, `ReceiptJournalTable.jsx`, and `ReceiptGuideModal.jsx`.
+- **`src/features/reports/StockMovementReport.jsx`** (`951` → `134` lines): Extracted movement fetching/calculations/CSV-print to `hooks/useStockMovementReport.js` and UI to `components/StockMovementToolbar.jsx`, `StockMovementSummaryCards.jsx`, `StockMovementTable.jsx`, and `StockSnapshotTable.jsx`.
+
+## [Analytics/AI: Upgrade Forecasting to 90-Day Rolling Window & Gemini Quota Caching - 2026-11-19]
+- **`server/services/aiForecastingService.js`**:
+  - Extended rolling time-series window to **90 days (3 months)** (`averageUnitsSoldLast90Days`, `sameDay3MonthsAgoUnitsSold`, `last90DaysUnitsSold`, `averageLast90Days`) with a 3-tier velocity blend (`50%` recent 7d/14d, `30%` 30-day, `20%` 90-day baseline).
+  - Added a **30-minute in-memory forecast cache** (`aiForecastCache`) and in-flight request deduplication (`inflightAiForecasts`) keyed by product, target month/year, and live stock level, plus `invalidateAiForecastCache()` to minimize free-tier Gemini API quota usage.
+  - Compacted Gemini AI prompt payload to pre-aggregated 7d/30d/90d summary metrics and trailing 12-month history instead of raw daily arrays.
+- **`server/routes/analytics.js`**:
+  - Expanded `fetchSalesSince` pagination to 6 parallel pages (up to 6,000 sales) with a 60-second cache and invalidation hook to `invalidateAiForecastCache()`.
+  - Upgraded `/ingredient-forecast` and `/demand-forecast` to evaluate a 90-day rolling baseline (`50%` 14d / `30%` 30d / `20%` 90d).
+- **`src/features/analytics/DemandForecasting.jsx`**:
+  - Updated tooltip and reference guide descriptions to reflect the 90-day (3-month) rolling baseline.
+
+## [Docs/Database: Update Schema Reference & SQL Snapshot - 2026-11-18]
+- **`docs/PROJECT_REFERENCE.md` (Section 8 — Database Schema Notes)**:
+  - Updated table inventory to match all 14 live Supabase PostgreSQL tables (`users`, `products`, `category_settings`, `ingredients`, `recipes`, `sales`, `sale_items`, `suppliers`, `supplier_ingredients`, `purchase_orders`, `purchase_order_items`, `wastage`, `audit_logs`, `cms_content`) with exact primary/foreign keys and column definitions.
+  - Documented `process_pos_checkout` RPC, `cms-images` storage bucket, 30/90-day archive deletion rules, dynamic `max_stock` restock thresholds, PO partial delivery tracking (`receipt_history`), and audit-log backed staff requests.
+- **`docs/database/supabase_schema.sql`**:
+  - Created a complete PostgreSQL DDL reference script covering all 14 tables, constraints, relationships, and column comments.
+
 ## [UI/Supplier Portal: Interactive Category Pills, Status Scope & Sorting in Catalog & Pricing - 2026-11-18]
 - **`SupplierCatalogSection.jsx`**:
   - **Interactive Category Filter Pills**: Added horizontal category filter pills with live item count badges for all categories supplied in the catalog, matching the project's standard aesthetic.

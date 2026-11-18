@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { getManilaDateOnly, formatDisplayDate, isDatePast, getDaysOverdue } from '../../../utils/dateUtils';
-import InfoTip from '../../../components/shared/InfoTip';
+import { getManilaDateOnly, formatDisplayDate, isDatePast, getDaysOverdue } from '../../../../utils/dateUtils';
+import InfoTip from '../../../../components/shared/InfoTip';
 
 const RESCHEDULE_REASONS = [
   'Supplier notified of delay in transit / logistics',

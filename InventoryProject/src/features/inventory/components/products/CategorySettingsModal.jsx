@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { CATEGORIES } from '../../../utils/constants';
-import { getCategorySettings, updateCategorySettings } from '../../../api/categorySettingsApi';
-import SearchableIngredientSelect from '../../../components/shared/SearchableIngredientSelect';
+import { CATEGORIES } from '../../../../utils/constants';
+import { getCategorySettings, updateCategorySettings } from '../../../../api/categorySettingsApi';
+import SearchableIngredientSelect from '../../../../components/shared/SearchableIngredientSelect';
 
 const CategorySettingsModal = ({ onClose, allIngredients }) => {
   const [selectedCategory, setSelectedCategory] = useState(CATEGORIES[0]);

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getSupplierOwnCatalog, updateSupplierOwnCatalog } from '../../../api/purchasingApi';
-import Pagination from '../../../components/shared/Pagination';
-import { TableSkeleton } from '../../../components/shared/SkeletonLoader';
+import { getSupplierOwnCatalog, updateSupplierOwnCatalog } from '../../../../api/purchasingApi';
+import Pagination from '../../../../components/shared/Pagination';
+import { TableSkeleton } from '../../../../components/shared/SkeletonLoader';
 
 const RAW_MATERIAL_CATEGORIES = [
   'COFFEE & TEA BASES',

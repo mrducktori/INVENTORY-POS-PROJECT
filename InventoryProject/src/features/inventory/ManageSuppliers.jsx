@@ -3,9 +3,9 @@ import { getSuppliers, createSupplier, updateSupplier, archiveSupplier, restoreS
 import { getIngredients } from '../../api/inventoryApi';
 import ConfirmModal from '../../components/shared/ConfirmModal';
 import Pagination from '../../components/shared/Pagination';
-import SupplierFormModal from './components/SupplierFormModal';
-import SupplierCatalogModal from './components/SupplierCatalogModal';
-import SupplierPriceComparison from './components/SupplierPriceComparison';
+import SupplierFormModal from './components/suppliers/SupplierFormModal';
+import SupplierCatalogModal from './components/suppliers/SupplierCatalogModal';
+import SupplierPriceComparison from './components/suppliers/SupplierPriceComparison';
 
 const ManageSuppliers = () => {
   const getInitialTab = () => {

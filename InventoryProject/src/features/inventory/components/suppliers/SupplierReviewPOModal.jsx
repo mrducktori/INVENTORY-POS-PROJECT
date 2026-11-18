@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { formatDisplayDate } from '../../../utils/dateUtils';
+import { formatDisplayDate } from '../../../../utils/dateUtils';
 
 const SupplierReviewPOModal = ({ isOpen, onClose, order, onSubmit }) => {
   const [itemsState, setItemsState] = useState({});

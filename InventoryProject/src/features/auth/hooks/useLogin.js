@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { loginUser, saveUser, getCurrentUser } from '../../api/authApi.js';
+import { loginUser, saveUser, getCurrentUser } from '../../../api/authApi.js';
 
 const MAX_ATTEMPTS   = 3;
 const LOCK_MS        = 5 * 60 * 1000; // 5 minutes

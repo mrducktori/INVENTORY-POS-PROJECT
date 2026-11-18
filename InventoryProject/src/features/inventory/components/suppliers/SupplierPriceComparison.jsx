@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import Pagination from '../../../components/shared/Pagination';
+import Pagination from '../../../../components/shared/Pagination';
 
 const CATEGORIES = ['All', 'Coffee & Tea', 'Dairy', 'Syrups & Powders', 'Packaging'];
 

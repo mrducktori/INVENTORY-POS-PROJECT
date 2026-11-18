@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNotifications, getRelativeTimeString } from '../useNotifications';
+import { useNotifications, getRelativeTimeString } from '../hooks/useNotifications';
 
 const BADGE_STYLES = {
   danger: 'bg-rose-100 text-rose-800 border-rose-200',

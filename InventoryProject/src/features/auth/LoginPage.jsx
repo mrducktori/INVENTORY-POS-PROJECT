@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Dashboard from '../dashboard/Dashboard';
-import { useLogin } from './useLogin';
+import { useLogin } from './hooks/useLogin';
 import { getCmsImage } from '../../api/cmsApi';
 
 const DEFAULT_HERO_IMAGE = 'https://zngerymqycuxpxdmfftj.supabase.co/storage/v1/object/public/cms-images/public/landing_hero-0.8481000269201046.jpg';

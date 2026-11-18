@@ -8,6 +8,15 @@ const MULTI_YEAR_SUMMARY_PATH = path.resolve(__dirname, '../data/multiYearSalesS
 
 let cachedMultiYearSummary = null;
 
+// 30-minute in-memory cache + in-flight deduplication to conserve Google Gemini free-tier API quota
+const aiForecastCache = new Map();
+const inflightAiForecasts = new Map();
+const AI_CACHE_TTL_MS = 30 * 60 * 1000;
+
+export const invalidateAiForecastCache = () => {
+  aiForecastCache.clear();
+};
+
 export const getAllMultiYearSummary = () => {
   if (cachedMultiYearSummary) return cachedMultiYearSummary;
   try {
@@ -178,6 +187,9 @@ export const extractProductForecastingFeatures = async (productId, targetYear, t
     // Same day last month (t - 30)
     current.sameDayLastMonthUnitsSold = i >= 30 ? dailySales[i - 30].unitsSold : 0;
 
+    // Same day 3 months ago (t - 90)
+    current.sameDay3MonthsAgoUnitsSold = i >= 90 ? dailySales[i - 90].unitsSold : 0;
+
     // Rolling 7-day average
     if (i >= 6) {
       const slice7 = dailySales.slice(i - 6, i + 1);
@@ -192,6 +204,17 @@ export const extractProductForecastingFeatures = async (productId, targetYear, t
       current.averageUnitsSoldLast30Days = slice30.reduce((s, x) => s + x.unitsSold, 0) / slice30.length;
     } else {
       current.averageUnitsSoldLast30Days = 0;
+    }
+
+    // Rolling 90-day (3-month) average
+    if (i >= 89) {
+      const slice90 = dailySales.slice(i - 89, i + 1);
+      current.averageUnitsSoldLast90Days = slice90.reduce((s, x) => s + x.unitsSold, 0) / slice90.length;
+    } else if (dailySales.length > 0) {
+      const sliceWindow = dailySales.slice(0, i + 1);
+      current.averageUnitsSoldLast90Days = sliceWindow.reduce((s, x) => s + x.unitsSold, 0) / sliceWindow.length;
+    } else {
+      current.averageUnitsSoldLast90Days = 0;
     }
 
     // 7-day velocity growth: (Current 7d avg - Prior 7d avg) / Prior
@@ -292,15 +315,22 @@ export const extractProductForecastingFeatures = async (productId, targetYear, t
     };
   });
 
-  // 6. Recent summaries (strictly calendar-bounded last 7 and 30 days)
+  // 6. Recent summaries (strictly calendar-bounded last 7, 30, and 90 days)
   const last7Days = dailySales.slice(-7);
   const last30Days = dailySales.slice(-30);
+  const last90Days = dailySales.slice(-90);
+
+  const last7Units = last7Days.reduce((s, x) => s + x.unitsSold, 0);
+  const last30Units = last30Days.reduce((s, x) => s + x.unitsSold, 0);
+  const last90Units = last90Days.reduce((s, x) => s + x.unitsSold, 0);
 
   const recentSummary = {
-    last7DaysUnitsSold: last7Days.reduce((s, x) => s + x.unitsSold, 0),
-    last30DaysUnitsSold: last30Days.reduce((s, x) => s + x.unitsSold, 0),
-    averageLast7Days: last7Days.reduce((s, x) => s + x.unitsSold, 0) / 7,
-    averageLast30Days: last30Days.reduce((s, x) => s + x.unitsSold, 0) / 30,
+    last7DaysUnitsSold: last7Units,
+    last30DaysUnitsSold: last30Units,
+    last90DaysUnitsSold: last90Units,
+    averageLast7Days: last7Units / 7,
+    averageLast30Days: last30Units / 30,
+    averageLast90Days: last90Units / 90,
     currentStock
   };
 
@@ -329,7 +359,7 @@ export const extractProductForecastingFeatures = async (productId, targetYear, t
 /**
  * Multi-Year Seasonal Decomposition + Year-over-Year (YoY) + Short-Term Velocity Ensemble Model.
  * Synthesizes 4 years (2023-2026) of same-month seasonality, annual YoY growth trajectory,
- * recent 7d/30d counter velocity, weekend multipliers, 15th/30th paydays, and Philippine holidays.
+ * recent 7d/30d/90d counter velocity, weekend multipliers, 15th/30th paydays, and Philippine holidays.
  */
 export const runDeterministicEnsembleForecast = (forecastingData) => {
   const { product, forecastTarget, multiYearMeta, recentSummary, dailySales, monthlySales } = forecastingData;
@@ -338,10 +368,13 @@ export const runDeterministicEnsembleForecast = (forecastingData) => {
   const targetMonth = forecastTarget.month;
   const currentMonth = new Date().getMonth() + 1;
 
-  // 1. Short-term counter velocity (70% recent 7d, 30% recent 30d)
+  // 1. 3-tier counter velocity (50% recent 7d, 30% recent 30d, 20% 90-day quarterly baseline)
   const rate7 = recentSummary.averageLast7Days;
   const rate30 = recentSummary.averageLast30Days;
-  const shortTermDailyRate = rate7 > 0 ? (rate7 * 0.65 + rate30 * 0.35) : rate30;
+  const rate90 = recentSummary.averageLast90Days || rate30;
+  const shortTermDailyRate = rate7 > 0
+    ? (rate7 * 0.50 + rate30 * 0.30 + rate90 * 0.20)
+    : (rate30 > 0 ? (rate30 * 0.65 + rate90 * 0.35) : rate90);
 
   // 2. Multi-Year Seasonal Index (2023-2026) for targetMonth vs currentMonth
   const seasonalIndices = multiYearMeta?.seasonalIndices || {};
@@ -492,29 +525,40 @@ export const forecastStockUsingAI = async (dto) => {
 
   // 1. Build comprehensive time-series dataset
   const forecastingData = await extractProductForecastingFeatures(productId, targetYear, targetMonth);
-  
-  // Compact payload for AI prompt (recent 30-day velocity + 47-month multi-year seasonality)
-  // Prevents sending 600+ days of raw individual records, reducing token size by 92% and improving latency
-  const promptPayload = {
-    product: forecastingData.product,
-    forecastTarget: forecastingData.forecastTarget,
-    recentSummary: forecastingData.recentSummary,
-    seasonalIndices: forecastingData.multiYearMeta?.seasonalIndices,
-    yoyGrowthPct: forecastingData.multiYearMeta?.yoyGrowthPct,
-    recent30DaysDaily: (forecastingData.dailySales || []).slice(-30),
-    historicalMonthlySales: forecastingData.monthlySales
-  };
-  const salesJson = JSON.stringify(promptPayload);
 
-  const apiKeys = [
-    process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY,
-    process.env.GEMINI_API_KEY_BACKUP
-  ].filter(Boolean);
+  const cacheKey = `${productId}_${targetYear}_${targetMonth}_${forecastingData.product.currentStock}`;
+  const cached = aiForecastCache.get(cacheKey);
+  if (cached && (Date.now() - cached.at < AI_CACHE_TTL_MS)) {
+    return cached.result;
+  }
 
-  // 2. If Gemini API Key(s) are available, prompt Gemini AI (with automatic backup key failover)
-  if (apiKeys.length > 0) {
+  if (inflightAiForecasts.has(cacheKey)) {
+    return inflightAiForecasts.get(cacheKey);
+  }
+
+  const runForecastPromise = (async () => {
     try {
-      const prompt = `
+      // Compact 90-day payload for AI prompt (pre-aggregated 7d/30d/90d summary + trailing 12 months + multi-year seasonality)
+      // Eliminates raw daily arrays to cut Gemini token consumption by ~70% while feeding full 90-day context
+      const promptPayload = {
+        product: forecastingData.product,
+        forecastTarget: forecastingData.forecastTarget,
+        recentSummary: forecastingData.recentSummary,
+        seasonalIndices: forecastingData.multiYearMeta?.seasonalIndices,
+        yoyGrowthPct: forecastingData.multiYearMeta?.yoyGrowthPct,
+        historicalMonthlySales: (forecastingData.monthlySales || []).slice(-12)
+      };
+      const salesJson = JSON.stringify(promptPayload);
+
+      const apiKeys = [
+        process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY,
+        process.env.GEMINI_API_KEY_BACKUP
+      ].filter(Boolean);
+
+      // 2. If Gemini API Key(s) are available, prompt Gemini AI (with automatic backup key failover)
+      if (apiKeys.length > 0) {
+        try {
+          const prompt = `
 You are an inventory forecasting system.
 
 Your task is to forecast the total number of units that will be sold
@@ -536,7 +580,7 @@ Use the following factors when making the forecast:
 
 1. Historical units sold
 2. Recent 7-day sales trend
-3. Recent 30-day sales trend
+3. Recent 30-day and 90-day (3-month) sales trends
 4. Previous-day sales
 5. Same-day-last-week sales
 6. Same-day-last-month sales
@@ -582,70 +626,81 @@ Do not include explanations outside the JSON.
 Do not include markdown backticks.
 `;
 
-      const requestBody = {
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: prompt }]
-          }
-        ],
-        generationConfig: {
-          temperature: 0.2,
-          responseMimeType: "application/json"
-        }
-      };
-
-      // Call Gemini API (defaults to fast, free-tier gemini-3.5-flash-lite)
-      // Automatically fails over to GEMINI_API_KEY_BACKUP if primary key hits quota (429) or auth error
-      const targetModel = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
-      for (let i = 0; i < apiKeys.length; i++) {
-        const keyLabel = i === 0 ? 'primary' : 'backup';
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKeys[i]}`;
-        try {
-          const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestBody),
-            signal: AbortSignal.timeout(10000)
-          });
-
-          if (response.ok) {
-            const geminiResponse = await response.json();
-            const text = geminiResponse?.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (text) {
-              const parsed = JSON.parse(text.replace(/```json|```/gi, '').trim());
-              if (parsed.confidenceScore !== undefined && parsed.confidenceScore <= 1) {
-                parsed.confidenceScore = Math.round(parsed.confidenceScore * 100);
+          const requestBody = {
+            contents: [
+              {
+                role: "user",
+                parts: [{ text: prompt }]
               }
-              const ensembleBaseline = runDeterministicEnsembleForecast(forecastingData);
-              return {
-                ...ensembleBaseline,
-                ...parsed,
-                factors: ensembleBaseline.factors,
-                engine: 'gemini_ai',
-                daysInMonth: forecastingData.forecastTarget.daysInMonth,
-                targetPeriod: `${targetYear}-${String(targetMonth).padStart(2, '0')}`,
-                recentSummary: forecastingData.recentSummary
-              };
+            ],
+            generationConfig: {
+              temperature: 0.2,
+              responseMimeType: "application/json"
             }
-          } else {
-            console.warn(`[Gemini API Warning] (${keyLabel} key) Status ${response.status}. ${i < apiKeys.length - 1 ? 'Trying backup key...' : 'Falling back to deterministic ensemble.'}`);
+          };
+
+          // Call Gemini API (defaults to fast, free-tier gemini-3.5-flash-lite)
+          // Automatically fails over to GEMINI_API_KEY_BACKUP if primary key hits quota (429) or auth error
+          const targetModel = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
+          for (let i = 0; i < apiKeys.length; i++) {
+            const keyLabel = i === 0 ? 'primary' : 'backup';
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKeys[i]}`;
+            try {
+              const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody),
+                signal: AbortSignal.timeout(10000)
+              });
+
+              if (response.ok) {
+                const geminiResponse = await response.json();
+                const text = geminiResponse?.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (text) {
+                  const parsed = JSON.parse(text.replace(/```json|```/gi, '').trim());
+                  if (parsed.confidenceScore !== undefined && parsed.confidenceScore <= 1) {
+                    parsed.confidenceScore = Math.round(parsed.confidenceScore * 100);
+                  }
+                  const ensembleBaseline = runDeterministicEnsembleForecast(forecastingData);
+                  const result = {
+                    ...ensembleBaseline,
+                    ...parsed,
+                    factors: ensembleBaseline.factors,
+                    engine: 'gemini_ai',
+                    daysInMonth: forecastingData.forecastTarget.daysInMonth,
+                    targetPeriod: `${targetYear}-${String(targetMonth).padStart(2, '0')}`,
+                    recentSummary: forecastingData.recentSummary
+                  };
+                  aiForecastCache.set(cacheKey, { at: Date.now(), result });
+                  return result;
+                }
+              } else {
+                console.warn(`[Gemini API Warning] (${keyLabel} key) Status ${response.status}. ${i < apiKeys.length - 1 ? 'Trying backup key...' : 'Falling back to deterministic ensemble.'}`);
+              }
+            } catch (keyErr) {
+              console.warn(`[Gemini API Warning] (${keyLabel} key) ${keyErr.message}. ${i < apiKeys.length - 1 ? 'Trying backup key...' : 'Falling back to deterministic ensemble.'}`);
+            }
           }
-        } catch (keyErr) {
-          console.warn(`[Gemini API Warning] (${keyLabel} key) ${keyErr.message}. ${i < apiKeys.length - 1 ? 'Trying backup key...' : 'Falling back to deterministic ensemble.'}`);
+        } catch (aiErr) {
+          console.warn("[Gemini API Fallback] Invoking deterministic ensemble model due to error:", aiErr.message);
         }
       }
-    } catch (aiErr) {
-      console.warn("[Gemini API Fallback] Invoking deterministic ensemble model due to error:", aiErr.message);
-    }
-  }
 
-  // 3. Fallback: Run deterministic ensemble model with identical time-series inputs
-  const ensembleResult = runDeterministicEnsembleForecast(forecastingData);
-  return {
-    ...ensembleResult,
-    daysInMonth: forecastingData.forecastTarget.daysInMonth,
-    targetPeriod: `${targetYear}-${String(targetMonth).padStart(2, '0')}`,
-    recentSummary: forecastingData.recentSummary
-  };
+      // 3. Fallback: Run deterministic ensemble model with identical time-series inputs
+      const ensembleResult = runDeterministicEnsembleForecast(forecastingData);
+      const fallbackResult = {
+        ...ensembleResult,
+        daysInMonth: forecastingData.forecastTarget.daysInMonth,
+        targetPeriod: `${targetYear}-${String(targetMonth).padStart(2, '0')}`,
+        recentSummary: forecastingData.recentSummary
+      };
+      aiForecastCache.set(cacheKey, { at: Date.now(), result: fallbackResult });
+      return fallbackResult;
+    } finally {
+      inflightAiForecasts.delete(cacheKey);
+    }
+  })();
+
+  inflightAiForecasts.set(cacheKey, runForecastPromise);
+  return runForecastPromise;
 };

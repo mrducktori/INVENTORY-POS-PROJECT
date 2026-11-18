@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
-import { getProducts, createSale } from '../../api/posApi';
-import { getCategorySettings } from '../../api/categorySettingsApi';
-import { getRecipesByProduct } from "../../api/recipesApi";
-import { getCurrentUser } from "../../utils/authUtils";
+import { getProducts, createSale } from '../../../api/posApi';
+import { getCategorySettings } from '../../../api/categorySettingsApi';
+import { getRecipesByProduct } from "../../../api/recipesApi";
+import { getCurrentUser } from "../../../utils/authUtils";
 
 export const usePOS = () => {
   const [products, setProducts] = useState([]);

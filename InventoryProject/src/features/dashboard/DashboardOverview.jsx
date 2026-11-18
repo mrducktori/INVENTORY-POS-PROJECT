@@ -1,7 +1,7 @@
 import React from 'react';
 
 import { getCurrentUser } from '../../api/authApi';
-import useDashboardStats from './useDashboardStats';
+import useDashboardStats from './hooks/useDashboardStats';
 
 import RevenueSnapshot from './components/RevenueSnapshot';
 import StatCards from './components/StatCards';

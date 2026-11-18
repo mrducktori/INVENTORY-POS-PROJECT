@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import InfoTip from '../../../components/shared/InfoTip';
+import InfoTip from '../../../../components/shared/InfoTip';
 
 const ReceivePOModal = ({ po, onClose, onSubmit }) => {
   const [items, setItems] = useState(

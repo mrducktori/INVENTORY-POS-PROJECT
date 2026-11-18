@@ -1,7 +1,7 @@
 import React, { useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import LandingPage from './features/auth/LandingPage';
-import PageLoader from './features/auth/PageLoader/PageLoader';
+import PageLoader from './features/auth/components/PageLoader';
 import { getCurrentUser, pingUserActivity } from './api/authApi';
 import { getCmsMap, isValidImageUrl } from './api/cmsApi';
 import { isSessionExpired, clearUserSession, touchSessionActivity, USER_STORAGE_KEY } from './utils/authUtils';

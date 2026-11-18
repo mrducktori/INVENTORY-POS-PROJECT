@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getPurchaseOrders, updatePurchaseOrderStatus, respondToSupplierProposal, reschedulePurchaseOrder } from '../../api/purchasingApi';
 import PurchaseOrderForm from './PurchaseOrderForm';
-import ReceivePOModal from './components/ReceivePOModal';
-import CancelPOModal from './components/CancelPOModal';
-import ReschedulePOModal from './components/ReschedulePOModal';
+import ReceivePOModal from './components/purchasing/ReceivePOModal';
+import CancelPOModal from './components/purchasing/CancelPOModal';
+import ReschedulePOModal from './components/purchasing/ReschedulePOModal';
 import Pagination from '../../components/shared/Pagination';
 
 import { TableSkeleton } from '../../components/shared/SkeletonLoader';

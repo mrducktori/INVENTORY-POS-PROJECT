@@ -9,7 +9,7 @@ import PaymentModal from "./components/PaymentModal";
 import SalesReceiptModal from "../../components/SalesReceiptModal";
 import ConfirmModal from "../../components/shared/ConfirmModal";
 import { CardGridSkeleton } from "../../components/shared/SkeletonLoader";
-import { usePOS } from "./usePOS";
+import { usePOS } from "./hooks/usePOS";
 
 const POS = () => {
   const {

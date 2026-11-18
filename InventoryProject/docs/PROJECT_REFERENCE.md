@@ -61,18 +61,20 @@ InventoryProject/
 │   │   └── SalesReceiptModal.jsx
 │   ├── config/
 │   │   └── supabaseClient.js   # Frontend Supabase client (anon key, for storage uploads)
-│   ├── features/               # Feature-based modules
-│   │   ├── auth/               # LandingPage, LoginPage, useLogin hook
-│   │   ├── cms/                # CMSDashboard.jsx
-│   │   ├── dashboard/          # Dashboard shell + DashboardOverview
-│   │   ├── inventory/          # Products, raw materials, suppliers, POs, stock
-│   │   ├── pos/                # POS.jsx (order processing)
-│   │   ├── analytics/          # DemandForecasting
-│   │   ├── reports/            # Reports module
-│   │   ├── logs/               # AuditLogs, TransactionLogs, SalesReceipt, SalesSummary
-│   │   ├── accounts/           # AccountManager (user CRUD)
-│   │   ├── wastage/            # ReportWastage
-│   │   └── requests/           # ViewRequests
+│   ├── features/               # Feature-based modules (Page + hooks/ + components/ + utils/)
+│   │   ├── accounts/           # AccountManager, EmployeeTracker + components/
+│   │   ├── analytics/          # DemandForecasting + hooks/, components/, utils/
+│   │   ├── auth/               # LandingPage, LoginPage + hooks/useLogin, useLandingPage + components/
+│   │   ├── cms/                # CMSDashboard + hooks/, components/
+│   │   ├── dashboard/          # Dashboard, DashboardOverview + hooks/, components/
+│   │   ├── inventory/          # Products, ManageProducts, RawMaterials, Suppliers, PurchaseOrders, SupplierPortal
+│   │   │   ├── hooks/          # useManageProducts, useManageRawMaterials, useSupplierPortal
+│   │   │   └── components/     # Grouped by domain: products/, purchasing/, suppliers/
+│   │   ├── logs/               # AuditLogs, AdminLogs, TransactionLogs, SalesReceiptJournal, SalesSummaryReport + hooks/, components/
+│   │   ├── pos/                # POS + hooks/usePOS + components/
+│   │   ├── reports/            # Reports, SalesPerformance, InventoryStatus, StockMovement, Wastage + hooks/, components/, utils/
+│   │   ├── requests/           # RequestProduct, ViewRequests
+│   │   └── wastage/            # ReportWastage
 │   └── utils/                  # Frontend utilities
 │       ├── authUtils.js        # Role checking helpers
 │       ├── dateUtils.js        # Date formatting
@@ -117,10 +119,13 @@ InventoryProject/
 │       └── unitUtils.js        # Unit conversion helpers
 │
 ├── dist/                       # Production build output (upload to cPanel)
-├── docs/
-│   ├── CHANGELOG.md            # Project changelog
-│   └── PROJECT_REFERENCE.md    # ⭐ This file
-└── supabase_schema.sql         # Database schema + RLS policies
+└── docs/
+    ├── CHANGELOG.md            # Project changelog
+    ├── DEPLOYMENT_GUIDE_VERCEL_RENDER.md
+    ├── PROJECT_REFERENCE.md    # ⭐ This file
+    ├── database/               # SQL schema, RPC, and migration scripts (supabase_schema.sql, etc.)
+    ├── defense/                # Defense presentations, scripts, test cases, questionnaires
+    └── diagrams/               # DFD, Flowchart, and UML diagram assets (PNG/SVG)
 ```
 
 ### How Navigation Works
@@ -609,31 +614,40 @@ if (loading) return <div className="text-center p-8 text-gray-500">Loading...</d
 
 ## 8. Database Schema Notes
 
-### Key Tables
+> Verified against the live Supabase PostgreSQL instance (`14` active tables + `1` RPC function + `1` Storage bucket). See [supabase_schema.sql](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/docs/database/supabase_schema.sql) for complete DDL definitions.
 
-| Table | Purpose | Key Fields |
-|-------|---------|-----------|
-| `users` | System users | `id`, `name`, `username`, `password_hash`, `role`, `status` |
-| `products` | Menu items | `id`, `name`, `category`, `price`, `track_stock`, `stock_quantity`, `is_archived` |
-| `ingredients` | Raw materials | `id`, `name`, `unit`, `stock_quantity`, `low_stock_alert`, `is_archived` |
-| `recipes` | Product-to-ingredient mapping | `product_id`, `ingredient_id`, `quantity_used` |
-| `sales` | Sale transactions | `id`, `total_amount`, `payment_method`, `staff_id` |
-| `sale_items` | Line items per sale | `sale_id`, `product_id`, `quantity`, `unit_price`, `cup_size`, `add_ons` |
-| `suppliers` | Supplier directory | `id`, `name`, `contact_person`, `phone`, `ingredients` (jsonb) |
-| `purchase_orders` | PO headers | `id`, `supplier_id`, `status`, `total_amount` |
-| `purchase_order_items` | PO line items | `po_id`, `ingredient_id`, `quantity`, `purchase_unit`, `conversion_factor` |
-| `wastage` | Waste logs | `ingredient_id`, `quantity`, `reason`, `reported_by` |
-| `audit_logs` | System audit trail | `action`, `user_id`, `details` (text/JSON) |
-| `cms_content` | CMS sections | `section_key`, `title`, `description`, `image_url` |
-| `category_settings` | Product category config | `category`, `sizes` (jsonb), `add_ons` (jsonb), `image_url` |
+### Key Tables (14 Active Tables)
+
+| # | Table | Purpose | Primary / Foreign Keys | Complete Columns |
+|---|-------|---------|------------------------|------------------|
+| 1 | `users` | System accounts, roles & single-session tracking | PK: `id` (uuid)<br>FK: `supplier_id` → `suppliers.id` | `id`, `name`, `username` (unique), `password_hash`, `role` (`Owner` \| `Admin` \| `Staff` \| `Supplier` \| `Custom`), `status` (`ACTIVE` \| `INACTIVE`), `supplier_id`, `permissions` (`text[]`), `custom_role_name`, `current_session_id`, `created_at` (`timestamptz`) |
+| 2 | `products` | Menu catalog & direct-tracked products | PK: `id` (uuid) | `id`, `name`, `category`, `price` (`numeric`), `estimated_cost` (`numeric`), `description`, `image_url`, `track_stock` (`boolean`), `stock_quantity` (`numeric`), `low_stock_threshold` (`numeric`), `max_stock` (`numeric`), `sizes` (`jsonb`), `add_ons` (`jsonb`), `is_archived` (`boolean`), `created_at` (`timestamptz`) |
+| 3 | `category_settings` | Default cup sizes & add-ons per category | PK: `category` (text) | `category`, `sizes` (`jsonb`), `add_ons` (`jsonb`) |
+| 4 | `ingredients` | Raw materials & packaging inventory | PK: `id` (uuid) | `id`, `name`, `category`, `unit`, `stock_quantity` (`numeric`), `low_stock_alert` (`numeric`), `max_stock` (`numeric`), `unit_cost` (`numeric`), `purchase_unit`, `conversion_factor` (`numeric`), `cost_per_purchase_unit` (`numeric`), `image_url`, `is_archived` (`boolean`), `created_at` (`timestamptz`) |
+| 5 | `recipes` | Product-to-ingredient recipe mappings | PK: `id` (uuid)<br>FK: `product_id` → `products.id`<br>FK: `ingredient_id` → `ingredients.id` | `id`, `product_id`, `ingredient_id`, `quantity_used` (`numeric`), `recipe_unit` |
+| 6 | `sales` | POS transaction headers & billing details | PK: `id` (uuid)<br>FK: `staff_id` → `users.id` | `id`, `receipt_number`, `total_amount` (`numeric`), `discount_amount` (`numeric`), `tax_amount` (`numeric`), `payment_method` (`CASH` \| `GCASH`), `payment_status`, `status`, `amount_received` (`numeric`), `change_amount` (`numeric`), `transaction_reference`, `notes`, `staff_id`, `created_at` (`timestamptz`) |
+| 7 | `sale_items` | Line items per POS transaction | PK: `id` (uuid)<br>FK: `sale_id` → `sales.id`<br>FK: `product_id` → `products.id` | `id`, `sale_id`, `product_id`, `quantity` (`numeric`), `unit_price` (`numeric`), `cup_size`, `add_ons` (`text[]`), `discount_percent` (`numeric`), `notes` |
+| 8 | `suppliers` | Supplier directory & vendor contact profiles | PK: `id` (uuid) | `id`, `name`, `contact_info`, `contact_person`, `contact_number`, `email`, `address`, `description`, `created_at` (`timestamptz`) |
+| 9 | `supplier_ingredients` | Supplier catalog, default packaging & pricing | PK: (`supplier_id`, `ingredient_id`)<br>FK: `supplier_id` → `suppliers.id`<br>FK: `ingredient_id` → `ingredients.id` | `supplier_id`, `ingredient_id`, `default_purchase_unit`, `default_conversion_factor` (`numeric`), `default_price` (`numeric`) |
+| 10 | `purchase_orders` | Purchase order lifecycle headers | PK: `id` (uuid)<br>FK: `supplier_id` → `suppliers.id` | `id`, `supplier_id`, `status` (`PENDING` \| `ACCEPTED` \| `PROPOSED` \| `POSTPONED` \| `TO BE DELIVERED` \| `PARTIAL` \| `RECEIVED` \| `DECLINED` \| `CANCELLED`), `total_amount` (`numeric`), `expected_date`, `created_at` (`timestamptz`), `received_at` (`timestamptz`), `notes`, `decline_reason`, `cancellation_reason` |
+| 11 | `purchase_order_items` | PO line items, conversions & partial receipts | PK: `id` (uuid)<br>FK: `purchase_order_id` → `purchase_orders.id`<br>FK: `ingredient_id` → `ingredients.id` | `id`, `purchase_order_id`, `ingredient_id`, `quantity` (`numeric`), `unit_price` (`numeric`), `subtotal` (`numeric`), `quantity_received` (`numeric`), `is_received` (`boolean`), `purchase_unit`, `conversion_factor` (`numeric`), `receipt_history` (`jsonb`) |
+| 12 | `wastage` | Spoiled, expired & damaged ingredient logs | PK: `id` (uuid)<br>FK: `ingredient_id` → `ingredients.id`<br>FK: `reported_by` → `users.id` | `id`, `ingredient_id`, `quantity` (`numeric`), `reason`, `estimated_cost` (`numeric`), `reported_by`, `created_at` (`timestamptz`) |
+| 13 | `audit_logs` | System audit trail & staff request records | PK: `id` (uuid)<br>FK: `user_id` → `users.id` | `id`, `action`, `action_type`, `entity_type`, `entity_id`, `user_id`, `details` (text/JSON), `new_value` (`jsonb`), `created_at` (`timestamptz`) |
+| 14 | `cms_content` | Dynamic landing page & menu CMS sections | PK: `section_key` (text) | `section_key`, `title`, `description` (text/JSON), `image_url`, `updated_at` (`timestamptz`) |
+
+### Stored Procedures (RPC) & Storage Buckets
+
+- **Atomic POS Checkout RPC (`process_pos_checkout`)** — Defined in [process_pos_checkout_rpc.sql](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/docs/database/process_pos_checkout_rpc.sql). Accepts `(p_sale_data, p_sale_items, p_product_deductions, p_ingredient_deductions)` inside a single PL/pgSQL transaction (`SECURITY DEFINER`) using `FOR UPDATE` row-level locks to verify and deduct tracked `products` and recipe `ingredients`, insert into `sales` and `sale_items`, and automatically roll back on insufficient stock.
+- **Storage Bucket (`cms-images`)** — Public Supabase Storage bucket hosting uploaded product photos, raw material images, and CMS promotional banners.
 
 ### Important Schema Details
 
-- **Soft deletes** — Products and ingredients use `is_archived` boolean, NOT actual DELETE
-- **Stock tracking** — Products have optional `track_stock` flag; only tracked products deduct stock on sale
-- **Recipe-based deductions** — When a sale is made, `posService.js` uses the `recipes` table to determine which ingredients to deduct and by how much
-- **PO unit conversion** — `purchase_order_items` has `purchase_unit` and `conversion_factor` so buying "5 Bags" can convert to "5000 grams" in inventory
-- **Timezone** — All timestamps are `timestamptz`; the app assumes **Asia/Manila (+08:00)** timezone
+- **Soft Deletes & Retention Rules** — `products` and `ingredients` use `is_archived` boolean (and `users` uses `status = 'INACTIVE'`) rather than immediate hard `DELETE`. Permanent deletion looks up archive timestamps from `audit_logs` (`PRODUCT_ARCHIVED`, `RAW_MATERIAL_ARCHIVED`, `USER_STATUS_CHANGED`): `products`, `ingredients`, and non-Admin accounts require **30 days** elapsed with zero historical sales/PO/wastage/cashier references, **Admin** accounts require **90 days**, and the **Owner** account is permanently protected.
+- **Dynamic Restock Thresholds** — Both `ingredients` and `products` support an optional `max_stock` capacity column. When `max_stock` is configured, restock alerts trigger when `stock_quantity <= (max_stock * 0.5)`; otherwise alerts fall back to `low_stock_alert` (`ingredients`) or `low_stock_threshold` (`products`).
+- **Recipe-Based & Direct Stock Deductions** — During POS checkout, `posService.js` invokes `process_pos_checkout` to deduct `products.stock_quantity` for `track_stock = true` items and deducts `ingredients.stock_quantity` via `recipes` (`quantity_used`, `recipe_unit`) for recipe-based beverages.
+- **PO Unit Conversion & Partial Receiving** — `purchase_order_items` stores `purchase_unit` and `conversion_factor` (converting vendor packages like bags/sacks to inventory units like grams/milliliters upon receiving), alongside `quantity_received`, `is_received`, and a `receipt_history` JSONB array tracking partial deliveries.
+- **Audit-Log Backed Staff Requests** — Staff requests (`requestsService.js`) fall back seamlessly to storing records inside `audit_logs` (`action = 'STAFF_REQUEST'`, `entity_type = 'REQUEST'`, structured payload in `new_value` and `details`) when no standalone `requests` table is present.
+- **Timezone** — All timestamps are `timestamptz`; the app assumes **Asia/Manila (+08:00)** timezone.
 
 ---
 
@@ -931,7 +945,7 @@ The login endpoint tells the attacker exactly how many attempts remain before lo
 |-------|----------|----------|
 | Mixed CSS + Tailwind styling | Whole frontend | Low — refactor gradually |
 | Some routes skip controller/service layers | `products.js`, `sales.js`, `users.js` | Low — works fine as-is |
-| Large component files (ManageProducts = 45KB) | `src/features/inventory/` | Medium — break into sub-components |
+| Large component files (remaining >500-line modules) | `src/features/` | Low — major monoliths (`DemandForecasting`, `SalesReceiptJournal`, `CMSDashboard`, `ManageProducts`, `StockMovementReport`, `LandingPage`, `SupplierPortal`) refactored into `hooks/` & `components/` |
 | Duplicated date formatting logic | `dateUtils.js` exists in both `src/utils/` and `server/utils/` | Low |
 | No TypeScript | Whole project | Low — would help but not required |
 | Frontend Supabase client used for image uploads | `CMSDashboard.jsx` | Low — works fine, anon key is safe for this |
@@ -973,7 +987,7 @@ The login endpoint tells the attacker exactly how many attempts remain before lo
 
 ### Low Priority / Polish
 
-- [ ] **Refactor large components** — Split `ManageProducts.jsx` (45KB) into sub-components
+- [x] **Refactor large components** — Refactored `DemandForecasting.jsx`, `CMSDashboard.jsx`, `ManageProducts.jsx`, `SupplierPortal.jsx`, `LandingPage.jsx`, `SalesReceiptJournal.jsx`, and `StockMovementReport.jsx` into modular `hooks/` and `components/`
 - [x] **Add loading skeletons** — Implemented in `SkeletonLoader.jsx`
 - [x] **Remove DevTools blocking** — Removed from `src/main.jsx`
 - [ ] **Add `updated_at` to CMS** — So owner knows when content was last changed
