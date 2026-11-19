@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { getProducts, createSale } from '../../../api/posApi';
-import { getCategorySettings } from '../../../api/categorySettingsApi';
+import { getCategorySettings, extractCategoryNames } from '../../../api/categorySettingsApi';
 import { getRecipesByProduct } from "../../../api/recipesApi";
 import { getCurrentUser } from "../../../utils/authUtils";
+import { getProductOptionsAvailability } from "../../../utils/productUtils";
 
 export const usePOS = () => {
   const [products, setProducts] = useState([]);
@@ -82,13 +83,23 @@ export const usePOS = () => {
       const data = await getCategorySettings();
       const settingsMap = {};
       (data || []).forEach(item => {
-        settingsMap[item.category] = item;
+        if (item?.category) {
+          settingsMap[item.category.toUpperCase()] = item;
+        }
       });
       setCategorySettings(settingsMap);
     } catch (err) {
       console.error("Failed to fetch category settings", err);
     }
   };
+
+  const categories = useMemo(() => {
+    const combined = [
+      ...Object.keys(categorySettings || {}),
+      ...products.map((p) => p.category)
+    ];
+    return extractCategoryNames(combined);
+  }, [categorySettings, products]);
 
   // PERSIST STATE
   useEffect(() => {
@@ -136,9 +147,9 @@ export const usePOS = () => {
     return virtualProduct;
   }, [categorySettings]);
 
-  // Sync cart prices with latest fetched products
+  // Sync cart prices and categories with latest fetched products
   useEffect(() => {
-    if (products.length === 0 || Object.keys(categorySettings).length === 0) return;
+    if (products.length === 0) return;
     
     setCart(prevCart => {
       if (prevCart.length === 0) return prevCart;
@@ -168,9 +179,18 @@ export const usePOS = () => {
           });
         }
         
-        if (item.price !== finalPrice || item.baseProduct?.price !== latestProd.price) {
+        if (
+          item.price !== finalPrice ||
+          item.baseProduct?.price !== latestProd.price ||
+          item.category !== latestProd.category
+        ) {
           hasChanges = true;
-          return { ...item, price: finalPrice, baseProduct: { ...latestProd } };
+          return {
+            ...item,
+            category: latestProd.category,
+            price: finalPrice,
+            baseProduct: { ...latestProd }
+          };
         }
         return item;
       });
@@ -269,13 +289,14 @@ export const usePOS = () => {
   };
 
   const handleAddWithOptions = () => {
-    const isDrink = ["COFFEE", "FRAPPE", "MILK TEA", "SODA", "FRUIT DRINKS"].includes(selectedProduct.category?.toUpperCase());
-    
+    const { hasSizes, hasAddOns } = getProductOptionsAvailability(selectedProduct, categorySettings);
+    const hasOptions = hasSizes || hasAddOns;
+
     let finalPrice = parseFloat(selectedProduct.price);
     let selectedSizeObj = null;
     let selectedAddonObjs = [];
 
-    if (isDrink) {
+    if (hasSizes) {
       if (selectedProduct.sizes && selectedProduct.sizes.length > 0) {
         selectedSizeObj = selectedProduct.sizes.find(s => s.name === productOptions.cupSize);
         if (selectedSizeObj) finalPrice += parseFloat(selectedSizeObj.price_add || 0);
@@ -284,7 +305,9 @@ export const usePOS = () => {
         if (productOptions.cupSize === "16 oz") finalPrice += 10;
         if (productOptions.cupSize === "22 oz") finalPrice += 20;
       }
+    }
 
+    if (hasAddOns) {
       Object.entries(productOptions.addOns).forEach(([addonName, customerQty]) => {
         // Handle dynamic addons attached to the virtualProduct (which includes category defaults)
         if (selectedProduct.add_ons && selectedProduct.add_ons.length > 0) {
@@ -305,11 +328,11 @@ export const usePOS = () => {
       ...selectedProduct,
       price: finalPrice,
       qty: productOptions.qty,
-      cup_size: isDrink ? productOptions.cupSize : null,
-      cup_size_obj: selectedSizeObj,
-      add_ons: isDrink ? selectedAddonObjs : [],
-      cartItemId: isDrink 
-        ? `${selectedProduct.id}-${productOptions.cupSize}-${Object.entries(productOptions.addOns).map(([n, q]) => `${n}x${q}`).sort().join(',')}`
+      cup_size: hasSizes ? productOptions.cupSize : null,
+      cup_size_obj: hasSizes ? selectedSizeObj : null,
+      add_ons: hasAddOns ? selectedAddonObjs : [],
+      cartItemId: hasOptions
+        ? `${selectedProduct.id}-${hasSizes ? productOptions.cupSize : 'standard'}-${hasAddOns ? Object.entries(productOptions.addOns).map(([n, q]) => `${n}x${q}`).sort().join(',') : 'none'}`
         : `${selectedProduct.id}-standard`,
       baseProduct: selectedProduct
     };
@@ -631,6 +654,8 @@ export const usePOS = () => {
 
   return {
     products,
+    categories,
+    categorySettings,
     cart,
     searchTerm,
     setSearchTerm,

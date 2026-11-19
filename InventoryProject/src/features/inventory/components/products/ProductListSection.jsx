@@ -1,5 +1,5 @@
 import React from 'react';
-import { CATEGORIES_WITH_ALL } from '../../../../utils/constants';
+import { CATEGORIES } from '../../../../utils/constants';
 import Pagination from '../../../../components/shared/Pagination';
 import { TableSkeleton } from '../../../../components/shared/SkeletonLoader';
 
@@ -25,6 +25,7 @@ const SortIcon = ({ active, direction, ascTitle, descTitle }) => {
 const ProductListSection = ({
   loading,
   products,
+  categories,
   totalItems,
   searchTerm,
   categoryFilter,
@@ -47,6 +48,13 @@ const ProductListSection = ({
   onArchiveToggle,
   onPermanentDelete
 }) => {
+  const categoryOptions = [
+    'ALL',
+    ...(Array.isArray(categories) && categories.length > 0
+      ? categories
+      : CATEGORIES.filter((c) => c !== 'OTHERS'))
+  ];
+
   return (
     <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden flex-[2]">
       <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
@@ -64,7 +72,7 @@ const ProductListSection = ({
             value={categoryFilter}
             onChange={e => onCategoryFilterChange(e.target.value)}
           >
-            {CATEGORIES_WITH_ALL.map(c => <option key={c} value={c}>{c}</option>)}
+            {categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
           <select
             className="w-full sm:w-40 px-4 py-2.5 border border-gray-300 rounded-lg text-sm md:text-base font-medium bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"

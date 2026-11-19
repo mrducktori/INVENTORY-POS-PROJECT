@@ -4,10 +4,12 @@ import { getAllProducts, createProduct, updateProduct, archiveProduct, restorePr
 import { checkDuplicateOrSimilar } from '../../../utils/productUtils';
 import { getRecipesByProduct, createRecipe, updateRecipe, deleteRecipe } from '../../../api/recipesApi';
 import { getIngredients } from '../../../api/inventoryApi';
+import { getCategorySettings, extractCategoryNames } from '../../../api/categorySettingsApi';
 
 export const useManageProducts = () => {
   const [viewMode, setViewMode] = useState('ADD'); 
   const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState(() => extractCategoryNames([]));
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState('');
@@ -57,6 +59,18 @@ export const useManageProducts = () => {
     }
   }, []);
 
+  const fetchCategories = useCallback(async () => {
+    try {
+      const data = await getCategorySettings();
+      const names = extractCategoryNames(data);
+      setCategories(names);
+      return names;
+    } catch (err) {
+      console.error('Failed to load categories:', err);
+      return null;
+    }
+  }, []);
+
   const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
@@ -86,7 +100,8 @@ export const useManageProducts = () => {
   useEffect(() => {
     fetchProducts();
     fetchIngredients();
-  }, [fetchProducts, fetchIngredients]);
+    fetchCategories();
+  }, [fetchProducts, fetchIngredients, fetchCategories]);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -483,7 +498,7 @@ export const useManageProducts = () => {
 
   return {
     viewMode, setViewMode,
-    products, loading, uploading, message, setMessage,
+    products, categories, fetchCategories, loading, uploading, message, setMessage,
     fetchProducts,
     isProcessing, processingId,
     searchTerm, setSearchTerm,

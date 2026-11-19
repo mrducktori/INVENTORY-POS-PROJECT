@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Products/POS: Dynamic Category Customization & Editing - 2026-11-19]
+- **`server/routes/categorySettings.js`**:
+  - Upgraded `GET /api/categories/settings` to return `category_settings` merged with distinct product categories (including `product_count` across active and archived items).
+  - Hardened `POST /` validation (reserved names, max length, duplicate 409 rejection instead of silent upsert), added `PATCH /:category/rename` (3-step rename across `category_settings` and `products`), and added `DELETE /:category` (blocked with 409 if in use by any product), with analytics cache invalidation and audit logging.
+- **`src/api/categorySettingsApi.js` & `src/utils/productUtils.js`**:
+  - Added `createCategory`, `renameCategory`, `deleteCategory`, and `extractCategoryNames` helpers using `apiCall`.
+  - Updated `filterProducts` (dynamic `OTHERS` exclusion using live categories) and added `getProductOptionsAvailability`.
+- **`src/features/inventory/`**:
+  - Updated `ManageProducts`, `useManageProducts`, `CategorySettingsModal`, `CategoryListSidebar`, `CategoryDefaultsEditor`, and product forms/lists so owners/admins can add, rename, delete, and configure product categories dynamically.
+- **`src/features/pos/`, `src/components/shared/CategoryFilter.jsx`, `src/features/logs/`**:
+  - Wired dynamic categories into POS filters, config-driven cup size & add-on availability, localStorage cart category self-healing, and Sales Receipt Journal filter pills.
+
 ## [Analytics/AI: Menu Demand Polish - Made-to-Order Prompt, Demand Outlook, Revenue - 2026-11-19]
 - **`server/services/aiForecastingService.js`**: Made-to-order items (`track_stock: false`) now use a dedicated Gemini prompt focused on order volume and Mon/Fri/weekend prep load (no stock/restock wording); they return `recommendedOrderQuantity: 0` and `stockoutRisk: null`. `/ai-forecast` responses now always include `reasoning` (template fallback when Gemini is unavailable, `null` for past months), `price`, and `track_stock`.
 - **`src/features/analytics/components/MonthlyProjectionModal.jsx`**: Added **Demand Outlook** card (current/future months), **Est. Revenue / Recorded Revenue** row, and a "<Month YYYY> total" caption under Projected Volume.

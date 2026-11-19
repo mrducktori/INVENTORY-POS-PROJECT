@@ -23,6 +23,7 @@ const ReceiptJournalToolbar = ({
   fetchLimit,
   fetchOptions,
   onFetchLimitChange,
+  categoryPills = CATEGORY_PILLS,
   selectedType,
   onTypeChange,
   statusScope,
@@ -179,7 +180,7 @@ const ReceiptJournalToolbar = ({
 
       {/* Row 2: Category / Type Filter Pills (exact match to reference) */}
       <div className="flex flex-wrap items-center gap-1 bg-zinc-100 p-1 rounded-lg">
-        {CATEGORY_PILLS.map((pill) => {
+        {categoryPills.map((pill) => {
           const isActive = selectedType === pill.id;
           return (
             <button

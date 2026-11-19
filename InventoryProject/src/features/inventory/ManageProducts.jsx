@@ -23,7 +23,7 @@ const ManageProducts = () => {
 
   const {
     viewMode, setViewMode,
-    products, loading, uploading, message, setMessage,
+    products, categories, fetchCategories, loading, uploading, message, setMessage,
     fetchProducts,
     isProcessing, processingId,
     searchTerm, setSearchTerm,
@@ -179,7 +179,7 @@ const ManageProducts = () => {
             className="px-4 py-2.5 text-sm md:text-base font-bold uppercase tracking-wider rounded-lg text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all ml-auto md:ml-0 border border-gray-200 bg-white cursor-pointer"
             onClick={() => setShowCategorySettings(true)}
           >
-            Add-on Defaults
+            Manage Categories
           </button>
         </div>
       </div>
@@ -192,6 +192,7 @@ const ManageProducts = () => {
         <div className="flex flex-col lg:flex-row items-start gap-6">
           <AddProductFormSection
             formData={formData}
+            categories={categories}
             uploading={uploading}
             onInputChange={handleInputChange}
             onImageUpload={handleImageUpload}
@@ -201,6 +202,7 @@ const ManageProducts = () => {
           <ProductListSection
             loading={loading}
             products={paginatedProductsList}
+            categories={categories}
             totalItems={sortedProductsList.length}
             searchTerm={searchTerm}
             categoryFilter={categoryFilter}
@@ -242,6 +244,7 @@ const ManageProducts = () => {
         <ModifyProductSection
           loading={loading}
           products={paginatedModifyProducts}
+          categories={categories}
           totalItems={activeModifyProducts.length}
           searchTerm={searchTerm}
           categoryFilter={categoryFilter}
@@ -258,6 +261,7 @@ const ManageProducts = () => {
       {selectedProduct && (
         <ModifyProductModal
           selectedProduct={selectedProduct}
+          categories={categories}
           onClose={() => setSelectedProduct(null)}
           editName={editName}
           setEditName={setEditName}
@@ -288,6 +292,13 @@ const ManageProducts = () => {
         <CategorySettingsModal
           allIngredients={allIngredients}
           onClose={() => setShowCategorySettings(false)}
+          onCategoriesChanged={async () => {
+            const updated = await fetchCategories();
+            await fetchProducts();
+            if (categoryFilter !== 'ALL' && Array.isArray(updated) && !updated.includes(categoryFilter)) {
+              setCategoryFilter('ALL');
+            }
+          }}
         />
       )}
 

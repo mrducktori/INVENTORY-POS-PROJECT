@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { getSales } from '../../../api/salesApi.js';
+import { getCategorySettings, extractCategoryNames } from '../../../api/categorySettingsApi.js';
 import { getManilaDateOnly } from '../../../utils/dateUtils.js';
 
 // Format date to: YYYY-MM-DD hh:mm:ss A (Asia/Manila)
@@ -57,6 +58,7 @@ export const DATE_PRESETS = [
  */
 export const useSalesReceiptJournal = () => {
   const [sales, setSales] = useState([]);
+  const [dynamicCategoryNames, setDynamicCategoryNames] = useState(() => extractCategoryNames([]));
   const [totalServerCount, setTotalServerCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [searchInput, setSearchInput] = useState('');
@@ -81,6 +83,25 @@ export const useSalesReceiptJournal = () => {
   // Modals
   const [activeReceiptSaleId, setActiveReceiptSaleId] = useState(null);
   const [showGuide, setShowGuide] = useState(false);
+
+  // Fetch dynamic categories once on mount
+  useEffect(() => {
+    let active = true;
+    getCategorySettings()
+      .then((rows) => {
+        if (active) setDynamicCategoryNames(extractCategoryNames(rows));
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
+
+  const categoryPills = useMemo(() => [
+    { id: 'ALL', label: 'All Types' },
+    ...dynamicCategoryNames.map((cat) => ({ id: cat, label: cat })),
+    { id: 'CASH', label: 'CASH' },
+    { id: 'GCASH', label: 'GCASH' },
+    { id: 'DISCOUNTED', label: 'DISCOUNTED' },
+  ], [dynamicCategoryNames]);
 
   // Debounce search input
   useEffect(() => {
@@ -481,6 +502,7 @@ export const useSalesReceiptJournal = () => {
 
   return {
     sales,
+    categoryPills,
     totalServerCount,
     loading,
     searchInput,

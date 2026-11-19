@@ -1,11 +1,12 @@
 import React from 'react';
-import { CATEGORIES_WITH_ALL } from '../../../../utils/constants';
+import { CATEGORIES } from '../../../../utils/constants';
 import Pagination from '../../../../components/shared/Pagination';
 import { CardGridSkeleton } from '../../../../components/shared/SkeletonLoader';
 
 const ModifyProductSection = ({
   loading,
   products,
+  categories,
   totalItems,
   searchTerm,
   categoryFilter,
@@ -17,6 +18,13 @@ const ModifyProductSection = ({
   onPageChange,
   onEdit
 }) => {
+  const categoryOptions = [
+    'ALL',
+    ...(Array.isArray(categories) && categories.length > 0
+      ? categories
+      : CATEGORIES.filter((c) => c !== 'OTHERS'))
+  ];
+
   return (
     <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden w-full">
       <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -34,7 +42,7 @@ const ModifyProductSection = ({
             value={categoryFilter}
             onChange={e => onCategoryFilterChange(e.target.value)}
           >
-            {CATEGORIES_WITH_ALL.map(c => <option key={c} value={c}>{c}</option>)}
+            {categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
       </div>

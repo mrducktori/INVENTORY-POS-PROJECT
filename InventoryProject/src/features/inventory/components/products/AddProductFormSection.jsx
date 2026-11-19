@@ -3,11 +3,17 @@ import { CATEGORIES } from '../../../../utils/constants';
 
 const AddProductFormSection = ({
   formData,
+  categories,
   uploading,
   onInputChange,
   onImageUpload,
   onSubmit
 }) => {
+  const categoryOptions =
+    Array.isArray(categories) && categories.length > 0
+      ? categories
+      : CATEGORIES.filter((c) => c !== 'OTHERS');
+
   return (
     <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden flex-1 max-w-xl">
       <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 ">
@@ -25,7 +31,7 @@ const AddProductFormSection = ({
               <label className="text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider">Category</label>
               <select className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-sm md:text-base font-semibold focus:outline-none focus:bg-white focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors cursor-pointer" name="category" value={formData.category} onChange={onInputChange} required>
                 <option value="">Select Category</option>
-                {CATEGORIES.map(cat => (
+                {categoryOptions.map(cat => (
                   <option key={cat} value={cat}>{cat}</option>
                 ))}
               </select>

@@ -4,6 +4,7 @@ import SearchableIngredientSelect from '../../../../components/shared/Searchable
 
 const ModifyProductModal = ({
   selectedProduct,
+  categories,
   onClose,
   editName,
   setEditName,
@@ -35,6 +36,15 @@ const ModifyProductModal = ({
 
   if (!selectedProduct) return null;
 
+  const baseCategories =
+    Array.isArray(categories) && categories.length > 0
+      ? categories
+      : CATEGORIES.filter((c) => c !== 'OTHERS');
+  const categoryOptions =
+    editCategory && !baseCategories.includes(editCategory)
+      ? [editCategory, ...baseCategories]
+      : baseCategories;
+
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[9999] p-4 flex justify-center items-start pt-6 sm:pt-10 md:pt-14 pb-12 animate-[modalBackdropFadeIn_0.2s_ease-out]" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)] flex flex-col max-h-[calc(100vh-5rem)] md:max-h-[calc(100vh-6rem)]" onClick={e => e.stopPropagation()}>
@@ -54,7 +64,7 @@ const ModifyProductModal = ({
                 <label className="text md:text-sm font-bold text-gray-700 uppercase tracking-wider">Category</label>
                 <select className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm md:text-base font-semibold focus:outline-none focus:bg-white focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors cursor-pointer" value={editCategory} onChange={e => setEditCategory(e.target.value)} required>
                   <option value="">Select Category</option>
-                  {CATEGORIES.map(cat => (
+                  {categoryOptions.map(cat => (
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
                 </select>

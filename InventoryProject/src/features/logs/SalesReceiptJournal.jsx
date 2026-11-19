@@ -8,6 +8,7 @@ import ReceiptGuideModal from './components/ReceiptGuideModal.jsx';
 const SalesReceiptJournal = () => {
   const {
     sales,
+    categoryPills,
     totalServerCount,
     loading,
     searchInput,
@@ -125,6 +126,7 @@ const SalesReceiptJournal = () => {
           fetchLimit={fetchLimit}
           fetchOptions={fetchOptions}
           onFetchLimitChange={handleFetchLimitChange}
+          categoryPills={categoryPills}
           selectedType={selectedType}
           onTypeChange={handleTypeChange}
           statusScope={statusScope}

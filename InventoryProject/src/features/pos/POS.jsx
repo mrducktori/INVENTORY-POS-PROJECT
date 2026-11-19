@@ -1,6 +1,6 @@
 import React from "react";
 import { createPortal } from "react-dom";
-import { filterProducts, formatQuantity } from "../../utils/productUtils";
+import { filterProducts, formatQuantity, getProductOptionsAvailability } from "../../utils/productUtils";
 import CategoryFilter from '../../components/shared/CategoryFilter';
 import ProductCard from "./components/ProductCard";
 import Cart from "./components/Cart";
@@ -14,6 +14,8 @@ import { usePOS } from "./hooks/usePOS";
 const POS = () => {
   const {
     products,
+    categories,
+    categorySettings,
     cart,
     searchTerm,
     setSearchTerm,
@@ -57,7 +59,8 @@ const POS = () => {
     confirmConfig
   } = usePOS();
 
-  const filteredProducts = filterProducts(products, category, searchTerm);
+  const filteredProducts = filterProducts(products, category, searchTerm, categories);
+  const selectedOptionsAvailability = getProductOptionsAvailability(selectedProduct, categorySettings);
 
   return (
     <div className="flex flex-col lg:flex-row h-full lg:h-[calc(100vh-0px)] w-full bg-gray-50 overflow-hidden relative">
@@ -82,7 +85,7 @@ const POS = () => {
           />
         </div>
 
-        <CategoryFilter category={category} setCategory={setCategory} />
+        <CategoryFilter category={category} setCategory={setCategory} categories={categories} />
 
         <div className="flex-1 overflow-y-auto mt-6 scrollbar-thin scrollbar-thumb-gray-300 hover:scrollbar-thumb-gray-400 pb-20">
           <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-4 md:gap-6">
@@ -209,62 +212,62 @@ const POS = () => {
                 </div>
               </div>
 
-              {/* Cup Size & Add-ons - Only for Drinks */}
-              {["COFFEE", "FRAPPE", "MILK TEA", "SODA", "FRUIT DRINKS"].includes(selectedProduct.category?.toUpperCase()) && (
-                <>
-                  <div className="mb-6">
-                    <label className="block text-sm font-semibold text-gray-800 mb-2">Cup Size</label>
-                    <div className="flex gap-2 flex-wrap">
-                      {(selectedProduct.sizes?.length > 0 ? selectedProduct.sizes.map(s => s.name) : ["12 oz", "16 oz", "22 oz"]).map(size => (
-                        <button 
-                          key={size}
-                          className={`px-4 py-2 text-sm font-semibold rounded-xl border transition-all cursor-pointer ${productOptions.cupSize === size ? "bg-gray-900 text-white border-gray-900 shadow-sm" : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"}`}
-                          onClick={() => setProductOptions(p => ({...p, cupSize: size}))}
-                        >
-                          {size}
-                        </button>
-                      ))}
-                    </div>
+              {/* Cup Size & Add-ons - Config-driven */}
+              {selectedOptionsAvailability.hasSizes && (
+                <div className="mb-6">
+                  <label className="block text-sm font-semibold text-gray-800 mb-2">Cup Size</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {(selectedProduct.sizes?.length > 0 ? selectedProduct.sizes.map(s => s.name) : ["12 oz", "16 oz", "22 oz"]).map(size => (
+                      <button 
+                        key={size}
+                        className={`px-4 py-2 text-sm font-semibold rounded-xl border transition-all cursor-pointer ${productOptions.cupSize === size ? "bg-gray-900 text-white border-gray-900 shadow-sm" : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"}`}
+                        onClick={() => setProductOptions(p => ({...p, cupSize: size}))}
+                      >
+                        {size}
+                      </button>
+                    ))}
                   </div>
+                </div>
+              )}
 
-                  <div className="mb-2">
-                    <div className="flex justify-between items-center mb-2">
-                      <label className="block text-sm font-semibold text-gray-800">Add-ons</label>
-                      <span className="text-xs text-gray-500 font-medium">Max 5 per add-on</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      {(() => {
-                        let addonsToList = selectedProduct.add_ons?.length > 0 
-                          ? selectedProduct.add_ons.map(a => a.name)
-                          : ["Pearl", "Nata", "Jelly", "Pudding", "Extra Sugar", "Extra Ice"];
-                        
-                        return addonsToList.map(addon => {
-                          const currentQty = productOptions.addOns[addon] || 0;
-                          return (
-                            <div key={addon} className={`flex flex-col p-3 rounded-xl border-2 transition-colors ${currentQty > 0 ? 'bg-indigo-50/60 border-indigo-400' : 'bg-white border-gray-200'}`}>
-                              <span className="text-sm font-bold text-gray-900 mb-2 truncate">{addon}</span>
-                              <div className="flex items-center justify-between mt-auto">
-                                <button 
-                                  type="button"
-                                  className="w-8 h-8 rounded-full bg-white border border-gray-300 flex items-center justify-center font-bold text-gray-700 hover:bg-gray-100 transition-colors text-base disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer" 
-                                  onClick={() => updateAddOnQty(addon, currentQty - 1)}
-                                  disabled={currentQty <= 0}
-                                >-</button>
-                                <span className="font-bold text-gray-900 text-base w-7 text-center font-mono">{currentQty}</span>
-                                <button 
-                                  type="button"
-                                  className="w-8 h-8 rounded-full bg-white border border-gray-300 flex items-center justify-center font-bold text-gray-700 hover:bg-gray-100 transition-colors text-base disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer" 
-                                  onClick={() => updateAddOnQty(addon, currentQty + 1)}
-                                  disabled={currentQty >= 5}
-                                >+</button>
-                              </div>
-                            </div>
-                          );
-                        });
-                      })()}
-                    </div>
+              {selectedOptionsAvailability.hasAddOns && (
+                <div className="mb-2">
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-sm font-semibold text-gray-800">Add-ons</label>
+                    <span className="text-xs text-gray-500 font-medium">Max 5 per add-on</span>
                   </div>
-                </>
+                  <div className="grid grid-cols-2 gap-3">
+                    {(() => {
+                      let addonsToList = selectedProduct.add_ons?.length > 0 
+                        ? selectedProduct.add_ons.map(a => a.name)
+                        : ["Pearl", "Nata", "Jelly", "Pudding", "Extra Sugar", "Extra Ice"];
+                      
+                      return addonsToList.map(addon => {
+                        const currentQty = productOptions.addOns[addon] || 0;
+                        return (
+                          <div key={addon} className={`flex flex-col p-3 rounded-xl border-2 transition-colors ${currentQty > 0 ? 'bg-indigo-50/60 border-indigo-400' : 'bg-white border-gray-200'}`}>
+                            <span className="text-sm font-bold text-gray-900 mb-2 truncate">{addon}</span>
+                            <div className="flex items-center justify-between mt-auto">
+                              <button 
+                                type="button"
+                                className="w-8 h-8 rounded-full bg-white border border-gray-300 flex items-center justify-center font-bold text-gray-700 hover:bg-gray-100 transition-colors text-base disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer" 
+                                onClick={() => updateAddOnQty(addon, currentQty - 1)}
+                                disabled={currentQty <= 0}
+                              >-</button>
+                              <span className="font-bold text-gray-900 text-base w-7 text-center font-mono">{currentQty}</span>
+                              <button 
+                                type="button"
+                                className="w-8 h-8 rounded-full bg-white border border-gray-300 flex items-center justify-center font-bold text-gray-700 hover:bg-gray-100 transition-colors text-base disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer" 
+                                onClick={() => updateAddOnQty(addon, currentQty + 1)}
+                                disabled={currentQty >= 5}
+                              >+</button>
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
               )}
             </div>
             <div className="flex gap-3 px-6 py-4 bg-gray-50 border-t border-gray-200">
@@ -272,7 +275,7 @@ const POS = () => {
               <button className="flex-2 py-2.5 bg-gray-900 rounded-xl text-sm font-semibold text-white hover:bg-black transition-all cursor-pointer border-none" onClick={handleAddWithOptions}>
                 {(() => {
                   let displayPrice = parseFloat(selectedProduct.price);
-                  if (["COFFEE", "FRAPPE", "MILK TEA", "SODA", "FRUIT DRINKS"].includes(selectedProduct.category?.toUpperCase())) {
+                  if (selectedOptionsAvailability.hasSizes) {
                     if (selectedProduct.sizes && selectedProduct.sizes.length > 0) {
                       const sz = selectedProduct.sizes.find(s => s.name === productOptions.cupSize);
                       if (sz) displayPrice += parseFloat(sz.price_add || 0);
@@ -280,7 +283,8 @@ const POS = () => {
                       if (productOptions.cupSize === "16 oz") displayPrice += 10;
                       if (productOptions.cupSize === "22 oz") displayPrice += 20;
                     }
-
+                  }
+                  if (selectedOptionsAvailability.hasAddOns) {
                     Object.entries(productOptions.addOns).forEach(([addonName, customerQty]) => {
                       if (selectedProduct.add_ons && selectedProduct.add_ons.length > 0) {
                         const ao = selectedProduct.add_ons.find(a => a.name === addonName);
