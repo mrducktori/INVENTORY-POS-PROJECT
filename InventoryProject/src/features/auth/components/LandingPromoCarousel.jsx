@@ -64,7 +64,7 @@ function PromoLightbox({ promo, promos = [], currentIndex = 0, onSelectIndex, on
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center gap-2">
-            <span className="px-2.5 py-1 rounded-xs bg-amber-400 text-zinc-950 text-xs font-black uppercase tracking-wider shadow">
+            <span className="px-2.5 py-1 rounded-md bg-amber-400 text-zinc-950 text-xs font-black uppercase tracking-wider shadow">
               Promo {promos.length > 1 ? `(${currentIndex + 1} of ${promos.length})` : ''}
             </span>
             {promo.title && (
@@ -77,7 +77,7 @@ function PromoLightbox({ promo, promos = [], currentIndex = 0, onSelectIndex, on
           <button
             type="button"
             onClick={onClose}
-            className="w-10 h-10 rounded bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xl font-bold border border-white/20 transition-colors cursor-pointer shadow-lg"
+            className="w-10 h-10 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xl font-bold border border-white/20 transition-colors cursor-pointer shadow-lg"
             title="Close (ESC)"
             aria-label="Close"
           >
@@ -98,7 +98,7 @@ function PromoLightbox({ promo, promos = [], currentIndex = 0, onSelectIndex, on
             <button
               type="button"
               onClick={handlePrev}
-              className="hidden sm:flex absolute left-4 sm:left-6 top-1/2 -translate-y-1/2 w-11 h-11 rounded bg-black/75 hover:bg-black/95 text-white items-center justify-center text-3xl font-bold border border-white/30 backdrop-blur-md shadow-2xl transition-all hover:scale-105 active:scale-95 cursor-pointer z-20"
+              className="hidden sm:flex absolute left-4 sm:left-6 top-1/2 -translate-y-1/2 w-11 h-11 rounded-lg bg-black/75 hover:bg-black/95 text-white items-center justify-center text-3xl font-bold border border-white/30 backdrop-blur-md shadow-2xl transition-all hover:scale-105 active:scale-95 cursor-pointer z-20"
               title="Previous (Left Arrow)"
             >
               ‹
@@ -108,7 +108,7 @@ function PromoLightbox({ promo, promos = [], currentIndex = 0, onSelectIndex, on
           <img
             src={promo.image_url}
             alt={promo.title || 'Expanded Promotion'}
-            className="max-h-[50vh] sm:max-h-[76vh] max-w-full w-auto object-contain rounded-md border border-white/20 shadow-[0_20px_60px_rgba(0,0,0,0.9)] transition-all select-none"
+            className="max-h-[50vh] sm:max-h-[76vh] max-w-full w-auto object-contain rounded-xl border border-white/20 shadow-[0_20px_60px_rgba(0,0,0,0.9)] transition-all select-none"
           />
 
           {/* Desktop Side Arrows: Shown only on sm+ screens, placed cleanly at the outer margins */}
@@ -116,7 +116,7 @@ function PromoLightbox({ promo, promos = [], currentIndex = 0, onSelectIndex, on
             <button
               type="button"
               onClick={handleNext}
-              className="hidden sm:flex absolute right-4 sm:right-6 top-1/2 -translate-y-1/2 w-11 h-11 rounded bg-black/75 hover:bg-black/95 text-white items-center justify-center text-3xl font-bold border border-white/30 backdrop-blur-md shadow-2xl transition-all hover:scale-105 active:scale-95 cursor-pointer z-20"
+              className="hidden sm:flex absolute right-4 sm:right-6 top-1/2 -translate-y-1/2 w-11 h-11 rounded-lg bg-black/75 hover:bg-black/95 text-white items-center justify-center text-3xl font-bold border border-white/30 backdrop-blur-md shadow-2xl transition-all hover:scale-105 active:scale-95 cursor-pointer z-20"
               title="Next (Right Arrow)"
             >
               ›
@@ -126,7 +126,7 @@ function PromoLightbox({ promo, promos = [], currentIndex = 0, onSelectIndex, on
 
         {/* Lightbox Footer Caption & Mobile Controls */}
         <div
-          className="w-full max-w-4xl bg-zinc-950/85 border border-white/15 rounded-md p-3 sm:p-4 shrink-0 backdrop-blur-md shadow-xl mb-6 sm:mb-1"
+          className="w-full max-w-4xl bg-zinc-950/85 border border-white/15 rounded-xl p-3 sm:p-4 shrink-0 backdrop-blur-md shadow-xl mb-6 sm:mb-1"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center justify-between gap-3">
@@ -134,7 +134,7 @@ function PromoLightbox({ promo, promos = [], currentIndex = 0, onSelectIndex, on
               <button
                 type="button"
                 onClick={handlePrev}
-                className="sm:hidden w-10 h-10 rounded-xs bg-white/10 hover:bg-white/20 active:bg-white/30 text-white flex items-center justify-center text-xl font-bold border border-white/20 transition-colors shrink-0 cursor-pointer"
+                className="sm:hidden w-10 h-10 rounded-lg bg-white/10 hover:bg-white/20 active:bg-white/30 text-white flex items-center justify-center text-xl font-bold border border-white/20 transition-colors shrink-0 cursor-pointer"
                 aria-label="Previous promo"
                 title="Previous"
               >
@@ -160,7 +160,7 @@ function PromoLightbox({ promo, promos = [], currentIndex = 0, onSelectIndex, on
                       key={p.id || idx}
                       type="button"
                       onClick={() => onSelectIndex(idx)}
-                      className={`h-1.5 rounded-xs transition-all cursor-pointer ${
+                      className={`h-1.5 rounded-sm transition-all cursor-pointer ${
                         idx === currentIndex ? 'w-5 bg-amber-400' : 'w-1.5 bg-white/30 hover:bg-white/60'
                       }`}
                       aria-label={`Promo ${idx + 1}`}
@@ -177,7 +177,7 @@ function PromoLightbox({ promo, promos = [], currentIndex = 0, onSelectIndex, on
               <button
                 type="button"
                 onClick={handleNext}
-                className="sm:hidden w-10 h-10 rounded-xs bg-white/10 hover:bg-white/20 active:bg-white/30 text-white flex items-center justify-center text-xl font-bold border border-white/20 transition-colors shrink-0 cursor-pointer"
+                className="sm:hidden w-10 h-10 rounded-lg bg-white/10 hover:bg-white/20 active:bg-white/30 text-white flex items-center justify-center text-xl font-bold border border-white/20 transition-colors shrink-0 cursor-pointer"
                 aria-label="Next promo"
                 title="Next"
               >
@@ -245,7 +245,7 @@ function LandingPromoCarousel({
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
-          className={`relative rounded-md overflow-hidden border border-white/20 bg-black/55 shadow-2xl backdrop-blur-xl group transition-all duration-300 touch-pan-y ${
+          className={`relative rounded-xl overflow-hidden border border-white/20 bg-black/35 shadow-2xl backdrop-blur-lg group transition-all duration-300 touch-pan-y ${
             connected ? 'lg:rounded-none lg:border-0 lg:bg-transparent lg:shadow-none lg:backdrop-blur-none lg:h-full lg:flex lg:flex-col' : ''
           } ${
             currentPromo.image_url ? 'cursor-zoom-in' : ''
@@ -267,7 +267,7 @@ function LandingPromoCarousel({
               />
 
               {/* Expand Hint Badge in top-right */}
-              <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-xs bg-black/75 hover:bg-black/90 text-white/90 text-[10px] font-bold tracking-wider uppercase border border-white/20 backdrop-blur-md shadow-md transition-colors">
+              <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-black/75 hover:bg-black/90 text-white/90 text-[10px] font-bold tracking-wider uppercase border border-white/20 backdrop-blur-md shadow-md transition-colors">
                 <svg className="w-3.5 h-3.5 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
                 </svg>
@@ -276,7 +276,7 @@ function LandingPromoCarousel({
 
               {/* Bottom Gradient Overlay for typography */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent flex flex-col justify-end p-5 sm:p-6 pointer-events-none pb-12 sm:pb-6">
-                <div className="inline-flex items-center gap-1.5 self-start px-2.5 py-0.5 sm:py-1 rounded-xs bg-amber-400 text-zinc-950 text-[10px] sm:text-xs font-black tracking-widest uppercase mb-1.5 shadow-sm">
+                <div className="inline-flex items-center gap-1.5 self-start px-2.5 py-0.5 sm:py-1 rounded-md bg-amber-400 text-zinc-950 text-[10px] sm:text-xs font-black tracking-widest uppercase mb-1.5 shadow-sm">
                   <span>Featured Promo</span>
                   {promos.length > 1 && (
                     <span className="text-[10px] font-extrabold text-zinc-800 ml-1">
@@ -297,9 +297,9 @@ function LandingPromoCarousel({
               </div>
             </div>
           ) : (
-            <div className="p-6 sm:p-8 bg-zinc-900/90 flex-1 h-full flex flex-col justify-between min-h-[240px]">
+            <div className="p-6 sm:p-8 bg-zinc-900/80 flex-1 h-full flex flex-col justify-between min-h-[240px]">
               <div>
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-xs bg-amber-400/20 text-amber-300 border border-amber-400/30 text-[10px] font-bold tracking-widest uppercase mb-2">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-amber-400/20 text-amber-300 border border-amber-400/30 text-[10px] font-bold tracking-widest uppercase mb-2">
                   <span>Featured Promo</span>
                   {promos.length > 1 && <span className="text-amber-200 font-extrabold">({currentIndex + 1} of {promos.length})</span>}
                 </div>
@@ -322,7 +322,7 @@ function LandingPromoCarousel({
               <button
                 type="button"
                 onClick={onPrev}
-                className="hidden sm:flex absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded bg-black/70 hover:bg-black/90 text-white items-center justify-center text-sm font-bold border border-white/20 backdrop-blur-md shadow-md transition-colors cursor-pointer z-10"
+                className="hidden sm:flex absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg bg-black/70 hover:bg-black/90 text-white items-center justify-center text-sm font-bold border border-white/20 backdrop-blur-md shadow-md transition-colors cursor-pointer z-10"
                 aria-label="Previous promo"
               >
                 ‹
@@ -330,18 +330,18 @@ function LandingPromoCarousel({
               <button
                 type="button"
                 onClick={onNext}
-                className="hidden sm:flex absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded bg-black/70 hover:bg-black/90 text-white items-center justify-center text-sm font-bold border border-white/20 backdrop-blur-md shadow-md transition-colors cursor-pointer z-10"
+                className="hidden sm:flex absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg bg-black/70 hover:bg-black/90 text-white items-center justify-center text-sm font-bold border border-white/20 backdrop-blur-md shadow-md transition-colors cursor-pointer z-10"
                 aria-label="Next promo"
               >
                 ›
               </button>
 
               {/* Bottom Control Bar: Integrates Previous & Next arrows cleanly into the bottom indicator pill on mobile */}
-              <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 flex items-center gap-2 z-10 bg-black/75 px-3 py-1 rounded-sm backdrop-blur-md border border-white/20 shadow-lg">
+              <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 flex items-center gap-2 z-10 bg-black/75 px-3 py-1 rounded-lg backdrop-blur-md border border-white/20 shadow-lg">
                 <button
                   type="button"
                   onClick={onPrev}
-                  className="sm:hidden w-6 h-6 rounded-xs bg-white/15 active:bg-white/30 text-white flex items-center justify-center text-xs font-bold transition-colors cursor-pointer shrink-0"
+                  className="sm:hidden w-6 h-6 rounded-md bg-white/15 active:bg-white/30 text-white flex items-center justify-center text-xs font-bold transition-colors cursor-pointer shrink-0"
                   aria-label="Previous promo"
                   title="Previous"
                 >
@@ -357,7 +357,7 @@ function LandingPromoCarousel({
                         e.stopPropagation();
                         onSelectIndex(i);
                       }}
-                      className={`h-1.5 rounded-xs transition-all cursor-pointer ${
+                      className={`h-1.5 rounded-sm transition-all cursor-pointer ${
                         i === currentIndex ? 'w-5 bg-amber-400' : 'w-1.5 bg-white/40 hover:bg-white/70'
                       }`}
                       aria-label={`Go to promo ${i + 1}`}
@@ -368,7 +368,7 @@ function LandingPromoCarousel({
                 <button
                   type="button"
                   onClick={onNext}
-                  className="sm:hidden w-6 h-6 rounded-xs bg-white/15 active:bg-white/30 text-white flex items-center justify-center text-xs font-bold transition-colors cursor-pointer shrink-0"
+                  className="sm:hidden w-6 h-6 rounded-md bg-white/15 active:bg-white/30 text-white flex items-center justify-center text-xs font-bold transition-colors cursor-pointer shrink-0"
                   aria-label="Next promo"
                   title="Next"
                 >

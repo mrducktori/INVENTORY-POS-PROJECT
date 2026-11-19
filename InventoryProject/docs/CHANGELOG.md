@@ -3,9 +3,9 @@
 All notable changes to this project will be documented in this file.
 
 ## [Landing Page: Connected Split Hero & Sharper Edges - 2026-11-19]
-- **`src/features/auth/LandingPage.jsx`**: Connected the welcome/menu panel and promo carousel into one unified desktop (`lg+`) split-frame with a vertical divider, falling back to separate stacked cards on smaller viewports and a single centered card when no promos exist; sharpened header logo, eyebrow, location badge, and CTA corners.
-- **`src/features/auth/components/LandingPromoCarousel.jsx`**: Added `connected` prop for flush desktop integration, edge-to-edge height alignment, and crisper corners across the carousel card, badges, arrows, controls, and lightbox.
-- **`src/features/auth/components/LandingMenuBoard.jsx`**: Tightened border radii across the menu panel, category tabs, buttons, product cards, and price chips.
+- **`src/features/auth/LandingPage.jsx`**: Connected the welcome/menu panel and promo carousel into one unified desktop (`lg+`) split-frame with a translucent frosted glass background (`bg-black/35 backdrop-blur-lg`) and vertical divider, falling back to separate stacked cards on smaller viewports and a single centered card when no promos exist; balanced corner radii (`rounded-xl` / `rounded-lg` / `rounded-md`).
+- **`src/features/auth/components/LandingPromoCarousel.jsx`**: Added `connected` prop for flush desktop integration, edge-to-edge height alignment, translucent card background, and balanced corners across the carousel, badges, arrows, controls, and lightbox.
+- **`src/features/auth/components/LandingMenuBoard.jsx`**: Adjusted background opacity (`bg-black/45`) and balanced corner radii (`rounded-xl` / `rounded-lg` / `rounded-md`) across the menu panel, category tabs, buttons, product cards, and price chips.
 
 ## [Products/POS: Dynamic Category Customization & Editing - 2026-11-19]
 - **`server/routes/categorySettings.js`**:
