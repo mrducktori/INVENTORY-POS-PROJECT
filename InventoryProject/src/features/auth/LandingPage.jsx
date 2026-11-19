@@ -32,6 +32,13 @@ function LandingPage() {
 
   if (isInitialLoading) return <PageLoader />;
 
+  const hasPromos = Array.isArray(cmsData.promos) && cmsData.promos.length > 0;
+  const leftPanelBase =
+    'flex flex-col justify-between p-6 sm:p-7 rounded-md bg-black/55 border border-white/20 backdrop-blur-xl shadow-2xl text-left';
+  const leftPanelClass = hasPromos
+    ? `lg:col-span-5 ${leftPanelBase} lg:rounded-none lg:border-0 lg:border-r lg:border-white/15 lg:bg-transparent lg:backdrop-blur-none lg:shadow-none lg:min-h-[390px]`
+    : `${leftPanelBase} min-h-[340px] sm:min-h-[370px]`;
+
   // Helper to format title to match the original premium sleek look
   const formatTitle = (titleString) => {
     if (!titleString) return null;
@@ -63,7 +70,7 @@ function LandingPage() {
               alt={cmsData.brand_title || 'Logo'}
               onClick={handleLogoTap}
               draggable={false}
-              className="w-14 h-14 sm:w-18 sm:h-18 md:w-22 md:h-22 object-contain rounded-2xl drop-shadow-[0_8px_20px_rgba(0,0,0,0.8)] border border-white/25 p-1 sm:p-1.5 bg-black/60 shrink-0 hover:border-white/40 transition-colors shadow-xl cursor-pointer"
+              className="w-14 h-14 sm:w-18 sm:h-18 md:w-22 md:h-22 object-contain rounded-md drop-shadow-[0_8px_20px_rgba(0,0,0,0.8)] border border-white/25 p-1 sm:p-1.5 bg-black/60 shrink-0 hover:border-white/40 transition-colors shadow-xl cursor-pointer"
             />
             <div className="flex flex-col justify-center">
               <h1 className="text-white text-lg sm:text-2xl md:text-3xl font-black tracking-widest m-0 flex items-baseline gap-1 md:gap-2 truncate drop-shadow-md">
@@ -90,13 +97,19 @@ function LandingPage() {
                   : 'opacity-100 scale-100 relative translate-y-0 z-10'
               }`}
             >
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-7 items-stretch">
-                {/* Left Card: Welcome info, Location, and Open Menu trigger - Taller with translucent glass opacity */}
-                <div className="lg:col-span-5 flex flex-col justify-between p-6 sm:p-7 rounded-2xl bg-black/45 border border-white/20 backdrop-blur-xl shadow-2xl text-left min-h-[340px] sm:min-h-[370px] lg:min-h-[380px]">
+              <div
+                className={
+                  hasPromos
+                    ? 'grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-0 items-stretch lg:rounded-md lg:overflow-hidden lg:border lg:border-white/20 lg:bg-black/55 lg:backdrop-blur-xl lg:shadow-2xl'
+                    : 'max-w-lg mx-auto'
+                }
+              >
+                {/* Left Panel: Welcome info, Location, and Open Menu trigger (Connected split-frame on lg+, separate card on smaller viewports) */}
+                <div className={leftPanelClass}>
                   <div>
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-amber-300 border border-white/15 text-[10px] sm:text-[11px] font-bold tracking-widest uppercase mb-4 shadow-sm backdrop-blur-sm">
+                    <div className="inline-flex items-center gap-2 text-[10px] sm:text-[11px] font-bold tracking-[0.22em] uppercase mb-3.5 pb-2 border-b border-white/15 text-amber-300">
                       <span>CofTea Cafe</span>
-                      <span className="text-zinc-500">•</span>
+                      <span className="text-zinc-500">/</span>
                       <span className="text-zinc-300">Elwood Branch</span>
                     </div>
 
@@ -111,7 +124,7 @@ function LandingPage() {
                         href={safeHref(cmsData.location_link)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2.5 text-zinc-300 hover:text-white text-xs sm:text-sm font-semibold py-2.5 px-3.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 backdrop-blur-sm transition-all mb-4 no-underline group max-w-full shadow-sm"
+                        className="inline-flex items-center gap-2.5 text-zinc-300 hover:text-white text-xs sm:text-sm font-semibold py-2.5 px-3.5 rounded bg-white/[0.06] hover:bg-white/15 border border-white/15 backdrop-blur-sm transition-all mb-4 no-underline group max-w-full shadow-sm"
                       >
                         <svg className="w-4 h-4 text-red-400 shrink-0 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -127,7 +140,7 @@ function LandingPage() {
                     <button
                       type="button"
                       onClick={() => setIsMenuOpen(true)}
-                      className="w-full flex items-center justify-between p-3.5 sm:p-4 rounded-xl bg-white hover:bg-zinc-100 text-zinc-950 transition-all duration-200 cursor-pointer shadow-md group border border-white/30"
+                      className="w-full flex items-center justify-between p-3.5 sm:p-4 rounded bg-white hover:bg-zinc-100 text-zinc-950 transition-all duration-200 cursor-pointer shadow-md group border border-white/30"
                     >
                       <div className="text-left">
                         <span className="text-[10px] sm:text-[11px] text-zinc-500 font-bold uppercase tracking-widest block mb-0.5">
@@ -137,7 +150,7 @@ function LandingPage() {
                           {cmsData.menu_title || 'Menu Board'}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-zinc-950 text-white text-xs sm:text-sm font-bold uppercase tracking-wider group-hover:bg-amber-400 group-hover:text-zinc-950 transition-colors shadow">
+                      <div className="flex items-center gap-2 px-3.5 py-2 rounded-xs bg-zinc-950 text-white text-xs sm:text-sm font-bold uppercase tracking-wider group-hover:bg-amber-400 group-hover:text-zinc-950 transition-colors shadow">
                         <span>Open Menu</span>
                         <svg className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
                       </div>
@@ -145,20 +158,23 @@ function LandingPage() {
                   </div>
                 </div>
 
-                {/* Right Card: Featured Promo Carousel */}
-                <div className="lg:col-span-7 flex flex-col justify-center">
-                  <LandingPromoCarousel
-                    promos={cmsData.promos}
-                    currentIndex={currentPromoIndex}
-                    onSelectIndex={handleSelectPromoIndex}
-                    onNext={handleNextPromo}
-                    onPrev={handlePrevPromo}
-                    onHoverChange={setIsPromoHovered}
-                    expandedPromo={expandedPromo}
-                    onOpenLightbox={openPromoLightbox}
-                    onCloseLightbox={closePromoLightbox}
-                  />
-                </div>
+                {/* Right Panel: Featured Promo Carousel */}
+                {hasPromos && (
+                  <div className="lg:col-span-7 flex flex-col">
+                    <LandingPromoCarousel
+                      promos={cmsData.promos}
+                      currentIndex={currentPromoIndex}
+                      onSelectIndex={handleSelectPromoIndex}
+                      onNext={handleNextPromo}
+                      onPrev={handlePrevPromo}
+                      onHoverChange={setIsPromoHovered}
+                      expandedPromo={expandedPromo}
+                      onOpenLightbox={openPromoLightbox}
+                      onCloseLightbox={closePromoLightbox}
+                      connected
+                    />
+                  </div>
+                )}
               </div>
             </div>
 

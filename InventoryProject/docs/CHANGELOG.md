@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Landing Page: Connected Split Hero & Sharper Edges - 2026-11-19]
+- **`src/features/auth/LandingPage.jsx`**: Connected the welcome/menu panel and promo carousel into one unified desktop (`lg+`) split-frame with a vertical divider, falling back to separate stacked cards on smaller viewports and a single centered card when no promos exist; sharpened header logo, eyebrow, location badge, and CTA corners.
+- **`src/features/auth/components/LandingPromoCarousel.jsx`**: Added `connected` prop for flush desktop integration, edge-to-edge height alignment, and crisper corners across the carousel card, badges, arrows, controls, and lightbox.
+- **`src/features/auth/components/LandingMenuBoard.jsx`**: Tightened border radii across the menu panel, category tabs, buttons, product cards, and price chips.
+
 ## [Products/POS: Dynamic Category Customization & Editing - 2026-11-19]
 - **`server/routes/categorySettings.js`**:
   - Upgraded `GET /api/categories/settings` to return `category_settings` merged with distinct product categories (including `product_count` across active and archived items).
