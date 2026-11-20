@@ -438,22 +438,24 @@ router.get('/demand-forecast', async (req, res) => {
         recentQty: 0, // last 14 days
         priorQty: 0,  // 14-30 days ago
         weekendQty: 0,
-        paydayQty: 0
+        paydayQty: 0,
+        holidayQty: 0
       };
     });
 
     const holidayDateKeys = new Set();
 
     (salesWithItems || []).forEach(s => {
-      const saleDate = new Date(s.created_at);
-      const isWithin30 = saleDate >= thirtyDaysAgo;
-      const isRecent = saleDate >= fourteenDaysAgo;
+      const rawSaleDate = new Date(s.created_at);
+      const saleDate = new Date(rawSaleDate.toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
+      const isWithin30 = rawSaleDate >= thirtyDaysAgo;
+      const isRecent = rawSaleDate >= fourteenDaysAgo;
       const dayOfWeek = saleDate.getDay();
       const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
       const isHoliday = isPhilippineHoliday(saleDate);
       const isPayday = isPhilippinePayday(saleDate) && !isHoliday;
       if (isHoliday) {
-        holidayDateKeys.add(saleDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' }));
+        holidayDateKeys.add(`${saleDate.getFullYear()}-${String(saleDate.getMonth() + 1).padStart(2, '0')}-${String(saleDate.getDate()).padStart(2, '0')}`);
       }
 
       (s.sale_items || []).forEach(si => {
@@ -491,7 +493,9 @@ router.get('/demand-forecast', async (req, res) => {
     });
 
     // 2. Generate Forecasts with Multi-Year Seasonality (2023-2026), YoY Trends, 90-Day Velocity & Calendar Intelligence
-    const currentMonth = new Date().getMonth() + 1;
+    const manilaNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
+    const currentYear = manilaNow.getFullYear();
+    const currentMonth = manilaNow.getMonth() + 1;
     const forecasts = Object.values(productMap).map(stats => {
       const avgDaily90 = stats.totalQty / 90;
       const avgDaily30 = stats.qty30 / 30;
@@ -515,12 +519,12 @@ router.get('/demand-forecast', async (req, res) => {
       const currentSeasonalIndex = seasonalIndices[currentMonth] || 1.0;
       const yoyGrowthPct = multiYearMeta?.yoyGrowthPct ?? 12.0;
 
-      // Same-month in prior years (2023, 2024, 2025)
+      // Same-month in completed prior years
       const priorSameMonths = (multiYearMeta?.monthlySales || []).filter(
-        m => m.month === currentMonth && m.year < 2026
+        m => m.month === currentMonth && m.year < currentYear
       );
       const lastYearSameMonth = (multiYearMeta?.monthlySales || []).find(
-        m => m.month === currentMonth && m.year === 2025
+        m => m.month === currentMonth && m.year === currentYear - 1
       );
 
       // Compute multi-year seasonal baseline daily rate for current month
@@ -543,11 +547,7 @@ router.get('/demand-forecast', async (req, res) => {
       // Blended trend indicator (60% recent momentum + 40% YoY trajectory)
       const growthRate = Math.max(-100, Math.min(100, shortTermGrowth * 0.65 + yoyGrowthPct * 0.35));
 
-      // 7-day & 30-day cyclical projection incorporating multi-year monthly seasonality, weekends, Mon/Fri peak & holidays
-      let next7DaysPredicted = 0;
-      let next30DaysPredicted = 0;
-      const normFactor = 1.12;
-
+      // 7-day & 30-day cyclical projection with exact mean-preserving calendar normalization
       const holDaysObserved = holidayDateKeys.size;
       const nonHolDaysObserved = Math.max(1, 90 - holDaysObserved);
       const avgHolDaily = holDaysObserved > 0 && stats.holidayQty > 0 ? stats.holidayQty / holDaysObserved : null;
@@ -556,8 +556,9 @@ router.get('/demand-forecast', async (req, res) => {
         ? Math.max(0.75, Math.min(1.20, avgHolDaily / avgNonHolDaily))
         : 0.85;
 
+      const futureDayRows = [];
       for (let i = 1; i <= 30; i++) {
-        const futureDate = new Date();
+        const futureDate = new Date(manilaNow);
         futureDate.setDate(futureDate.getDate() + i);
         const fMonth = futureDate.getMonth() + 1;
         const dayOfWeek = futureDate.getDay();
@@ -568,12 +569,22 @@ router.get('/demand-forecast', async (req, res) => {
         const futureMonthSeasonIdx = seasonalIndices[fMonth] || 1.0;
         const seasonRatio = currentSeasonalIndex > 0 ? (futureMonthSeasonIdx / currentSeasonalIndex) : 1.0;
 
-        let dayEst = (blendedBaseDaily / normFactor) * seasonRatio * (1 + Math.max(-0.3, Math.min(0.4, growthRate / 100)) * 0.35);
-        if (isWknd) dayEst *= 1.24;
-        if (isPay && !isHol) dayEst *= 1.20;
-        if (isHol) dayEst *= holidayMult;
+        let calMult = 1;
+        if (isWknd) calMult *= 1.24;
+        if (isPay && !isHol) calMult *= 1.20;
+        if (isHol) calMult *= holidayMult;
 
-        if (i <= 7) next7DaysPredicted += dayEst;
+        futureDayRows.push({ dayIdx: i, seasonRatio, calMult });
+      }
+
+      const mean30CalMult = futureDayRows.reduce((s, r) => s + r.calMult, 0) / Math.max(1, futureDayRows.length);
+      const momentumFactor = 1 + Math.max(-0.3, Math.min(0.4, growthRate / 100)) * 0.35;
+
+      let next7DaysPredicted = 0;
+      let next30DaysPredicted = 0;
+      for (const row of futureDayRows) {
+        const dayEst = (blendedBaseDaily / (mean30CalMult || 1)) * row.seasonRatio * momentumFactor * row.calMult;
+        if (row.dayIdx <= 7) next7DaysPredicted += dayEst;
         next30DaysPredicted += dayEst;
       }
 

@@ -33,7 +33,11 @@ const MonthlyProjectionModal = ({
   const dailyAverage = Math.round((displayedUnits / daysInSelectedMonth) * 10) / 10;
   const monthLabel = `${FULL_MONTHS[targetMonth - 1] || ''} ${targetYear}`;
   const unitPrice = Number(result?.price ?? selectedProduct?.price ?? selectedProduct?.selling_price ?? 0);
-  const revenue = displayedUnits * unitPrice;
+  const revenue =
+    isPastMonth && result?.recordedRevenue !== null && result?.recordedRevenue !== undefined
+      ? Number(result.recordedRevenue)
+      : displayedUnits * unitPrice;
+  const volumeUnitLabel = result?.track_stock === false ? 'orders' : 'units';
   const reasoning = !isPastMonth && typeof result?.reasoning === 'string' ? result.reasoning.trim() : '';
 
   return createPortal(
@@ -136,7 +140,7 @@ const MonthlyProjectionModal = ({
                     {isPastMonth ? 'Recorded Sales (Actual)' : 'Projected Volume'}
                   </span>
                   <span className="text-2xl font-bold text-zinc-900 mt-1 block font-mono">
-                    {displayedUnits} orders
+                    {displayedUnits} {volumeUnitLabel}
                   </span>
                   <span className="text-[10px] text-zinc-400 block mt-0.5">{monthLabel} total</span>
                 </div>

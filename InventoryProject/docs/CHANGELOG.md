@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Analytics/Forecasting: Fix Forecast Data Accuracy & Mean-Preserving Calendar Math - 2026-11-20]
+- **`server/services/aiForecastingService.js`**:
+  - Fixed `sale_items` fetch to query all rows in the trailing 120 calendar days (paginated) instead of `.order('id', { ascending: false }).limit(1000)` on random UUIDs.
+  - Switched `recentSummary` (`7d / prior 7d / 30d / 90d`) to true Asia/Manila calendar-day bounds instead of active sale-day slicing.
+  - Gated `isPayday` in `dailySales` with `!holiday` so holiday Mondays/Fridays don't distort `peakDayMultiplier`.
+  - Replaced hardcoded `!(m.year === 2026 && m.month === 11)` with `isHistoricalManilaMonth(m.year, m.month)`, switched `currentMonth` to Manila time, and replaced static `normFactor = 1.10` with the exact `meanMonthMultiplier` of the target month so calendar lifts distribute without inflating or shrinking totals.
+  - Added `recordedRevenue` to `runDeterministicEnsembleForecast` for completed past months.
+- **`server/routes/analytics.js`**:
+  - Initialized `holidayQty: 0` on `productMap` entries (preventing `NaN` holiday totals), switched date/year filters (`currentYear`, `currentYear - 1`) to Asia/Manila time, and replaced static `normFactor = 1.12` with the exact 30-day `mean30CalMult`.
+- **`src/features/analytics/components/MonthlyProjectionModal.jsx`**:
+  - Used `recordedRevenue` when viewing historical months and showed `units` vs `orders` based on `track_stock`.
+
 ## [Analytics/Forecasting: Sync 7-Day Demand & Gemini Output with Holiday Logic - 2026-11-20]
 - **`server/routes/analytics.js`**: Updated `GET /api/analytics/demand-forecast` (7-day & 30-day Menu Demand) to compute a data-driven holiday multiplier (`0.75x–1.20x`, default `0.85x`) from 90-day POS history and skip the Monday/Friday school-rush boost on Philippine holidays (`if (isPay && !isHol)`).
 - **`server/services/aiForecastingService.js`**: Anchored `predictedUnitsSold` and `recommendedOrderQuantity` to `runDeterministicEnsembleForecast` when Gemini returns `reasoning`/`confidenceScore`, keeping monthly totals 100% consistent with the displayed multipliers.
