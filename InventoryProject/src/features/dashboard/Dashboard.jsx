@@ -5,6 +5,7 @@ import { canAccess, getUserPermissions } from '../../utils/permissions';
 
 import Navbar from '../../components/Navbar';
 import DashboardOverview from './DashboardOverview';
+import AdminNotificationPopup from './components/AdminNotificationPopup';
 import ErrorBoundary from '../../components/shared/ErrorBoundary';
 
 // Lazy-load secondary dashboard modules so initial bundle load is fast and light
@@ -254,6 +255,7 @@ const Dashboard = () => {
           </div>
         </main>
       </div>
+      <AdminNotificationPopup user={user} onNavigate={handleTabChange} />
     </div>
   );
 };

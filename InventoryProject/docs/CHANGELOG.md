@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Notifications/UI: One-Time 10-Minute Admin Notification Pop-Up - 2026-11-21]
+- **`src/features/dashboard/components/AdminNotificationPopup.jsx`**: Added a one-time floating notification pop-up for `Admin` and `Owner` sessions that triggers 10 minutes after dashboard load (if unread notifications exist), displays up to 3 unread alerts for a 15-second duration (pauses on hover with a live countdown bar), and never repeats in the same session.
+- **`src/features/dashboard/Dashboard.jsx`**: Mounted `AdminNotificationPopup` once at the dashboard layout root across all tabs.
+- **`src/utils/authUtils.js` & `src/index.css`**: Added `ADMIN_POPUP_STORAGE_PREFIX` cleanup in `clearUserSession()` so logout/re-login resets the session timer, plus `@keyframes popupSlideUp` entrance animation.
+
 ## [UI Consistency: Raw Material Categories Layout Alignment - 2026-11-21]
 - **Toolbar & Modal Alignment (`src/features/inventory/ManageRawMaterials.jsx`, `src/features/inventory/components/RawMaterialCategoriesModal.jsx`)**:
   - Moved the **Manage Categories** button inside the shared white pill toolbar alongside `Add Material` and `Modify Existing`, matching `ManageProducts.jsx`.

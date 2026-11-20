@@ -3,6 +3,7 @@ export const SESSION_TIMEOUT_MS = 2 * 60 * 60 * 1000;
 export const USER_STORAGE_KEY = "user";
 export const LAST_ACTIVITY_KEY = "session_last_activity";
 export const EXPIRED_MSG_KEY = "session_expired_msg";
+export const ADMIN_POPUP_STORAGE_PREFIX = "coftea_admin_notif_popup_";
 
 let onSessionExpiredCallback = null;
 
@@ -69,6 +70,14 @@ export const clearUserSession = (reason = null) => {
     localStorage.removeItem('coftea_suppliers_tab');
     localStorage.removeItem('coftea_cms_tab');
     localStorage.removeItem('coftea_request_tab');
+    if (typeof sessionStorage !== 'undefined') {
+      for (let i = sessionStorage.length - 1; i >= 0; i--) {
+        const key = sessionStorage.key(i);
+        if (key && key.startsWith(ADMIN_POPUP_STORAGE_PREFIX)) {
+          sessionStorage.removeItem(key);
+        }
+      }
+    }
     if (typeof window !== 'undefined' && window.location.hash) {
       window.history.replaceState(null, '', window.location.pathname);
     }
