@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Docs/Defense: Concise 2-Page System Guide PDF - 2026-11-21]
+- **`docs/defense/CofTea_Concise_System_Guide.pdf`**: Exported a concise 2-page PDF summary covering tech stack & hosting, security controls, the 5-step operational process, and retention/scope boundaries.
+
 ## [Notifications/UI: Newest-First Sorting & Role-Tailored Inbox Filters - 2026-11-20]
 - **`src/features/dashboard/hooks/useNotifications.js`**: Sorted `allNotifications` strictly newest-first by `timestamp` so the latest notification always appears at the top.
 - **`src/features/dashboard/components/NotificationInbox.jsx`**: Added `PO_CANCELLED` and `PO_PENDING` icons in `renderIcon`, replaced static category tabs with role-tailored filter pills (`All`, `Unread`, plus `Pending`/`Proposals`/`Active`/`Cancelled`/`Declined` for `Supplier`, or `Critical`/`Stock Alerts`/`PO Updates`/`Price Updates` for café roles), and derived `effectiveTab` during render for safe role switches.
