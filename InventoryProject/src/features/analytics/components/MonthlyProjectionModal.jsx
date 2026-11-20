@@ -1,6 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { formatCurrency } from '../utils/forecastUtils';
+import { InfoTip } from '../../../components/shared/InfoTip';
 
 const FULL_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -173,15 +174,27 @@ const MonthlyProjectionModal = ({
                 </div>
               )}
               <div className="border border-zinc-200 rounded-xl p-4 space-y-2 text-xs sm:text-sm">
-                <div className="font-semibold text-zinc-900 mb-2">Multi-Year &amp; Calendar Factors</div>
+                <div className="flex items-center gap-1.5 font-semibold text-zinc-900 mb-2">
+                  <span>Multi-Year &amp; Calendar Factors</span>
+                  <InfoTip
+                    position="top"
+                    text="Blends 50% recent 7/30/90-day counter speed with 50% completed same-month history, then distributes the daily pace across this month's weekends, Mon/Fri school days, and holidays."
+                  />
+                </div>
                 <div className="flex justify-between text-zinc-600">
-                  <span>Seasonal Index (2023–2026)</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span>Seasonal Index (2023–2026)</span>
+                    <InfoTip text="How this month typically performs compared to an average month across 2023–2026." />
+                  </span>
                   <span className="font-mono font-semibold text-zinc-900">
                     {result.factors?.seasonalIndex ? `${result.factors.seasonalIndex}x` : '1.00x'}
                   </span>
                 </div>
                 <div className="flex justify-between text-zinc-600">
-                  <span>Year-over-Year (YoY) Trend</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span>Year-over-Year (YoY) Trend</span>
+                    <InfoTip text="Percentage change in average daily sales from last year to this year." />
+                  </span>
                   <span
                     className={`font-mono font-semibold ${
                       Number(result.factors?.yoyGrowthRate || 0) > 0
@@ -196,13 +209,19 @@ const MonthlyProjectionModal = ({
                   </span>
                 </div>
                 <div className="flex justify-between text-zinc-600">
-                  <span>Weekend Demand Multiplier</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span>Weekend Demand Multiplier</span>
+                    <InfoTip text="Weekend daily sales average compared to weekday sales in recent POS history." />
+                  </span>
                   <span className="font-mono font-semibold text-zinc-900">
                     {result.factors?.weekendMultiplier ? `${result.factors.weekendMultiplier}x` : '1.0x'}
                   </span>
                 </div>
                 <div className="flex justify-between text-zinc-600">
-                  <span>Peak School Days (Mon &amp; Fri)</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span>Peak School Days (Mon &amp; Fri)</span>
+                    <InfoTip text="Monday and Friday daily average compared to midweek (Tue–Thu) on non-holiday school days." />
+                  </span>
                   <span className="font-mono font-semibold text-zinc-900">
                     {result.factors?.peakDayMultiplier || result.factors?.paydayMultiplier
                       ? `${result.factors.peakDayMultiplier || result.factors.paydayMultiplier}x`
@@ -210,7 +229,10 @@ const MonthlyProjectionModal = ({
                   </span>
                 </div>
                 <div className="flex justify-between text-zinc-600">
-                  <span>Holidays in Selected Month</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span>Holidays in Selected Month</span>
+                    <InfoTip text="Philippine holidays in this month and their observed sales multiplier (holidays skip the Mon/Fri school boost)." />
+                  </span>
                   <span
                     className={`font-mono font-semibold ${
                       result.factors?.holidayMultiplier

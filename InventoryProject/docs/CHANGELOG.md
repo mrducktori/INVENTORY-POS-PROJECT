@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Analytics/UI: Add Info Tooltips to Monthly Projection Factors - 2026-11-20]
+- **`src/features/analytics/components/MonthlyProjectionModal.jsx`**: Added `InfoTip` `(i)` tooltips to the **Multi-Year & Calendar Factors** header and each individual factor row (`Seasonal Index`, `YoY Trend`, `Weekend Demand Multiplier`, `Peak School Days`, and `Holidays in Selected Month`) explaining how each metric is calculated.
+
 ## [Analytics/Forecasting: Fix Forecast Data Accuracy & Mean-Preserving Calendar Math - 2026-11-20]
 - **`server/services/aiForecastingService.js`**:
   - Fixed `sale_items` fetch to query all rows in the trailing 120 calendar days (paginated) instead of `.order('id', { ascending: false }).limit(1000)` on random UUIDs.
