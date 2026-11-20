@@ -207,8 +207,21 @@ const MonthlyProjectionModal = ({
                 </div>
                 <div className="flex justify-between text-zinc-600">
                   <span>Holidays in Selected Month</span>
-                  <span className="font-mono font-semibold text-zinc-900">
+                  <span
+                    className={`font-mono font-semibold ${
+                      result.factors?.holidayMultiplier
+                        ? Number(result.factors.holidayMultiplier) > 1
+                          ? 'text-emerald-700'
+                          : Number(result.factors.holidayMultiplier) < 1
+                          ? 'text-amber-700'
+                          : 'text-zinc-900'
+                        : 'text-zinc-900'
+                    }`}
+                  >
                     {result.factors?.holidaySurgeDays ?? 0} days
+                    {result.factors?.holidayMultiplier
+                      ? ` (${result.factors.holidayMultiplier}x)`
+                      : ''}
                   </span>
                 </div>
               </div>

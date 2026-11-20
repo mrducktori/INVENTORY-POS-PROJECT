@@ -442,13 +442,19 @@ router.get('/demand-forecast', async (req, res) => {
       };
     });
 
+    const holidayDateKeys = new Set();
+
     (salesWithItems || []).forEach(s => {
       const saleDate = new Date(s.created_at);
       const isWithin30 = saleDate >= thirtyDaysAgo;
       const isRecent = saleDate >= fourteenDaysAgo;
       const dayOfWeek = saleDate.getDay();
       const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
-      const isPayday = isPhilippinePayday(saleDate);
+      const isHoliday = isPhilippineHoliday(saleDate);
+      const isPayday = isPhilippinePayday(saleDate) && !isHoliday;
+      if (isHoliday) {
+        holidayDateKeys.add(saleDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' }));
+      }
 
       (s.sale_items || []).forEach(si => {
         const pid = si.product_id;
@@ -465,7 +471,8 @@ router.get('/demand-forecast', async (req, res) => {
             recentQty: 0,
             priorQty: 0,
             weekendQty: 0,
-            paydayQty: 0
+            paydayQty: 0,
+            holidayQty: 0
           };
         }
 
@@ -479,6 +486,7 @@ router.get('/demand-forecast', async (req, res) => {
 
         if (isWeekend) productMap[pid].weekendQty += qty;
         if (isPayday) productMap[pid].paydayQty += qty;
+        if (isHoliday) productMap[pid].holidayQty += qty;
       });
     });
 
@@ -535,10 +543,18 @@ router.get('/demand-forecast', async (req, res) => {
       // Blended trend indicator (60% recent momentum + 40% YoY trajectory)
       const growthRate = Math.max(-100, Math.min(100, shortTermGrowth * 0.65 + yoyGrowthPct * 0.35));
 
-      // 7-day & 30-day cyclical projection incorporating multi-year monthly seasonality, weekends, paydays & holidays
+      // 7-day & 30-day cyclical projection incorporating multi-year monthly seasonality, weekends, Mon/Fri peak & holidays
       let next7DaysPredicted = 0;
       let next30DaysPredicted = 0;
       const normFactor = 1.12;
+
+      const holDaysObserved = holidayDateKeys.size;
+      const nonHolDaysObserved = Math.max(1, 90 - holDaysObserved);
+      const avgHolDaily = holDaysObserved > 0 && stats.holidayQty > 0 ? stats.holidayQty / holDaysObserved : null;
+      const avgNonHolDaily = (stats.totalQty - (stats.holidayQty || 0)) / nonHolDaysObserved;
+      const holidayMult = avgHolDaily !== null && avgNonHolDaily > 0
+        ? Math.max(0.75, Math.min(1.20, avgHolDaily / avgNonHolDaily))
+        : 0.85;
 
       for (let i = 1; i <= 30; i++) {
         const futureDate = new Date();
@@ -554,8 +570,8 @@ router.get('/demand-forecast', async (req, res) => {
 
         let dayEst = (blendedBaseDaily / normFactor) * seasonRatio * (1 + Math.max(-0.3, Math.min(0.4, growthRate / 100)) * 0.35);
         if (isWknd) dayEst *= 1.24;
-        if (isPay) dayEst *= 1.20;
-        if (isHol) dayEst *= 1.15;
+        if (isPay && !isHol) dayEst *= 1.20;
+        if (isHol) dayEst *= holidayMult;
 
         if (i <= 7) next7DaysPredicted += dayEst;
         next30DaysPredicted += dayEst;

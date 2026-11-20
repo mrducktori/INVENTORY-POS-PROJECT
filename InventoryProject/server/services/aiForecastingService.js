@@ -44,6 +44,7 @@ export const getMultiYearProductSummary = (productId) => {
 export const isPhilippineHoliday = (date) => {
   const d = new Date(date);
   if (isNaN(d.getTime())) return false;
+  const year = d.getFullYear();
   const month = d.getMonth() + 1; // 1-12
   const day = d.getDate();
 
@@ -57,12 +58,42 @@ export const isPhilippineHoliday = (date) => {
     { m: 11, d: 1, name: "All Saints' Day" },
     { m: 11, d: 2, name: "All Souls' Day" },
     { m: 11, d: 30, name: "Bonifacio Day" },
+    { m: 12, d: 8, name: "Feast of the Immaculate Conception" },
+    { m: 12, d: 24, name: "Christmas Eve" },
     { m: 12, d: 25, name: "Christmas Day" },
     { m: 12, d: 30, name: "Rizal Day" },
     { m: 12, d: 31, name: "New Year's Eve" },
   ];
 
-  return holidays.some(h => h.m === month && h.d === day);
+  if (holidays.some(h => h.m === month && h.d === day)) return true;
+
+  // National Heroes Day: last Monday of August
+  const aug31DayOfWeek = new Date(year, 7, 31).getDay();
+  const lastMondayAug = 31 - ((aug31DayOfWeek + 6) % 7);
+  if (month === 8 && day === lastMondayAug) return true;
+
+  // Holy Week (Maundy Thursday, Good Friday, Black Saturday) from Gregorian Easter Sunday
+  const a = year % 19;
+  const b = Math.floor(year / 100);
+  const c = year % 100;
+  const dd = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - dd - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const easterMonth = Math.floor((h + l - 7 * m + 114) / 31);
+  const easterDay = ((h + l - 7 * m + 114) % 31) + 1;
+
+  for (const offset of [1, 2, 3]) {
+    const hw = new Date(year, easterMonth - 1, easterDay - offset);
+    if (hw.getMonth() + 1 === month && hw.getDate() === day) return true;
+  }
+
+  return false;
 };
 
 /**
@@ -457,6 +488,18 @@ export const runDeterministicEnsembleForecast = (forecastingData) => {
     ? Math.max(1.08, Math.min(1.40, avgPeakSchool / Math.max(0.5, avgMidweek)))
     : 1.20;
 
+  const holidayItems = dailySales.filter(d => d.isHoliday === 1);
+  const nonHolidayItems = dailySales.filter(d => d.isHoliday === 0);
+  const avgHoliday = holidayItems.length > 0
+    ? holidayItems.reduce((s, x) => s + x.unitsSold, 0) / holidayItems.length
+    : null;
+  const avgNonHoliday = nonHolidayItems.length > 0
+    ? nonHolidayItems.reduce((s, x) => s + x.unitsSold, 0) / nonHolidayItems.length
+    : baseDailyRate;
+  const holidayMultiplier = (avgHoliday !== null && avgNonHoliday > 0)
+    ? Math.max(0.75, Math.min(1.20, avgHoliday / avgNonHoliday))
+    : 0.85;
+
   // Simulate each day of the target month
   let predictedTotal = 0;
   let holidayCount = 0;
@@ -480,12 +523,12 @@ export const runDeterministicEnsembleForecast = (forecastingData) => {
       dayForecast *= weekendMultiplier;
       weekendCount++;
     }
-    if (isPeakSchool) {
+    if (isPeakSchool && !isHol) {
       dayForecast *= peakDayMultiplier;
       peakSchoolCount++;
     }
     if (isHol) {
-      dayForecast *= 1.15;
+      dayForecast *= holidayMultiplier;
       holidayCount++;
     }
 
@@ -531,6 +574,7 @@ export const runDeterministicEnsembleForecast = (forecastingData) => {
       weekendMultiplier: parseFloat(weekendMultiplier.toFixed(2)),
       peakDayMultiplier: parseFloat(peakDayMultiplier.toFixed(2)),
       paydayMultiplier: parseFloat(peakDayMultiplier.toFixed(2)),
+      holidayMultiplier: parseFloat(holidayMultiplier.toFixed(2)),
       weekendDays: weekendCount,
       peakSchoolDays: peakSchoolCount,
       paydaySurgeDays: peakSchoolCount,
@@ -749,7 +793,8 @@ Do not include markdown backticks.
                   const ensembleBaseline = runDeterministicEnsembleForecast(forecastingData);
                   const result = {
                     ...ensembleBaseline,
-                    ...parsed,
+                    confidenceScore: parsed.confidenceScore ?? ensembleBaseline.confidenceScore,
+                    reasoning: parsed.reasoning,
                     factors: ensembleBaseline.factors,
                     isHistorical: false,
                     engine: 'gemini_ai',

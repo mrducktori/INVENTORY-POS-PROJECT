@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Analytics/Forecasting: Sync 7-Day Demand & Gemini Output with Holiday Logic - 2026-11-20]
+- **`server/routes/analytics.js`**: Updated `GET /api/analytics/demand-forecast` (7-day & 30-day Menu Demand) to compute a data-driven holiday multiplier (`0.75x–1.20x`, default `0.85x`) from 90-day POS history and skip the Monday/Friday school-rush boost on Philippine holidays (`if (isPay && !isHol)`).
+- **`server/services/aiForecastingService.js`**: Anchored `predictedUnitsSold` and `recommendedOrderQuantity` to `runDeterministicEnsembleForecast` when Gemini returns `reasoning`/`confidenceScore`, keeping monthly totals 100% consistent with the displayed multipliers.
+
+## [Analytics/Forecasting: Data-Driven Holiday Multiplier & PH Holiday Calendar - 2026-11-20]
+- **`server/services/aiForecastingService.js`**:
+  - Added data-driven `holidayMultiplier` (0.75x–1.20x, default 0.85x) computed from historical holiday vs. baseline demand, skipped Mon/Fri peak school boost on holidays (`isPeakSchool && !isHol`), and added Dec 8, Dec 24, National Heroes Day, and Holy Week to `isPhilippineHoliday`.
+- **`src/features/analytics/components/MonthlyProjectionModal.jsx`**:
+  - Displayed computed `holidayMultiplier` alongside the holiday count in the Multi-Year & Calendar Factors card.
+
 ## [Analytics/Purchasing: Single-Supplier Selection Lock & Scoped Critical Reordering - 2026-11-20]
 - **`src/features/analytics/hooks/useDemandForecasting.js`**:
   - Added `doesItemMatchSupplier` and derived `lockedSupplier` from selected ingredients so batch PO selection locks to one common supplier.
