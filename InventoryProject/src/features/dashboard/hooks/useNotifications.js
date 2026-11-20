@@ -364,15 +364,15 @@ export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK, userOverride =
           'postgres_changes',
           { event: '*', schema: 'public', table: 'purchase_orders' },
           () => {
-            fetchSharedPOs(true);
-            fetchSharedPriceUpdates(true);
+            if (canViewPOs) fetchSharedPOs(true);
+            if (canViewSuppliers) fetchSharedPriceUpdates(true);
           }
         )
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'ingredients' },
           () => {
-            fetchSharedLowStock(true);
+            if (canViewStock) fetchSharedLowStock(true);
           }
         )
         .on(
@@ -493,17 +493,40 @@ export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK, userOverride =
             break;
           }
 
-          case 'Declined': {
+          case 'Declined':
+          case 'DECLINED': {
             const id = `po_${po.id}_Declined`;
             if (dismissedSet.has(id)) return;
             const actionInfo = resolveNotificationAction({ ...basePoItem, defaultActionLabel: 'Review Order' }, activeUser);
+            const reasonText = po.decline_reason ? ` Reason: ${po.decline_reason}` : '';
             list.push({
               ...basePoItem,
               id,
               type: 'PO_DECLINED',
               title: `PO #${shortId} Declined by ${supplierName}`,
-              message: `${supplierName} declined order #${shortId} (${itemsSummary} • ${totalFormatted}). Review items or reorder from another supplier.`,
+              message: `${supplierName} declined order #${shortId} (${itemsSummary} • ${totalFormatted}).${reasonText}`,
               badgeText: 'Declined',
+              badgeVariant: 'danger',
+              actionTab: actionInfo.actionTab,
+              actionLabel: actionInfo.actionLabel,
+              isRead: readSet.has(id),
+            });
+            break;
+          }
+
+          case 'Cancelled':
+          case 'CANCELLED': {
+            const id = `po_${po.id}_Cancelled`;
+            if (dismissedSet.has(id)) return;
+            const actionInfo = resolveNotificationAction({ ...basePoItem, defaultActionLabel: 'View Order' }, activeUser);
+            const reasonText = po.cancellation_reason ? ` Reason: ${po.cancellation_reason}` : '';
+            list.push({
+              ...basePoItem,
+              id,
+              type: 'PO_CANCELLED',
+              title: `PO #${shortId} Cancelled`,
+              message: `Purchase order #${shortId} (${itemsSummary} • ${totalFormatted}) was cancelled.${reasonText}`,
+              badgeText: 'Cancelled',
               badgeVariant: 'danger',
               actionTab: actionInfo.actionTab,
               actionLabel: actionInfo.actionLabel,

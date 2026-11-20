@@ -99,6 +99,12 @@ export const getPurchaseOrders = async (req, res) => {
 export const createPurchaseOrder = async (req, res) => {
   try {
     const { user_id: _userId, ...body } = req.body;
+    if (!body.supplier_id) {
+      return res.status(400).json({ error: 'supplier_id is required.' });
+    }
+    if (!Array.isArray(body.items) || body.items.length === 0) {
+      return res.status(400).json({ error: 'Purchase order must include at least one item.' });
+    }
     const data = await purchasingService.createPurchaseOrder(body);
     
     // Log audit

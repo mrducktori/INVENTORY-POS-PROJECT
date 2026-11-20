@@ -86,12 +86,9 @@ router.get('/', async (req, res) => {
 
     query = applyFilters(query);
 
-    const firstBatchLimit = Math.min(limit, 1000);
-    if (!needsInMemoryFilter) {
-      query = query.range(offset, offset + firstBatchLimit - 1);
-    } else {
-      query = query.limit(Math.min(limit, 5000));
-    }
+    const effectiveLimit = needsInMemoryFilter ? Math.min(limit, 5000) : limit;
+    const firstBatchLimit = Math.min(effectiveLimit, 1000);
+    query = query.range(needsInMemoryFilter ? 0 : offset, (needsInMemoryFilter ? 0 : offset) + firstBatchLimit - 1);
 
     const { data, error, count } = await query;
     if (error) throw error;
@@ -99,16 +96,17 @@ router.get('/', async (req, res) => {
     let filteredData = data || [];
     let total = skipCount ? filteredData.length : Math.max(count || 0, filteredData.length);
 
-    // If user requested > 1000 rows without in-memory filter, fetch subsequent chunks up to requested limit
-    const shouldFetchMore = skipCount
+    // If requested > 1000 rows (or in-memory filter needs up to 5000 rows), paginate past PostgREST 1000-row cap
+    const baseOffset = needsInMemoryFilter ? 0 : offset;
+    const shouldFetchMore = skipCount || needsInMemoryFilter
       ? filteredData.length === firstBatchLimit
-      : total > filteredData.length + offset;
+      : total > filteredData.length + baseOffset;
 
-    if (!needsInMemoryFilter && limit > 1000 && shouldFetchMore) {
-      const targetCount = skipCount ? limit : Math.min(limit, total - offset);
-      let currOffset = offset + filteredData.length;
+    if (effectiveLimit > 1000 && shouldFetchMore) {
+      const targetCount = (skipCount || needsInMemoryFilter) ? effectiveLimit : Math.min(effectiveLimit, total - baseOffset);
+      let currOffset = baseOffset + filteredData.length;
 
-      while (filteredData.length < targetCount && (skipCount || currOffset < total)) {
+      while (filteredData.length < targetCount && ((skipCount || needsInMemoryFilter) || currOffset < total)) {
         const nextBatch = Math.min(1000, targetCount - filteredData.length);
         let nextQuery = supabase
           .from('sales')

@@ -14,8 +14,8 @@ const router = express.Router();
 // Allowed roles in the system
 const ALLOWED_ROLES = ['Admin', 'Owner', 'Staff', 'Supplier', 'Custom'];
 
-// Get all users — requires authentication
-router.get('/', requireAuth, async (req, res) => {
+// Get all users — requires internal café role
+router.get('/', requireAuth, requireRole('Owner', 'Admin', 'Staff', 'Custom'), async (req, res) => {
   try {
     await reapInactiveUserSessions(false);
 
@@ -387,8 +387,8 @@ router.put('/:id', requireAuth, requireRole('Admin', 'Owner'), userManagementLim
 
 let hasEmployeeShiftsTable = null;
 
-// Get employee shifts for a given date — requires authentication
-router.get('/shifts', requireAuth, async (req, res) => {
+// Get employee shifts for a given date — requires internal café role
+router.get('/shifts', requireAuth, requireRole('Owner', 'Admin', 'Staff', 'Custom'), async (req, res) => {
   try {
     const date = req.query.date || new Date().toISOString().split('T')[0];
 

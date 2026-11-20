@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Supplier Portal: Cancelled PO Notifications & Reason Display - 2026-11-20]
+- **`src/features/dashboard/hooks/useNotifications.js`**: Added `Cancelled` / `CANCELLED` PO notification handling (including `cancellation_reason` and `decline_reason` in notification messages) so suppliers are alerted when a PO is cancelled.
+- **`src/features/inventory/components/suppliers/SupplierOrderDetailsRow.jsx` & `SupplierOrdersTable.jsx`**: Added `Cancelled` / `CANCELLED` status badge styling and a **Cancellation Reason Recorded** alert card inside the expanded PO details row.
+
+## [Security/Reliability: Pre-Defense Role Guards, Validation & Pagination Fixes - 2026-11-20]
+- **`src/features/dashboard/hooks/useNotifications.js`**: Guarded Supabase realtime `purchase_orders` and `ingredients` callbacks with `canViewPOs`, `canViewSuppliers`, and `canViewStock` so users without PO/Supplier permissions don't trigger `403` requests.
+- **`server/routes/recipes.js`**: Added `requireRecipeWriteAccess` middleware on `POST`, `PUT`, and `DELETE` allowing `Owner`, `Admin`, and `Custom` users with `Products` or `ManageProducts` permissions.
+- **`server/routes/users.js`**: Added `requireRole('Owner', 'Admin', 'Staff', 'Custom')` to `GET /` and `GET /shifts` so external `Supplier` accounts cannot list internal staff/users.
+- **`server/controllers/purchasingController.js` & `server/services/purchasingService.js`**: Validated non-empty `items` and `supplier_id` on `createPurchaseOrder` (`400` on invalid input) and paginated `fetchPoAuditLogs()` past PostgREST's 1,000-row cap.
+- **`server/routes/sales.js` & `server/routes/dashboard.js`**: Paginated `GET /api/sales` search/category queries and `fetchBoundedSales` past the 1,000/4,000-row limits.
+
+## [Database/Seed: Backfill Stock Movement Audit Logs for Nov 18–20 Sales - 2026-11-20]
+- **`docs/database/seed_stock_movement_2026_11_18_to_20.mjs`**: Added and ran an idempotent script generating `PRODUCT_DEDUCTED` and `INGREDIENT_DEDUCTED` `audit_logs` entries corresponding to the 112 seeded sales from `2026-11-18` to `2026-11-20` so **Reports → Stock Movement** reflects the sales outflows without altering live inventory stock.
+
 ## [Analytics/UI: Add Section Header & Detailed Per-Factor InfoTips in MonthlyProjectionModal - 2026-11-20]
 - **`src/features/analytics/components/MonthlyProjectionModal.jsx`**: Added general `InfoTip` `(i)` icons on the **Projected Volume**, **Projected Daily Avg**, and **Same-Month Historical Sales** headers, and refined each per-factor `(i)` tooltip in **Multi-Year & Calendar Factors** to explain how each multiplier is calculated.
 

@@ -13,6 +13,8 @@ const STATUS_BADGE_CLASSES = {
   Delivering: 'bg-purple-50 text-purple-700 border border-purple-200',
   Declined: 'bg-red-50 text-red-700 border border-red-200',
   DECLINED: 'bg-red-50 text-red-700 border border-red-200',
+  Cancelled: 'bg-rose-50 text-rose-700 border border-rose-200',
+  CANCELLED: 'bg-rose-50 text-rose-700 border border-rose-200',
   Received: 'bg-green-50 text-green-700 border border-green-200'
 };
 
@@ -231,7 +233,7 @@ const SupplierOrdersTable = ({
                             Reason: {po.decline_reason}
                           </div>
                         )}
-                        {po.status === 'Cancelled' && po.cancellation_reason && (
+                        {(po.status === 'Cancelled' || po.status === 'CANCELLED') && po.cancellation_reason && (
                           <div className="mt-1 text-xs text-rose-600 font-medium max-w-xs truncate" title={po.cancellation_reason}>
                             Reason: {po.cancellation_reason}
                           </div>

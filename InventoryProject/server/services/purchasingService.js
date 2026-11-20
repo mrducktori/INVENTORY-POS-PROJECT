@@ -292,15 +292,26 @@ const PO_AUDIT_ACTIONS = [
   'PURCHASE_ORDER_RESCHEDULED'
 ];
 
-// Fetch all PO-related audit logs in a single database query instead of 3 sequential queries
+// Fetch all PO-related audit logs in paginated batches (bypassing PostgREST 1,000-row cap)
 const fetchPoAuditLogs = async () => {
   try {
-    const { data: logs } = await supabase
-      .from('audit_logs')
-      .select('created_at, action, details')
-      .in('action', PO_AUDIT_ACTIONS)
-      .order('created_at', { ascending: true });
-    return logs || [];
+    const PAGE_SIZE = 1000;
+    const allLogs = [];
+    let offset = 0;
+    while (true) {
+      const { data: logs, error } = await supabase
+        .from('audit_logs')
+        .select('created_at, action, details')
+        .in('action', PO_AUDIT_ACTIONS)
+        .order('created_at', { ascending: true })
+        .range(offset, offset + PAGE_SIZE - 1);
+      if (error) throw error;
+      if (!logs || logs.length === 0) break;
+      allLogs.push(...logs);
+      if (logs.length < PAGE_SIZE) break;
+      offset += PAGE_SIZE;
+    }
+    return allLogs;
   } catch (err) {
     console.error('Error fetching PO audit logs:', err);
     return [];
@@ -637,9 +648,14 @@ export const getPurchaseOrdersBySupplier = async (supplierId) => {
 export const createPurchaseOrder = async (poData) => {
   // poData should look like: { supplier_id, expected_date, notes, items: [{ ingredient_id, quantity, unit_price }] }
   const { items, notes, ...poDetails } = poData;
+  if (!Array.isArray(items) || items.length === 0) {
+    const err = new Error('Purchase order must include at least one item.');
+    err.status = 400;
+    throw err;
+  }
 
   // Calculate total amount
-  const total_amount = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+  const total_amount = items.reduce((sum, item) => sum + (Number(item.quantity) * Number(item.unit_price)), 0);
   
   // Base PO payload with guaranteed existing columns
   const basePo = {

@@ -12,31 +12,25 @@ router.use(requireRole('Owner', 'Admin', 'Staff', 'Custom'));
  */
 async function fetchBoundedSales(boundStart, boundEnd, selectCols) {
   const PAGE_SIZE = 1000;
-  const firstPage = await supabase
-    .from('sales')
-    .select(selectCols)
-    .gte('created_at', boundStart)
-    .lte('created_at', boundEnd)
-    .order('created_at', { ascending: true })
-    .range(0, PAGE_SIZE - 1);
+  const rows = [];
+  let pageIdx = 0;
 
-  if (firstPage.error) throw firstPage.error;
-  const rows = firstPage.data || [];
-  if (rows.length < PAGE_SIZE) return rows;
-
-  const extraPages = await Promise.all([1, 2, 3].map(idx =>
-    supabase
+  while (true) {
+    const { data, error } = await supabase
       .from('sales')
       .select(selectCols)
       .gte('created_at', boundStart)
       .lte('created_at', boundEnd)
       .order('created_at', { ascending: true })
-      .range(idx * PAGE_SIZE, (idx + 1) * PAGE_SIZE - 1)
-  ));
-  for (const p of extraPages) {
-    if (p.error) throw p.error;
-    if (p.data?.length) rows.push(...p.data);
+      .range(pageIdx * PAGE_SIZE, (pageIdx + 1) * PAGE_SIZE - 1);
+
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    rows.push(...data);
+    if (data.length < PAGE_SIZE) break;
+    pageIdx += 1;
   }
+
   return rows;
 }
 

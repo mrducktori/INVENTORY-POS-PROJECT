@@ -7,6 +7,18 @@ import { requireRole } from "../middleware/authMiddleware.js";
 const router = express.Router();
 router.use(requireRole("Owner", "Admin", "Staff", "Custom"));
 
+const requireRecipeWriteAccess = (req, res, next) => {
+  const role = String(req.user?.role || "").toLowerCase();
+  if (role === "owner" || role === "admin") return next();
+  if (role === "custom") {
+    const perms = Array.isArray(req.user?.permissions) ? req.user.permissions : [];
+    if (perms.includes("Products") || perms.includes("ManageProducts")) {
+      return next();
+    }
+  }
+  return res.status(403).json({ error: "You do not have permission to modify recipes." });
+};
+
 // Get all recipes
 router.get("/", async (req, res) => {
   try {
@@ -28,7 +40,7 @@ router.get("/product/:product_id", async (req, res) => {
 });
 
 // Create recipe
-router.post("/", requireRole("Owner", "Admin"), async (req, res) => {
+router.post("/", requireRecipeWriteAccess, async (req, res) => {
   try {
     const recipe = await recipesService.createRecipe(req.body);
     invalidateAnalyticsCache();
@@ -46,7 +58,7 @@ router.post("/", requireRole("Owner", "Admin"), async (req, res) => {
 });
 
 // Update recipe
-router.put("/:id", async (req, res) => {
+router.put("/:id", requireRecipeWriteAccess, async (req, res) => {
   try {
     const recipe = await recipesService.updateRecipe(req.params.id, req.body);
     invalidateAnalyticsCache();
@@ -64,7 +76,7 @@ router.put("/:id", async (req, res) => {
 });
 
 // Delete recipe
-router.delete("/:id", requireRole("Owner", "Admin"), async (req, res) => {
+router.delete("/:id", requireRecipeWriteAccess, async (req, res) => {
   try {
     const result = await recipesService.deleteRecipe(req.params.id);
     invalidateAnalyticsCache();
