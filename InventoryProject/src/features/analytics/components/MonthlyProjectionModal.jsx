@@ -137,8 +137,16 @@ const MonthlyProjectionModal = ({
             <>
               <div className="grid grid-cols-2 gap-3">
                 <div className="p-4 bg-zinc-50 border border-zinc-200 rounded-xl text-center">
-                  <span className="text-xs text-zinc-500 block">
-                    {isPastMonth ? 'Recorded Sales (Actual)' : 'Projected Volume'}
+                  <span className="inline-flex items-center justify-center gap-1 text-xs text-zinc-500">
+                    <span>{isPastMonth ? 'Recorded Sales (Actual)' : 'Projected Volume'}</span>
+                    <InfoTip
+                      position="bottom"
+                      text={
+                        isPastMonth
+                          ? 'Actual total recorded for this completed month.'
+                          : 'Full-month projection blending 50% recent 7/30/90-day velocity with 50% completed same-month history, distributed across the calendar factors below.'
+                      }
+                    />
                   </span>
                   <span className="text-2xl font-bold text-zinc-900 mt-1 block font-mono">
                     {displayedUnits} {volumeUnitLabel}
@@ -147,8 +155,12 @@ const MonthlyProjectionModal = ({
                 </div>
 
                 <div className="p-4 bg-zinc-50 border border-zinc-200 rounded-xl text-center">
-                  <span className="text-xs text-zinc-500 block">
-                    {isPastMonth ? 'Actual Daily Average' : 'Projected Daily Avg'}
+                  <span className="inline-flex items-center justify-center gap-1 text-xs text-zinc-500">
+                    <span>{isPastMonth ? 'Actual Daily Average' : 'Projected Daily Avg'}</span>
+                    <InfoTip
+                      position="bottom"
+                      text={`Total ${volumeUnitLabel} divided across all ${daysInSelectedMonth} calendar days in ${monthLabel}.`}
+                    />
                   </span>
                   <span className="text-2xl font-bold text-zinc-900 mt-1 block font-mono">
                     {dailyAverage} / day
@@ -178,13 +190,13 @@ const MonthlyProjectionModal = ({
                   <span>Multi-Year &amp; Calendar Factors</span>
                   <InfoTip
                     position="top"
-                    text="Blends 50% recent 7/30/90-day counter speed with 50% completed same-month history, then distributes the daily pace across this month's weekends, Mon/Fri school days, and holidays."
+                    text="Multipliers that shape how the daily pace is distributed across this month's weekends, Mon/Fri school days, and Philippine holidays without inflating the monthly total."
                   />
                 </div>
                 <div className="flex justify-between text-zinc-600">
                   <span className="inline-flex items-center gap-1.5">
                     <span>Seasonal Index (2023–2026)</span>
-                    <InfoTip text="How this month typically performs compared to an average month across 2023–2026." />
+                    <InfoTip text="Month's average daily sales divided by the 12-month overall average across 2023–2026 (above 1.00x = peak season, below 1.00x = off-peak)." />
                   </span>
                   <span className="font-mono font-semibold text-zinc-900">
                     {result.factors?.seasonalIndex ? `${result.factors.seasonalIndex}x` : '1.00x'}
@@ -193,7 +205,7 @@ const MonthlyProjectionModal = ({
                 <div className="flex justify-between text-zinc-600">
                   <span className="inline-flex items-center gap-1.5">
                     <span>Year-over-Year (YoY) Trend</span>
-                    <InfoTip text="Percentage change in average daily sales from last year to this year." />
+                    <InfoTip text="Percentage change between last year's average daily sales and this year's average daily sales for this item." />
                   </span>
                   <span
                     className={`font-mono font-semibold ${
@@ -211,7 +223,7 @@ const MonthlyProjectionModal = ({
                 <div className="flex justify-between text-zinc-600">
                   <span className="inline-flex items-center gap-1.5">
                     <span>Weekend Demand Multiplier</span>
-                    <InfoTip text="Weekend daily sales average compared to weekday sales in recent POS history." />
+                    <InfoTip text="Weekend (Sat–Sun) daily average divided by weekday (Mon–Fri) daily average from recent POS sales, bounded between 1.05x and 1.45x." />
                   </span>
                   <span className="font-mono font-semibold text-zinc-900">
                     {result.factors?.weekendMultiplier ? `${result.factors.weekendMultiplier}x` : '1.0x'}
@@ -220,7 +232,7 @@ const MonthlyProjectionModal = ({
                 <div className="flex justify-between text-zinc-600">
                   <span className="inline-flex items-center gap-1.5">
                     <span>Peak School Days (Mon &amp; Fri)</span>
-                    <InfoTip text="Monday and Friday daily average compared to midweek (Tue–Thu) on non-holiday school days." />
+                    <InfoTip text="Non-holiday Monday & Friday daily average divided by midweek (Tue–Thu) daily average, bounded between 1.08x and 1.40x." />
                   </span>
                   <span className="font-mono font-semibold text-zinc-900">
                     {result.factors?.peakDayMultiplier || result.factors?.paydayMultiplier
@@ -231,7 +243,7 @@ const MonthlyProjectionModal = ({
                 <div className="flex justify-between text-zinc-600">
                   <span className="inline-flex items-center gap-1.5">
                     <span>Holidays in Selected Month</span>
-                    <InfoTip text="Philippine holidays in this month and their observed sales multiplier (holidays skip the Mon/Fri school boost)." />
+                    <InfoTip text="Counts Philippine holidays in this month and applies your observed holiday-vs-regular-day ratio (0.75x–1.20x, default 0.85x), skipping the Mon/Fri school boost." />
                   </span>
                   <span
                     className={`font-mono font-semibold ${
@@ -255,8 +267,12 @@ const MonthlyProjectionModal = ({
               {Array.isArray(result.factors?.sameMonthHistory) &&
                 result.factors.sameMonthHistory.length > 0 && (
                   <div className="border border-zinc-200 rounded-xl p-4 space-y-2 text-xs sm:text-sm bg-zinc-50/60">
-                    <div className="font-semibold text-zinc-900">
-                      Same-Month Historical Sales (2023–2026)
+                    <div className="flex items-center gap-1.5 font-semibold text-zinc-900">
+                      <span>Same-Month Historical Sales (2023–2026)</span>
+                      <InfoTip
+                        position="top"
+                        text="Past totals for this same calendar month. Only completed months feed the historical baseline; the current incomplete month is shown for reference only."
+                      />
                     </div>
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 pt-1">
                       {result.factors.sameMonthHistory.map((h) => (

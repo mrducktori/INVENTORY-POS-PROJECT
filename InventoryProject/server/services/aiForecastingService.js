@@ -659,7 +659,9 @@ export const forecastStockUsingAI = async (dto) => {
   }
 
   const startEpoch = aiCacheEpoch;
-  const runForecastPromise = (async () => {
+  let runForecastPromise;
+  runForecastPromise = (async () => {
+    await Promise.resolve();
     try {
       const isHistorical = isHistoricalManilaMonth(targetYear, targetMonth);
       const trackStock = forecastingData.product.track_stock !== false;
@@ -865,7 +867,7 @@ Do not include markdown backticks.
       }
       return fallbackResult;
     } finally {
-      if (inflightAiForecasts.get(cacheKey) === runForecastPromise) {
+      if (runForecastPromise && inflightAiForecasts.get(cacheKey) === runForecastPromise) {
         inflightAiForecasts.delete(cacheKey);
       }
     }

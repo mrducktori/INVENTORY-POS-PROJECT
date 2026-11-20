@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Analytics/UI: Add Section Header & Detailed Per-Factor InfoTips in MonthlyProjectionModal - 2026-11-20]
+- **`src/features/analytics/components/MonthlyProjectionModal.jsx`**: Added general `InfoTip` `(i)` icons on the **Projected Volume**, **Projected Daily Avg**, and **Same-Month Historical Sales** headers, and refined each per-factor `(i)` tooltip in **Multi-Year & Calendar Factors** to explain how each multiplier is calculated.
+
+## [Analytics/Fix: Fix `runForecastPromise` TDZ Error in `forecastStockUsingAI` - 2026-11-20]
+- **`server/services/aiForecastingService.js`**: Fixed `ReferenceError: Cannot access 'runForecastPromise' before initialization` when `forecastStockUsingAI` resolves synchronously (e.g., past months or deterministic fallback without `await`s) by declaring `let runForecastPromise;` and yielding one microtask (`await Promise.resolve()`) before entering `try/finally`.
+
 ## [Analytics/Dashboard: Forecast Display, Manila Timezone & Request Sequencing Fixes - 2026-11-20]
 - **`src/features/dashboard/components/PredictiveInsights.jsx`**:
   - Gated the 7-Day Demand Forecast stockout pill on `f.track_stock !== false && f.stockoutRisk` and displayed `orders` vs `units` based on `track_stock`.
