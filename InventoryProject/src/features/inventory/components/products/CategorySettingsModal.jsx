@@ -99,26 +99,6 @@ const CategorySettingsModal = ({ onClose, allIngredients = [], onCategoriesChang
     }
   };
 
-  const handleRenameCategory = async (e) => {
-    e.preventDefault();
-    if (!selectedCategory) return;
-    const cleaned = normalizeInput(renameValue);
-    if (!cleaned || cleaned === selectedCategory) return;
-    try {
-      setLoading(true);
-      const res = await renameCategory(selectedCategory, cleaned);
-      const updatedName = res.category || cleaned;
-      await fetchSettings(updatedName);
-      await onCategoriesChanged?.();
-      const movedNote = res.moved_count > 0 ? ` (${res.moved_count} product(s) updated)` : '';
-      showNotice('success', `Renamed to "${updatedName}"${movedNote}.`);
-    } catch (err) {
-      showNotice('error', err.message || 'Could not rename category.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleConfirmDelete = async () => {
     if (!selectedCategory) return;
     try {
@@ -138,14 +118,37 @@ const CategorySettingsModal = ({ onClose, allIngredients = [], onCategoriesChang
 
   const handleSave = async () => {
     if (!selectedCategory) return;
+    const cleanedName = normalizeInput(renameValue);
+    if (!cleanedName) {
+      showNotice('error', 'Category name is required.');
+      return;
+    }
+
     try {
       setLoading(true);
-      await updateCategorySettings(selectedCategory, { sizes: editSizes, add_ons: editAddOns });
-      await fetchSettings(selectedCategory);
+      let targetCategory = selectedCategory;
+      let movedNote = '';
+      const isRenamed = cleanedName !== selectedCategory;
+
+      if (isRenamed) {
+        const res = await renameCategory(selectedCategory, cleanedName);
+        targetCategory = res.category || cleanedName;
+        if (res.moved_count > 0) {
+          movedNote = ` (${res.moved_count} product(s) updated)`;
+        }
+      }
+
+      await updateCategorySettings(targetCategory, { sizes: editSizes, add_ons: editAddOns });
+      await fetchSettings(targetCategory);
       await onCategoriesChanged?.();
-      showNotice('success', `Settings saved for ${selectedCategory}.`);
+
+      if (isRenamed) {
+        showNotice('success', `Saved changes — renamed "${selectedCategory}" to "${targetCategory}"${movedNote}.`);
+      } else {
+        showNotice('success', `Saved changes for ${targetCategory}.`);
+      }
     } catch (err) {
-      showNotice('error', 'Error saving: ' + err.message);
+      showNotice('error', err.message || 'Error saving changes.');
     } finally {
       setLoading(false);
     }
@@ -178,7 +181,7 @@ const CategorySettingsModal = ({ onClose, allIngredients = [], onCategoriesChang
     setEditAddOns((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const canRename =
+  const hasPendingRename =
     Boolean(selectedCategory) &&
     Boolean(normalizeInput(renameValue)) &&
     normalizeInput(renameValue) !== selectedCategory;
@@ -250,24 +253,21 @@ const CategorySettingsModal = ({ onClose, allIngredients = [], onCategoriesChang
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2">
-                        <form onSubmit={handleRenameCategory} className="flex items-center gap-2">
+                        <div className="flex items-center gap-2">
+                          <label htmlFor="category-rename-input" className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                            Name
+                          </label>
                           <input
+                            id="category-rename-input"
                             type="text"
                             maxLength={40}
-                            aria-label="Rename category"
+                            aria-label="Category name"
                             className="w-44 sm:w-52 px-3 py-2 bg-white border border-gray-300 rounded-lg text-xs md:text-sm font-semibold uppercase focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors"
                             value={renameValue}
                             onChange={(e) => setRenameValue(e.target.value)}
                             disabled={loading}
                           />
-                          <button
-                            type="submit"
-                            disabled={loading || !canRename}
-                            className="px-3.5 py-2 bg-gray-900 text-white rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-black transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed cursor-pointer"
-                          >
-                            Rename
-                          </button>
-                        </form>
+                        </div>
 
                         <button
                           type="button"
@@ -284,6 +284,12 @@ const CategorySettingsModal = ({ onClose, allIngredients = [], onCategoriesChang
                         </button>
                       </div>
                     </div>
+
+                    {hasPendingRename && (
+                      <p className="m-0 text-xs text-amber-700 font-semibold">
+                        Pending rename to &ldquo;{normalizeInput(renameValue)}&rdquo; — click Save Changes below to apply.
+                      </p>
+                    )}
 
                     {selectedProductCount > 0 && (
                       <p className="m-0 text-xs text-gray-500 font-medium">
@@ -344,7 +350,7 @@ const CategorySettingsModal = ({ onClose, allIngredients = [], onCategoriesChang
                       onClick={handleSave}
                       disabled={loading}
                     >
-                      {loading ? 'Saving...' : 'Save Settings for ' + selectedCategory}
+                      {loading ? 'Saving...' : 'Save Changes'}
                     </button>
                   </div>
                 </>

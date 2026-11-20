@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Products/UI: Defer Category Rename Until Save Changes Is Pressed - 2026-11-20]
+- **`src/features/inventory/components/products/CategorySettingsModal.jsx`**: Removed the immediate-commit `Rename` button so category name edits stay pending until **Save Changes** is clicked, saving both the category rename and default sizes/add-ons together without discarding unsaved edits.
+
 ## [UI/Copy: Sync Dashboard & Forecasting Info Tooltips with 90-Day & Mon/Fri Peak Logic - 2026-11-20]
 - **`src/features/dashboard/components/PredictiveInsights.jsx`**: Updated the **7-Day Demand Forecast** and **Stock Depletion Timeline** `InfoTip` tooltips to reflect the 90-day rolling baseline (weighted toward recent 14-day/30-day velocity), 4-year seasonality, and Monday/Friday peak school days (removing outdated `last 30 days` and `paydays` wording).
 - **`src/features/analytics/components/ForecastGuideModal.jsx`**: Fixed `Peak School Days (Mon–Fri)` heading to `Peak School Days (Mon & Fri)` so it matches the Monday/Friday peak factor.
