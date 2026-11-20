@@ -19,7 +19,7 @@ const MonthlyProjectionModal = ({
 }) => {
   if (!isOpen) return null;
 
-  const now = new Date();
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
   const YEARS = [currentYear, currentYear + 1];

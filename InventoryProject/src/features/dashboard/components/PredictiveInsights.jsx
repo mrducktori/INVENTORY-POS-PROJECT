@@ -84,7 +84,7 @@ const PredictiveInsights = ({ onNavigate }) => {
                         )}
                       </div>
                       <span className="tabular-nums text-sm font-extrabold text-zinc-900 bg-zinc-100 px-2.5 py-0.5 rounded-md">
-                        {f.predictedNext7Days} units
+                        {f.predictedNext7Days} {f.track_stock === false ? 'orders' : 'units'}
                       </span>
                     </div>
 
@@ -97,17 +97,19 @@ const PredictiveInsights = ({ onNavigate }) => {
                         </span>
                       </div>
 
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                          isOutOfStock
-                            ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                            : isRestockNeeded
-                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                            : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                        }`}
-                      >
-                        {isOutOfStock ? 'Out of Stock' : isRestockNeeded ? 'Restock Needed' : 'In Stock'}
-                      </span>
+                      {f.track_stock !== false && f.stockoutRisk && (
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                            isOutOfStock
+                              ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                              : isRestockNeeded
+                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                              : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          }`}
+                        >
+                          {isOutOfStock ? 'Out of Stock' : isRestockNeeded ? 'Restock Needed' : 'In Stock'}
+                        </span>
+                      )}
                     </div>
                   </div>
                 );
@@ -157,15 +159,15 @@ const PredictiveInsights = ({ onNavigate }) => {
                 const days = item.days_remaining ?? item.daysRemaining;
                 const stockQty = parseFloat(item.stock_quantity) || 0;
                 const burnRate = parseFloat(item.avg_daily_burn_rate) || 0;
-                const isOutOfStock = stockQty <= 0 || days === 0;
-                const isCritical = !isOutOfStock && days !== null && days <= 3;
-                const isWarning = !isOutOfStock && days !== null && days > 3 && days <= 7;
+                const isOutOfStock = stockQty <= 0 || days === 0 || item.urgency_status === 'OUT_OF_STOCK';
+                const isCritical = !isOutOfStock && (item.urgency_status === 'CRITICAL' || (days !== null && days !== undefined && days <= 3));
+                const isWarning = !isOutOfStock && !isCritical && (item.urgency_status === 'LOW_STOCK' || (days !== null && days !== undefined && days > 3 && days <= 7));
                 
                 // Represent days remaining relative to a 14-day supply window
                 const supplyPct = isOutOfStock
                   ? 0
-                  : days === null
-                  ? 100
+                  : days === null || days === undefined
+                  ? isCritical ? 15 : isWarning ? 40 : 100
                   : Math.max(5, Math.min(Math.round((days / 14) * 100), 100));
 
                 return (
@@ -178,11 +180,15 @@ const PredictiveInsights = ({ onNavigate }) => {
                         </span>
                       ) : isCritical ? (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
-                          {days === 1 ? '1 day left' : `${days} days left`}
+                          {days !== null && days !== undefined
+                            ? days === 1
+                              ? '1 day left'
+                              : `${days} days left`
+                            : 'Critical Stock'}
                         </span>
                       ) : isWarning ? (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                          {days} days left
+                          {days !== null && days !== undefined ? `${days} days left` : 'Low Stock'}
                         </span>
                       ) : (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">

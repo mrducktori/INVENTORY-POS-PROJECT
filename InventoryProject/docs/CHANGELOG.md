@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Analytics/Dashboard: Forecast Display, Manila Timezone & Request Sequencing Fixes - 2026-11-20]
+- **`src/features/dashboard/components/PredictiveInsights.jsx`**:
+  - Gated the 7-Day Demand Forecast stockout pill on `f.track_stock !== false && f.stockoutRisk` and displayed `orders` vs `units` based on `track_stock`.
+  - Updated the Stock Depletion Timeline to respect `item.urgency_status` (`OUT_OF_STOCK`, `CRITICAL`, `LOW_STOCK`) even when `days_remaining` is `> 7` or `null`.
+- **`src/features/analytics/hooks/useDemandForecasting.js`**:
+  - Added `monthlyReqSeqRef` to `runMonthlyForecast` to ignore stale out-of-order responses during rapid month/year switches.
+  - Computed initial `poExpectedDate` in `Asia/Manila` and stored/cleared `toastTimerRef` in `showToast`.
+- **`src/features/analytics/components/MonthlyProjectionModal.jsx`**:
+  - Derived `currentYear` and `currentMonth` using `Asia/Manila` so past-month detection matches backend `isHistoricalManilaMonth`.
+
 ## [Analytics/UI: Add Info Tooltips to Monthly Projection Factors - 2026-11-20]
 - **`src/features/analytics/components/MonthlyProjectionModal.jsx`**: Added `InfoTip` `(i)` tooltips to the **Multi-Year & Calendar Factors** header and each individual factor row (`Seasonal Index`, `YoY Trend`, `Weekend Demand Multiplier`, `Peak School Days`, and `Holidays in Selected Month`) explaining how each metric is calculated.
 

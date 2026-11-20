@@ -11,10 +11,13 @@ let cachedMultiYearSummary = null;
 // 30-minute in-memory cache + in-flight deduplication to conserve Google Gemini free-tier API quota
 const aiForecastCache = new Map();
 const inflightAiForecasts = new Map();
+let aiCacheEpoch = 0;
 const AI_CACHE_TTL_MS = 30 * 60 * 1000;
 
 export const invalidateAiForecastCache = () => {
+  aiCacheEpoch++;
   aiForecastCache.clear();
+  inflightAiForecasts.clear();
 };
 
 export const getAllMultiYearSummary = () => {
@@ -655,6 +658,7 @@ export const forecastStockUsingAI = async (dto) => {
     return inflightAiForecasts.get(cacheKey);
   }
 
+  const startEpoch = aiCacheEpoch;
   const runForecastPromise = (async () => {
     try {
       const isHistorical = isHistoricalManilaMonth(targetYear, targetMonth);
@@ -722,7 +726,7 @@ Do not include explanations outside the JSON.
 Do not include markdown backticks.
 `;
           const trackedPrompt = `
-You are an inventory forecasting system.
+You are an inventory forecasting system for a cafe.
 
 Your task is to forecast the total number of units that will be sold
 for the requested product during the target month.
@@ -737,53 +741,36 @@ Forecast Target:
 - Month: ${targetMonth}
 - Days in Month: ${forecastingData.forecastTarget.daysInMonth}
 
-The historical dataset below contains daily and monthly sales information.
+The dataset below provides pre-aggregated 7-day, 30-day, and 90-day recent sales metrics,
+trailing 12-month historical sales, multi-year seasonal indices, and YoY growth.
 
-Use the following factors when making the forecast:
+Use these drivers when making the forecast:
+- Recent 7-day, 30-day, and 90-day sales velocity and revenue trends
+- Trailing 12-month historical sales and multi-year seasonal indices / YoY growth
+- Peak school-week behavior (Monday & Friday surges), weekends, and Philippine holidays
+- Current inventory level (do not simply use current stock as predicted sales)
 
-1. Historical units sold
-2. Recent 7-day sales trend
-3. Recent 30-day and 90-day (3-month) sales trends
-4. Previous-day sales
-5. Same-day-last-week sales
-6. Same-day-last-month sales
-7. Weekly and monthly growth
-8. Day-of-week behavior
-9. Weekend behavior (Saturdays & Sundays)
-10. Philippine Holidays
-11. Peak school-week behavior (Monday & Friday student surges and Mon–Fri school foot traffic)
-12. Discounts
-13. Revenue
-14. Order volume
-15. Current inventory level
-16. Historical monthly patterns
+predictedUnitsSold is the expected total units sold during the ENTIRE target month,
+rounded to a whole number.
 
-Do not simply use the current stock as the predicted sales.
+recommendedOrderQuantity is max(0, predictedUnitsSold - currentStock),
+rounded to a whole number.
 
-The predictedUnitsSold should represent the expected total units sold
-during the ENTIRE target month.
-
-The recommendedOrderQuantity should represent how many additional
-units should be ordered so that the business can reasonably cover
-the predicted demand.
-
-Use:
-recommendedOrderQuantity = max(0, predictedUnitsSold - currentStock)
-
-Round predictedUnitsSold and recommendedOrderQuantity to reasonable whole-number inventory quantities.
+The reasoning must be at most 2 concise, plain sentences written for a cafe owner.
+No formulas, no jargon, no emojis. Do NOT mention AI, machine learning, prompts, or algorithms.
 
 Historical forecasting data:
 ${salesJson}
 
 Return ONLY valid JSON using exactly this structure:
 {
-  "productId": ${productId},
+  "productId": "${productId}",
   "productName": "${forecastingData.product.productName}",
   "currentStock": ${forecastingData.product.currentStock},
   "predictedUnitsSold": 0,
   "recommendedOrderQuantity": 0,
   "confidenceScore": 85,
-  "reasoning": "Professional 2-sentence summary of demand drivers (e.g. Monday/Friday student peak days, weekend lift, seasonal velocity). Do NOT mention AI, machine learning, prompts, or algorithms."
+  "reasoning": "Two concise plain sentences summarizing the key demand drivers."
 }
 Do not include explanations outside the JSON.
 Do not include markdown backticks.
@@ -846,7 +833,9 @@ Do not include markdown backticks.
                     result.recommendedOrderQuantity = 0;
                     result.stockoutRisk = null;
                   }
-                  aiForecastCache.set(cacheKey, { at: Date.now(), result });
+                  if (aiCacheEpoch === startEpoch) {
+                    aiForecastCache.set(cacheKey, { at: Date.now(), result });
+                  }
                   return result;
                 }
               } else {
@@ -871,10 +860,14 @@ Do not include markdown backticks.
         price: forecastingData.product.price,
         track_stock: trackStock
       };
-      aiForecastCache.set(cacheKey, { at: Date.now(), result: fallbackResult });
+      if (aiCacheEpoch === startEpoch) {
+        aiForecastCache.set(cacheKey, { at: Date.now(), result: fallbackResult });
+      }
       return fallbackResult;
     } finally {
-      inflightAiForecasts.delete(cacheKey);
+      if (inflightAiForecasts.get(cacheKey) === runForecastPromise) {
+        inflightAiForecasts.delete(cacheKey);
+      }
     }
   })();
 

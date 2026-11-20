@@ -148,19 +148,22 @@ export const useDemandForecasting = () => {
   const [poTargetSupplierId, setPoTargetSupplierId] = useState('');
   const [poPoolItems, setPoPoolItems] = useState([]);
   const [poItems, setPoItems] = useState([]);
-  const [poExpectedDate, setPoExpectedDate] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 3);
-    return d.toISOString().split('T')[0];
-  });
+  const [poExpectedDate, setPoExpectedDate] = useState(() =>
+    new Date(Date.now() + 3 * 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
+  );
   const [poNotes, setPoNotes] = useState('');
   const [submittingPO, setSubmittingPO] = useState(false);
   const [toast, setToast] = useState(null);
+  const toastTimerRef = useRef(null);
 
   const showToast = useCallback((type, message) => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+    }
     setToast({ type, message });
-    setTimeout(() => {
+    toastTimerRef.current = setTimeout(() => {
       setToast(null);
+      toastTimerRef.current = null;
     }, 4000);
   }, []);
 
@@ -225,7 +228,10 @@ export const useDemandForecasting = () => {
     handleTabChange(tab);
   };
 
+  const monthlyReqSeqRef = useRef(0);
+
   const runMonthlyForecast = async (productId, year, month) => {
+    const reqId = ++monthlyReqSeqRef.current;
     try {
       setAiLoading(true);
       const res = await getAIForecast({
@@ -233,12 +239,16 @@ export const useDemandForecasting = () => {
         year: parseInt(year, 10),
         month: parseInt(month, 10),
       });
+      if (reqId !== monthlyReqSeqRef.current) return;
       setAiResult(res);
     } catch (err) {
+      if (reqId !== monthlyReqSeqRef.current) return;
       console.error('Failed to run monthly forecast:', err);
       showToast('error', err.message || 'Could not load monthly projection.');
     } finally {
-      setAiLoading(false);
+      if (reqId === monthlyReqSeqRef.current) {
+        setAiLoading(false);
+      }
     }
   };
 

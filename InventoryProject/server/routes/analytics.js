@@ -16,11 +16,14 @@ router.use(requireRole('Owner', 'Admin', 'Staff', 'Custom'));
 let cached90DaySales = null;
 let cached90DayAt = 0;
 let inflight90DayPromise = null;
+let analyticsCacheEpoch = 0;
 const SALES_CACHE_TTL_MS = 60 * 1000;
 
 export function invalidateAnalyticsCache() {
+  analyticsCacheEpoch++;
   cached90DaySales = null;
   cached90DayAt = 0;
+  inflight90DayPromise = null;
   invalidateAiForecastCache();
 }
 
@@ -38,28 +41,31 @@ async function fetchSalesSince(sinceIso) {
     return inflight90DayPromise;
   }
 
-  inflight90DayPromise = (async () => {
+  const startEpoch = analyticsCacheEpoch;
+  const promise = (async () => {
     try {
       const PAGE_SIZE = 1000;
-      const pages = await Promise.all(
-        [0, 1, 2, 3, 4, 5].map(pageIdx =>
-          supabase
-            .from('sales')
-            .select('id, created_at')
-            .gte('created_at', sinceIso)
-            .order('id', { ascending: true })
-            .range(pageIdx * PAGE_SIZE, (pageIdx + 1) * PAGE_SIZE - 1)
-        )
-      );
-
-      for (const page of pages) {
-        if (page.error) throw page.error;
+      const sales = [];
+      let pageIdx = 0;
+      while (true) {
+        const { data: page, error } = await supabase
+          .from('sales')
+          .select('id, created_at')
+          .gte('created_at', sinceIso)
+          .order('id', { ascending: true })
+          .range(pageIdx * PAGE_SIZE, (pageIdx + 1) * PAGE_SIZE - 1);
+        if (error) throw error;
+        if (!page || page.length === 0) break;
+        sales.push(...page);
+        if (page.length < PAGE_SIZE) break;
+        pageIdx++;
       }
 
-      const sales = pages.flatMap(p => p.data || []);
       if (sales.length === 0) {
-        cached90DaySales = [];
-        cached90DayAt = Date.now();
+        if (analyticsCacheEpoch === startEpoch) {
+          cached90DaySales = [];
+          cached90DayAt = Date.now();
+        }
         return [];
       }
 
@@ -93,15 +99,20 @@ async function fetchSalesSince(sinceIso) {
         sale_items: itemsBySale.get(s.id) || []
       }));
 
-      cached90DaySales = result;
-      cached90DayAt = Date.now();
+      if (analyticsCacheEpoch === startEpoch) {
+        cached90DaySales = result;
+        cached90DayAt = Date.now();
+      }
       return result;
     } finally {
-      inflight90DayPromise = null;
+      if (inflight90DayPromise === promise) {
+        inflight90DayPromise = null;
+      }
     }
   })();
 
-  return inflight90DayPromise;
+  inflight90DayPromise = promise;
+  return promise;
 }
 
 /**
@@ -419,7 +430,7 @@ router.get('/demand-forecast', async (req, res) => {
       fetchSalesSince(ninetyDaysAgo.toISOString(), 'created_at, sale_items(product_id, quantity, unit_price)'),
       supabase
         .from('products')
-        .select('id, name, category, price, stock_quantity')
+        .select('id, name, category, price, stock_quantity, track_stock')
         .eq('is_archived', false)
     ]);
 
@@ -431,6 +442,7 @@ router.get('/demand-forecast', async (req, res) => {
         id: p.id,
         name: p.name,
         category: p.category || 'General',
+        track_stock: p.track_stock !== false,
         currentStock: parseFloat(p.stock_quantity) || 0,
         price: parseFloat(p.price) || 0,
         totalQty: 0,  // last 90 days
@@ -466,6 +478,7 @@ router.get('/demand-forecast', async (req, res) => {
             id: pid,
             name: matchedProd?.name || 'Product',
             category: matchedProd?.category || 'General',
+            track_stock: matchedProd?.track_stock !== false,
             currentStock: parseFloat(matchedProd?.stock_quantity) || 0,
             price: parseFloat(si.unit_price) || 0,
             totalQty: 0,
@@ -544,7 +557,7 @@ router.get('/demand-forecast', async (req, res) => {
         ? (weightedRecentDaily * 0.65 + multiYearDailyBaseline * 0.35)
         : weightedRecentDaily;
 
-      // Blended trend indicator (60% recent momentum + 40% YoY trajectory)
+      // Blended trend indicator (65% recent momentum + 35% YoY trajectory)
       const growthRate = Math.max(-100, Math.min(100, shortTermGrowth * 0.65 + yoyGrowthPct * 0.35));
 
       // 7-day & 30-day cyclical projection with exact mean-preserving calendar normalization
@@ -588,15 +601,17 @@ router.get('/demand-forecast', async (req, res) => {
         next30DaysPredicted += dayEst;
       }
 
+      const trackStock = stats.track_stock !== false;
       const predictedNext7Days = Math.round(next7DaysPredicted);
       const predictedNext30Days = Math.round(next30DaysPredicted);
-      const recommendedOrderQuantity = Math.max(0, predictedNext7Days - stats.currentStock);
+      const recommendedOrderQuantity = trackStock ? Math.max(0, predictedNext7Days - stats.currentStock) : 0;
       const confidence = Math.min(96, 78 + (multiYearMeta?.totalMonthsAnalyzed ? 12 : 0) + (stats.totalQty > 20 ? 5 : 0));
 
       return {
         id: stats.id,
         name: stats.name,
         category: stats.category,
+        track_stock: trackStock,
         currentStock: stats.currentStock,
         avgDailySales: avgDaily.toFixed(1),
         predictedNext7Days,
@@ -609,7 +624,9 @@ router.get('/demand-forecast', async (req, res) => {
         sameMonthLastYearUnits: lastYearSameMonth ? Math.round(lastYearSameMonth.unitsSold) : null,
         yearsAnalyzed: multiYearMeta?.yearsCovered?.length || 4,
         confidence,
-        stockoutRisk: stats.currentStock <= 0 ? 'Out of Stock' : (stats.currentStock < predictedNext7Days ? 'High' : (growthRate > 5 ? 'Medium' : 'Low')),
+        stockoutRisk: !trackStock
+          ? null
+          : (stats.currentStock <= 0 ? 'Out of Stock' : (stats.currentStock < predictedNext7Days ? 'High' : (growthRate > 5 ? 'Medium' : 'Low'))),
         seasonalImpact: currentSeasonalIndex >= 1.12 ? 'Peak Season' : (currentSeasonalIndex <= 0.90 ? 'Off-Peak' : 'Normal'),
         weekendRatio: stats.totalQty > 0 ? ((stats.weekendQty / stats.totalQty) * 100).toFixed(0) : '0'
       };
