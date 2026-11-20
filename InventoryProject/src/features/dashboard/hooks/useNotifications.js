@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { getPurchaseOrders, getSupplierPriceUpdates } from '../../../api/purchasingApi.js';
+import { getPurchaseOrders, getSupplierOwnOrders, getSupplierPriceUpdates } from '../../../api/purchasingApi.js';
 import { getDashboardStats } from '../../../api/dashboardApi.js';
 import { supabase } from '../../../config/supabaseClient.js';
 import { formatDisplayDate } from '../../../utils/dateUtils.js';
@@ -171,15 +171,19 @@ const getUserState = (userId) => {
   return sharedStore.userStates[key];
 };
 
-const fetchSharedPOs = async (force = false) => {
+const fetchSharedPOs = async (force = false, isSupplier = false) => {
   const now = Date.now();
-  if (!force && sharedStore.lastPoFetchTime > 0 && now - sharedStore.lastPoFetchTime < 15000) {
+  const modeKey = isSupplier ? 'supplier' : 'cafe';
+  const modeChanged = sharedStore.poFetchMode && sharedStore.poFetchMode !== modeKey;
+  if (!force && !modeChanged && sharedStore.lastPoFetchTime > 0 && now - sharedStore.lastPoFetchTime < 15000) {
     return sharedStore.orders;
   }
-  if (sharedStore.poPromise) return sharedStore.poPromise;
+  if (sharedStore.poPromise && !modeChanged) return sharedStore.poPromise;
 
+  sharedStore.poFetchMode = modeKey;
   sharedStore.lastPoFetchTime = now;
-  sharedStore.poPromise = getPurchaseOrders()
+  const fetchFn = isSupplier ? getSupplierOwnOrders : getPurchaseOrders;
+  sharedStore.poPromise = fetchFn()
     .then((data) => {
       sharedStore.orders = Array.isArray(data) ? data : [];
       return sharedStore.orders;
@@ -302,8 +306,9 @@ export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK, userOverride =
   const loading = snapshot.loading;
 
   // Access rights for conditional loading & rendering
+  const isSupplierUser = String(activeUser?.role || '').toLowerCase() === 'supplier';
   const canViewStock = !activeUser || activeUser.role === 'Owner' || activeUser.role === 'Admin' || activeUser.role === 'Staff' || canAccess(activeUser, 'ProductStockTracker') || canAccess(activeUser, 'RawMaterialTracker') || canAccess(activeUser, 'POS') || canAccess(activeUser, 'Products');
-  const canViewPOs = activeUser?.role === 'Owner' || activeUser?.role === 'Admin' || canAccess(activeUser, 'PurchaseOrders') || activeUser?.role === 'Supplier';
+  const canViewPOs = activeUser?.role === 'Owner' || activeUser?.role === 'Admin' || canAccess(activeUser, 'PurchaseOrders') || isSupplierUser;
   const canViewSuppliers = activeUser?.role === 'Owner' || activeUser?.role === 'Admin' || canAccess(activeUser, 'ManageSuppliers');
 
   // Persistence per user
@@ -347,7 +352,7 @@ export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK, userOverride =
 
     // Load only what this user's role is permitted to see
     if (canViewPOs) {
-      fetchSharedPOs(false);
+      fetchSharedPOs(false, isSupplierUser);
     }
     if (canViewSuppliers) {
       fetchSharedPriceUpdates(false);
@@ -364,7 +369,7 @@ export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK, userOverride =
           'postgres_changes',
           { event: '*', schema: 'public', table: 'purchase_orders' },
           () => {
-            if (canViewPOs) fetchSharedPOs(true);
+            if (canViewPOs) fetchSharedPOs(true, isSupplierUser);
             if (canViewSuppliers) fetchSharedPriceUpdates(true);
           }
         )
@@ -393,7 +398,7 @@ export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK, userOverride =
         sharedStore.channel = null;
       }
     };
-  }, [canViewPOs, canViewSuppliers, canViewStock]);
+  }, [canViewPOs, canViewSuppliers, canViewStock, isSupplierUser]);
 
   // Build unified, role-filtered notification list
   const allNotifications = useMemo(() => {

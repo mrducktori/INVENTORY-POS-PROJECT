@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Supplier Portal/Notifications: Fix 403 Endpoint Mismatch for Supplier Bell Inbox - 2026-11-20]
+- **`src/features/dashboard/hooks/useNotifications.js`**: Updated `fetchSharedPOs` to call `getSupplierOwnOrders()` (`/api/purchasing/my-orders`) when logged in as a `Supplier` instead of `getPurchaseOrders()` (`/api/purchasing`, which returns `403` for external supplier accounts), enabling all PO notifications (including `Pending`, `Cancelled`, `Proposal Pending`, and `Accepted`) in the Supplier Portal bell inbox.
+
 ## [Supplier Portal: Cancelled PO Notifications & Reason Display - 2026-11-20]
 - **`src/features/dashboard/hooks/useNotifications.js`**: Added `Cancelled` / `CANCELLED` PO notification handling (including `cancellation_reason` and `decline_reason` in notification messages) so suppliers are alerted when a PO is cancelled.
 - **`src/features/inventory/components/suppliers/SupplierOrderDetailsRow.jsx` & `SupplierOrdersTable.jsx`**: Added `Cancelled` / `CANCELLED` status badge styling and a **Cancellation Reason Recorded** alert card inside the expanded PO details row.
