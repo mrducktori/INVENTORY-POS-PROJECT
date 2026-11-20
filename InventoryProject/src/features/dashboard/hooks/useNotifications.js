@@ -463,7 +463,8 @@ export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK, userOverride =
         const supplierName = po.suppliers?.name || 'Supplier';
         const totalFormatted = `₱${Number(po.total_amount || 0).toLocaleString()}`;
         const rawTime = po.updated_at || po.received_at || po.created_at;
-        const timeNum = rawTime ? new Date(rawTime).getTime() : snapshotNowMs;
+        const parsedTime = rawTime ? new Date(rawTime).getTime() : NaN;
+        const timeNum = Number.isFinite(parsedTime) ? parsedTime : snapshotNowMs;
 
         const itemsCount = po.purchase_order_items?.length || 0;
         const firstItem = po.purchase_order_items?.[0]?.ingredients?.name;
@@ -655,6 +656,9 @@ export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK, userOverride =
 
         const actionInfo = resolveNotificationAction({ category: 'SUPPLIER' }, activeUser);
 
+        const parsedPriceTime = up.created_at ? new Date(up.created_at).getTime() : NaN;
+        const priceTimeNum = Number.isFinite(parsedPriceTime) ? parsedPriceTime : snapshotNowMs;
+
         list.push({
           id,
           category: 'SUPPLIER',
@@ -665,7 +669,7 @@ export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK, userOverride =
           badgeVariant: 'warning',
           actionTab: actionInfo.actionTab,
           actionLabel: actionInfo.actionLabel,
-          timestamp: new Date(up.created_at).getTime(),
+          timestamp: priceTimeNum,
           isRead: readSet.has(id),
           supplierId: up.supplier_id
         });
@@ -675,12 +679,8 @@ export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK, userOverride =
     // Final security filter: Guarantee that every notification in the returned array is explicitly permitted for this user's role
     const roleFiltered = list.filter((n) => isNotificationAllowedForUser(n, activeUser));
 
-    // Sort newest / highest priority first
-    return roleFiltered.sort((a, b) => {
-      if (!a.isRead && a.badgeVariant === 'danger' && (b.isRead || b.badgeVariant !== 'danger')) return -1;
-      if (!b.isRead && b.badgeVariant === 'danger' && (a.isRead || a.badgeVariant !== 'danger')) return 1;
-      return b.timestamp - a.timestamp;
-    });
+    // Sort strictly newest-first
+    return roleFiltered.sort((a, b) => (Number(b.timestamp) || 0) - (Number(a.timestamp) || 0));
   }, [
     canViewStock,
     canViewPOs,

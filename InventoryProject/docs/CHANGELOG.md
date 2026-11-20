@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Notifications/UI: Newest-First Sorting & Role-Tailored Inbox Filters - 2026-11-20]
+- **`src/features/dashboard/hooks/useNotifications.js`**: Sorted `allNotifications` strictly newest-first by `timestamp` so the latest notification always appears at the top.
+- **`src/features/dashboard/components/NotificationInbox.jsx`**: Added `PO_CANCELLED` and `PO_PENDING` icons in `renderIcon`, replaced static category tabs with role-tailored filter pills (`All`, `Unread`, plus `Pending`/`Proposals`/`Active`/`Cancelled`/`Declined` for `Supplier`, or `Critical`/`Stock Alerts`/`PO Updates`/`Price Updates` for café roles), and derived `effectiveTab` during render for safe role switches.
+
 ## [Supplier Portal/Notifications: Fix 403 Endpoint Mismatch for Supplier Bell Inbox - 2026-11-20]
 - **`src/features/dashboard/hooks/useNotifications.js`**: Updated `fetchSharedPOs` to call `getSupplierOwnOrders()` (`/api/purchasing/my-orders`) when logged in as a `Supplier` instead of `getPurchaseOrders()` (`/api/purchasing`, which returns `403` for external supplier accounts), enabling all PO notifications (including `Pending`, `Cancelled`, `Proposal Pending`, and `Accepted`) in the Supplier Portal bell inbox.
 

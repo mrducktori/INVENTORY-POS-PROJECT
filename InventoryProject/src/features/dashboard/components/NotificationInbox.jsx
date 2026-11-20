@@ -40,13 +40,44 @@ const NotificationInbox = ({ onNavigate, lowStockItems = [], variant = 'default'
     clearReadNotifications
   } = useNotifications(lowStockItems, user);
 
-  // Tab safety on role permission switches (derived during render)
-  const effectiveTab =
-    (activeTab === 'PO' && !canViewPOs) ||
-    (activeTab === 'SUPPLIER' && !canViewSuppliers) ||
-    (activeTab === 'STOCK' && !canViewStock)
-      ? 'ALL'
-      : activeTab;
+  const isSupplier = String(currentUser?.role || '').toLowerCase() === 'supplier';
+
+  const dangerCount = notifications.filter((n) => n.badgeVariant === 'danger').length;
+  const stockCount = notifications.filter((n) => n.category === 'STOCK').length;
+  const poCount = notifications.filter((n) => n.category === 'PO').length;
+  const supplierCount = notifications.filter((n) => n.category === 'SUPPLIER').length;
+
+  const poPendingCount = notifications.filter((n) => n.type === 'PO_PENDING').length;
+  const poProposalCount = notifications.filter((n) => n.type === 'PO_POSTPONED').length;
+  const poActiveCount = notifications.filter(
+    (n) => n.type === 'PO_ACCEPTED' || n.type === 'PO_DELIVERING' || n.type === 'PO_PARTIAL'
+  ).length;
+  const poCancelledCount = notifications.filter((n) => n.type === 'PO_CANCELLED').length;
+  const poDeclinedCount = notifications.filter((n) => n.type === 'PO_DECLINED').length;
+
+  const filterPills = [
+    { key: 'ALL', label: 'All', count: notifications.length },
+    { key: 'UNREAD', label: 'Unread', count: unreadCount },
+    ...(isSupplier
+      ? [
+          { key: 'PO_PENDING', label: 'Pending', count: poPendingCount },
+          ...(poProposalCount > 0 ? [{ key: 'PO_PROPOSALS', label: 'Proposals', count: poProposalCount }] : []),
+          { key: 'PO_ACTIVE', label: 'Active', count: poActiveCount },
+          ...(poCancelledCount > 0 ? [{ key: 'PO_CANCELLED', label: 'Cancelled', count: poCancelledCount }] : []),
+          ...(poDeclinedCount > 0 ? [{ key: 'PO_DECLINED', label: 'Declined', count: poDeclinedCount }] : [])
+        ]
+      : [
+          { key: 'CRITICAL', label: 'Critical', count: dangerCount },
+          ...(canViewStock ? [{ key: 'STOCK', label: 'Stock Alerts', count: stockCount }] : []),
+          ...(canViewPOs ? [{ key: 'PO', label: 'PO Updates', count: poCount }] : []),
+          ...(canViewSuppliers && supplierCount > 0
+            ? [{ key: 'SUPPLIER', label: 'Price Updates', count: supplierCount }]
+            : [])
+        ])
+  ];
+
+  // Tab safety on role/permission switches (derived during render)
+  const effectiveTab = filterPills.some((pill) => pill.key === activeTab) ? activeTab : 'ALL';
 
   // Close drawer on ESC
   useEffect(() => {
@@ -67,17 +98,31 @@ const NotificationInbox = ({ onNavigate, lowStockItems = [], variant = 'default'
 
   // Tab filtered items
   const filteredNotifications = notifications.filter((item) => {
-    if (effectiveTab === 'UNREAD') return !item.isRead;
-    if (effectiveTab === 'PO') return item.category === 'PO';
-    if (effectiveTab === 'STOCK') return item.category === 'STOCK';
-    if (effectiveTab === 'SUPPLIER') return item.category === 'SUPPLIER';
-    return true;
+    switch (effectiveTab) {
+      case 'UNREAD':
+        return !item.isRead;
+      case 'CRITICAL':
+        return item.badgeVariant === 'danger';
+      case 'STOCK':
+        return item.category === 'STOCK';
+      case 'PO':
+        return item.category === 'PO';
+      case 'SUPPLIER':
+        return item.category === 'SUPPLIER';
+      case 'PO_PENDING':
+        return item.type === 'PO_PENDING';
+      case 'PO_PROPOSALS':
+        return item.type === 'PO_POSTPONED';
+      case 'PO_ACTIVE':
+        return item.type === 'PO_ACCEPTED' || item.type === 'PO_DELIVERING' || item.type === 'PO_PARTIAL';
+      case 'PO_CANCELLED':
+        return item.type === 'PO_CANCELLED';
+      case 'PO_DECLINED':
+        return item.type === 'PO_DECLINED';
+      default:
+        return true;
+    }
   });
-
-  const supplierCount = notifications.filter((n) => n.category === 'SUPPLIER').length;
-
-  const poCount = notifications.filter((n) => n.category === 'PO').length;
-  const stockCount = notifications.filter((n) => n.category === 'STOCK').length;
 
   const handleActionClick = (n) => {
     markAsRead(n.id);
@@ -96,10 +141,17 @@ const NotificationInbox = ({ onNavigate, lowStockItems = [], variant = 'default'
           </svg>
         );
       case 'PO_DECLINED':
+      case 'PO_CANCELLED':
       case 'STOCK_OUT':
         return (
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        );
+      case 'PO_PENDING':
+        return (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
           </svg>
         );
       case 'PO_POSTPONED':
@@ -279,62 +331,19 @@ const NotificationInbox = ({ onNavigate, lowStockItems = [], variant = 'default'
 
                 {/* Filter Tabs */}
                 <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-gray-100 overflow-x-auto pb-1 scrollbar-none">
-                  <button
-                    onClick={() => setActiveTab('ALL')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                      effectiveTab === 'ALL'
-                        ? 'bg-zinc-900 text-white shadow-xs'
-                        : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
-                    }`}
-                  >
-                    All ({notifications.length})
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('UNREAD')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                      effectiveTab === 'UNREAD'
-                        ? 'bg-zinc-900 text-white shadow-xs'
-                        : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
-                    }`}
-                  >
-                    Unread ({unreadCount})
-                  </button>
-                  {canViewStock && (
+                  {filterPills.map((pill) => (
                     <button
-                      onClick={() => setActiveTab('STOCK')}
+                      key={pill.key}
+                      onClick={() => setActiveTab(pill.key)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                        effectiveTab === 'STOCK'
+                        effectiveTab === pill.key
                           ? 'bg-zinc-900 text-white shadow-xs'
                           : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
                       }`}
                     >
-                      Stock Alerts ({stockCount})
+                      {pill.label} ({pill.count})
                     </button>
-                  )}
-                  {canViewPOs && (
-                    <button
-                      onClick={() => setActiveTab('PO')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                        effectiveTab === 'PO'
-                          ? 'bg-zinc-900 text-white shadow-xs'
-                          : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
-                      }`}
-                    >
-                      PO Updates ({poCount})
-                    </button>
-                  )}
-                  {canViewSuppliers && supplierCount > 0 && (
-                    <button
-                      onClick={() => setActiveTab('SUPPLIER')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                        effectiveTab === 'SUPPLIER'
-                          ? 'bg-zinc-900 text-white shadow-xs'
-                          : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
-                      }`}
-                    >
-                      Price Updates ({supplierCount})
-                    </button>
-                  )}
+                  ))}
                 </div>
               </div>
 
