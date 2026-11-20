@@ -9,6 +9,15 @@ export const getProducts = async (req, res) => {
   }
 };
 
+export const getPosCatalog = async (req, res) => {
+  try {
+    const data = await posService.getPosCatalog();
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 export const createSale = async (req, res) => {
   try {
     const { cart, total, amount_received, payment_method } = req.body;
@@ -70,6 +79,6 @@ export const createSale = async (req, res) => {
     });
     res.json({ message: "Sale completed", sale });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 };

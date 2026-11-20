@@ -2,11 +2,21 @@
 import { apiCall } from "./client.js";
 
 /**
- * Fetch all available products
+ * Fetch all available products (public landing page)
  * @returns {Promise<Array>} Array of product objects
  */
 export async function getProducts() {
   return apiCall("/pos/products", {
+    method: "GET"
+  });
+}
+
+/**
+ * Fetch full authenticated POS catalog (products, recipes, ingredients)
+ * @returns {Promise<{ products: Array, recipes: Array, ingredients: Array }>}
+ */
+export async function getPosCatalog() {
+  return apiCall("/pos/catalog", {
     method: "GET"
   });
 }

@@ -25,7 +25,7 @@ const parseAddons = (raw) => {
   }
 };
 
-const Cart = ({ cart, total, onUpdateQty, onRemove, onEdit }) => {
+const Cart = ({ cart, total, maxQtyByCartItemId = {}, onUpdateQty, onRemove, onEdit }) => {
   const numTotal = parseFloat(total) || 0;
 
   return (
@@ -49,7 +49,12 @@ const Cart = ({ cart, total, onUpdateQty, onRemove, onEdit }) => {
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {cart.map((item) => (
+            {cart.map((item) => {
+              const maxQty = maxQtyByCartItemId?.[item.cartItemId] ?? 99;
+              const isOverMax = item.qty > maxQty;
+              const isAtMax = item.qty === maxQty;
+
+              return (
               <div
                 key={item.cartItemId}
                 className="flex gap-3 p-3.5 bg-white border border-gray-100 rounded-xl shadow-xs hover:border-gray-300 transition-colors"
@@ -99,46 +104,58 @@ const Cart = ({ cart, total, onUpdateQty, onRemove, onEdit }) => {
                     </button>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden bg-white shadow-xs">
-                      <button
-                        type="button"
-                        className="px-2 py-1 text-gray-600 hover:bg-gray-100 font-bold text-xs transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer bg-transparent border-none"
-                        onClick={() => onUpdateQty(item.cartItemId, Math.max(1, item.qty - 1))}
-                        disabled={item.qty <= 1}
-                        title="Decrease quantity"
-                      >
-                        −
-                      </button>
-                      <input
-                        type="number"
-                        min="1"
-                        max="99"
-                        value={item.qty}
-                        onChange={(e) => {
-                          const val = parseInt(e.target.value, 10);
-                          if (isNaN(val)) return;
-                          onUpdateQty(item.cartItemId, Math.min(99, Math.max(1, val)));
-                        }}
-                        className="w-8 text-center text-xs font-bold text-gray-900 border-none focus:outline-none p-0"
-                      />
-                      <button
-                        type="button"
-                        className="px-2 py-1 text-gray-600 hover:bg-gray-100 font-bold text-xs transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer bg-transparent border-none"
-                        onClick={() => onUpdateQty(item.cartItemId, Math.min(99, item.qty + 1))}
-                        disabled={item.qty >= 99}
-                        title="Increase quantity"
-                      >
-                        +
-                      </button>
+                  <div className="flex flex-col items-end">
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden bg-white shadow-xs">
+                        <button
+                          type="button"
+                          className="px-2 py-1 text-gray-600 hover:bg-gray-100 font-bold text-xs transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer bg-transparent border-none"
+                          onClick={() => onUpdateQty(item.cartItemId, Math.max(1, item.qty - 1))}
+                          disabled={item.qty <= 1}
+                          title="Decrease quantity"
+                        >
+                          −
+                        </button>
+                        <input
+                          type="number"
+                          min="1"
+                          max={Math.max(1, maxQty)}
+                          value={item.qty}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value, 10);
+                            if (isNaN(val)) return;
+                            onUpdateQty(item.cartItemId, Math.max(1, val));
+                          }}
+                          className="w-8 text-center text-xs font-bold text-gray-900 border-none focus:outline-none p-0 tabular-nums"
+                        />
+                        <button
+                          type="button"
+                          className="px-2 py-1 text-gray-600 hover:bg-gray-100 font-bold text-xs transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer bg-transparent border-none"
+                          onClick={() => onUpdateQty(item.cartItemId, item.qty + 1)}
+                          disabled={item.qty >= maxQty}
+                          title="Increase quantity"
+                        >
+                          +
+                        </button>
+                      </div>
+                      <div className="text-sm font-bold text-gray-900 w-16 text-right font-mono tabular-nums">
+                        ₱{(item.price * item.qty).toFixed(2)}
+                      </div>
                     </div>
-                    <div className="text-sm font-bold text-gray-900 w-16 text-right font-mono tabular-nums">
-                      ₱{(item.price * item.qty).toFixed(2)}
-                    </div>
+                    {isOverMax ? (
+                      <span className="text-[11px] font-semibold text-red-600 mt-1 text-right">
+                        Only {maxQty} available
+                      </span>
+                    ) : isAtMax ? (
+                      <span className="text-[11px] font-medium text-gray-500 mt-1 text-right">
+                        Max stock ({maxQty})
+                      </span>
+                    ) : null}
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

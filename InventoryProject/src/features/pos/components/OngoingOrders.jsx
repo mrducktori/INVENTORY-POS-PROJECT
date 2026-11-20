@@ -17,7 +17,7 @@ const parseAddons = (raw) => {
   }
 };
 
-const OngoingOrders = ({ orders, onComplete, onCancel, onEdit }) => (
+const OngoingOrders = ({ orders, stockIssuesByOrderId = {}, onComplete, onCancel, onEdit }) => (
   <div className="flex flex-col flex-1 overflow-hidden bg-white">
     {/* Header — clean, lessened eyebrows */}
     <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 bg-white z-10">
@@ -37,12 +37,20 @@ const OngoingOrders = ({ orders, onComplete, onCancel, onEdit }) => (
         </div>
       ) : (
         <div className="flex flex-col gap-4">
-          {orders.map((order) => (
+          {orders.map((order) => {
+            const orderIssues = stockIssuesByOrderId?.[order.id] || [];
+            return (
             <div key={order.id} className="bg-white border border-gray-200 rounded-xl shadow-xs overflow-hidden transition-shadow hover:shadow-sm">
               <div className="flex justify-between items-center px-4 py-2.5 bg-gray-50 border-b border-gray-100">
                 <span className="text-sm font-bold text-gray-900">Order #{order.id}</span>
                 <span className="text-xs text-gray-500 font-medium">{order.timestamp}</span>
               </div>
+
+              {orderIssues.length > 0 && (
+                <div className="px-4 py-2 bg-red-50 border-b border-red-100 text-xs font-semibold text-red-700">
+                  Insufficient stock — edit order to adjust
+                </div>
+              )}
 
               <div className="p-4 flex flex-col gap-2.5">
                 {order.items.map((item) => (
@@ -101,7 +109,8 @@ const OngoingOrders = ({ orders, onComplete, onCancel, onEdit }) => (
                 </button>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

@@ -7,7 +7,8 @@ const router = express.Router();
 // Public route for the landing page visual menu
 router.get("/products", posController.getProducts);
 
-// Protected route — only logged-in cafe staff/admins can process sales
+// Protected routes — only logged-in cafe staff/admins can access full POS catalog or process sales
+router.get("/catalog", requireAuth, requireRole("Owner", "Admin", "Staff", "Custom"), posController.getPosCatalog);
 router.post("/sale", requireAuth, requireRole("Owner", "Admin", "Staff", "Custom"), posController.createSale);
 
 export default router;

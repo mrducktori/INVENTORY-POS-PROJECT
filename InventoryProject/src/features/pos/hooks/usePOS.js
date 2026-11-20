@@ -1,12 +1,91 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { getProducts, createSale } from '../../../api/posApi';
-import { getCategorySettings, extractCategoryNames } from '../../../api/categorySettingsApi';
-import { getRecipesByProduct } from "../../../api/recipesApi";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { getPosCatalog, createSale } from "../../../api/posApi";
+import { getCategorySettings, extractCategoryNames } from "../../../api/categorySettingsApi";
 import { getCurrentUser } from "../../../utils/authUtils";
 import { getProductOptionsAvailability } from "../../../utils/productUtils";
+import {
+  MAX_LINE_QTY,
+  buildRecipesByProductMap,
+  buildIngredientsMap,
+  calculateReservedStock,
+  getProductStockSummary,
+  getMaxQtyForConfiguredItem,
+  getMaxAddOnQty,
+  validateItemsAgainstStock
+} from "../utils/posStockUtils";
+
+const buildCartItemId = (productId, hasSizes, cupSize, hasAddOns, addOnsMap) => {
+  if (!hasSizes && !hasAddOns) {
+    return `${productId}-standard`;
+  }
+  const sizeKey = hasSizes ? cupSize : "standard";
+  const addOnKey = hasAddOns
+    ? Object.entries(addOnsMap || {})
+        .filter(([, q]) => (Number(q) || 0) > 0)
+        .map(([n, q]) => `${n}x${q}`)
+        .sort()
+        .join(",") || "none"
+    : "none";
+  return `${productId}-${sizeKey}-${addOnKey}`;
+};
+
+const resolveConfiguredItemDetails = (product, options, categorySettings) => {
+  const { hasSizes, hasAddOns } = getProductOptionsAvailability(product, categorySettings);
+  let finalPrice = parseFloat(product?.price || 0);
+  let selectedSizeObj = null;
+  const selectedAddonObjs = [];
+
+  if (hasSizes) {
+    if (product?.sizes && product.sizes.length > 0) {
+      selectedSizeObj = product.sizes.find((s) => s.name === options.cupSize) || null;
+      if (selectedSizeObj) finalPrice += parseFloat(selectedSizeObj.price_add || 0);
+    } else {
+      if (options.cupSize === "16 oz") finalPrice += 10;
+      if (options.cupSize === "22 oz") finalPrice += 20;
+    }
+  }
+
+  if (hasAddOns) {
+    Object.entries(options.addOns || {}).forEach(([addonName, customerQty]) => {
+      const qty = Number(customerQty) || 0;
+      if (qty <= 0) return;
+
+      if (product?.add_ons && product.add_ons.length > 0) {
+        const ao = product.add_ons.find((a) => a.name === addonName);
+        if (ao) {
+          finalPrice += parseFloat(ao.price || 0) * qty;
+          selectedAddonObjs.push({ ...ao, customer_qty: qty });
+          return;
+        }
+      }
+      selectedAddonObjs.push({ name: addonName, price: 0, customer_qty: qty });
+    });
+  }
+
+  const cartItemId = buildCartItemId(
+    product?.id,
+    hasSizes,
+    options.cupSize,
+    hasAddOns,
+    options.addOns
+  );
+
+  return {
+    hasSizes,
+    hasAddOns,
+    finalPrice,
+    selectedSizeObj,
+    selectedAddonObjs,
+    cartItemId
+  };
+};
 
 export const usePOS = () => {
   const [products, setProducts] = useState([]);
+  const [recipes, setRecipes] = useState([]);
+  const [ingredients, setIngredients] = useState([]);
+  const [catalogLoaded, setCatalogLoaded] = useState(false);
+
   const [cart, setCart] = useState(() => {
     try {
       const saved = localStorage.getItem("pos_cart");
@@ -30,9 +109,10 @@ export const usePOS = () => {
       return [];
     }
   });
-  const [activeTab, setActiveTab] = useState("cart"); 
-  const [recipeLoading, setRecipeLoading] = useState(false);
-  const [currentRecipe, setCurrentRecipe] = useState([]);
+  const [activeTab, setActiveTab] = useState("cart");
+
+  const [stockNotice, setStockNotice] = useState("");
+  const noticeTimerRef = useRef(null);
 
   // Payment & Digital Receipt Modal State
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -43,15 +123,33 @@ export const usePOS = () => {
 
   // Cart-level Discount Selection State
   const [discountType, setDiscountType] = useState("NONE");
-  const [customDiscountMode, setCustomDiscountMode] = useState("PERCENT"); // 'PERCENT' | 'AMOUNT'
+  const [customDiscountMode, setCustomDiscountMode] = useState("PERCENT");
   const [customDiscountValue, setCustomDiscountValue] = useState("");
 
   const [confirmConfig, setConfirmConfig] = useState({
     isOpen: false,
-    message: '',
+    message: "",
     onConfirm: () => {},
     onCancel: () => {}
   });
+
+  const showStockNotice = useCallback((message) => {
+    if (!message) return;
+    clearTimeout(noticeTimerRef.current);
+    setStockNotice(message);
+    noticeTimerRef.current = setTimeout(() => {
+      setStockNotice("");
+    }, 4500);
+  }, []);
+
+  const clearStockNotice = useCallback(() => {
+    clearTimeout(noticeTimerRef.current);
+    setStockNotice("");
+  }, []);
+
+  useEffect(() => {
+    return () => clearTimeout(noticeTimerRef.current);
+  }, []);
 
   const requestConfirm = (message) => {
     return new Promise((resolve) => {
@@ -59,11 +157,11 @@ export const usePOS = () => {
         isOpen: true,
         message,
         onConfirm: () => {
-          setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+          setConfirmConfig((prev) => ({ ...prev, isOpen: false }));
           resolve(true);
         },
         onCancel: () => {
-          setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+          setConfirmConfig((prev) => ({ ...prev, isOpen: false }));
           resolve(false);
         }
       });
@@ -72,17 +170,37 @@ export const usePOS = () => {
 
   const user = getCurrentUser();
 
-  // FETCH PRODUCTS AND SETTINGS
-  useEffect(() => {
-    fetchProducts();
-    fetchCategorySettings();
+  const fetchCatalog = useCallback(async ({ silent = false } = {}) => {
+    try {
+      if (!silent) setLoading(true);
+      const data = await getPosCatalog();
+      const nextProducts = data?.products || [];
+      const nextRecipes = data?.recipes || [];
+      const nextIngredients = data?.ingredients || [];
+
+      setProducts(nextProducts);
+      setRecipes(nextRecipes);
+      setIngredients(nextIngredients);
+      setCatalogLoaded(true);
+
+      return {
+        products: nextProducts,
+        recipes: nextRecipes,
+        ingredients: nextIngredients
+      };
+    } catch (err) {
+      console.error("Failed to load POS catalog:", err);
+      return null;
+    } finally {
+      if (!silent) setLoading(false);
+    }
   }, []);
 
-  const fetchCategorySettings = async () => {
+  const fetchCategorySettings = useCallback(async () => {
     try {
       const data = await getCategorySettings();
       const settingsMap = {};
-      (data || []).forEach(item => {
+      (data || []).forEach((item) => {
         if (item?.category) {
           settingsMap[item.category.toUpperCase()] = item;
         }
@@ -91,7 +209,12 @@ export const usePOS = () => {
     } catch (err) {
       console.error("Failed to fetch category settings", err);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchCatalog();
+    fetchCategorySettings();
+  }, [fetchCatalog, fetchCategorySettings]);
 
   const categories = useMemo(() => {
     const combined = [
@@ -110,114 +233,239 @@ export const usePOS = () => {
     localStorage.setItem("pos_ongoingOrders", JSON.stringify(ongoingOrders));
   }, [ongoingOrders]);
 
-  const fetchProducts = async () => {
-    try {
-      setLoading(true);
-      const data = await getProducts();
-      setProducts(data || []);
-    } catch (err) {
-      console.error("Failed to load products:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const getVirtualProduct = useCallback(
+    (product) => {
+      if (!product) return null;
+      const catSettings = categorySettings[product.category?.toUpperCase()];
+      const virtualProduct = {
+        ...product,
+        sizes: [...(product.sizes || [])],
+        add_ons: [...(product.add_ons || [])]
+      };
 
-  const getVirtualProduct = useCallback((product) => {
-    if (!product) return null;
-    const catSettings = categorySettings[product.category?.toUpperCase()];
-    const virtualProduct = {
-      ...product,
-      sizes: [...(product.sizes || [])],
-      add_ons: [...(product.add_ons || [])]
-    };
-
-    if (catSettings) {
-      if (catSettings.sizes && catSettings.sizes.length > 0 && virtualProduct.sizes.length === 0) {
-        virtualProduct.sizes = [...catSettings.sizes];
-      }
-      if (catSettings.add_ons && catSettings.add_ons.length > 0) {
-        const existingNames = virtualProduct.add_ons.map(a => a.name);
-        catSettings.add_ons.forEach(ca => {
-          if (!existingNames.includes(ca.name)) {
-            virtualProduct.add_ons.push(ca);
-          }
-        });
-      }
-    }
-    return virtualProduct;
-  }, [categorySettings]);
-
-  // Sync cart prices and categories with latest fetched products
-  useEffect(() => {
-    if (products.length === 0) return;
-    
-    setCart(prevCart => {
-      if (prevCart.length === 0) return prevCart;
-      let hasChanges = false;
-      const updatedCart = prevCart.map(item => {
-        let latestProd = products.find(p => p.id === item.id);
-        if (!latestProd) return item;
-        
-        latestProd = getVirtualProduct(latestProd); // Inject category settings
-        
-        let finalPrice = parseFloat(latestProd.price || 0);
-
-        if (item.cup_size_obj) {
-          const sz = latestProd.sizes?.find(s => s.name === item.cup_size_obj.name);
-          if (sz) finalPrice += parseFloat(sz.price_add || 0);
-          else finalPrice += parseFloat(item.cup_size_obj.price_add || 0); // fallback
-        } else if (item.cup_size) {
-          if (item.cup_size === "16 oz") finalPrice += 10;
-          if (item.cup_size === "22 oz") finalPrice += 20;
+      if (catSettings) {
+        if (catSettings.sizes && catSettings.sizes.length > 0 && virtualProduct.sizes.length === 0) {
+          virtualProduct.sizes = [...catSettings.sizes];
         }
-
-        if (item.add_ons && item.add_ons.length > 0) {
-          item.add_ons.forEach(ao => {
-            const latestAo = latestProd.add_ons?.find(a => a.name === ao.name);
-            if (latestAo) finalPrice += parseFloat(latestAo.price || 0) * (ao.customer_qty || 1);
-            else finalPrice += parseFloat(ao.price || 0) * (ao.customer_qty || 1);
+        if (catSettings.add_ons && catSettings.add_ons.length > 0) {
+          const existingNames = virtualProduct.add_ons.map((a) => a.name);
+          catSettings.add_ons.forEach((ca) => {
+            if (!existingNames.includes(ca.name)) {
+              virtualProduct.add_ons.push(ca);
+            }
           });
         }
-        
+      }
+      return virtualProduct;
+    },
+    [categorySettings]
+  );
+
+  const productsMap = useMemo(() => {
+    const map = {};
+    products.forEach((p) => {
+      if (p?.id) map[p.id] = p;
+    });
+    return map;
+  }, [products]);
+
+  const recipesByProduct = useMemo(() => buildRecipesByProductMap(recipes), [recipes]);
+  const ingredientsMap = useMemo(() => buildIngredientsMap(ingredients), [ingredients]);
+
+  const globalReserved = useMemo(
+    () =>
+      calculateReservedStock({
+        cart,
+        ongoingOrders,
+        recipesByProduct,
+        ingredientsMap
+      }),
+    [cart, ongoingOrders, recipesByProduct, ingredientsMap]
+  );
+
+  const ongoingOnlyReserved = useMemo(
+    () =>
+      calculateReservedStock({
+        cart: [],
+        ongoingOrders,
+        recipesByProduct,
+        ingredientsMap
+      }),
+    [ongoingOrders, recipesByProduct, ingredientsMap]
+  );
+
+  const stockSummaryByProductId = useMemo(() => {
+    const map = {};
+    products.forEach((product) => {
+      map[product.id] = getProductStockSummary(product, {
+        recipesByProduct,
+        ingredientsMap,
+        reserved: globalReserved,
+        virtualProduct: getVirtualProduct(product)
+      });
+    });
+    return map;
+  }, [products, recipesByProduct, ingredientsMap, globalReserved, getVirtualProduct]);
+
+  const maxQtyByCartItemId = useMemo(() => {
+    const map = {};
+    cart.forEach((item) => {
+      const liveProduct = getVirtualProduct(productsMap[item.id] || item.baseProduct || item);
+      const reservedExcludingThis = calculateReservedStock({
+        cart,
+        ongoingOrders,
+        recipesByProduct,
+        ingredientsMap,
+        excludeCartItemId: item.cartItemId
+      });
+      const { maxQty } = getMaxQtyForConfiguredItem({
+        product: liveProduct,
+        cupSizeObj: item.cup_size_obj || null,
+        addOnsList: item.add_ons || [],
+        recipesByProduct,
+        ingredientsMap,
+        reserved: reservedExcludingThis,
+        existingSameLineQty: 0
+      });
+      map[item.cartItemId] = maxQty;
+    });
+    return map;
+  }, [cart, ongoingOrders, productsMap, recipesByProduct, ingredientsMap, getVirtualProduct]);
+
+  const cartStockValidation = useMemo(() => {
+    if (!catalogLoaded) return { valid: true, issues: [] };
+    return validateItemsAgainstStock(cart, {
+      productsMap,
+      recipesByProduct,
+      ingredientsMap,
+      reserved: ongoingOnlyReserved
+    });
+  }, [catalogLoaded, cart, productsMap, recipesByProduct, ingredientsMap, ongoingOnlyReserved]);
+
+  const stockIssuesByOrderId = useMemo(() => {
+    const map = {};
+    if (!catalogLoaded) return map;
+    ongoingOrders.forEach((order) => {
+      const res = validateItemsAgainstStock(order.items, {
+        productsMap,
+        recipesByProduct,
+        ingredientsMap,
+        reserved: null
+      });
+      if (!res.valid) {
+        map[order.id] = res.issues;
+      }
+    });
+    return map;
+  }, [catalogLoaded, ongoingOrders, productsMap, recipesByProduct, ingredientsMap]);
+
+  // Sync cart prices, categories, cup_size_obj, and add-on metadata with latest fetched products
+  useEffect(() => {
+    if (products.length === 0) return;
+
+    setCart((prevCart) => {
+      if (prevCart.length === 0) return prevCart;
+      let hasChanges = false;
+
+      const updatedCart = prevCart.map((item) => {
+        const rawProd = products.find((p) => p.id === item.id);
+        if (!rawProd) return item;
+
+        const latestProd = getVirtualProduct(rawProd);
+        let finalPrice = parseFloat(latestProd.price || 0);
+        let updatedCupObj = item.cup_size_obj || null;
+
+        if (item.cup_size_obj || item.cup_size) {
+          const targetSizeName = item.cup_size_obj?.name || item.cup_size;
+          const sz = latestProd.sizes?.find((s) => s.name === targetSizeName);
+          if (sz) {
+            updatedCupObj = sz;
+            finalPrice += parseFloat(sz.price_add || 0);
+          } else if (item.cup_size_obj) {
+            finalPrice += parseFloat(item.cup_size_obj.price_add || 0);
+          } else {
+            if (item.cup_size === "16 oz") finalPrice += 10;
+            if (item.cup_size === "22 oz") finalPrice += 20;
+          }
+        }
+
+        let updatedAddOns = item.add_ons || [];
+        if (Array.isArray(item.add_ons) && item.add_ons.length > 0) {
+          updatedAddOns = item.add_ons.map((ao) => {
+            const latestAo = latestProd.add_ons?.find((a) => a.name === ao.name);
+            const customerQty = ao.customer_qty || 1;
+            if (latestAo) {
+              finalPrice += parseFloat(latestAo.price || 0) * customerQty;
+              return { ...latestAo, customer_qty: customerQty };
+            }
+            finalPrice += parseFloat(ao.price || 0) * customerQty;
+            return ao;
+          });
+        }
+
+        const cupChanged =
+          (updatedCupObj?.ingredient_id || null) !== (item.cup_size_obj?.ingredient_id || null) ||
+          Number(updatedCupObj?.price_add || 0) !== Number(item.cup_size_obj?.price_add || 0);
+        const addonsChanged = JSON.stringify(updatedAddOns) !== JSON.stringify(item.add_ons || []);
+
         if (
           item.price !== finalPrice ||
           item.baseProduct?.price !== latestProd.price ||
-          item.category !== latestProd.category
+          item.baseProduct?.stock_quantity !== latestProd.stock_quantity ||
+          item.track_stock !== latestProd.track_stock ||
+          item.category !== latestProd.category ||
+          cupChanged ||
+          addonsChanged
         ) {
           hasChanges = true;
           return {
             ...item,
             category: latestProd.category,
+            track_stock: latestProd.track_stock,
             price: finalPrice,
+            cup_size_obj: updatedCupObj,
+            add_ons: updatedAddOns,
             baseProduct: { ...latestProd }
           };
         }
         return item;
       });
+
       return hasChanges ? updatedCart : prevCart;
     });
   }, [products, categorySettings, getVirtualProduct]);
 
-  // FETCH RECIPE FOR MODAL
+  // Refresh catalog silently whenever the Info Modal is opened so live stock numbers stay current
   useEffect(() => {
     if (recipeProduct) {
-      loadRecipe(recipeProduct.id);
-    } else {
-      setCurrentRecipe([]);
+      void fetchCatalog({ silent: true });
     }
-  }, [recipeProduct]);
+  }, [recipeProduct, fetchCatalog]);
 
-  const loadRecipe = async (productId) => {
-    try {
-      setRecipeLoading(true);
-      const data = await getRecipesByProduct(productId);
-      setCurrentRecipe(data || []);
-    } catch (err) {
-      console.error("Failed to load recipe:", err);
-    } finally {
-      setRecipeLoading(false);
+  const activeRecipeProduct = useMemo(() => {
+    if (!recipeProduct) return null;
+    return productsMap[recipeProduct.id] || recipeProduct;
+  }, [recipeProduct, productsMap]);
+
+  const recipeProductSummary = useMemo(() => {
+    if (!activeRecipeProduct) return null;
+    if (stockSummaryByProductId[activeRecipeProduct.id]) {
+      return stockSummaryByProductId[activeRecipeProduct.id];
     }
-  };
+    return getProductStockSummary(activeRecipeProduct, {
+      recipesByProduct,
+      ingredientsMap,
+      reserved: globalReserved,
+      virtualProduct: getVirtualProduct(activeRecipeProduct)
+    });
+  }, [
+    activeRecipeProduct,
+    stockSummaryByProductId,
+    recipesByProduct,
+    ingredientsMap,
+    globalReserved,
+    getVirtualProduct
+  ]);
 
   const [showOptions, setShowOptions] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -228,54 +476,153 @@ export const usePOS = () => {
     addOns: {}
   });
 
-  const openOptions = (product) => {
-    const catSettings = categorySettings[product.category?.toUpperCase()];
-    const virtualProduct = {
-      ...product,
-      sizes: [...(product.sizes || [])],
-      add_ons: [...(product.add_ons || [])]
-    };
-
-    if (catSettings) {
-      if (catSettings.sizes && catSettings.sizes.length > 0 && virtualProduct.sizes.length === 0) {
-        virtualProduct.sizes = [...catSettings.sizes];
-      }
-      if (catSettings.add_ons && catSettings.add_ons.length > 0) {
-        const existingNames = virtualProduct.add_ons.map(a => a.name);
-        catSettings.add_ons.forEach(ca => {
-          if (!existingNames.includes(ca.name)) {
-            virtualProduct.add_ons.push(ca);
-          }
-        });
-      }
+  const optionsModalStock = useMemo(() => {
+    if (!showOptions || !selectedProduct) {
+      return {
+        stockMax: MAX_LINE_QTY,
+        maxLineQty: MAX_LINE_QTY,
+        limitingName: null,
+        sizeAvailability: [],
+        addonMaxMap: {},
+        existingSameLineQty: 0
+      };
     }
 
+    const reservedForModal = calculateReservedStock({
+      cart,
+      ongoingOrders,
+      recipesByProduct,
+      ingredientsMap,
+      excludeCartItemId: editingCartItemId
+    });
+
+    const { selectedSizeObj, selectedAddonObjs, cartItemId } = resolveConfiguredItemDetails(
+      selectedProduct,
+      productOptions,
+      categorySettings
+    );
+
+    const otherExisting = cart.find(
+      (item) => item.cartItemId === cartItemId && item.cartItemId !== editingCartItemId
+    );
+    const existingSameLineQty = otherExisting ? otherExisting.qty : 0;
+
+    const { stockMax, maxQty, limitingName } = getMaxQtyForConfiguredItem({
+      product: selectedProduct,
+      cupSizeObj: selectedSizeObj,
+      addOnsList: selectedAddonObjs,
+      recipesByProduct,
+      ingredientsMap,
+      reserved: reservedForModal,
+      existingSameLineQty
+    });
+
+    const modalSummary = getProductStockSummary(selectedProduct, {
+      recipesByProduct,
+      ingredientsMap,
+      reserved: reservedForModal,
+      virtualProduct: selectedProduct
+    });
+
+    const addonsList =
+      selectedProduct.add_ons?.length > 0
+        ? selectedProduct.add_ons
+        : ["Pearl", "Nata", "Jelly", "Pudding", "Extra Sugar", "Extra Ice"].map((name) => ({ name }));
+
+    const addonMaxMap = {};
+    addonsList.forEach((ao) => {
+      addonMaxMap[ao.name] = getMaxAddOnQty({
+        product: selectedProduct,
+        cupSizeObj: selectedSizeObj,
+        currentAddOns: selectedAddonObjs,
+        targetAddon: ao,
+        currentItemQty: productOptions.qty,
+        recipesByProduct,
+        ingredientsMap,
+        reserved: reservedForModal
+      });
+    });
+
+    return {
+      stockMax,
+      maxLineQty: maxQty,
+      limitingName,
+      sizeAvailability: modalSummary.sizeAvailability,
+      addonMaxMap,
+      existingSameLineQty
+    };
+  }, [
+    showOptions,
+    selectedProduct,
+    productOptions,
+    categorySettings,
+    cart,
+    ongoingOrders,
+    recipesByProduct,
+    ingredientsMap,
+    editingCartItemId
+  ]);
+
+  // Automatically clamp quantity when cup size, add-on, or existing cart line lowers available cap
+  useEffect(() => {
+    if (!showOptions || !selectedProduct) return;
+    if (optionsModalStock.maxLineQty >= 1 && productOptions.qty > optionsModalStock.maxLineQty) {
+      setProductOptions((prev) => ({
+        ...prev,
+        qty: optionsModalStock.maxLineQty
+      }));
+    }
+  }, [showOptions, selectedProduct, optionsModalStock.maxLineQty, productOptions.qty]);
+
+  const openOptions = (product) => {
+    const liveProduct = productsMap[product.id] || product;
+    const summary =
+      stockSummaryByProductId[liveProduct.id] ||
+      getProductStockSummary(liveProduct, {
+        recipesByProduct,
+        ingredientsMap,
+        reserved: globalReserved,
+        virtualProduct: getVirtualProduct(liveProduct)
+      });
+
+    if ((summary?.remainingOrderable ?? 0) <= 0) {
+      showStockNotice(`${liveProduct.name} has no available stock remaining.`);
+      return;
+    }
+
+    const virtualProduct = getVirtualProduct(liveProduct);
     setSelectedProduct(virtualProduct);
+
     let defaultSize = "12 oz";
     if (virtualProduct.sizes && virtualProduct.sizes.length > 0) {
-      defaultSize = virtualProduct.sizes[0].name; // Default to first configured size
+      const availableSize = summary?.sizeAvailability?.find(
+        (s) => s.cupRemaining === null || s.cupRemaining > 0
+      );
+      defaultSize = availableSize ? availableSize.name : virtualProduct.sizes[0].name;
     }
+
     setProductOptions({ qty: 1, cupSize: defaultSize, addOns: {} });
     setEditingCartItemId(null);
     setShowOptions(true);
   };
 
   const openEditOptions = (cartItemId) => {
-    const item = cart.find(i => i.cartItemId === cartItemId);
-    if (!item || !item.baseProduct) return;
+    const item = cart.find((i) => i.cartItemId === cartItemId);
+    if (!item || (!item.baseProduct && !productsMap[item.id])) return;
 
-    setSelectedProduct(item.baseProduct);
-    
+    const liveProduct = getVirtualProduct(productsMap[item.id] || item.baseProduct);
+    setSelectedProduct(liveProduct);
+
     const reconstructedAddOns = {};
     if (item.add_ons && item.add_ons.length > 0) {
-      item.add_ons.forEach(ao => {
+      item.add_ons.forEach((ao) => {
         reconstructedAddOns[ao.name] = ao.customer_qty || 1;
       });
     }
 
     setProductOptions({
       qty: item.qty,
-      cupSize: item.cup_size || (item.baseProduct.sizes?.[0]?.name) || "12 oz",
+      cupSize: item.cup_size || liveProduct.sizes?.[0]?.name || "12 oz",
       addOns: reconstructedAddOns
     });
     setEditingCartItemId(cartItemId);
@@ -289,65 +636,47 @@ export const usePOS = () => {
   };
 
   const handleAddWithOptions = () => {
-    const { hasSizes, hasAddOns } = getProductOptionsAvailability(selectedProduct, categorySettings);
-    const hasOptions = hasSizes || hasAddOns;
+    if (!selectedProduct) return;
 
-    let finalPrice = parseFloat(selectedProduct.price);
-    let selectedSizeObj = null;
-    let selectedAddonObjs = [];
-
-    if (hasSizes) {
-      if (selectedProduct.sizes && selectedProduct.sizes.length > 0) {
-        selectedSizeObj = selectedProduct.sizes.find(s => s.name === productOptions.cupSize);
-        if (selectedSizeObj) finalPrice += parseFloat(selectedSizeObj.price_add || 0);
-      } else {
-        // Legacy fallback
-        if (productOptions.cupSize === "16 oz") finalPrice += 10;
-        if (productOptions.cupSize === "22 oz") finalPrice += 20;
-      }
+    const maxAllowed = optionsModalStock.maxLineQty;
+    if (maxAllowed <= 0) {
+      showStockNotice(`Cannot add ${selectedProduct.name}: insufficient stock.`);
+      return;
     }
 
-    if (hasAddOns) {
-      Object.entries(productOptions.addOns).forEach(([addonName, customerQty]) => {
-        // Handle dynamic addons attached to the virtualProduct (which includes category defaults)
-        if (selectedProduct.add_ons && selectedProduct.add_ons.length > 0) {
-          const ao = selectedProduct.add_ons.find(a => a.name === addonName);
-          if (ao) {
-            finalPrice += parseFloat(ao.price || 0) * customerQty;
-            selectedAddonObjs.push({...ao, customer_qty: customerQty});
-            return;
-          }
-        }
-        
-        // Legacy string fallback if absolutely nothing was found
-        selectedAddonObjs.push({name: addonName, price: 0, customer_qty: customerQty});
-      });
+    if (productOptions.qty > maxAllowed) {
+      showStockNotice(`Only ${maxAllowed} available for ${selectedProduct.name}.`);
+      setProductOptions((prev) => ({ ...prev, qty: maxAllowed }));
+      return;
     }
+
+    const { hasSizes, hasAddOns, finalPrice, selectedSizeObj, selectedAddonObjs, cartItemId } =
+      resolveConfiguredItemDetails(selectedProduct, productOptions, categorySettings);
+
+    const safeQty = Math.min(maxAllowed, Math.max(1, parseInt(productOptions.qty, 10) || 1));
 
     const itemToAdd = {
       ...selectedProduct,
       price: finalPrice,
-      qty: productOptions.qty,
+      qty: safeQty,
       cup_size: hasSizes ? productOptions.cupSize : null,
       cup_size_obj: hasSizes ? selectedSizeObj : null,
       add_ons: hasAddOns ? selectedAddonObjs : [],
-      cartItemId: hasOptions
-        ? `${selectedProduct.id}-${hasSizes ? productOptions.cupSize : 'standard'}-${hasAddOns ? Object.entries(productOptions.addOns).map(([n, q]) => `${n}x${q}`).sort().join(',') : 'none'}`
-        : `${selectedProduct.id}-standard`,
+      cartItemId,
       baseProduct: selectedProduct
     };
 
-    setCart(prevCart => {
+    setCart((prevCart) => {
       let newCart = [...prevCart];
       if (editingCartItemId) {
-        newCart = newCart.filter(item => item.cartItemId !== editingCartItemId);
+        newCart = newCart.filter((item) => item.cartItemId !== editingCartItemId);
       }
 
-      const existing = newCart.find(item => item.cartItemId === itemToAdd.cartItemId);
+      const existing = newCart.find((item) => item.cartItemId === itemToAdd.cartItemId);
       if (existing) {
-        return newCart.map(item =>
+        return newCart.map((item) =>
           item.cartItemId === itemToAdd.cartItemId
-            ? { ...item, qty: Math.min(99, item.qty + itemToAdd.qty) }
+            ? { ...item, qty: Math.min(MAX_LINE_QTY, item.qty + itemToAdd.qty) }
             : item
         );
       }
@@ -358,12 +687,45 @@ export const usePOS = () => {
   };
 
   const updateAddOnQty = (addOn, qty) => {
-    setProductOptions(prev => {
+    if (!selectedProduct) return;
+
+    const targetAddon = selectedProduct.add_ons?.find((a) => a.name === addOn) || { name: addOn };
+    const reservedForModal = calculateReservedStock({
+      cart,
+      ongoingOrders,
+      recipesByProduct,
+      ingredientsMap,
+      excludeCartItemId: editingCartItemId
+    });
+    const { selectedSizeObj, selectedAddonObjs } = resolveConfiguredItemDetails(
+      selectedProduct,
+      productOptions,
+      categorySettings
+    );
+
+    const maxAo = getMaxAddOnQty({
+      product: selectedProduct,
+      cupSizeObj: selectedSizeObj,
+      currentAddOns: selectedAddonObjs,
+      targetAddon,
+      currentItemQty: productOptions.qty,
+      recipesByProduct,
+      ingredientsMap,
+      reserved: reservedForModal
+    });
+
+    if (qty > maxAo) {
+      showStockNotice(`Maximum ${maxAo} "${addOn}" allowed with current stock.`);
+    }
+
+    const clampedQty = Math.min(maxAo, Math.max(0, qty));
+
+    setProductOptions((prev) => {
       const newAddOns = { ...prev.addOns };
-      if (qty <= 0) {
+      if (clampedQty <= 0) {
         delete newAddOns[addOn];
       } else {
-        newAddOns[addOn] = Math.min(5, Math.max(1, qty));
+        newAddOns[addOn] = clampedQty;
       }
       return { ...prev, addOns: newAddOns };
     });
@@ -374,14 +736,29 @@ export const usePOS = () => {
       removeFromCart(cartItemId);
       return;
     }
-    const safeQty = Math.min(99, Math.max(1, qty));
-    setCart(cart.map(item =>
-      item.cartItemId === cartItemId ? { ...item, qty: safeQty } : item
-    ));
+
+    const maxAllowed = maxQtyByCartItemId[cartItemId] ?? MAX_LINE_QTY;
+    if (maxAllowed <= 0) {
+      const item = cart.find((i) => i.cartItemId === cartItemId);
+      showStockNotice(`No additional stock available for ${item?.name || "this item"}.`);
+      return;
+    }
+
+    if (qty > maxAllowed) {
+      const item = cart.find((i) => i.cartItemId === cartItemId);
+      showStockNotice(`Only ${maxAllowed} available for ${item?.name || "this item"}.`);
+    }
+
+    const safeQty = Math.min(maxAllowed, Math.max(1, qty));
+    setCart((prevCart) =>
+      prevCart.map((item) =>
+        item.cartItemId === cartItemId ? { ...item, qty: safeQty } : item
+      )
+    );
   };
 
   const removeFromCart = (cartItemId) => {
-    setCart(cart.filter(item => item.cartItemId !== cartItemId));
+    setCart((prevCart) => prevCart.filter((item) => item.cartItemId !== cartItemId));
   };
 
   const clearCart = async () => {
@@ -402,7 +779,7 @@ export const usePOS = () => {
       SENIOR: { label: "Senior Citizen", rate: 0.20 },
       PWD: { label: "PWD", rate: 0.20 },
       STUDENT: { label: "Student / Promo", rate: 0.10 },
-      STAFF: { label: "Employee / Staff", rate: 0.15 },
+      STAFF: { label: "Employee / Staff", rate: 0.15 }
     };
 
     let disc = 0;
@@ -434,12 +811,17 @@ export const usePOS = () => {
       customDiscountValue,
       discountAmount,
       discountLabel: label,
-      finalTotal,
+      finalTotal
     };
   };
 
   const handleDirectCheckout = () => {
     if (cart.length === 0) return;
+    if (!cartStockValidation.valid) {
+      showStockNotice(cartStockValidation.issues[0] || "Insufficient stock for items in cart.");
+      return;
+    }
+
     const details = getCartDiscountDetails();
     const directOrder = {
       id: Date.now(),
@@ -454,7 +836,7 @@ export const usePOS = () => {
       staff_id: user.id,
       timestamp: new Date().toLocaleTimeString(),
       status: "pending",
-      isDirectCartCheckout: true,
+      isDirectCartCheckout: true
     };
     setPaymentOrder(directOrder);
     setShowPaymentModal(true);
@@ -462,6 +844,11 @@ export const usePOS = () => {
 
   const handleCompleteSale = async () => {
     if (cart.length === 0) return;
+    if (!cartStockValidation.valid) {
+      showStockNotice(cartStockValidation.issues[0] || "Insufficient stock for items in cart.");
+      return;
+    }
+
     if (!(await requestConfirm("Are you sure you want to create this order?"))) return;
     try {
       const details = getCartDiscountDetails();
@@ -477,70 +864,119 @@ export const usePOS = () => {
         finalTotal: details.finalTotal,
         staff_id: user.id,
         timestamp: new Date().toLocaleTimeString(),
-        status: 'pending'
+        status: "pending"
       };
-      setOngoingOrders([...ongoingOrders, newOrder]);
-      setCart([]); // Directly empty the cart without asking for confirmation again
+      setOngoingOrders((prev) => [...prev, newOrder]);
+      setCart([]);
       setDiscountType("NONE");
       setCustomDiscountValue("");
-      setActiveTab('ongoing');
+      setActiveTab("ongoing");
     } catch (err) {
       console.error(err);
     }
   };
 
   const handleCompleteOrder = async (orderId) => {
-    const order = ongoingOrders.find(o => o.id === orderId);
+    const order = ongoingOrders.find((o) => o.id === orderId);
     if (!order) return;
 
-    // Fetch the latest product prices to ensure we charge the correct amount
+    let latestProducts = products;
+    let latestRecipes = recipes;
+    let latestIngredients = ingredients;
+
     try {
-      const latestProducts = await getProducts();
-      if (latestProducts && latestProducts.length > 0) {
-        let updatedTotal = 0;
-        const updatedItems = order.items.map(item => {
-          let latestProd = latestProducts.find(p => p.id === item.id);
-          if (latestProd) {
-            latestProd = getVirtualProduct(latestProd); // Inject category settings
-
-            let finalPrice = parseFloat(latestProd.price || 0);
-
-            // Re-apply size price
-            if (item.cup_size_obj) {
-              const sz = latestProd.sizes?.find(s => s.name === item.cup_size_obj.name);
-              if (sz) finalPrice += parseFloat(sz.price_add || 0);
-              else finalPrice += parseFloat(item.cup_size_obj.price_add || 0);
-            } else if (item.cup_size) {
-              if (item.cup_size === "16 oz") finalPrice += 10;
-              if (item.cup_size === "22 oz") finalPrice += 20;
-            }
-
-            // Re-apply add-ons
-            if (item.add_ons && item.add_ons.length > 0) {
-              item.add_ons.forEach(ao => {
-                const latestAo = latestProd.add_ons?.find(a => a.name === ao.name);
-                if (latestAo) finalPrice += parseFloat(latestAo.price || 0) * (ao.customer_qty || 1);
-                else finalPrice += parseFloat(ao.price || 0) * (ao.customer_qty || 1); // fallback
-              });
-            }
-            
-            item.price = finalPrice;
-          }
-          updatedTotal += (item.price * item.qty);
-          return item;
-        });
-
-        order.items = updatedItems;
-        order.total = updatedTotal;
-        
-        // Update the ongoing order in state so the UI reflects the new total
-        setOngoingOrders(prev => prev.map(o => o.id === orderId ? order : o));
+      const freshCatalog = await fetchCatalog({ silent: true });
+      if (freshCatalog) {
+        latestProducts = freshCatalog.products;
+        latestRecipes = freshCatalog.recipes;
+        latestIngredients = freshCatalog.ingredients;
       }
     } catch (err) {
-      console.error("Failed to fetch latest prices before checkout", err);
+      console.error("Failed to fetch latest catalog before checkout", err);
     }
 
-    setPaymentOrder(order);
+    const latestProductsMap = {};
+    (latestProducts || []).forEach((p) => {
+      if (p?.id) latestProductsMap[p.id] = p;
+    });
+    const latestRecipesMap = buildRecipesByProductMap(latestRecipes);
+    const latestIngredientsMap = buildIngredientsMap(latestIngredients);
+
+    let updatedTotal = 0;
+    const updatedItems = order.items.map((item) => {
+      const rawLatest = latestProductsMap[item.id];
+      if (!rawLatest) {
+        updatedTotal += item.price * item.qty;
+        return item;
+      }
+
+      const latestProd = getVirtualProduct(rawLatest);
+      let finalPrice = parseFloat(latestProd.price || 0);
+      let updatedCupObj = item.cup_size_obj || null;
+
+      if (item.cup_size_obj || item.cup_size) {
+        const sizeName = item.cup_size_obj?.name || item.cup_size;
+        const sz = latestProd.sizes?.find((s) => s.name === sizeName);
+        if (sz) {
+          updatedCupObj = sz;
+          finalPrice += parseFloat(sz.price_add || 0);
+        } else if (item.cup_size_obj) {
+          finalPrice += parseFloat(item.cup_size_obj.price_add || 0);
+        } else {
+          if (item.cup_size === "16 oz") finalPrice += 10;
+          if (item.cup_size === "22 oz") finalPrice += 20;
+        }
+      }
+
+      let updatedAddOns = item.add_ons || [];
+      if (Array.isArray(item.add_ons) && item.add_ons.length > 0) {
+        updatedAddOns = item.add_ons.map((ao) => {
+          const latestAo = latestProd.add_ons?.find((a) => a.name === ao.name);
+          const customerQty = ao.customer_qty || 1;
+          if (latestAo) {
+            finalPrice += parseFloat(latestAo.price || 0) * customerQty;
+            return { ...latestAo, customer_qty: customerQty };
+          }
+          finalPrice += parseFloat(ao.price || 0) * customerQty;
+          return ao;
+        });
+      }
+
+      updatedTotal += finalPrice * item.qty;
+      return {
+        ...item,
+        category: latestProd.category,
+        track_stock: latestProd.track_stock,
+        price: finalPrice,
+        cup_size_obj: updatedCupObj,
+        add_ons: updatedAddOns,
+        baseProduct: { ...latestProd }
+      };
+    });
+
+    const updatedOrder = {
+      ...order,
+      items: updatedItems,
+      total: updatedTotal
+    };
+
+    setOngoingOrders((prev) => prev.map((o) => (o.id === orderId ? updatedOrder : o)));
+
+    const validation = validateItemsAgainstStock(updatedOrder.items, {
+      productsMap: latestProductsMap,
+      recipesByProduct: latestRecipesMap,
+      ingredientsMap: latestIngredientsMap,
+      reserved: null
+    });
+
+    if (!validation.valid) {
+      showStockNotice(
+        `Cannot pay Order #${orderId}: ${validation.issues[0]}. Edit the order to adjust quantities.`
+      );
+      return;
+    }
+
+    setPaymentOrder(updatedOrder);
     setShowPaymentModal(true);
   };
 
@@ -549,9 +985,10 @@ export const usePOS = () => {
 
     const subtotal = parseFloat(paymentOrder.total) || 0;
     const discountAmount = parseFloat(paymentData.discountAmount) || 0;
-    const finalTotal = paymentData.finalTotal !== undefined
-      ? parseFloat(paymentData.finalTotal)
-      : Math.max(0, subtotal - discountAmount);
+    const finalTotal =
+      paymentData.finalTotal !== undefined
+        ? parseFloat(paymentData.finalTotal)
+        : Math.max(0, subtotal - discountAmount);
     const discountLabel = paymentData.discountLabel || "";
 
     const saleData = {
@@ -563,14 +1000,20 @@ export const usePOS = () => {
       amount_received: paymentData.amountReceived || 0,
       change_amount: paymentData.change || 0,
       transaction_reference: paymentData.reference || "",
-      notes: discountLabel ? `Discount: ${discountLabel}` : "",
+      notes: discountLabel ? `Discount: ${discountLabel}` : ""
     };
 
-    // Let any error bubble up to PaymentModal so it can re-enable the button
-    const res = await createSale(saleData);
+    let res;
+    try {
+      res = await createSale(saleData);
+    } catch (err) {
+      void fetchCatalog({ silent: true });
+      throw err;
+    }
+
+    void fetchCatalog({ silent: true });
     const createdSale = res?.sale || res || {};
 
-    // Build immediate digital receipt payload so the receipt modal pops up with 0ms delay
     const immediateReceipt = {
       id: createdSale.id || `LOCAL-${Date.now()}`,
       receipt_number: createdSale.receipt_number || `RCP-${Date.now().toString().slice(-6)}`,
@@ -586,7 +1029,7 @@ export const usePOS = () => {
       transaction_reference: paymentData.reference || "",
       notes: saleData.notes,
       users: {
-        name: user?.name || user?.username || "Staff",
+        name: user?.name || user?.username || "Staff"
       },
       sale_items: (paymentOrder.items || []).map((item, idx) => ({
         id: item.cartItemId || `${item.id}-${idx}`,
@@ -597,9 +1040,9 @@ export const usePOS = () => {
         products: {
           id: item.id,
           name: item.name,
-          category: item.category,
-        },
-      })),
+          category: item.category
+        }
+      }))
     };
 
     if (paymentOrder.isDirectCartCheckout) {
@@ -607,7 +1050,7 @@ export const usePOS = () => {
       setDiscountType("NONE");
       setCustomDiscountValue("");
     } else {
-      setOngoingOrders(ongoingOrders.filter(o => o.id !== paymentOrder.id));
+      setOngoingOrders((prev) => prev.filter((o) => o.id !== paymentOrder.id));
     }
     setShowPaymentModal(false);
     setPaymentOrder(null);
@@ -626,30 +1069,39 @@ export const usePOS = () => {
 
   const handleCancelOrder = async (orderId) => {
     if (await requestConfirm("Are you sure you want to cancel this order?")) {
-      setOngoingOrders(ongoingOrders.filter(o => o.id !== orderId));
+      setOngoingOrders((prev) => prev.filter((o) => o.id !== orderId));
     }
   };
 
   const handleEditOrder = (orderId) => {
-    const order = ongoingOrders.find(o => o.id === orderId);
+    const order = ongoingOrders.find((o) => o.id === orderId);
     if (!order) return;
-    setCart(prevCart => {
-      let newCart = [...prevCart];
-      order.items.forEach(orderItem => {
-        const existing = newCart.find(item => item.cartItemId === orderItem.cartItemId);
-        if (existing) {
-          existing.qty += orderItem.qty;
+
+    setCart((prevCart) => {
+      const newCart = [...prevCart];
+      order.items.forEach((orderItem) => {
+        const existingIndex = newCart.findIndex((item) => item.cartItemId === orderItem.cartItemId);
+        if (existingIndex >= 0) {
+          const existing = newCart[existingIndex];
+          newCart[existingIndex] = {
+            ...existing,
+            qty: Math.min(MAX_LINE_QTY, existing.qty + orderItem.qty)
+          };
         } else {
-          newCart.push({ ...orderItem });
+          newCart.push({
+            ...orderItem,
+            qty: Math.min(MAX_LINE_QTY, Math.max(1, orderItem.qty))
+          });
         }
       });
       return newCart;
     });
+
     if (order.discountType) setDiscountType(order.discountType);
     if (order.customDiscountMode) setCustomDiscountMode(order.customDiscountMode);
     if (order.customDiscountValue !== undefined) setCustomDiscountValue(order.customDiscountValue);
-    setOngoingOrders(ongoingOrders.filter(o => o.id !== orderId));
-    setActiveTab('cart');
+    setOngoingOrders((prev) => prev.filter((o) => o.id !== orderId));
+    setActiveTab("cart");
   };
 
   return {
@@ -662,19 +1114,27 @@ export const usePOS = () => {
     category,
     setCategory,
     loading,
+    catalogLoaded,
     saleComplete,
-    recipeProduct,
+    recipeProduct: activeRecipeProduct,
     setRecipeProduct,
+    recipeProductSummary,
+    recipeLoading: !catalogLoaded && loading,
+    stockSummaryByProductId,
+    maxQtyByCartItemId,
+    cartStockValidation,
+    stockIssuesByOrderId,
+    stockNotice,
+    clearStockNotice,
     ongoingOrders,
     activeTab,
     setActiveTab,
-    recipeLoading,
-    currentRecipe,
     showOptions,
     closeOptions,
     selectedProduct,
     productOptions,
     setProductOptions,
+    optionsModalStock,
     openOptions,
     openEditOptions,
     editingCartItemId,

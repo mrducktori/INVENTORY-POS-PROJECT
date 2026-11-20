@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [POS: Stock-Capped Ordering & Info Modal Max-Orderable Recipe Breakdown - 2026-11-20]
+- **Backend (`server/routes/pos.js`, `server/controllers/posController.js`, `server/services/posService.js`)**:
+  - Added authenticated `GET /api/pos/catalog` endpoint returning active products with `max_orderable`, recipes, and ingredient stock quantities while keeping public `GET /api/pos/products` free of internal recipe/ingredient details.
+  - Added `computeProductAvailability` with epsilon-safe float math (`STOCK_EPSILON = 1e-9`) and hardened `createSale` to enforce missing-ingredient checks, untracked non-recipe stock checks, clean rounding, and `409` status on insufficient stock.
+- **POS Stock Engine (`src/api/posApi.js`, `src/features/pos/utils/posStockUtils.js`)**:
+  - Added `getPosCatalog()` and pure frontend reservation/capping utilities (`calculateReservedStock`, `getProductStockSummary`, `getMaxQtyForConfiguredItem`, `getMaxAddOnQty`, `validateItemsAgainstStock`) tracking live stock across cart items, ongoing orders, cup sizes, and add-ons.
+- **POS UI (`usePOS.js`, `POS.jsx`, `ProductInfoModal.jsx`, `ProductOptionsModal.jsx`, `ProductCard.jsx`, `Cart.jsx`, `OngoingOrders.jsx`)**:
+  - Displayed exact available-to-order servings/units alongside per-ingredient max capacity and cup stock in `ProductInfoModal`.
+  - Capped item quantities, cup sizes, and add-ons in `ProductOptionsModal` and `Cart`, added live stock badges and `LIMIT REACHED` states on `ProductCard`, flagged understocked `OngoingOrders`, and blocked checkout when live DB stock is insufficient.
+
 ## [Analytics/DB: Realistic Brewed Conversion Factors & Linked-Supplier PO Filtering - 2026-11-20]
 - **Supabase (`ingredients` & `supplier_ingredients`)**: Updated brewed/liquid conversion factors from dry gram/pack-count values to realistic liquid yields: `ASSAM BLACK TEA` (`500g Bag` -> `20,000 ML`), `OOLONG TEA` (`500g Pack` -> `20,000 ML`), `RED CAROLINE TEA` (`500g Pack` -> `20,000 ML`), `ESPRESSO` (`1kg Pack` -> `2,500 ML`), and `YAKULT` (`Pack of 5` -> `400 ML`), recalculating `unit_cost` while preserving agreed `supplier_ingredients.default_price`.
 - **`server/routes/analytics.js`**: Added `available_suppliers` array (all linked entries from `supplier_ingredients` with `default_purchase_unit`, `default_conversion_factor`, and `default_price`) to each ingredient item returned by `GET /api/analytics/ingredient-forecast`.
@@ -10,6 +20,8 @@ All notable changes to this project will be documented in this file.
 ## [Docs/Defense: Master Word Reviewer, Cheat Sheet Refresh, Slide 98.17% Fix & Doc Sync - 2026-11-20]
 - **`docs/defense/CofTea_Defense_Master_Reviewer_and_Paper_Backup.docx`**: Generated an executive Word defense guide covering the 5 core defense takeaways, verified Alpha (`483/492 = 98.17%`) and Beta (`3.60–3.80`) metrics, Appendix C quotes, exact Vercel + Render + Cloudflare + Supabase + Gemini (`gemini-3.5-flash-lite`) stack/costs, 15 plain-English Q&As, live demo choreography (`password123`, 3 separate browsers, AI Forecasting before POS checkout), and copy-paste Chapter 3 revision backups (`Who`, `REQ001–REQ061`, and full manuscript errata table).
 - **`docs/defense/CofTea_Groupmate_Defense_Cheat_Sheet.docx` & `.pdf`**: Refreshed to include all 5 roles (`Owner`, `Admin`, `Staff`, `Supplier`, `Custom`), updated Q6 (prior defense feedback + client confidentiality), 30/90-day archive deletion guardrails, and Nov 18–21 demo-day rules (`password123`), plus generated an editable `.docx` copy.
+- **`docs/defense/CofTea_Easy_Groupmate_Guide.docx` & `.pdf`**: Added a simplified 2-page plain-English guide for non-technical groupmates (4-step story, presenter slide numbers, 6 common Q&As, handoff scripts, "Don't Say" rules, and onstage teamwork notes).
+- **`docs/defense/CofTea_Simple_Defense_Guide.docx` & `.pdf`**: Created one unified, chronological 3-page guide covering pre-defense setup checkboxes, slide breakdown, exact live demo sequence, 5 easy group Q&As, 6 developer Q&As, and golden defense rules.
 - **`docs/defense/CofTea_Final_Defense_Presentation_Slides.pdf`**: Fixed Slides 3 and 8 to show `98.17% (483/492)` consistently without the double-counted `98.20% (492/501)` figure.
 - **`docs/PROJECT_REFERENCE.md`**: Synced Section 1 & 3 (React 19, Vite 8, Vercel + Render + Cloudflare DNS + Gemini), Section 8 (`process_pos_checkout` drafted in SQL vs `posService.js` batched pre-checks + rollback compensation), and Section 9 status note.
 

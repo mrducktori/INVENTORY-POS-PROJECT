@@ -4,6 +4,65 @@ import { logAuditBatch } from "../utils/auditHelper.js";
 import { invalidateAnalyticsCache } from "../routes/analytics.js";
 import { getManilaDateString } from "../utils/dateUtils.js";
 
+const STOCK_EPSILON = 1e-9;
+
+const roundStock = (value) => Math.max(0, Math.round(value * 1e6) / 1e6);
+
+export const computeProductAvailability = (product, prodRecipes = [], ingMap = {}) => {
+  const has_recipe = Array.isArray(prodRecipes) && prodRecipes.length > 0;
+
+  if (product?.track_stock || !has_recipe) {
+    const max_orderable = Math.max(0, Math.floor((parseFloat(product?.stock_quantity) || 0) + STOCK_EPSILON));
+    return {
+      is_available: max_orderable > 0,
+      has_recipe,
+      max_orderable
+    };
+  }
+
+  let minOrderable = Infinity;
+  for (const recipe of prodRecipes) {
+    const ing = ingMap[recipe.ingredient_id];
+    if (!ing) {
+      return { is_available: false, has_recipe: true, max_orderable: 0 };
+    }
+
+    const deductionPerUnit = convertToBaseUnit(recipe.quantity_used, recipe.recipe_unit || ing.unit, ing.unit);
+    if (deductionPerUnit > 0) {
+      const possible = Math.max(0, Math.floor(((parseFloat(ing.stock_quantity) || 0) + STOCK_EPSILON) / deductionPerUnit));
+      minOrderable = Math.min(minOrderable, possible);
+    }
+  }
+
+  const max_orderable = Number.isFinite(minOrderable) ? minOrderable : 0;
+  return {
+    is_available: max_orderable > 0,
+    has_recipe: true,
+    max_orderable
+  };
+};
+
+const buildCatalogMaps = (products = [], recipes = [], ingredients = []) => {
+  const ingMap = {};
+  ingredients.forEach(i => { ingMap[i.id] = i; });
+
+  const recMap = {};
+  recipes.forEach(r => {
+    if (!recMap[r.product_id]) recMap[r.product_id] = [];
+    recMap[r.product_id].push(r);
+  });
+
+  const productsWithAvailability = products.map(product => {
+    const availability = computeProductAvailability(product, recMap[product.id] || [], ingMap);
+    return {
+      ...product,
+      ...availability
+    };
+  });
+
+  return productsWithAvailability;
+};
+
 export const getProducts = async () => {
   // 1. Fetch active products, recipes, and ingredients concurrently for maximum speed
   const [
@@ -20,50 +79,31 @@ export const getProducts = async () => {
   if (recError) throw recError;
   if (ingError) throw ingError;
 
-  // Create lookup maps
-  const ingMap = {};
-  ingredients.forEach(i => { ingMap[i.id] = i; });
+  return buildCatalogMaps(products || [], recipes || [], ingredients || []);
+};
 
-  const recMap = {};
-  recipes.forEach(r => {
-    if (!recMap[r.product_id]) recMap[r.product_id] = [];
-    recMap[r.product_id].push(r);
-  });
+export const getPosCatalog = async () => {
+  const [
+    { data: products, error: prodError },
+    { data: recipes, error: recError },
+    { data: ingredients, error: ingError }
+  ] = await Promise.all([
+    supabase.from("products").select("*").eq("is_archived", false),
+    supabase.from("recipes").select("id, product_id, ingredient_id, quantity_used, recipe_unit"),
+    supabase.from("ingredients").select("id, name, unit, stock_quantity, low_stock_alert, max_stock, is_archived")
+  ]);
 
-  // 4. Calculate availability
-  const productsWithAvailability = products.map(product => {
-    let is_available = true;
+  if (prodError) throw prodError;
+  if (recError) throw recError;
+  if (ingError) throw ingError;
 
-    if (product.track_stock) {
-      is_available = parseFloat(product.stock_quantity || 0) > 0;
-    } else {
-      const prodRecipes = recMap[product.id] || [];
-      if (prodRecipes.length > 0) {
-        for (const recipe of prodRecipes) {
-          const ing = ingMap[recipe.ingredient_id];
-          if (!ing) {
-            is_available = false; // Missing ingredient
-            break;
-          }
-          
-          const deductionPerUnit = convertToBaseUnit(recipe.quantity_used, recipe.recipe_unit || ing.unit, ing.unit);
-          if (parseFloat(ing.stock_quantity || 0) < deductionPerUnit) {
-            is_available = false; // Not enough stock
-            break;
-          }
-        }
-      }
-      // If no recipes, we assume available to not break legacy products
-    }
+  const productsWithAvailability = buildCatalogMaps(products || [], recipes || [], ingredients || []);
 
-    return {
-      ...product,
-      is_available,
-      has_recipe: (recMap[product.id] || []).length > 0
-    };
-  });
-
-  return productsWithAvailability;
+  return {
+    products: productsWithAvailability,
+    recipes: recipes || [],
+    ingredients: ingredients || []
+  };
 };
 
 const generateReceiptNumber = () => {
@@ -156,6 +196,8 @@ export const createSale = async ({
 
   const requiredProducts = {};    // { id: { name, qty } }
   const requiredIngredients = {}; // { id: { name, qty } }
+  const untrackedDirectChecks = {}; // { id: { name, qty } }
+  const insufficient = [];
 
   for (const item of cart) {
     const product = productMap.get(item.id);
@@ -170,9 +212,19 @@ export const createSale = async ({
       requiredProducts[item.id].qty += item.qty;
     } else {
       const recipes = recipesByProduct.get(item.id) || [];
+      if (recipes.length === 0) {
+        if (!untrackedDirectChecks[item.id]) {
+          untrackedDirectChecks[item.id] = { name: product.name, qty: 0 };
+        }
+        untrackedDirectChecks[item.id].qty += item.qty;
+      }
+
       for (const recipe of recipes) {
         const ing = recipe.ingredients || ingredientMap.get(recipe.ingredient_id);
-        if (!ing) continue;
+        if (!ing) {
+          insufficient.push(`${product.name} (Missing recipe ingredient)`);
+          continue;
+        }
 
         const deductionPerUnit = convertToBaseUnit(recipe.quantity_used, recipe.recipe_unit || ing.unit, ing.unit);
         const totalDeduction = deductionPerUnit * item.qty;
@@ -186,7 +238,9 @@ export const createSale = async ({
       // Cup Size Deduction
       if (item.cup_size_obj && item.cup_size_obj.ingredient_id) {
         const ingData = ingredientMap.get(item.cup_size_obj.ingredient_id);
-        if (ingData) {
+        if (!ingData) {
+          insufficient.push(`${product.name} (Missing cup ingredient for ${item.cup_size_obj.name || item.cup_size || 'cup size'})`);
+        } else {
           const totalDeduction = 1 * item.qty;
           if (!requiredIngredients[item.cup_size_obj.ingredient_id]) {
             requiredIngredients[item.cup_size_obj.ingredient_id] = { name: ingData.name, qty: 0 };
@@ -200,35 +254,47 @@ export const createSale = async ({
         for (const addon of item.add_ons) {
           if (!addon.ingredient_id) continue;
 
-          const ingData = ingredientMap.get(addon.ingredient_id);
-          if (ingData) {
-            const perAddonQty = Math.max(0, Number(addon.quantity) || 0);
-            const aoQty = Math.max(0, parseInt(addon.customer_qty ?? addon.quantity ?? 1, 10) || 0);
-            const deductionPerUnit = convertToBaseUnit(perAddonQty, addon.unit || ingData.unit, ingData.unit);
-            const totalDeduction = deductionPerUnit * item.qty * aoQty;
+          const perAddonQty = Math.max(0, Number(addon.quantity) || 0);
+          const aoQty = Math.max(0, parseInt(addon.customer_qty ?? addon.quantity ?? 1, 10) || 0);
+          if (perAddonQty * aoQty <= 0) continue;
 
-            if (!requiredIngredients[addon.ingredient_id]) {
-              requiredIngredients[addon.ingredient_id] = { name: ingData.name, qty: 0 };
-            }
-            requiredIngredients[addon.ingredient_id].qty += totalDeduction;
+          const ingData = ingredientMap.get(addon.ingredient_id);
+          if (!ingData) {
+            insufficient.push(`${addon.name || product.name} (Missing add-on ingredient)`);
+            continue;
           }
+
+          const deductionPerUnit = convertToBaseUnit(perAddonQty, addon.unit || ingData.unit, ingData.unit);
+          const totalDeduction = deductionPerUnit * item.qty * aoQty;
+
+          if (!requiredIngredients[addon.ingredient_id]) {
+            requiredIngredients[addon.ingredient_id] = { name: ingData.name, qty: 0 };
+          }
+          requiredIngredients[addon.ingredient_id].qty += totalDeduction;
         }
       }
     }
   }
 
   // Verify against fetched DB stock
-  const insufficient = [];
-
   const pIds = Object.keys(requiredProducts);
   for (const pid of pIds) {
     const prod = productMap.get(pid);
     const currentStock = parseFloat(prod?.stock_quantity || 0);
     const req = requiredProducts[pid].qty;
-    if (currentStock < req) {
+    if (currentStock + STOCK_EPSILON < req) {
       insufficient.push(`${requiredProducts[pid].name} (Requires ${req}, Has ${currentStock})`);
     } else {
-      requiredProducts[pid].newStock = currentStock - req;
+      requiredProducts[pid].newStock = roundStock(currentStock - req);
+    }
+  }
+
+  for (const pid of Object.keys(untrackedDirectChecks)) {
+    const prod = productMap.get(pid);
+    const currentStock = parseFloat(prod?.stock_quantity || 0);
+    const req = untrackedDirectChecks[pid].qty;
+    if (currentStock + STOCK_EPSILON < req) {
+      insufficient.push(`${untrackedDirectChecks[pid].name} (Requires ${req}, Has ${currentStock})`);
     }
   }
 
@@ -237,17 +303,19 @@ export const createSale = async ({
     const ing = ingredientMap.get(iid);
     const currentStock = parseFloat(ing?.stock_quantity || 0);
     const req = requiredIngredients[iid].qty;
-    if (currentStock < req) {
+    if (currentStock + STOCK_EPSILON < req) {
       // Format ingredient requirements to 2 decimal places to avoid floating point length issues
       insufficient.push(`${requiredIngredients[iid].name} (Requires ${req.toFixed(2)}, Has ${currentStock.toFixed(2)})`);
     } else {
-      requiredIngredients[iid].newStock = currentStock - req;
+      requiredIngredients[iid].newStock = roundStock(currentStock - req);
     }
   }
 
   // IF THERE IS ANY INSUFFICIENT STOCK, ABORT SALE
   if (insufficient.length > 0) {
-    throw new Error(`Insufficient stock for: ${insufficient.join(', ')}`);
+    const stockErr = new Error(`Insufficient stock for: ${insufficient.join(', ')}`);
+    stockErr.status = 409;
+    throw stockErr;
   }
 
   // --- 2. ATOMIC EXECUTION (Single Database Transaction) ---
