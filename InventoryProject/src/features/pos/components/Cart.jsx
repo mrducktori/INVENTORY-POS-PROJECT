@@ -52,7 +52,6 @@ const Cart = ({ cart, total, maxQtyByCartItemId = {}, onUpdateQty, onRemove, onE
             {cart.map((item) => {
               const maxQty = maxQtyByCartItemId?.[item.cartItemId] ?? 99;
               const isOverMax = item.qty > maxQty;
-              const isAtMax = item.qty === maxQty;
 
               return (
               <div
@@ -133,7 +132,7 @@ const Cart = ({ cart, total, maxQtyByCartItemId = {}, onUpdateQty, onRemove, onE
                           className="px-2 py-1 text-gray-600 hover:bg-gray-100 font-bold text-xs transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer bg-transparent border-none"
                           onClick={() => onUpdateQty(item.cartItemId, item.qty + 1)}
                           disabled={item.qty >= maxQty}
-                          title="Increase quantity"
+                          title={item.qty >= maxQty ? `Max available (${maxQty})` : 'Increase quantity'}
                         >
                           +
                         </button>
@@ -142,15 +141,11 @@ const Cart = ({ cart, total, maxQtyByCartItemId = {}, onUpdateQty, onRemove, onE
                         ₱{(item.price * item.qty).toFixed(2)}
                       </div>
                     </div>
-                    {isOverMax ? (
+                    {isOverMax && (
                       <span className="text-[11px] font-semibold text-red-600 mt-1 text-right">
                         Only {maxQty} available
                       </span>
-                    ) : isAtMax ? (
-                      <span className="text-[11px] font-medium text-gray-500 mt-1 text-right">
-                        Max stock ({maxQty})
-                      </span>
-                    ) : null}
+                    )}
                   </div>
                 </div>
               </div>

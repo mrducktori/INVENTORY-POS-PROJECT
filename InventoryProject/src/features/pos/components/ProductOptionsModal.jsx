@@ -38,7 +38,7 @@ const ProductOptionsModal = ({
 
   const availabilityLabel =
     stockMax > MAX_LINE_QTY
-      ? `Available: ${stockMax} (max ${MAX_LINE_QTY}/order)`
+      ? `Available: ${stockMax} (max ${MAX_LINE_QTY})`
       : `Available: ${maxLineQty}`;
 
   const handleQtyInputChange = (e) => {
@@ -139,7 +139,7 @@ const ProductOptionsModal = ({
             <div className="flex justify-between items-center mb-2">
               <label className="block text-sm font-semibold text-gray-800">Quantity</label>
               <span
-                className={`text-xs font-semibold tabular-nums ${
+                className={`text-xs font-medium tabular-nums ${
                   maxLineQty <= 0 ? "text-red-600" : "text-gray-500"
                 }`}
               >
@@ -210,7 +210,8 @@ const ProductOptionsModal = ({
                       key={size}
                       type="button"
                       disabled={isSizeOut}
-                      className={`px-4 py-2 text-sm font-semibold rounded-xl border transition-all flex items-center gap-2 cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${
+                      title={hasCupLimit ? `${sizeInfo.cupRemaining} cups left` : undefined}
+                      className={`px-4 py-2 text-sm font-semibold rounded-xl border transition-all cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${
                         isSelected
                           ? "bg-gray-900 text-white border-gray-900 shadow-sm"
                           : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
@@ -221,20 +222,7 @@ const ProductOptionsModal = ({
                         setProductOptions((p) => ({ ...p, cupSize: size }));
                       }}
                     >
-                      <span>{size}</span>
-                      {hasCupLimit && (
-                        <span
-                          className={`text-[11px] font-mono tabular-nums px-1.5 py-0.5 rounded ${
-                            isSizeOut
-                              ? "bg-red-100 text-red-700"
-                              : isSelected
-                                ? "bg-white/20 text-white"
-                                : "bg-gray-100 text-gray-600"
-                          }`}
-                        >
-                          {isSizeOut ? "Out" : `${sizeInfo.cupRemaining} left`}
-                        </span>
-                      )}
+                      {isSizeOut ? `${size} (Out)` : size}
                     </button>
                   );
                 })}
@@ -248,7 +236,7 @@ const ProductOptionsModal = ({
               <div className="flex justify-between items-center mb-2">
                 <label className="block text-sm font-semibold text-gray-800">Add-ons</label>
                 <span className="text-xs text-gray-500 font-medium">
-                  Max {MAX_ADDON_QTY} per add-on (stock-capped)
+                  Max {MAX_ADDON_QTY} per add-on
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -271,9 +259,7 @@ const ProductOptionsModal = ({
                       <div className="flex items-center justify-between gap-1.5 mb-2">
                         <span className="text-sm font-bold text-gray-900 truncate">{addon}</span>
                         {isAddonOut && (
-                          <span className="text-[10px] font-bold uppercase text-red-600 shrink-0">
-                            Out of stock
-                          </span>
+                          <span className="text-xs text-gray-400 shrink-0">Out</span>
                         )}
                       </div>
                       <div className="flex items-center justify-between mt-auto">

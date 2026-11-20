@@ -25,13 +25,11 @@ const ProductCard = ({ product, stockSummary, onClick, onViewRecipe }) => {
         ? 'bg-amber-400'
         : 'bg-gray-900';
 
-  const availabilityTextClass = isAllInCart
-    ? 'text-amber-700'
-    : isUnavailable
-      ? 'text-red-600'
-      : isLow
-        ? 'text-amber-600'
-        : 'text-gray-500';
+  const availabilityTextClass = isUnavailable
+    ? 'text-red-600'
+    : isLow
+      ? 'text-amber-600'
+      : 'text-gray-400';
 
   return (
     <div
@@ -64,8 +62,8 @@ const ProductCard = ({ product, stockSummary, onClick, onViewRecipe }) => {
           <p className="m-0 text-base font-extrabold text-gray-900 tabular-nums">
             ₱{product.price?.toFixed(2)}
           </p>
-          <span className={`text-xs font-semibold tabular-nums ${availabilityTextClass}`}>
-            {remainingOrderable} available
+          <span className={`text-xs font-medium tabular-nums ${availabilityTextClass}`}>
+            {remainingOrderable} left
           </span>
         </div>
 

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Docs/Defense: Complete 7-Section Defense Guide (.docx & .pdf) - 2026-11-20]
+- **`docs/defense/CofTea_Complete_Defense_Guide.docx` & `.pdf`**: Exported the complete, up-to-date 7-section defense guide covering presentation structure, verified Alpha/Beta paper figures and Appendix C quotes, exact Vercel + Render + Cloudflare + Supabase + Gemini (`gemini-3.5-flash-lite`) stack/TCO, live system mechanics (including today's stock-capped POS `/api/pos/catalog` + `409 Conflict`, fixed liquid yields, and linked-supplier PO filtering), paper-vs-system honesty points, 10 outside-the-box Q&As, and the tonight/tomorrow checklist.
+
+## [Database/Seed: Historical Sales Seed for 2026-11-18 to 2026-11-20 - 2026-11-20]
+- **`docs/database/seed_sales_2026_11_18_to_20.mjs`**: Added and ran an idempotent ESM seed script populating realistic historical `sales` (`112` orders: `38` on Nov 18, `38` on Nov 19, `36` on Nov 20 up to `now - 15m` Manila time) and `sale_items` (`213` lines) using live `products` and `category_settings` pricing/cup sizes/add-ons without touching live inventory stock or `audit_logs`.
+
 ## [Receipt Journal: Scope Latest Preset to Capped 250 Fetch & Skip Full-Table Count - 2026-11-20]
 - **Backend (`server/routes/sales.js`)**: Added `skip_count=true` support on `GET /api/sales` to omit `{ count: 'exact' }` full-table scans when querying the `Latest` capped batch.
 - **Frontend (`src/api/salesApi.js`, `useSalesReceiptJournal.js`, `SalesReceiptJournal.jsx`, `ReceiptJournalToolbar.jsx`)**: Passed `skip_count=true` for the `Latest` preset (with clean `offset` handling when `pageSize='all'`), scoped Total Receipts KPI, Journal Revenue subtitle, `All` scope pill count, and Fetch dropdown options (`Latest 100 / 250 / 500 / 1,000`) to the loaded latest batch (default `250`).
@@ -15,6 +21,7 @@ All notable changes to this project will be documented in this file.
 - **POS UI (`usePOS.js`, `POS.jsx`, `ProductInfoModal.jsx`, `ProductOptionsModal.jsx`, `ProductCard.jsx`, `Cart.jsx`, `OngoingOrders.jsx`)**:
   - Displayed exact available-to-order servings/units alongside per-ingredient max capacity and cup stock in `ProductInfoModal`.
   - Capped item quantities, cup sizes, and add-ons in `ProductOptionsModal` and `Cart`, added live stock badges and `LIMIT REACHED` states on `ProductCard`, flagged understocked `OngoingOrders`, and blocked checkout when live DB stock is insufficient.
+  - Simplified `ProductInfoModal`, `ProductOptionsModal`, `ProductCard`, and `Cart` to clean, badge-free plain text styling matching the original POS UI.
 
 ## [Analytics/DB: Realistic Brewed Conversion Factors & Linked-Supplier PO Filtering - 2026-11-20]
 - **Supabase (`ingredients` & `supplier_ingredients`)**: Updated brewed/liquid conversion factors from dry gram/pack-count values to realistic liquid yields: `ASSAM BLACK TEA` (`500g Bag` -> `20,000 ML`), `OOLONG TEA` (`500g Pack` -> `20,000 ML`), `RED CAROLINE TEA` (`500g Pack` -> `20,000 ML`), `ESPRESSO` (`1kg Pack` -> `2,500 ML`), and `YAKULT` (`Pack of 5` -> `400 ML`), recalculating `unit_cost` while preserving agreed `supplier_ingredients.default_price`.
