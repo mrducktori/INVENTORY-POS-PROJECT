@@ -187,11 +187,24 @@ router.get('/ingredient-forecast', async (req, res) => {
       recipeMap[r.product_id].push(r);
     });
 
-    // Map supplier mapping by ingredient_id
+    // Map supplier mapping by ingredient_id (primary + full list)
     const supplierMap = {};
+    const supplierListMap = {};
     (supplierMappings || []).forEach(sm => {
       if (!supplierMap[sm.ingredient_id]) {
         supplierMap[sm.ingredient_id] = sm;
+      }
+      if (!supplierListMap[sm.ingredient_id]) {
+        supplierListMap[sm.ingredient_id] = [];
+      }
+      if (sm.suppliers?.id) {
+        supplierListMap[sm.ingredient_id].push({
+          supplier_id: sm.suppliers.id,
+          supplier_name: sm.suppliers.name,
+          default_purchase_unit: sm.default_purchase_unit || null,
+          default_conversion_factor: parseFloat(sm.default_conversion_factor) || null,
+          default_price: parseFloat(sm.default_price) || null,
+        });
       }
     });
 
@@ -331,7 +344,8 @@ router.get('/ingredient-forecast', async (req, res) => {
         unit_price: unitCost,
         estimated_restock_cost: parseFloat(estimatedCost.toFixed(2)),
         supplier_id: supMapping?.suppliers?.id || null,
-        supplier_name: supMapping?.suppliers?.name || 'Unassigned Supplier'
+        supplier_name: supMapping?.suppliers?.name || 'Unassigned Supplier',
+        available_suppliers: supplierListMap[item.id] || []
       };
     });
 

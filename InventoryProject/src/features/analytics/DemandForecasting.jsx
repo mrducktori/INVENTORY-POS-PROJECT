@@ -29,7 +29,7 @@ const DemandForecasting = () => {
     aiTargetYear, aiTargetMonth, aiLoading, aiResult,
     handleOpenMonthlyModal, handleSelectAiYear, handleSelectAiMonth,
     suppliers, poModalOpen, setPoModalOpen,
-    poTargetSupplierId, setPoTargetSupplierId, poItems,
+    poTargetSupplierId, handleSelectPoSupplier, poItems,
     poExpectedDate, setPoExpectedDate, poNotes, setPoNotes, submittingPO,
     handleUpdatePoItemQty, handleRemovePoItem, calculatePoTotal, handleConfirmSubmitPO,
     toast, setToast,
@@ -180,7 +180,7 @@ const DemandForecasting = () => {
         onClose={() => setPoModalOpen(false)}
         suppliers={suppliers}
         poTargetSupplierId={poTargetSupplierId}
-        setPoTargetSupplierId={setPoTargetSupplierId}
+        setPoTargetSupplierId={handleSelectPoSupplier}
         poExpectedDate={poExpectedDate}
         setPoExpectedDate={setPoExpectedDate}
         poItems={poItems}

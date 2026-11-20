@@ -456,16 +456,57 @@ export const useDemandForecasting = () => {
     setSelectedCategory('ALL');
   };
 
-  const mapToPoItem = (item) => ({
-    ingredient_id: item.id,
-    name: item.name,
-    quantity: item.suggested_purchase_qty > 0 ? item.suggested_purchase_qty : 1,
-    unit_price: item.unit_price > 0 ? item.unit_price : 0,
-    purchase_unit: item.purchase_unit || item.unit,
-    conversion_factor: item.conversion_factor || 1,
-    stock_quantity: item.stock_quantity,
-    unit: item.unit,
-  });
+  const mapToPoItem = (item) => {
+    const unitPrice = item.unit_price > 0 ? item.unit_price : 0;
+    const purchaseUnit = item.purchase_unit || item.unit;
+    const conversionFactor = item.conversion_factor || 1;
+    return {
+      ingredient_id: item.id,
+      name: item.name,
+      quantity: item.suggested_purchase_qty > 0 ? item.suggested_purchase_qty : 1,
+      unit_price: unitPrice,
+      purchase_unit: purchaseUnit,
+      conversion_factor: conversionFactor,
+      base_unit_price: unitPrice,
+      base_purchase_unit: purchaseUnit,
+      base_conversion_factor: conversionFactor,
+      available_suppliers: item.available_suppliers || [],
+      stock_quantity: item.stock_quantity,
+      unit: item.unit,
+    };
+  };
+
+  const applySupplierToItems = (items, supplierId) => {
+    if (!supplierId) return items;
+    return items.map((item) => {
+      const match = (item.available_suppliers || []).find(
+        (s) => String(s.supplier_id) === String(supplierId)
+      );
+      if (!match) {
+        return {
+          ...item,
+          unit_price: item.base_unit_price,
+          purchase_unit: item.base_purchase_unit,
+          conversion_factor: item.base_conversion_factor,
+        };
+      }
+      return {
+        ...item,
+        unit_price: match.default_price > 0 ? match.default_price : item.base_unit_price,
+        purchase_unit: match.default_purchase_unit || item.base_purchase_unit,
+        conversion_factor:
+          match.default_conversion_factor > 0
+            ? match.default_conversion_factor
+            : item.base_conversion_factor,
+      };
+    });
+  };
+
+  const handleSelectPoSupplier = (supplierId) => {
+    const idStr = String(supplierId);
+    setPoTargetSupplierId(idStr);
+    setPoItems((prev) => applySupplierToItems(prev, idStr));
+  };
 
   const handleOrderAllCritical = () => {
     const criticalItems = ingredientData.ingredients.filter(
@@ -474,19 +515,25 @@ export const useDemandForecasting = () => {
     if (criticalItems.length === 0) return;
 
     const firstSupplierId = criticalItems.find((i) => i.supplier_id)?.supplier_id;
-    setPoTargetSupplierId(
-      firstSupplierId ? String(firstSupplierId) : suppliers[0]?.id ? String(suppliers[0].id) : ''
-    );
-    setPoItems(criticalItems.map(mapToPoItem));
+    const targetId = firstSupplierId
+      ? String(firstSupplierId)
+      : suppliers[0]?.id
+        ? String(suppliers[0].id)
+        : '';
+    setPoTargetSupplierId(targetId);
+    setPoItems(applySupplierToItems(criticalItems.map(mapToPoItem), targetId));
     setPoNotes(`Restock order for ${criticalItems.length} critical raw materials.`);
     setPoModalOpen(true);
   };
 
   const handleOpenSingleItemPO = (item) => {
-    setPoTargetSupplierId(
-      item.supplier_id ? String(item.supplier_id) : suppliers[0]?.id ? String(suppliers[0].id) : ''
-    );
-    setPoItems([mapToPoItem(item)]);
+    const targetId = item.supplier_id
+      ? String(item.supplier_id)
+      : suppliers[0]?.id
+        ? String(suppliers[0].id)
+        : '';
+    setPoTargetSupplierId(targetId);
+    setPoItems(applySupplierToItems([mapToPoItem(item)], targetId));
     setPoNotes(`Reorder for ${item.name} (Current stock: ${item.stock_quantity} ${item.unit}).`);
     setPoModalOpen(true);
   };
@@ -497,10 +544,13 @@ export const useDemandForecasting = () => {
       selectedIngredientIds.includes(item.id)
     );
     const firstSupplierId = selectedItems.find((i) => i.supplier_id)?.supplier_id;
-    setPoTargetSupplierId(
-      firstSupplierId ? String(firstSupplierId) : suppliers[0]?.id ? String(suppliers[0].id) : ''
-    );
-    setPoItems(selectedItems.map(mapToPoItem));
+    const targetId = firstSupplierId
+      ? String(firstSupplierId)
+      : suppliers[0]?.id
+        ? String(suppliers[0].id)
+        : '';
+    setPoTargetSupplierId(targetId);
+    setPoItems(applySupplierToItems(selectedItems.map(mapToPoItem), targetId));
     setPoNotes(`Batch restock order (${selectedItems.length} items).`);
     setPoModalOpen(true);
   };
@@ -621,6 +671,7 @@ export const useDemandForecasting = () => {
     setPoModalOpen,
     poTargetSupplierId,
     setPoTargetSupplierId,
+    handleSelectPoSupplier,
     poItems,
     poExpectedDate,
     setPoExpectedDate,

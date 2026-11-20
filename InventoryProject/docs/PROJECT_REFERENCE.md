@@ -35,7 +35,7 @@
 - **Account Management** — User CRUD with role-based access (Owner > Admin > Staff)
 - **Content Management (CMS)** — Owner/Admin can update landing page content without code
 
-**Production Domain:** `https://cofteacafe.space` (hosted on cPanel with Node.js)
+**Production Domain:** `https://cofteacafe.space` (Cloudflare DNS -> Vercel frontend `https://cofteacafe.vercel.app` + Render backend `https://coftea-pos-api.onrender.com`; legacy cPanel monolith setup retained as an alternative option)
 
 ---
 
@@ -149,13 +149,14 @@ The app does NOT use `react-router-dom` for internal dashboard pages. Instead:
 
 | Layer | Technology | Notes |
 |-------|-----------|-------|
-| **Frontend** | React 18 + Vite | Single-page app |
+| **Frontend** | React 19 + Vite 8 | Single-page app (`React Router 7` top-level + tab state) |
 | **Styling** | Tailwind CSS 4 + Custom CSS | Mixed approach (see section 4) |
 | **Backend** | Express.js 5 (ESM) | Node 20+, ES modules (`"type": "module"`) |
-| **Database** | PostgreSQL via Supabase | Hosted, uses JS client (`@supabase/supabase-js`) |
+| **Database** | PostgreSQL via Supabase | Hosted (14 tables), uses JS client (`@supabase/supabase-js`) |
 | **Storage** | Supabase Storage | `cms-images` bucket for CMS uploads |
-| **Auth** | JWT (`jsonwebtoken`) + bcrypt + single-session ID | ✅ Upgraded from `x-user-id` headers |
-| **Hosting** | cPanel | Node.js app, custom domain |
+| **AI Forecasting** | Google Gemini API (`gemini-3.5-flash-lite`) | Structured prompt inference + 90-day deterministic fallback |
+| **Auth** | JWT (`jsonwebtoken`) + bcrypt + single-session ID | Upgraded from `x-user-id` headers |
+| **Hosting** | Vercel + Render + Cloudflare DNS | Decoupled cloud (cPanel monolith retained as legacy option) |
 
 ---
 
@@ -637,14 +638,14 @@ if (loading) return <div className="text-center p-8 text-gray-500">Loading...</d
 
 ### Stored Procedures (RPC) & Storage Buckets
 
-- **Atomic POS Checkout RPC (`process_pos_checkout`)** — Defined in [process_pos_checkout_rpc.sql](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/docs/database/process_pos_checkout_rpc.sql). Accepts `(p_sale_data, p_sale_items, p_product_deductions, p_ingredient_deductions)` inside a single PL/pgSQL transaction (`SECURITY DEFINER`) using `FOR UPDATE` row-level locks to verify and deduct tracked `products` and recipe `ingredients`, insert into `sales` and `sale_items`, and automatically roll back on insufficient stock.
+- **Atomic POS Checkout RPC (`process_pos_checkout` — Drafted in SQL)** — Defined in [process_pos_checkout_rpc.sql](file:///d:/CODING%20THINGS/CAPSTONE%20PROJECT/INVENTORY-POS-PROJECT/InventoryProject/docs/database/process_pos_checkout_rpc.sql). Accepts `(p_sale_data, p_sale_items, p_product_deductions, p_ingredient_deductions)` inside a single PL/pgSQL transaction (`SECURITY DEFINER`) using `FOR UPDATE` row-level locks to verify and deduct tracked `products` and recipe `ingredients`, insert into `sales` and `sale_items`, and roll back on insufficient stock. *(Note: Not yet invoked by `posService.js`; planned for multi-terminal concurrency hardening with deterministic lock ordering and `REVOKE EXECUTE`.)*
 - **Storage Bucket (`cms-images`)** — Public Supabase Storage bucket hosting uploaded product photos, raw material images, and CMS promotional banners.
 
 ### Important Schema Details
 
 - **Soft Deletes & Retention Rules** — `products` and `ingredients` use `is_archived` boolean (and `users` uses `status = 'INACTIVE'`) rather than immediate hard `DELETE`. Permanent deletion looks up archive timestamps from `audit_logs` (`PRODUCT_ARCHIVED`, `RAW_MATERIAL_ARCHIVED`, `USER_STATUS_CHANGED`): `products`, `ingredients`, and non-Admin accounts require **30 days** elapsed with zero historical sales/PO/wastage/cashier references, **Admin** accounts require **90 days**, and the **Owner** account is permanently protected.
 - **Dynamic Restock Thresholds** — Both `ingredients` and `products` support an optional `max_stock` capacity column. When `max_stock` is configured, restock alerts trigger when `stock_quantity <= (max_stock * 0.5)`; otherwise alerts fall back to `low_stock_alert` (`ingredients`) or `low_stock_threshold` (`products`).
-- **Recipe-Based & Direct Stock Deductions** — During POS checkout, `posService.js` invokes `process_pos_checkout` to deduct `products.stock_quantity` for `track_stock = true` items and deducts `ingredients.stock_quantity` via `recipes` (`quantity_used`, `recipe_unit`) for recipe-based beverages.
+- **Recipe-Based & Direct Stock Deductions** — During POS checkout, `posService.js` executes batched stock pre-checks (`Promise.all`) followed by parallel `sales`/`sale_items` writes and product/ingredient deductions with manual rollback compensation on error (`products.stock_quantity` for `track_stock = true` items; `ingredients.stock_quantity` via `recipes` for recipe-based beverages). Wiring `process_pos_checkout` RPC is the planned upgrade for concurrent terminals.
 - **PO Unit Conversion & Partial Receiving** — `purchase_order_items` stores `purchase_unit` and `conversion_factor` (converting vendor packages like bags/sacks to inventory units like grams/milliliters upon receiving), alongside `quantity_received`, `is_received`, and a `receipt_history` JSONB array tracking partial deliveries.
 - **Audit-Log Backed Staff Requests** — Staff requests (`requestsService.js`) fall back seamlessly to storing records inside `audit_logs` (`action = 'STAFF_REQUEST'`, `entity_type = 'REQUEST'`, structured payload in `new_value` and `details`) when no standalone `requests` table is present.
 - **Timezone** — All timestamps are `timestamptz`; the app assumes **Asia/Manila (+08:00)** timezone.
@@ -654,6 +655,7 @@ if (loading) return <div className="text-center p-8 text-gray-500">Loading...</d
 ## 9. Security Audit & Status
 
 > Full security audit performed on **2026-09-24**. Found **3 critical, 4 high, 5 medium, 3 low** severity issues.
+> **Update (2026-11-20):** Core items **C2, H1–H4, M1, M3, and M4** have since been resolved (see the live **Priority Action Plan & Current Status** table at the bottom of Section 9). The itemized descriptions below are kept for historical audit context.
 
 ### ✅ What's Already Done Well
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { formatCurrency } from '../utils/forecastUtils';
 
@@ -19,7 +19,50 @@ const ForecastCreatePOModal = ({
   poTotal,
   onConfirmSubmit,
 }) => {
+  const [showAllForKey, setShowAllForKey] = useState(null);
+
+  const modalKey = useMemo(
+    () => (isOpen ? poItems.map((item) => item.ingredient_id).join(',') : ''),
+    [isOpen, poItems]
+  );
+  const showAllSuppliers = Boolean(modalKey) && showAllForKey === modalKey;
+
+  const { preferredSuppliers, hasMissingLinks } = useMemo(() => {
+    const anyLinkedIds = new Set();
+    let commonLinkedIds = null;
+
+    poItems.forEach((item) => {
+      const linked = (item.available_suppliers || []).map((s) => String(s.supplier_id));
+      if (linked.length === 0) return;
+      linked.forEach((id) => anyLinkedIds.add(id));
+      const itemSet = new Set(linked);
+      if (commonLinkedIds === null) {
+        commonLinkedIds = itemSet;
+      } else {
+        commonLinkedIds = new Set([...commonLinkedIds].filter((id) => itemSet.has(id)));
+      }
+    });
+
+    const targetIds =
+      commonLinkedIds && commonLinkedIds.size > 0
+        ? commonLinkedIds
+        : anyLinkedIds.size > 0
+          ? anyLinkedIds
+          : null;
+
+    const matched = targetIds
+      ? suppliers.filter((sup) => targetIds.has(String(sup.id)))
+      : suppliers;
+
+    return {
+      preferredSuppliers: matched.length > 0 ? matched : suppliers,
+      hasMissingLinks: matched.length > 0 && matched.length < suppliers.length,
+    };
+  }, [poItems, suppliers]);
+
   if (!isOpen) return null;
+
+  const visibleSuppliers = showAllSuppliers ? suppliers : preferredSuppliers;
 
   return createPortal(
     <div
@@ -56,11 +99,24 @@ const ForecastCreatePOModal = ({
         <div className="p-6 overflow-y-auto space-y-5 flex-1">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-zinc-700 mb-1.5">
-                Supplier *
-              </label>
+              <div className="flex items-center justify-between gap-2 mb-1.5">
+                <label className="block text-xs font-semibold text-zinc-700">
+                  Supplier *
+                </label>
+                {hasMissingLinks && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setShowAllForKey((prev) => (prev === modalKey ? null : modalKey))
+                    }
+                    className="text-[11px] font-semibold text-zinc-500 hover:text-zinc-900 bg-transparent border-none p-0 cursor-pointer underline"
+                  >
+                    {showAllSuppliers ? 'Linked only' : 'Show all suppliers'}
+                  </button>
+                )}
+              </div>
               <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-1 border border-zinc-200 rounded-lg bg-zinc-50/60">
-                {suppliers.map((sup) => {
+                {visibleSuppliers.map((sup) => {
                   const isSelected = String(poTargetSupplierId) === String(sup.id);
                   return (
                     <button
@@ -106,14 +162,28 @@ const ForecastCreatePOModal = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                {poItems.map((item, idx) => (
-                  <tr key={item.ingredient_id}>
-                    <td className="py-3 px-4">
-                      <div className="font-semibold text-zinc-900">{item.name}</div>
-                      <div className="text-xs text-zinc-400">
-                        1 {item.purchase_unit} = {item.conversion_factor} {item.unit}
-                      </div>
-                    </td>
+                {poItems.map((item, idx) => {
+                  const notInSupplierCatalog =
+                    Boolean(poTargetSupplierId) &&
+                    (item.available_suppliers || []).length > 0 &&
+                    !(item.available_suppliers || []).some(
+                      (s) => String(s.supplier_id) === String(poTargetSupplierId)
+                    );
+
+                  return (
+                    <tr key={item.ingredient_id}>
+                      <td className="py-3 px-4">
+                        <div className="font-semibold text-zinc-900">{item.name}</div>
+                        <div className="text-xs text-zinc-400">
+                          1 &times; {item.purchase_unit} ={' '}
+                          {Number(item.conversion_factor || 1).toLocaleString()} {item.unit}
+                        </div>
+                        {notInSupplierCatalog && (
+                          <div className="text-[11px] font-medium text-amber-700 mt-0.5">
+                            Not in selected supplier&apos;s catalog
+                          </div>
+                        )}
+                      </td>
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-1.5">
                         <input
@@ -147,8 +217,9 @@ const ForecastCreatePOModal = ({
                         </button>
                       )}
                     </td>
-                  </tr>
-                ))}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
