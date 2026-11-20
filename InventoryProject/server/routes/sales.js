@@ -238,7 +238,7 @@ router.get('/summary/report', async (req, res) => {
       .from('sales')
       .select(`
         total_amount, created_at, users(id, name),
-        sale_items(quantity, unit_price, products(id, name))
+        sale_items(quantity, unit_price, products(id, name, category))
       `)
       .gte('created_at', startStr);
 

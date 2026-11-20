@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Reports/Fix: Include Product Category in Sales Performance Report - 2026-11-21]
+- **`server/routes/sales.js`**: Added `category` to `products(id, name, category)` in `GET /api/sales/reports/summary` so **Top Products Sold** displays each product's actual category instead of `Uncategorized`.
+
 ## [Docs/Defense: Concise 2-Page System Guide PDF - 2026-11-21]
 - **`docs/defense/CofTea_Concise_System_Guide.pdf`**: Exported a concise 2-page PDF summary covering tech stack & hosting, security controls, the 5-step operational process, and retention/scope boundaries.
 
