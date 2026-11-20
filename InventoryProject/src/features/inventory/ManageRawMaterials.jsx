@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useManageRawMaterials } from './hooks/useManageRawMaterials';
 import ConfirmModal from '../../components/shared/ConfirmModal';
 import Pagination from '../../components/shared/Pagination';
+import RawMaterialCategoriesModal from './components/RawMaterialCategoriesModal';
 import { formatQuantity } from '../../utils/productUtils';
 
 const ManageRawMaterials = () => {
@@ -22,7 +23,9 @@ const ManageRawMaterials = () => {
     editConversionFactor, setEditConversionFactor,
     editCost, setEditCost,
     categoryFilter, setCategoryFilter,
-    RAW_MATERIAL_CATEGORIES,
+    categories,
+    categoryObjects,
+    refreshCategories,
     editCategory, setEditCategory,
     UNIT_CHOICES,
     handleAddIngredient,
@@ -40,6 +43,8 @@ const ManageRawMaterials = () => {
   // Pagination for Modify Grid View
   const [modifyCurrentPage, setModifyCurrentPage] = useState(1);
   const [modifyItemsPerPage, setModifyItemsPerPage] = useState(12);
+
+  const [isCategoriesModalOpen, setIsCategoriesModalOpen] = useState(false);
 
   const archivedRawMaterialsList = useMemo(() => {
     return ingredients.filter(i => i.is_archived);
@@ -99,25 +104,37 @@ const ManageRawMaterials = () => {
           <h1 className="m-0 text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">Manage Raw Materials</h1>
           <p className="m-0 mt-1 text-sm text-gray-500 font-medium">Add ingredients, update stock levels, and configure low-stock alerts.</p>
         </div>
-        <div className="flex flex-wrap gap-2 md:gap-3 bg-white p-1.5 rounded-xl shadow-sm border border-gray-200">
+        <div className="flex flex-wrap items-center gap-2 md:gap-3">
           <button
             type="button"
-            className={`px-4 py-2 text-sm font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
-              viewMode === 'ADD' ? 'bg-gray-900 text-white shadow-md' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-            }`}
-            onClick={() => { setViewMode('ADD'); setMessage(''); }}
+            onClick={() => setIsCategoriesModalOpen(true)}
+            className="px-4 py-2.5 text-sm font-bold uppercase tracking-wider rounded-xl border border-gray-200 bg-white text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-all cursor-pointer flex items-center gap-2 shadow-sm"
           >
-            Add Material
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+            </svg>
+            Manage Categories
           </button>
-          <button
-            type="button"
-            className={`px-4 py-2 text-sm font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
-              viewMode === 'MODIFY' ? 'bg-gray-900 text-white shadow-md' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-            }`}
-            onClick={() => { setViewMode('MODIFY'); setMessage(''); }}
-          >
-            Modify Existing
-          </button>
+          <div className="flex flex-wrap gap-2 md:gap-3 bg-white p-1.5 rounded-xl shadow-sm border border-gray-200">
+            <button
+              type="button"
+              className={`px-4 py-2 text-sm font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
+                viewMode === 'ADD' ? 'bg-gray-900 text-white shadow-md' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}
+              onClick={() => { setViewMode('ADD'); setMessage(''); }}
+            >
+              Add Material
+            </button>
+            <button
+              type="button"
+              className={`px-4 py-2 text-sm font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
+                viewMode === 'MODIFY' ? 'bg-gray-900 text-white shadow-md' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}
+              onClick={() => { setViewMode('MODIFY'); setMessage(''); }}
+            >
+              Modify Existing
+            </button>
+          </div>
         </div>
       </div>
 
@@ -178,7 +195,7 @@ const ManageRawMaterials = () => {
                       className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium focus:outline-none focus:bg-white focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors cursor-pointer"
                     >
                       <option value="">Select Category</option>
-                      {RAW_MATERIAL_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                      {categories.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
 
@@ -273,7 +290,7 @@ const ManageRawMaterials = () => {
                   onChange={e => handleCategoryChange(e.target.value)}
                 >
                   <option value="ALL">All Categories</option>
-                  {RAW_MATERIAL_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  {categories.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
             </div>
@@ -587,7 +604,7 @@ const ManageRawMaterials = () => {
                       className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-sm md:text-base font-semibold focus:outline-none focus:bg-white focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors cursor-pointer"
                     >
                       <option value="">No Category</option>
-                      {RAW_MATERIAL_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                      {categories.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
                   <div className="flex flex-col gap-1.5 flex-1">
@@ -699,6 +716,17 @@ const ManageRawMaterials = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ---- CATEGORIES MODAL ---- */}
+      {isCategoriesModalOpen && (
+        <RawMaterialCategoriesModal
+          onClose={() => setIsCategoriesModalOpen(false)}
+          categoryObjects={categoryObjects}
+          onCategoriesChanged={async () => {
+            await Promise.all([refreshCategories(), fetchIngredients()]);
+          }}
+        />
       )}
 
       {/* ---- CONFIRM MODAL ---- */}

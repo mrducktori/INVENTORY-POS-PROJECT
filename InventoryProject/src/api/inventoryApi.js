@@ -57,3 +57,27 @@ export const restoreIngredient = async (id) => {
     body: JSON.stringify({ user_id: getUserId() })
   });
 };
+
+export const getRawMaterialCategories = async () => {
+  return apiCall('/inventory/categories', { method: 'GET' });
+};
+
+export const createRawMaterialCategory = async (category) => {
+  return apiCall('/inventory/categories', {
+    method: 'POST',
+    body: JSON.stringify({ category })
+  });
+};
+
+export const renameRawMaterialCategory = async (oldName, newName) => {
+  return apiCall(`/inventory/categories/${encodeURIComponent(oldName)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ new_name: newName })
+  });
+};
+
+export const deleteRawMaterialCategory = async (name) => {
+  return apiCall(`/inventory/categories/${encodeURIComponent(name)}`, {
+    method: 'DELETE'
+  });
+};

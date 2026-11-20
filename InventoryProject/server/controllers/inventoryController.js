@@ -144,3 +144,64 @@ export const restoreIngredient = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+export const getCategories = async (req, res) => {
+  try {
+    const data = await inventoryService.getRawMaterialCategories();
+    res.json(data);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+};
+
+export const createCategory = async (req, res) => {
+  try {
+    const rawName = req.body?.name ?? req.body?.category;
+    const data = await inventoryService.createRawMaterialCategory(rawName);
+    invalidateAnalyticsCache();
+
+    await logAudit('RAW_MATERIAL_CATEGORY_CREATED', req.user.id, {
+      category: data.category,
+      created_by: req.user.name
+    });
+
+    res.status(201).json(data);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+};
+
+export const renameCategory = async (req, res) => {
+  try {
+    const rawNewName = req.body?.new_name ?? req.body?.name ?? req.body?.category;
+    const result = await inventoryService.renameRawMaterialCategory(req.params.name, rawNewName);
+    invalidateAnalyticsCache();
+
+    await logAudit('RAW_MATERIAL_CATEGORY_RENAMED', req.user.id, {
+      old_name: result.old_name,
+      new_name: result.new_name,
+      updated_count: result.updated_count,
+      changed_by: req.user.name
+    });
+
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+};
+
+export const deleteCategory = async (req, res) => {
+  try {
+    const result = await inventoryService.deleteRawMaterialCategory(req.params.name);
+    invalidateAnalyticsCache();
+
+    await logAudit('RAW_MATERIAL_CATEGORY_DELETED', req.user.id, {
+      category: result.category,
+      deleted_by: req.user.name
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+};

@@ -16,5 +16,10 @@ router.get("/alerts", inventoryController.getLowStockAlerts);
 router.put("/ingredients/:id/archive", inventoryController.archiveIngredient);
 router.put("/ingredients/:id/restore", inventoryController.restoreIngredient);
 
+// Raw material category management
+router.get("/categories", inventoryController.getCategories);
+router.post("/categories", requireRole("Owner", "Admin", "Custom"), inventoryController.createCategory);
+router.put("/categories/:name", requireRole("Owner", "Admin", "Custom"), inventoryController.renameCategory);
+router.delete("/categories/:name", requireRole("Owner", "Admin", "Custom"), inventoryController.deleteCategory);
 
 export default router;

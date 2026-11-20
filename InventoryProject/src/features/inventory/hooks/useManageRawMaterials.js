@@ -1,5 +1,13 @@
-import { useState, useEffect } from 'react';
-import { getIngredients, createIngredient, updateIngredient, archiveIngredient, restoreIngredient, deleteIngredient } from '../../../api/inventoryApi';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import {
+  getIngredients,
+  createIngredient,
+  updateIngredient,
+  archiveIngredient,
+  restoreIngredient,
+  deleteIngredient,
+  getRawMaterialCategories
+} from '../../../api/inventoryApi';
 import { checkDuplicateOrSimilar } from '../../../utils/productUtils';
 
 export const RAW_MATERIAL_CATEGORIES = [
@@ -37,11 +45,41 @@ export const useManageRawMaterials = () => {
   const [editCost, setEditCost] = useState(0);
   const [editCategory, setEditCategory] = useState('');
 
+  const [categoryObjects, setCategoryObjects] = useState(() =>
+    RAW_MATERIAL_CATEGORIES.map((category) => ({ category, ingredient_count: 0 }))
+  );
+
   const UNIT_CHOICES = ['KG', 'G', 'L', 'ML', 'PCS', 'PACK', 'BOTTLE', 'CAN'];
+
+  const refreshCategories = useCallback(async () => {
+    try {
+      const data = await getRawMaterialCategories();
+      if (Array.isArray(data)) {
+        setCategoryObjects(data);
+        return data;
+      }
+    } catch (err) {
+      console.error('Failed to load raw material categories:', err);
+    }
+    return null;
+  }, []);
+
+  const categories = useMemo(() => {
+    return categoryObjects
+      .map((item) => (typeof item === 'string' ? item : item?.category))
+      .filter(Boolean);
+  }, [categoryObjects]);
+
+  useEffect(() => {
+    if (categoryFilter !== 'ALL' && !categories.includes(categoryFilter)) {
+      setCategoryFilter('ALL');
+    }
+  }, [categories, categoryFilter]);
 
   useEffect(() => {
     fetchIngredients();
-  }, []);
+    refreshCategories();
+  }, [refreshCategories]);
 
   const fetchIngredients = async () => {
     try {
@@ -290,6 +328,9 @@ export const useManageRawMaterials = () => {
     searchTerm, setSearchTerm,
     statusFilter, setStatusFilter,
     categoryFilter, setCategoryFilter,
+    categories,
+    categoryObjects,
+    refreshCategories,
     RAW_MATERIAL_CATEGORIES,
     confirmConfig, setConfirmConfig,
     formData, handleInputChange,

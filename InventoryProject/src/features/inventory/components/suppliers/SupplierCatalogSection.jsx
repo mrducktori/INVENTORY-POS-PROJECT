@@ -32,7 +32,7 @@ export default function SupplierCatalogSection() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   
-  // Track edited values: { [ingredient_id]: { price, purchase_unit, conversion_factor } }
+  // Track edited values: { [ingredient_id]: { price, purchase_unit } }
   const [edits, setEdits] = useState({});
 
   const loadCatalog = async () => {
@@ -110,7 +110,7 @@ export default function SupplierCatalogSection() {
     items.forEach(row => {
       const ingredientId = row.ingredient_id || row.ingredients?.id;
       const editData = edits[ingredientId];
-      if (editData && (editData.price !== undefined || editData.purchase_unit !== undefined || editData.conversion_factor !== undefined)) {
+      if (editData && (editData.price !== undefined || editData.purchase_unit !== undefined)) {
         edited++;
       }
     });
@@ -141,16 +141,6 @@ export default function SupplierCatalogSection() {
     }));
   };
 
-  const handleConversionChange = (ingredientId, value) => {
-    setEdits(prev => ({
-      ...prev,
-      [ingredientId]: {
-        ...(prev[ingredientId] || {}),
-        conversion_factor: value
-      }
-    }));
-  };
-
   const handleReset = () => {
     setEdits({});
     setSuccessMsg('');
@@ -170,8 +160,7 @@ export default function SupplierCatalogSection() {
         return {
           ingredient_id: ingredientId,
           default_price: change.price !== undefined ? parseFloat(change.price) : original?.default_price,
-          default_purchase_unit: change.purchase_unit !== undefined ? change.purchase_unit : original?.default_purchase_unit,
-          default_conversion_factor: change.conversion_factor !== undefined ? parseFloat(change.conversion_factor) : original?.default_conversion_factor
+          default_purchase_unit: change.purchase_unit !== undefined ? change.purchase_unit : original?.default_purchase_unit
         };
       });
 
@@ -198,8 +187,7 @@ export default function SupplierCatalogSection() {
       const editData = edits[ingredientId];
       const isModified = editData && (
         editData.price !== undefined || 
-        editData.purchase_unit !== undefined || 
-        editData.conversion_factor !== undefined
+        editData.purchase_unit !== undefined
       );
 
       const matchesSearch = !term || 
@@ -227,8 +215,8 @@ export default function SupplierCatalogSection() {
       const bId = b.ingredient_id || bIng.id;
       const aEdit = edits[aId];
       const bEdit = edits[bId];
-      const aModified = Boolean(aEdit && (aEdit.price !== undefined || aEdit.purchase_unit !== undefined || aEdit.conversion_factor !== undefined));
-      const bModified = Boolean(bEdit && (bEdit.price !== undefined || bEdit.purchase_unit !== undefined || bEdit.conversion_factor !== undefined));
+      const aModified = Boolean(aEdit && (aEdit.price !== undefined || aEdit.purchase_unit !== undefined));
+      const bModified = Boolean(bEdit && (bEdit.price !== undefined || bEdit.purchase_unit !== undefined));
 
       const aPrice = aEdit?.price !== undefined ? parseFloat(aEdit.price) : (parseFloat(a.default_price) || 0);
       const bPrice = bEdit?.price !== undefined ? parseFloat(bEdit.price) : (parseFloat(b.default_price) || 0);
@@ -600,11 +588,11 @@ export default function SupplierCatalogSection() {
                   const ing = row.ingredients || {};
                   const ingredientId = row.ingredient_id || ing.id;
                   const editData = edits[ingredientId] || {};
-                  const isModified = editData.price !== undefined || editData.purchase_unit !== undefined || editData.conversion_factor !== undefined;
+                  const isModified = editData.price !== undefined || editData.purchase_unit !== undefined;
 
                   const currentPrice = editData.price !== undefined ? editData.price : (row.default_price || 0);
                   const currentUnit = editData.purchase_unit !== undefined ? editData.purchase_unit : (row.default_purchase_unit || 'Unit');
-                  const currentConversion = editData.conversion_factor !== undefined ? editData.conversion_factor : (row.default_conversion_factor || 1);
+                  const currentConversion = row.default_conversion_factor || 1;
 
                   const numericPrice = parseFloat(currentPrice) || 0;
                   const numericConversion = parseFloat(currentConversion) || 1;
@@ -647,19 +635,12 @@ export default function SupplierCatalogSection() {
                         </div>
                       </td>
 
-                      {/* Yield / Conversion Factor */}
+                      {/* Yield / Conversion Factor (Managed by Cafe Admin/Owner) */}
                       <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-1.5">
-                          <input
-                            type="number"
-                            step="any"
-                            min="0.001"
-                            value={currentConversion}
-                            onChange={(e) => handleConversionChange(ingredientId, e.target.value)}
-                            className="w-24 px-2.5 py-1.5 text-xs font-semibold bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-900"
-                          />
-                          <span className="text-[11px] text-gray-400 font-medium">{ing.unit || 'units'}</span>
+                        <div className="text-xs font-semibold text-gray-700 font-mono">
+                          {Number(currentConversion).toLocaleString()} {ing.unit || 'units'}
                         </div>
+                        <div className="text-[10px] text-gray-400">Managed by café</div>
                       </td>
 
                       {/* Agreed Price */}

@@ -450,14 +450,10 @@ export const updateSupplierOwnCatalog = async (req, res) => {
 
       const rawPrice = item.default_price ?? item.price ?? existing.default_price ?? 0;
       const newPrice = Number(rawPrice);
-      const rawFactor = item.default_conversion_factor ?? item.conversion_factor ?? existing.default_conversion_factor ?? 1;
-      const convFactor = Number(rawFactor);
+      const convFactor = Number(existing.default_conversion_factor) || 1;
 
       if (!Number.isFinite(newPrice) || newPrice < 0) {
         return res.status(400).json({ error: 'Item price must be a valid non-negative number.' });
-      }
-      if (!Number.isFinite(convFactor) || convFactor <= 0) {
-        return res.status(400).json({ error: 'Conversion factor must be a positive number.' });
       }
 
       validatedItems.push({ item, existing, newPrice, convFactor });
@@ -483,20 +479,18 @@ export const updateSupplierOwnCatalog = async (req, res) => {
         .from('supplier_ingredients')
         .update({
           default_price: newPrice,
-          default_purchase_unit: item.default_purchase_unit || item.purchase_unit || existing.default_purchase_unit || 'Unit',
-          default_conversion_factor: convFactor
+          default_purchase_unit: item.default_purchase_unit || item.purchase_unit || existing.default_purchase_unit || 'Unit'
         })
         .match({ supplier_id: supplierId, ingredient_id: item.ingredient_id });
       if (upErr) throw upErr;
 
-      // Sync the ingredient's cost_per_purchase_unit and unit_cost in the database
+      // Sync the ingredient's cost_per_purchase_unit and unit_cost using the cafe's existing conversion_factor
       if (newPrice > 0) {
         const unitCost = Math.round((newPrice / convFactor) * 10000) / 10000;
         await supabase
           .from('ingredients')
           .update({
             cost_per_purchase_unit: newPrice,
-            conversion_factor: convFactor,
             unit_cost: unitCost
           })
           .eq('id', item.ingredient_id);

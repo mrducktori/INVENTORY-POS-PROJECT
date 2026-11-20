@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Inventory/UI: Dynamic Raw Material Category Management - 2026-11-21]
+- **`src/api/inventoryApi.js`**: Added `getRawMaterialCategories`, `createRawMaterialCategory`, `renameRawMaterialCategory`, and `deleteRawMaterialCategory` endpoints.
+- **`src/features/inventory/hooks/useManageRawMaterials.js`**: Loaded dynamic categories from `/api/inventory/categories` (with `RAW_MATERIAL_CATEGORIES` fallback), exposing `categories`, `categoryObjects`, and `refreshCategories`.
+- **`src/features/inventory/components/RawMaterialCategoriesModal.jsx` & `ManageRawMaterials.jsx`**: Added the **Manage Categories** modal (add, rename with explicit **Save Changes**, and delete guarded by `ingredient_count === 0`) and wired dynamic categories into all raw material filter/add/edit dropdowns.
+
+## [Suppliers/Security: Restrict Yield Editing to Café Admin/Owner/Permitted Roles - 2026-11-21]
+- **`src/features/inventory/components/suppliers/SupplierCatalogSection.jsx`**: Changed the **Yield (Base Units)** column in the Supplier Portal catalog to read-only (`Managed by café`) so external suppliers only edit packaging units and prices while internal café yields remain managed in `SupplierFormModal.jsx`.
+- **`server/controllers/purchasingController.js`**: Locked `updateSupplierOwnCatalog` to preserve `existing.default_conversion_factor` and never overwrite `ingredients.conversion_factor` from Supplier Portal requests.
+
 ## [Reports/Fix: Include Product Category in Sales Performance Report - 2026-11-21]
 - **`server/routes/sales.js`**: Added `category` to `products(id, name, category)` in `GET /api/sales/reports/summary` so **Top Products Sold** displays each product's actual category instead of `Uncategorized`.
 

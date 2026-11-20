@@ -1,5 +1,6 @@
 import { supabase } from "../config/supabaseClient.js";
 import { getArchiveTimestampsMap, getDaysSinceArchived, invalidateArchiveMap } from "../utils/archiveHelper.js";
+import { invalidateCmsCache } from "./cmsService.js";
 
 export const getIngredients = async ({ includeArchived = false } = {}) => {
   let query = supabase
@@ -280,4 +281,247 @@ export const restoreIngredient = async (id) => {
   if (error) throw error;
   invalidateArchiveMap();
   return data;
+};
+
+// ==========================================
+// RAW MATERIAL CATEGORY MANAGEMENT
+// ==========================================
+
+const RAW_MATERIAL_CATEGORIES_KEY = "raw_material_categories";
+const MAX_CATEGORY_LENGTH = 40;
+const RESERVED_CATEGORIES = new Set(["ALL", "OTHERS", "UNCATEGORIZED"]);
+
+const DEFAULT_RAW_MATERIAL_CATEGORIES = [
+  "COFFEE & TEA BASES",
+  "DAIRY & CREAMERS",
+  "SWEETENERS & SYRUPS",
+  "FLAVORING POWDERS",
+  "SINKERS & TOPPINGS",
+  "BEVERAGE ENHANCERS",
+  "PACKAGING & SUPPLIES",
+  "ADD-ONS"
+];
+
+const createHttpError = (status, message) => {
+  const err = new Error(message);
+  err.status = status;
+  return err;
+};
+
+const normalizeCategoryName = (raw) =>
+  String(raw || "").trim().replace(/\s+/g, " ").toUpperCase();
+
+const hasInvalidCategoryChars = (str) => {
+  for (let i = 0; i < str.length; i += 1) {
+    const code = str.charCodeAt(i);
+    if (code < 32 || code === 127) return true;
+  }
+  return /[\\/%]/.test(str);
+};
+
+const validateCategoryName = (raw) => {
+  const value = normalizeCategoryName(raw);
+  if (!value) {
+    return { ok: false, value, error: "Category name is required." };
+  }
+  if (value.length > MAX_CATEGORY_LENGTH) {
+    return { ok: false, value, error: `Category name must be ${MAX_CATEGORY_LENGTH} characters or less.` };
+  }
+  if (hasInvalidCategoryChars(value)) {
+    return { ok: false, value, error: "Category name cannot contain /, \\, %, or control characters." };
+  }
+  if (RESERVED_CATEGORIES.has(value)) {
+    return { ok: false, value, error: `"${value}" is a reserved category name.` };
+  }
+  return { ok: true, value };
+};
+
+const parsePersistedCategories = (description) => {
+  if (!description || typeof description !== "string") {
+    return { initialized: false, categories: [] };
+  }
+  try {
+    const parsed = JSON.parse(description);
+    if (Array.isArray(parsed)) {
+      return {
+        initialized: true,
+        categories: parsed.map(normalizeCategoryName).filter(Boolean)
+      };
+    }
+    if (parsed && typeof parsed === "object" && Array.isArray(parsed.categories)) {
+      return {
+        initialized: Boolean(parsed.initialized),
+        categories: parsed.categories.map(normalizeCategoryName).filter(Boolean)
+      };
+    }
+  } catch {
+    // Fallback to uninitialized if description is not valid JSON
+  }
+  return { initialized: false, categories: [] };
+};
+
+const loadCategoryState = async () => {
+  const [cmsRes, ingredientsRes] = await Promise.all([
+    supabase
+      .from("cms_content")
+      .select("description")
+      .eq("section_key", RAW_MATERIAL_CATEGORIES_KEY)
+      .maybeSingle(),
+    supabase
+      .from("ingredients")
+      .select("id, category")
+  ]);
+
+  if (cmsRes.error) throw cmsRes.error;
+  if (ingredientsRes.error) throw ingredientsRes.error;
+
+  const { initialized, categories: persisted } = parsePersistedCategories(cmsRes.data?.description);
+  const baseList = initialized ? persisted : DEFAULT_RAW_MATERIAL_CATEGORIES;
+
+  const categoryMap = new Map();
+  for (const cat of baseList) {
+    const normalized = normalizeCategoryName(cat);
+    if (normalized && !RESERVED_CATEGORIES.has(normalized)) {
+      categoryMap.set(normalized, 0);
+    }
+  }
+
+  const ingredientRows = ingredientsRes.data || [];
+  for (const row of ingredientRows) {
+    const normalized = normalizeCategoryName(row.category);
+    if (!normalized || RESERVED_CATEGORIES.has(normalized)) continue;
+    categoryMap.set(normalized, (categoryMap.get(normalized) || 0) + 1);
+  }
+
+  return { categoryMap, ingredientRows };
+};
+
+const savePersistedCategories = async (categories) => {
+  const uniqueSorted = Array.from(
+    new Set(categories.map(normalizeCategoryName).filter((c) => c && !RESERVED_CATEGORIES.has(c)))
+  ).sort((a, b) => a.localeCompare(b));
+
+  const payload = {
+    section_key: RAW_MATERIAL_CATEGORIES_KEY,
+    title: "Raw Material Categories",
+    description: JSON.stringify({ categories: uniqueSorted, initialized: true })
+  };
+
+  const { error } = await supabase
+    .from("cms_content")
+    .upsert(payload, { onConflict: "section_key" });
+
+  if (error) throw error;
+  invalidateCmsCache();
+  return uniqueSorted;
+};
+
+/**
+ * Fetch all raw material categories with their ingredient counts.
+ */
+export const getRawMaterialCategories = async () => {
+  const { categoryMap } = await loadCategoryState();
+  return Array.from(categoryMap.entries())
+    .map(([category, ingredient_count]) => ({ category, ingredient_count }))
+    .sort((a, b) => a.category.localeCompare(b.category));
+};
+
+/**
+ * Create a new raw material category in CMS persistence.
+ */
+export const createRawMaterialCategory = async (rawName) => {
+  const validation = validateCategoryName(rawName);
+  if (!validation.ok) {
+    throw createHttpError(400, validation.error);
+  }
+
+  const name = validation.value;
+  const { categoryMap } = await loadCategoryState();
+
+  if (categoryMap.has(name)) {
+    throw createHttpError(409, `Category "${name}" already exists.`);
+  }
+
+  const updated = Array.from(categoryMap.keys());
+  updated.push(name);
+  await savePersistedCategories(updated);
+
+  return { category: name, ingredient_count: 0 };
+};
+
+/**
+ * Rename an existing raw material category across ingredients and CMS persistence.
+ */
+export const renameRawMaterialCategory = async (rawOldName, rawNewName) => {
+  const oldName = normalizeCategoryName(rawOldName);
+  if (!oldName || RESERVED_CATEGORIES.has(oldName)) {
+    throw createHttpError(400, "Invalid or reserved category name.");
+  }
+
+  const validation = validateCategoryName(rawNewName);
+  if (!validation.ok) {
+    throw createHttpError(400, validation.error);
+  }
+  const newName = validation.value;
+
+  const { categoryMap, ingredientRows } = await loadCategoryState();
+
+  if (!categoryMap.has(oldName)) {
+    throw createHttpError(404, `Category "${oldName}" not found.`);
+  }
+  if (categoryMap.has(newName)) {
+    throw createHttpError(409, `Category "${newName}" already exists.`);
+  }
+
+  const matchedIds = ingredientRows
+    .filter((row) => normalizeCategoryName(row.category) === oldName)
+    .map((row) => row.id);
+
+  if (matchedIds.length > 0) {
+    const { error: updateErr } = await supabase
+      .from("ingredients")
+      .update({ category: newName })
+      .in("id", matchedIds);
+
+    if (updateErr) throw updateErr;
+  }
+
+  const updatedCategories = Array.from(categoryMap.keys()).map((c) =>
+    c === oldName ? newName : c
+  );
+  await savePersistedCategories(updatedCategories);
+
+  return {
+    old_name: oldName,
+    new_name: newName,
+    updated_count: matchedIds.length
+  };
+};
+
+/**
+ * Delete an unused raw material category from CMS persistence.
+ */
+export const deleteRawMaterialCategory = async (rawName) => {
+  const targetName = normalizeCategoryName(rawName);
+  if (!targetName || RESERVED_CATEGORIES.has(targetName)) {
+    throw createHttpError(400, "Invalid or reserved category name.");
+  }
+
+  const { categoryMap, ingredientRows } = await loadCategoryState();
+  const inUseCount = ingredientRows.filter(
+    (row) => normalizeCategoryName(row.category) === targetName
+  ).length;
+
+  if (inUseCount > 0) {
+    throw createHttpError(400, `Cannot delete category in use by ${inUseCount} material(s).`);
+  }
+
+  if (!categoryMap.has(targetName)) {
+    throw createHttpError(404, `Category "${targetName}" not found.`);
+  }
+
+  const remaining = Array.from(categoryMap.keys()).filter((c) => c !== targetName);
+  await savePersistedCategories(remaining);
+
+  return { success: true, category: targetName };
 };
