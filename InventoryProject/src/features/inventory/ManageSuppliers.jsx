@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getSuppliers, createSupplier, updateSupplier, archiveSupplier, restoreSupplier } from '../../api/purchasingApi';
+import { getSuppliers, createSupplier, updateSupplier, archiveSupplier, restoreSupplier, acknowledgeSupplierPriceUpdates } from '../../api/purchasingApi';
 import { getIngredients } from '../../api/inventoryApi';
 import ConfirmModal from '../../components/shared/ConfirmModal';
 import Pagination from '../../components/shared/Pagination';
@@ -151,6 +151,34 @@ const ManageSuppliers = () => {
     } catch (err) {
       console.error(err);
       flashMessage('error', err.message || 'Failed to restore supplier.');
+    }
+  };
+
+  const applyPriceUpdateAck = (supplier, ingredientId = null) => {
+    if (!supplier?.recent_price_updates) return supplier;
+    if (!ingredientId) {
+      return { ...supplier, recent_price_updates: null };
+    }
+    const nextItems = { ...(supplier.recent_price_updates.items || {}) };
+    delete nextItems[ingredientId];
+    const remainingCount = Object.keys(nextItems).length;
+    return {
+      ...supplier,
+      recent_price_updates: remainingCount > 0
+        ? { ...supplier.recent_price_updates, changes_count: remainingCount, items: nextItems }
+        : null
+    };
+  };
+
+  const handleAcknowledgePriceUpdates = async (supplierId, ingredientId = null) => {
+    setSuppliers((prev) => prev.map((s) => (s.id === supplierId ? applyPriceUpdateAck(s, ingredientId) : s)));
+    setViewingCatalogSupplier((prev) => (prev?.id === supplierId ? applyPriceUpdateAck(prev, ingredientId) : prev));
+    try {
+      await acknowledgeSupplierPriceUpdates(supplierId, ingredientId);
+    } catch (err) {
+      console.error(err);
+      flashMessage('error', err.message || 'Failed to mark price updates as read.');
+      fetchData();
     }
   };
 
@@ -309,14 +337,33 @@ const ManageSuppliers = () => {
                             <div className="flex items-center gap-2">
                               <span className="font-bold text-zinc-900 text-base">{supp.name}</span>
                               {supp.recent_price_updates?.changes_count > 0 && (
-                                <span
-                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-300"
-                                  title={`Supplier adjusted pricing for ${supp.recent_price_updates.changes_count} item(s)`}
-                                >
-                                  <svg className="w-3 h-3 text-amber-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                  </svg>
-                                  Prices Updated
+                                <span className="inline-flex items-center rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-300 overflow-hidden">
+                                  <button
+                                    type="button"
+                                    onClick={() => setViewingCatalogSupplier(supp)}
+                                    className="inline-flex items-center gap-1 pl-2 pr-1.5 py-0.5 hover:bg-amber-100/80 transition-colors cursor-pointer"
+                                    title={`View ${supp.recent_price_updates.changes_count} price update(s) from ${supp.name}`}
+                                  >
+                                    <svg className="w-3 h-3 text-amber-600 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <span>Prices Updated ({supp.recent_price_updates.changes_count})</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleAcknowledgePriceUpdates(supp.id);
+                                    }}
+                                    className="inline-flex items-center gap-0.5 pl-1.5 pr-2 py-0.5 border-l border-amber-300/80 text-amber-700 hover:bg-amber-200/70 hover:text-amber-950 transition-colors cursor-pointer"
+                                    title="Mark all price updates for this supplier as read"
+                                    aria-label={`Mark price updates for ${supp.name} as read`}
+                                  >
+                                    <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                    </svg>
+                                    <span>Mark read</span>
+                                  </button>
                                 </span>
                               )}
                             </div>
@@ -459,6 +506,9 @@ const ManageSuppliers = () => {
           supplier={viewingCatalogSupplier}
           onClose={() => setViewingCatalogSupplier(null)}
           onEdit={handleOpenEdit}
+          onAcknowledgePriceUpdates={(ingredientId = null) =>
+            handleAcknowledgePriceUpdates(viewingCatalogSupplier.id, ingredientId)
+          }
         />
       )}
 

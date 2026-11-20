@@ -9,6 +9,7 @@ const requireCafeRole = requireRole("Owner", "Admin", "Staff", "Custom");
 router.get("/suppliers", requireAuth, requireCafeRole, purchasingController.getSuppliers);
 router.get("/price-updates", requireAuth, requireCafeRole, purchasingController.getSupplierPriceUpdates);
 router.post("/suppliers", requireAuth, requireCafeRole, purchasingController.createSupplier);
+router.post("/suppliers/:id/acknowledge-prices", requireAuth, requireRole("Owner", "Admin", "Custom"), purchasingController.acknowledgeSupplierPriceUpdates);
 router.put("/suppliers/:id", requireAuth, requireCafeRole, purchasingController.updateSupplier);
 router.put("/suppliers/:id/archive", requireAuth, requireRole("Owner", "Admin", "Custom"), purchasingController.archiveSupplier);
 router.put("/suppliers/:id/restore", requireAuth, requireRole("Owner", "Admin", "Custom"), purchasingController.restoreSupplier);

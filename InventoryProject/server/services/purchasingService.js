@@ -2,6 +2,84 @@ import { supabase } from "../config/supabaseClient.js";
 import { logAudit } from "../utils/auditHelper.js";
 import { getManilaDateOnly } from "../utils/dateUtils.js";
 
+const safeParseAuditDetails = (rawDetails) => {
+  if (!rawDetails) return {};
+  if (typeof rawDetails !== 'string') return rawDetails;
+  try {
+    return JSON.parse(rawDetails);
+  } catch {
+    return {};
+  }
+};
+
+export const getUnacknowledgedPriceUpdateLogs = async () => {
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const { data: auditRows, error } = await supabase
+    .from('audit_logs')
+    .select('id, created_at, action, details')
+    .in('action', ['SUPPLIER_CATALOG_PRICES_UPDATED', 'SUPPLIER_PRICE_UPDATES_READ'])
+    .gte('created_at', thirtyDaysAgo)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+
+  const parsedRows = (auditRows || []).map((row) => ({
+    ...row,
+    parsedDetails: safeParseAuditDetails(row.details),
+    timestampMs: new Date(row.created_at).getTime()
+  }));
+
+  const lastReadSupplierAt = {};
+  const lastReadItemAt = {};
+
+  for (const row of parsedRows) {
+    if (row.action !== 'SUPPLIER_PRICE_UPDATES_READ') continue;
+    const suppId = row.parsedDetails?.supplier_id ? String(row.parsedDetails.supplier_id) : null;
+    if (!suppId) continue;
+
+    const ingId = row.parsedDetails?.ingredient_id ? String(row.parsedDetails.ingredient_id) : null;
+    if (ingId) {
+      const itemKey = `${suppId}_${ingId}`;
+      if (!lastReadItemAt[itemKey] || row.timestampMs > lastReadItemAt[itemKey]) {
+        lastReadItemAt[itemKey] = row.timestampMs;
+      }
+    } else if (!lastReadSupplierAt[suppId] || row.timestampMs > lastReadSupplierAt[suppId]) {
+      lastReadSupplierAt[suppId] = row.timestampMs;
+    }
+  }
+
+  const unacknowledgedLogs = [];
+  for (const row of parsedRows) {
+    if (row.action !== 'SUPPLIER_CATALOG_PRICES_UPDATED') continue;
+    const details = row.parsedDetails;
+    const suppId = details?.supplier_id ? String(details.supplier_id) : null;
+    if (!suppId) continue;
+
+    const supplierReadAt = lastReadSupplierAt[suppId] || 0;
+    if (row.timestampMs <= supplierReadAt) continue;
+
+    const rawChanges = Array.isArray(details.price_changes) ? details.price_changes : [];
+    const remainingChanges = rawChanges.filter((ch) => {
+      if (!ch || !ch.ingredient_id) return false;
+      const itemReadAt = lastReadItemAt[`${suppId}_${String(ch.ingredient_id)}`] || 0;
+      return row.timestampMs > itemReadAt;
+    });
+
+    if (remainingChanges.length === 0) continue;
+
+    unacknowledgedLogs.push({
+      id: row.id,
+      created_at: row.created_at,
+      supplier_id: details.supplier_id,
+      supplier_name: details.supplier_name || 'Supplier',
+      items_count: details.items_count || 0,
+      price_changes: remainingChanges
+    });
+  }
+
+  return unacknowledgedLogs;
+};
+
 // === Suppliers ===
 export const getSuppliers = async () => {
   const { data, error } = await supabase
@@ -22,19 +100,12 @@ export const getSuppliers = async () => {
   if (!data || data.length === 0) return [];
 
   try {
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    const { data: priceLogs } = await supabase
-      .from('audit_logs')
-      .select('created_at, details')
-      .eq('action', 'SUPPLIER_CATALOG_PRICES_UPDATED')
-      .gte('created_at', thirtyDaysAgo)
-      .order('created_at', { ascending: false });
+    const priceLogs = await getUnacknowledgedPriceUpdateLogs();
 
     const updatesBySupplier = {};
-    (priceLogs || []).forEach(log => {
-      const details = typeof log.details === 'string' ? JSON.parse(log.details) : log.details;
-      const suppId = details?.supplier_id;
-      if (!suppId) return;
+    for (const log of priceLogs) {
+      const suppId = log.supplier_id;
+      if (!suppId) continue;
 
       if (!updatesBySupplier[suppId]) {
         updatesBySupplier[suppId] = {
@@ -44,15 +115,13 @@ export const getSuppliers = async () => {
         };
       }
 
-      if (Array.isArray(details.price_changes)) {
-        details.price_changes.forEach(ch => {
-          if (!updatesBySupplier[suppId].items[ch.ingredient_id]) {
-            updatesBySupplier[suppId].items[ch.ingredient_id] = ch;
-            updatesBySupplier[suppId].changes_count += 1;
-          }
-        });
+      for (const ch of log.price_changes) {
+        if (!updatesBySupplier[suppId].items[ch.ingredient_id]) {
+          updatesBySupplier[suppId].items[ch.ingredient_id] = ch;
+          updatesBySupplier[suppId].changes_count += 1;
+        }
       }
-    });
+    }
 
     return data.map(supp => ({
       is_archived: Boolean(supp.is_archived || (supp.description && supp.description.startsWith('[ARCHIVED]'))),

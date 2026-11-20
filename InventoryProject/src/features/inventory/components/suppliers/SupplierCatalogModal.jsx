@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 
-const SupplierCatalogModal = ({ supplier, onClose }) => {
+const SupplierCatalogModal = ({ supplier, onClose, onAcknowledgePriceUpdates }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterMode, setFilterMode] = useState('ALL'); // 'ALL' | 'UPDATED'
 
@@ -38,11 +38,13 @@ const SupplierCatalogModal = ({ supplier, onClose }) => {
     return catalogItems.filter((i) => Boolean(i.priceChange)).length;
   }, [catalogItems]);
 
+  const effectiveFilterMode = updatedCount > 0 ? filterMode : 'ALL';
+
   const displayedItems = useMemo(() => {
     let items = catalogItems;
 
     // Filter by tab / mode
-    if (filterMode === 'UPDATED') {
+    if (effectiveFilterMode === 'UPDATED') {
       items = items.filter((item) => Boolean(item.priceChange));
     }
 
@@ -65,7 +67,7 @@ const SupplierCatalogModal = ({ supplier, onClose }) => {
       }
       return a.name.localeCompare(b.name);
     });
-  }, [catalogItems, filterMode, searchTerm, sortUpdatedFirst]);
+  }, [catalogItems, effectiveFilterMode, searchTerm, sortUpdatedFirst]);
 
   if (!supplier) return null;
 
@@ -154,20 +156,20 @@ const SupplierCatalogModal = ({ supplier, onClose }) => {
               <div>
                 <span className="font-bold">Supplier Price Adjustment Notice: </span>
                 {supplier.name} updated pricing for {recentUpdates.changes_count} raw material(s) on their portal.
-                {sortUpdatedFirst && filterMode === 'ALL' && (
+                {sortUpdatedFirst && effectiveFilterMode === 'ALL' && (
                   <span className="text-amber-800 block sm:inline sm:ml-1">
                     Updated materials are pinned to the top of the list below.
                   </span>
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => setFilterMode(filterMode === 'UPDATED' ? 'ALL' : 'UPDATED')}
+                onClick={() => setFilterMode(effectiveFilterMode === 'UPDATED' ? 'ALL' : 'UPDATED')}
                 className="px-2.5 py-1 rounded-md text-[11px] font-bold bg-amber-600 hover:bg-amber-700 text-white transition-colors cursor-pointer inline-flex items-center gap-1.5 shadow-2xs"
               >
-                {filterMode === 'UPDATED' ? (
+                {effectiveFilterMode === 'UPDATED' ? (
                   <>
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
@@ -183,6 +185,22 @@ const SupplierCatalogModal = ({ supplier, onClose }) => {
                   </>
                 )}
               </button>
+              {onAcknowledgePriceUpdates && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onAcknowledgePriceUpdates(null);
+                    setFilterMode('ALL');
+                  }}
+                  className="px-2.5 py-1 rounded-md text-[11px] font-bold bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 transition-colors cursor-pointer inline-flex items-center gap-1.5 shadow-2xs"
+                  title="Mark all price updates for this supplier as read"
+                >
+                  <svg className="w-3 h-3 text-amber-700" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                  </svg>
+                  Mark All as Read
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -209,7 +227,7 @@ const SupplierCatalogModal = ({ supplier, onClose }) => {
                 type="button"
                 onClick={() => setFilterMode('ALL')}
                 className={`px-3 py-1 rounded-md font-semibold transition-all cursor-pointer ${
-                  filterMode === 'ALL'
+                  effectiveFilterMode === 'ALL'
                     ? 'bg-white text-zinc-900 shadow-2xs font-bold'
                     : 'text-zinc-600 hover:text-zinc-900'
                 }`}
@@ -221,19 +239,19 @@ const SupplierCatalogModal = ({ supplier, onClose }) => {
                   type="button"
                   onClick={() => setFilterMode('UPDATED')}
                   className={`px-3 py-1 rounded-md transition-all cursor-pointer inline-flex items-center gap-1.5 ${
-                    filterMode === 'UPDATED'
+                    effectiveFilterMode === 'UPDATED'
                       ? 'bg-amber-500 text-white shadow-2xs font-bold'
                       : 'text-amber-800 hover:text-amber-950 font-semibold'
                   }`}
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full ${filterMode === 'UPDATED' ? 'bg-white' : 'bg-amber-600'}`} />
+                  <span className={`w-1.5 h-1.5 rounded-full ${effectiveFilterMode === 'UPDATED' ? 'bg-white' : 'bg-amber-600'}`} />
                   Updated ({updatedCount})
                 </button>
               )}
             </div>
 
             {/* Sort Toggle Button (Updated on top vs A-Z order) */}
-            {updatedCount > 0 && filterMode === 'ALL' && (
+            {updatedCount > 0 && effectiveFilterMode === 'ALL' && (
               <button
                 type="button"
                 onClick={() => setSortUpdatedFirst((prev) => !prev)}
@@ -262,11 +280,11 @@ const SupplierCatalogModal = ({ supplier, onClose }) => {
           {displayedItems.length === 0 ? (
             <div className="p-12 text-center text-sm text-zinc-400">
               <p className="font-semibold text-zinc-600 mb-1">
-                {filterMode === 'UPDATED'
+                {effectiveFilterMode === 'UPDATED'
                   ? 'No price-updated materials found.'
                   : 'No catalog items match your search.'}
               </p>
-              {(searchTerm || filterMode !== 'ALL') && (
+              {(searchTerm || effectiveFilterMode !== 'ALL') && (
                 <button
                   type="button"
                   onClick={() => {
@@ -325,7 +343,7 @@ const SupplierCatalogModal = ({ supplier, onClose }) => {
                       <td className="px-5 py-3.5 text-right font-black font-mono text-zinc-950">
                         <div>₱{item.price.toFixed(2)}</div>
                         {change && (
-                          <div className="text-[10px] font-sans font-semibold mt-0.5">
+                          <div className="text-[10px] font-sans font-semibold mt-0.5 flex items-center justify-end gap-1.5 flex-wrap">
                             {change.difference > 0 ? (
                               <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200">
                                 <svg className="w-2.5 h-2.5 text-amber-700 inline shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" /></svg> +₱{change.difference.toFixed(2)} (Was ₱{change.old_price.toFixed(2)})
@@ -334,6 +352,22 @@ const SupplierCatalogModal = ({ supplier, onClose }) => {
                               <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
                                 <svg className="w-2.5 h-2.5 text-emerald-700 inline shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg> -₱{Math.abs(change.difference).toFixed(2)} (Was ₱{change.old_price.toFixed(2)})
                               </span>
+                            )}
+                            {onAcknowledgePriceUpdates && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (updatedCount <= 1) setFilterMode('ALL');
+                                  onAcknowledgePriceUpdates(item.id);
+                                }}
+                                className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-white hover:bg-zinc-100 text-zinc-700 hover:text-zinc-950 border border-zinc-300 transition-colors cursor-pointer font-bold"
+                                title={`Mark ${item.name} price update as read`}
+                              >
+                                <svg className="w-2.5 h-2.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                </svg>
+                                <span>Mark read</span>
+                              </button>
                             )}
                           </div>
                         )}

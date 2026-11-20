@@ -140,3 +140,10 @@ export async function getSupplierPriceUpdates() {
     method: "GET"
   });
 }
+
+export async function acknowledgeSupplierPriceUpdates(supplierId, ingredientId = null) {
+  return apiCall(`/purchasing/suppliers/${supplierId}/acknowledge-prices`, {
+    method: "POST",
+    body: JSON.stringify(ingredientId ? { ingredient_id: ingredientId } : {})
+  });
+}

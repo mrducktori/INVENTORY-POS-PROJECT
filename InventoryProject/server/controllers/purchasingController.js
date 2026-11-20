@@ -521,30 +521,23 @@ export const updateSupplierOwnCatalog = async (req, res) => {
 
 export const getSupplierPriceUpdates = async (req, res) => {
   try {
-    const { supabase } = await import("../config/supabaseClient.js");
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    const { data, error } = await supabase
-      .from('audit_logs')
-      .select('id, created_at, details')
-      .eq('action', 'SUPPLIER_CATALOG_PRICES_UPDATED')
-      .gte('created_at', thirtyDaysAgo)
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-
-    const updates = (data || []).map(log => {
-      const details = typeof log.details === 'string' ? JSON.parse(log.details) : log.details;
-      return {
-        id: log.id,
-        created_at: log.created_at,
-        supplier_id: details?.supplier_id,
-        supplier_name: details?.supplier_name || 'Supplier',
-        items_count: details?.items_count || 0,
-        price_changes: details?.price_changes || []
-      };
-    });
-
+    const updates = await purchasingService.getUnacknowledgedPriceUpdateLogs();
     res.json(updates);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const acknowledgeSupplierPriceUpdates = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const ingredientId = req.body?.ingredient_id || null;
+    await logAudit('SUPPLIER_PRICE_UPDATES_READ', req.user.id, {
+      supplier_id: id,
+      ...(ingredientId ? { ingredient_id: ingredientId } : {}),
+      acknowledged_by: req.user.name || req.user.username || 'Admin'
+    });
+    res.json({ success: true, supplier_id: id, ingredient_id: ingredientId });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

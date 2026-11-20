@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Suppliers/Purchasing: Mark Supplier Price Updates as Read - 2026-11-20]
+- **Backend (`server/routes/purchasing.js`, `server/controllers/purchasingController.js`, `server/services/purchasingService.js`)**:
+  - Added `POST /api/purchasing/suppliers/:id/acknowledge-prices` (`acknowledgeSupplierPriceUpdates`) logging `SUPPLIER_PRICE_UPDATES_READ` in `audit_logs` per supplier or per individual `ingredient_id`.
+  - Added shared `getUnacknowledgedPriceUpdateLogs()` helper in `purchasingService.js` (used by both `getSuppliers` and `getSupplierPriceUpdates`) to filter out `SUPPLIER_CATALOG_PRICES_UPDATED` events/items that occurred on or before the latest read acknowledgment timestamp so past updates never stack up with new price changes.
+- **Frontend (`src/api/purchasingApi.js`, `src/features/inventory/ManageSuppliers.jsx`, `src/features/inventory/components/suppliers/SupplierCatalogModal.jsx`)**:
+  - Added `acknowledgeSupplierPriceUpdates(supplierId, ingredientId)` API helper using `apiCall`.
+  - Upgraded the `Prices Updated` pill in `ManageSuppliers.jsx` to display the unacknowledged count, open the catalog modal on click, and provide an inline **Mark read** checkmark button.
+  - Added **Mark All as Read** in `SupplierCatalogModal.jsx`'s adjustment banner and a per-material **Mark read** button on each updated item row with instant optimistic UI updates.
+
 ## [Products/UI: Defer Category Rename Until Save Changes Is Pressed - 2026-11-20]
 - **`src/features/inventory/components/products/CategorySettingsModal.jsx`**: Removed the immediate-commit `Rename` button so category name edits stay pending until **Save Changes** is clicked, saving both the category rename and default sizes/add-ons together without discarding unsaved edits.
 
