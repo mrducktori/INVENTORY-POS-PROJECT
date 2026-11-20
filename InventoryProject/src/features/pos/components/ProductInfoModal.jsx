@@ -143,21 +143,34 @@ const ProductInfoModal = ({ product, stockSummary, loading, onClose, onAddToOrde
                   </div>
 
                   {cupTrackedSizes.length > 0 && (
-                    <div className="pt-3 border-t border-gray-100 text-xs text-gray-500">
-                      <span>Cup stock: </span>
-                      {cupTrackedSizes.map((sz, idx) => (
-                        <React.Fragment key={sz.name}>
-                          {idx > 0 && <span> · </span>}
-                          <span
-                            className={
-                              sz.maxForSizeRemaining <= 0 ? "text-red-600 font-semibold" : "text-gray-700"
-                            }
+                    <div className="pt-3 border-t border-gray-200">
+                      <h4 className="m-0 mb-2 text-xs font-semibold text-gray-500">
+                        By cup size
+                      </h4>
+                      <div className="divide-y divide-gray-100">
+                        {cupTrackedSizes.map((sz) => (
+                          <div
+                            key={sz.name}
+                            className="py-2 flex items-baseline justify-between gap-4"
                           >
-                            {sz.name}:{" "}
-                            {sz.maxForSizeRemaining <= 0 ? "Out" : sz.maxForSizeRemaining}
-                          </span>
-                        </React.Fragment>
-                      ))}
+                            <div className="min-w-0">
+                              <div className="text-sm font-semibold text-gray-900">{sz.name}</div>
+                              <div className="text-xs text-gray-500 mt-0.5">
+                                {sz.cupRemaining} {sz.cupRemaining === 1 ? "cup" : "cups"} in stock
+                              </div>
+                            </div>
+                            <span
+                              className={`text-xs tabular-nums shrink-0 ${
+                                sz.maxForSizeRemaining <= 0
+                                  ? "text-red-600 font-semibold"
+                                  : "text-gray-500"
+                              }`}
+                            >
+                              {sz.maxForSizeRemaining} max
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>

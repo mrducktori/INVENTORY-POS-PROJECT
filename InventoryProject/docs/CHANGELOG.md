@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## [Docs/Defense: Complete 7-Section Defense Guide (.docx & .pdf) - 2026-11-20]
 - **`docs/defense/CofTea_Complete_Defense_Guide.docx` & `.pdf`**: Exported the complete, up-to-date 7-section defense guide covering presentation structure, verified Alpha/Beta paper figures and Appendix C quotes, exact Vercel + Render + Cloudflare + Supabase + Gemini (`gemini-3.5-flash-lite`) stack/TCO, live system mechanics (including today's stock-capped POS `/api/pos/catalog` + `409 Conflict`, fixed liquid yields, and linked-supplier PO filtering), paper-vs-system honesty points, 10 outside-the-box Q&As, and the tonight/tomorrow checklist.
+- **`docs/defense/CofTea_Full_Defense_Script_Unassigned.docx` & `.pdf`**: Created a speaker-neutral full defense script covering Slides 1–10, a 5-step Live System Demo walkthrough, a blank Speaker Assignment Tracker, and universal handoff/closing lines.
 
 ## [Database/Seed: Historical Sales Seed for 2026-11-18 to 2026-11-20 - 2026-11-20]
 - **`docs/database/seed_sales_2026_11_18_to_20.mjs`**: Added and ran an idempotent ESM seed script populating realistic historical `sales` (`112` orders: `38` on Nov 18, `38` on Nov 19, `36` on Nov 20 up to `now - 15m` Manila time) and `sale_items` (`213` lines) using live `products` and `category_settings` pricing/cup sizes/add-ons without touching live inventory stock or `audit_logs`.
