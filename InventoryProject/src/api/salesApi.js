@@ -17,9 +17,13 @@ export const getSales = async (filters = {}, pageSize = 50, page = 1) => {
   if (filters.search && filters.search.trim()) {
     params.append('search', filters.search.trim());
   }
+  if (filters.skip_count) {
+    params.append('skip_count', 'true');
+  }
   // pagination parameters
+  const offset = pageSize === 'all' ? 0 : (page - 1) * pageSize;
   params.append('limit', pageSize);
-  params.append('offset', (page - 1) * pageSize);
+  params.append('offset', offset);
   return apiCall(`/sales?${params.toString()}`);
 };
 

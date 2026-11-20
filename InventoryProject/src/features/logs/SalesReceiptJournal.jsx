@@ -70,12 +70,16 @@ const SalesReceiptJournal = () => {
             Total Receipts
           </div>
           <div className="text-2xl font-bold text-zinc-900 tabular-nums mt-1">
-            {totalServerCount > 0 ? totalServerCount.toLocaleString() : sales.length.toLocaleString()}
+            {datePreset === 'RECENT'
+              ? sales.length.toLocaleString()
+              : (totalServerCount > 0 ? totalServerCount.toLocaleString() : sales.length.toLocaleString())}
           </div>
           <div className="text-xs text-zinc-400 mt-1">
-            {totalServerCount > sales.length
-              ? `Loaded ${sales.length.toLocaleString()} of ${totalServerCount.toLocaleString()} matching`
-              : `All ${sales.length.toLocaleString()} matching loaded`}
+            {datePreset === 'RECENT'
+              ? `Latest ${sales.length.toLocaleString()} receipts loaded`
+              : totalServerCount > sales.length
+                ? `Loaded ${sales.length.toLocaleString()} of ${totalServerCount.toLocaleString()} matching`
+                : `All ${sales.length.toLocaleString()} matching loaded`}
           </div>
         </div>
 
@@ -87,9 +91,11 @@ const SalesReceiptJournal = () => {
             ₱{metrics.totalRevenue.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <div className="text-xs text-zinc-400 mt-1">
-            {totalServerCount > sales.length
-              ? `Volume for ${sales.length.toLocaleString()} loaded receipts`
-              : `Cumulative completed volume`}
+            {datePreset === 'RECENT'
+              ? `Volume for latest ${sales.length.toLocaleString()} receipts`
+              : totalServerCount > sales.length
+                ? `Volume for ${sales.length.toLocaleString()} loaded receipts`
+                : `Cumulative completed volume`}
           </div>
         </div>
 

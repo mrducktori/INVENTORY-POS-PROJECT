@@ -19,6 +19,7 @@ router.get('/', async (req, res) => {
     const categoryParam = (req.query.category || '').trim();
     const paymentMethodParam = (req.query.payment_method || '').trim();
     const discountedOnly = req.query.discounted === 'true';
+    const skipCount = req.query.skip_count === 'true';
 
     const needsInMemoryFilter = Boolean(searchParam || categoryParam);
 
@@ -72,13 +73,15 @@ router.get('/', async (req, res) => {
       return qb;
     };
 
+    const salesSelect = `
+      *,
+      users(id, name, username),
+      sale_items(id, quantity, unit_price, cup_size, add_ons, products(id, name, category))
+    `;
+
     let query = supabase
       .from('sales')
-      .select(`
-        *,
-        users(id, name, username),
-        sale_items(id, quantity, unit_price, cup_size, add_ons, products(id, name, category))
-      `, { count: 'exact' })
+      .select(salesSelect, skipCount ? undefined : { count: 'exact' })
       .order('created_at', { ascending: false });
 
     query = applyFilters(query);
@@ -94,22 +97,22 @@ router.get('/', async (req, res) => {
     if (error) throw error;
 
     let filteredData = data || [];
-    let total = Math.max(count || 0, filteredData.length);
+    let total = skipCount ? filteredData.length : Math.max(count || 0, filteredData.length);
 
     // If user requested > 1000 rows without in-memory filter, fetch subsequent chunks up to requested limit
-    if (!needsInMemoryFilter && limit > 1000 && total > filteredData.length + offset) {
-      const targetCount = Math.min(limit, total - offset);
+    const shouldFetchMore = skipCount
+      ? filteredData.length === firstBatchLimit
+      : total > filteredData.length + offset;
+
+    if (!needsInMemoryFilter && limit > 1000 && shouldFetchMore) {
+      const targetCount = skipCount ? limit : Math.min(limit, total - offset);
       let currOffset = offset + filteredData.length;
 
-      while (filteredData.length < targetCount && currOffset < total) {
+      while (filteredData.length < targetCount && (skipCount || currOffset < total)) {
         const nextBatch = Math.min(1000, targetCount - filteredData.length);
         let nextQuery = supabase
           .from('sales')
-          .select(`
-            *,
-            users(id, name, username),
-            sale_items(id, quantity, unit_price, cup_size, add_ons, products(id, name, category))
-          `)
+          .select(salesSelect)
           .order('created_at', { ascending: false });
 
         nextQuery = applyFilters(nextQuery);
@@ -121,6 +124,10 @@ router.get('/', async (req, res) => {
         filteredData.push(...batchData);
         currOffset += batchData.length;
         if (batchData.length < nextBatch) break;
+      }
+
+      if (skipCount) {
+        total = filteredData.length;
       }
     }
 

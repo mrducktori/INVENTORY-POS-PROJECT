@@ -156,18 +156,27 @@ export const useSalesReceiptJournal = () => {
       } else if (statusScope === 'DISCOUNTED') {
         filters.discounted = true;
       }
+      if (datePreset === 'RECENT') {
+        filters.skip_count = true;
+      }
 
-      const limitParam = fetchLimit === 'all' ? 'all' : Number(fetchLimit) || 250;
+      const limitParam = datePreset === 'RECENT'
+        ? (Number(fetchLimit) || 250)
+        : (fetchLimit === 'all' ? 'all' : Number(fetchLimit) || 250);
       const result = await getSales(filters, limitParam, 1);
       const list = Array.isArray(result) ? result : (result?.data || []);
       setSales(list);
-      setTotalServerCount(typeof result?.total === 'number' ? result.total : list.length);
+      setTotalServerCount(
+        datePreset === 'RECENT'
+          ? list.length
+          : (typeof result?.total === 'number' ? result.total : list.length)
+      );
     } catch (err) {
       console.error('Failed to load sales journal:', err);
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, startDate, endDate, selectedType, statusScope, fetchLimit]);
+  }, [debouncedSearch, datePreset, startDate, endDate, selectedType, statusScope, fetchLimit]);
 
   useEffect(() => {
     fetchSales();
@@ -203,16 +212,27 @@ export const useSalesReceiptJournal = () => {
     });
 
     return {
-      all: totalServerCount > 0 ? totalServerCount : sales.length,
+      all: datePreset === 'RECENT'
+        ? sales.length
+        : (totalServerCount > 0 ? totalServerCount : sales.length),
       today,
       cash,
       gcash,
       discounted,
     };
-  }, [sales, totalServerCount, isSaleToday]);
+  }, [sales, totalServerCount, datePreset, isSaleToday]);
 
   // Dynamic fetch options based on the total records matching active filters
   const fetchOptions = useMemo(() => {
+    if (datePreset === 'RECENT') {
+      return [
+        { value: 100, label: 'Latest 100' },
+        { value: 250, label: 'Latest 250' },
+        { value: 500, label: 'Latest 500' },
+        { value: 1000, label: 'Latest 1,000' },
+      ];
+    }
+
     const total = totalServerCount;
     if (!total || total <= 0) {
       return [{ value: 'all', label: 'All (0 matching)' }];
@@ -245,7 +265,7 @@ export const useSalesReceiptJournal = () => {
       ...tiers.map((t) => ({ value: t, label: `${t.toLocaleString()} receipts` })),
       { value: 'all', label: `All (${total.toLocaleString()} receipts)` },
     ];
-  }, [totalServerCount]);
+  }, [datePreset, totalServerCount]);
 
   // KPI Calculations
   const metrics = useMemo(() => {

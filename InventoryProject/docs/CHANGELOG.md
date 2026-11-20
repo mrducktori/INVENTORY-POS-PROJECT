@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Receipt Journal: Scope Latest Preset to Capped 250 Fetch & Skip Full-Table Count - 2026-11-20]
+- **Backend (`server/routes/sales.js`)**: Added `skip_count=true` support on `GET /api/sales` to omit `{ count: 'exact' }` full-table scans when querying the `Latest` capped batch.
+- **Frontend (`src/api/salesApi.js`, `useSalesReceiptJournal.js`, `SalesReceiptJournal.jsx`, `ReceiptJournalToolbar.jsx`)**: Passed `skip_count=true` for the `Latest` preset (with clean `offset` handling when `pageSize='all'`), scoped Total Receipts KPI, Journal Revenue subtitle, `All` scope pill count, and Fetch dropdown options (`Latest 100 / 250 / 500 / 1,000`) to the loaded latest batch (default `250`).
+
 ## [POS: Stock-Capped Ordering & Info Modal Max-Orderable Recipe Breakdown - 2026-11-20]
 - **Backend (`server/routes/pos.js`, `server/controllers/posController.js`, `server/services/posService.js`)**:
   - Added authenticated `GET /api/pos/catalog` endpoint returning active products with `max_orderable`, recipes, and ingredient stock quantities while keeping public `GET /api/pos/products` free of internal recipe/ingredient details.

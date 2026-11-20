@@ -165,7 +165,11 @@ const ReceiptJournalToolbar = ({
           <span>Fetch:</span>
           <select
             aria-label="Fetch receipt limit"
-            value={fetchOptions.some((o) => String(o.value) === String(fetchLimit)) ? fetchLimit : 'all'}
+            value={
+              fetchOptions.some((o) => String(o.value) === String(fetchLimit))
+                ? fetchLimit
+                : (fetchOptions[0]?.value ?? 250)
+            }
             onChange={(e) => onFetchLimitChange(e.target.value)}
             className="px-2 py-1 bg-zinc-50 border border-zinc-200 rounded-md text-xs font-semibold text-zinc-800 focus:outline-none focus:border-zinc-400 cursor-pointer"
           >
