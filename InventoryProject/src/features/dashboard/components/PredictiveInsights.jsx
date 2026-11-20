@@ -42,7 +42,7 @@ const PredictiveInsights = ({ onNavigate }) => {
             <div>
               <h3 className="text-lg font-bold text-zinc-900 m-0 inline-flex items-center gap-1.5">
                 <span>7-Day Demand Forecast</span>
-                <InfoTip text="Projects upcoming 7-day orders using the last 30 days of POS sales, adjusted for recent growth, weekends, paydays, and holidays." />
+                <InfoTip text="Projects upcoming 7-day orders using a 90-day rolling sales baseline (weighted toward recent 14-day and 30-day velocity), adjusted for 4-year seasonality, Monday/Friday peak school days, weekends, and holidays." />
               </h3>
               <p className="text-xs text-zinc-500 m-0 mt-0.5">Projected retail volume by product</p>
             </div>
@@ -128,7 +128,7 @@ const PredictiveInsights = ({ onNavigate }) => {
             <div>
               <h3 className="text-lg font-bold text-zinc-900 m-0 inline-flex items-center gap-1.5">
                 <span>Stock Depletion Timeline</span>
-                <InfoTip text="Estimates days remaining by dividing current stock by your weighted 30-day recipe consumption rate." />
+                <InfoTip text="Estimates days remaining from current stock and your recipe consumption rate over the last 90 days (weighted toward recent 14-day and 30-day usage)." />
               </h3>
               <p className="text-xs text-zinc-500 m-0 mt-0.5">Estimated runout based on actual recipe usage</p>
             </div>

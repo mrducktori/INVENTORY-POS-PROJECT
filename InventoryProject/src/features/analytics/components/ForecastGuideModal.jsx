@@ -177,7 +177,7 @@ const ForecastGuideModal = ({ isOpen, onClose, guideTab, setGuideTab }) => {
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-zinc-900 shrink-0" />
                   <h4 className="m-0 text-sm font-bold text-zinc-900">
-                    3. Peak School Days (Mon–Fri), Weekends &amp; Holidays
+                    3. Peak School Days (Mon &amp; Fri), Weekends &amp; Holidays
                   </h4>
                 </div>
                 <div className="pl-4 space-y-1.5 border-l-2 border-zinc-100">

@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [UI/Copy: Sync Dashboard & Forecasting Info Tooltips with 90-Day & Mon/Fri Peak Logic - 2026-11-20]
+- **`src/features/dashboard/components/PredictiveInsights.jsx`**: Updated the **7-Day Demand Forecast** and **Stock Depletion Timeline** `InfoTip` tooltips to reflect the 90-day rolling baseline (weighted toward recent 14-day/30-day velocity), 4-year seasonality, and Monday/Friday peak school days (removing outdated `last 30 days` and `paydays` wording).
+- **`src/features/analytics/components/ForecastGuideModal.jsx`**: Fixed `Peak School Days (Mon–Fri)` heading to `Peak School Days (Mon & Fri)` so it matches the Monday/Friday peak factor.
+
+## [Docs/Defense: Complete Defense & System Process Script (Word & PDF) - 2026-11-20]
+- **`docs/defense/CofTea_Complete_Defense_Script.docx` & `.pdf`**: Generated the combined slide-by-slide (Slides 1–12) and live system process walkthrough script (Public Menu Board, Role-Based Login, POS & Stock-Capped Ordering, Automatic Deduction & Receipts, Inventory/Wastage Monitoring, and AI Demand Forecasting & Supplier PO Loop).
+
 ## [Docs/Defense: Complete 7-Section Defense Guide (.docx & .pdf) - 2026-11-20]
 - **`docs/defense/CofTea_Complete_Defense_Guide.docx` & `.pdf`**: Exported the complete, up-to-date 7-section defense guide covering presentation structure, verified Alpha/Beta paper figures and Appendix C quotes, exact Vercel + Render + Cloudflare + Supabase + Gemini (`gemini-3.5-flash-lite`) stack/TCO, live system mechanics (including today's stock-capped POS `/api/pos/catalog` + `409 Conflict`, fixed liquid yields, and linked-supplier PO filtering), paper-vs-system honesty points, 10 outside-the-box Q&As, and the tonight/tomorrow checklist.
 - **`docs/defense/CofTea_Full_Defense_Script_Unassigned.docx` & `.pdf`**: Created a speaker-neutral full defense script covering Slides 1–10, a 5-step Live System Demo walkthrough, a blank Speaker Assignment Tracker, and universal handoff/closing lines.
