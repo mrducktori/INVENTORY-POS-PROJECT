@@ -22,15 +22,27 @@ export async function loginUser(username, password) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, password })
   });
-  const data = await response.json();
+  const rawText = await response.text();
+  let data = null;
+  if (rawText) {
+    try {
+      data = JSON.parse(rawText);
+    } catch {
+      data = null;
+    }
+  }
+  const parsed = data && typeof data === "object" && !Array.isArray(data) ? data : null;
   if (!response.ok) {
-    const err = new Error(data.error || "Login failed");
-    err.locked      = data.locked      ?? false;
-    err.secondsLeft = data.secondsLeft ?? 0;
-    err.attemptsLeft = data.attemptsLeft ?? null;
+    const err = new Error(parsed?.error || rawText.trim() || "Login failed");
+    err.locked       = parsed?.locked       ?? false;
+    err.secondsLeft  = parsed?.secondsLeft  ?? 0;
+    err.attemptsLeft = parsed?.attemptsLeft ?? null;
     throw err;
   }
-  return data;
+  if (!parsed) {
+    throw new Error("Invalid login response from server");
+  }
+  return parsed;
 }
 
 /**

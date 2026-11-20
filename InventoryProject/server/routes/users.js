@@ -5,7 +5,7 @@ import { logAudit } from '../utils/auditHelper.js';
 import { requireAuth, requireRole, invalidateUserAuthCache, reapInactiveUserSessions } from '../middleware/authMiddleware.js';
 import { userManagementLimiter } from '../middleware/rateLimiter.js';
 import { normalizeAccessFields } from '../utils/permissions.js';
-import { toManilaStartOfDay, toManilaEndOfDay } from '../utils/dateUtils.js';
+import { toManilaStartOfDay, toManilaEndOfDay, getManilaDateOnly } from '../utils/dateUtils.js';
 import { validatePasswordRules } from '../utils/passwordValidator.js';
 import { getArchiveTimestampsMap, getDaysSinceArchived, invalidateArchiveMap } from '../utils/archiveHelper.js';
 
@@ -287,7 +287,7 @@ router.put('/:id', requireAuth, requireRole('Admin', 'Owner'), userManagementLim
 
     const { data: existingTarget } = await supabase
       .from('users')
-      .select('role, status')
+      .select('role, status, permissions')
       .eq('id', req.params.id)
       .single();
 
@@ -312,10 +312,12 @@ router.put('/:id', requireAuth, requireRole('Admin', 'Owner'), userManagementLim
       const currentOwnerIds = currentOwnerData.map(o => o.id);
 
       if (!currentOwnerIds.includes(req.params.id)) {
-        await supabase
+        const { error: demoteError } = await supabase
           .from('users')
           .update({ role: 'Admin' })
           .eq('role', 'Owner');
+        if (demoteError) throw demoteError;
+        currentOwnerIds.forEach((oid) => invalidateUserAuthCache(oid));
       }
     } else if (existingTarget?.role === 'Owner') {
       // Prevent demoting the ONLY owner directly
@@ -332,15 +334,24 @@ router.put('/:id', requireAuth, requireRole('Admin', 'Owner'), userManagementLim
     }
 
     const roleChanged = Boolean(existingTarget && existingTarget.role !== role);
+    const prevPerms = Array.isArray(existingTarget?.permissions)
+      ? [...existingTarget.permissions].sort()
+      : [];
+    const nextPerms = Array.isArray(access.permissions)
+      ? [...access.permissions].sort()
+      : [];
+    const permissionsChanged =
+      prevPerms.length !== nextPerms.length ||
+      prevPerms.some((perm, idx) => perm !== nextPerms[idx]);
     const passwordProvided = Boolean(password && password.trim() !== '');
 
     const updates = {
       name, username, role,
       permissions: access.permissions,
-      custom_role_name: access.custom_role_name
+      custom_role_name: access.custom_role_name,
+      supplier_id: role === 'Supplier' ? supplier_id : null
     };
     if (status !== undefined) updates.status = status;
-    if (role === 'Supplier') updates.supplier_id = supplier_id;
 
     if (passwordProvided) {
       const passwordValidation = validatePasswordRules(password);
@@ -351,7 +362,8 @@ router.put('/:id', requireAuth, requireRole('Admin', 'Owner'), userManagementLim
       updates.password_hash = await bcrypt.hash(password, saltRounds);
     }
 
-    if (passwordProvided || roleChanged || status === 'INACTIVE') {
+    const isSelfUpdate = String(req.params.id) === String(req.user.id);
+    if (status === 'INACTIVE' || roleChanged || permissionsChanged || (passwordProvided && !isSelfUpdate)) {
       updates.current_session_id = null;
     }
 
@@ -390,7 +402,7 @@ let hasEmployeeShiftsTable = null;
 // Get employee shifts for a given date — requires internal café role
 router.get('/shifts', requireAuth, requireRole('Owner', 'Admin', 'Staff', 'Custom'), async (req, res) => {
   try {
-    const date = req.query.date || new Date().toISOString().split('T')[0];
+    const date = req.query.date || getManilaDateOnly();
 
     if (hasEmployeeShiftsTable !== false) {
       const { data, error } = await supabase

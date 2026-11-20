@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [UI Consistency: Raw Material Categories Layout Alignment - 2026-11-21]
+- **Toolbar & Modal Alignment (`src/features/inventory/ManageRawMaterials.jsx`, `src/features/inventory/components/RawMaterialCategoriesModal.jsx`)**:
+  - Moved the **Manage Categories** button inside the shared white pill toolbar alongside `Add Material` and `Modify Existing`, matching `ManageProducts.jsx`.
+  - Updated `RawMaterialCategoriesModal.jsx` to use the same 2-column layout and styling as `CategorySettingsModal.jsx` + `CategoryListSidebar.jsx` (left `New Category` + `Categories` count sidebar, right rename/delete header bar, category usage description, and bottom-right `Save Changes` button) while keeping raw materials free of cup sizes and add-ons and eliminating `setState`-in-`useEffect` hooks.
+
+## [Security/Auth/UI: Auth Hardening, Public Menu & CMS Reliability Fixes - 2026-11-21]
+- **Backend Auth & Access Control (`server/middleware/authMiddleware.js`, `server/middleware/rateLimiter.js`, `server/routes/recipes.js`, `server/routes/categorySettings.js`, `server/routes/users.js`)**:
+  - Loaded `permissions` in `authMiddleware.js` user queries and enabled `Custom`/`Staff` write access on `recipes` and `categorySettings` when holding `Products` or `ManageProducts`.
+  - Updated `authLimiter` to return structured JSON (`error`, `locked`), skip local/dev traffic via `isLocalOrDev`, and raise `max` failed attempts to `15`.
+  - Updated `users.js` to invalidate auth cache on ownership transfer demotion, clear `supplier_id` for non-`Supplier` roles, preserve `current_session_id` on self-password updates, and default `GET /shifts` to `Asia/Manila` date (`getManilaDateOnly()`).
+- **Public Menu & CMS Hardening (`server/services/posService.js`, `server/services/cmsService.js`, `server/controllers/cmsController.js`)**:
+  - Inherited category `sizes` in public `getProducts()` when `product.sizes` is empty/missing and stripped internal stock/cost fields (`cost_price`, `estimated_cost`, `stock_quantity`, `low_stock_threshold`, `low_stock_alert`, `max_stock`, `sku`, `max_orderable`).
+  - Added CMS key allowlisting (excluding internal keys like `raw_material_categories`) and validated `promo_section` slide `image_url` values (`http://`, `https://`, or `/`).
+- **Frontend Auth, CMS, Tracker & Supplier Portal Fixes**:
+  - **`src/api/authApi.js`**: Read `loginUser` responses via `response.text()` with `try/catch` JSON parsing so plain-text `429`/`502` responses produce clean errors while retaining lockout fields (`locked`, `secondsLeft`, `attemptsLeft`).
+  - **`src/features/auth/components/LandingMenuBoard.jsx`**: Guarded base price math in size cards (`parseFloat(product.price) || 0`) to prevent `₱NaN` and added `onError` fallback handling for broken product images.
+  - **`src/features/cms/components/CMSPromotionsTab.jsx`, `CMSBrandTab.jsx`, `ImageUploadField.jsx`**: Guarded poster `<a href>` and preview rendering with `isValidImageUrl`, updated upload hints to `"PNG, JPG, WEBP, or ICO"`, and restricted `accept` to `.png,.jpg,.jpeg,.webp,.gif,.ico`.
+  - **`src/features/accounts/EmployeeTracker.jsx` & `src/features/inventory/components/suppliers/SupplierCatalogSection.jsx`**: Defaulted shift tracker date to `getManilaDateOnly()` (`Asia/Manila`) and included `'GENERAL'` in `availableCategories` and filtering for uncategorized supplier catalog rows.
+
 ## [Inventory/UI: Dynamic Raw Material Category Management - 2026-11-21]
 - **`src/api/inventoryApi.js`**: Added `getRawMaterialCategories`, `createRawMaterialCategory`, `renameRawMaterialCategory`, and `deleteRawMaterialCategory` endpoints.
 - **`src/features/inventory/hooks/useManageRawMaterials.js`**: Loaded dynamic categories from `/api/inventory/categories` (with `RAW_MATERIAL_CATEGORIES` fallback), exposing `categories`, `categoryObjects`, and `refreshCategories`.

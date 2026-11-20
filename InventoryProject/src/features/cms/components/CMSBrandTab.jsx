@@ -82,7 +82,7 @@ export default function CMSBrandTab({
             uploading={uploadingKey === 'browser_tab'}
             previewShape="icon"
             placeholder="/favicon.svg or https://..."
-            hint="Square PNG, SVG, or ICO recommended."
+            hint="Square PNG, JPG, WEBP, or ICO recommended."
           />
         </div>
       </div>

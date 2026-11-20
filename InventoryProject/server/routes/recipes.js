@@ -10,7 +10,7 @@ router.use(requireRole("Owner", "Admin", "Staff", "Custom"));
 const requireRecipeWriteAccess = (req, res, next) => {
   const role = String(req.user?.role || "").toLowerCase();
   if (role === "owner" || role === "admin") return next();
-  if (role === "custom") {
+  if (role === "custom" || role === "staff") {
     const perms = Array.isArray(req.user?.permissions) ? req.user.permissions : [];
     if (perms.includes("Products") || perms.includes("ManageProducts")) {
       return next();

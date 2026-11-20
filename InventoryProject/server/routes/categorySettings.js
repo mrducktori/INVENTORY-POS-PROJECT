@@ -9,6 +9,18 @@ const router = express.Router();
 const RESERVED_CATEGORIES = new Set(['ALL', 'OTHERS', 'UNCATEGORIZED']);
 const MAX_CATEGORY_LENGTH = 40;
 
+const requireCategoryWriteAccess = (req, res, next) => {
+  const role = String(req.user?.role || '').toLowerCase();
+  if (role === 'owner' || role === 'admin') return next();
+  if (role === 'custom' || role === 'staff') {
+    const perms = Array.isArray(req.user?.permissions) ? req.user.permissions : [];
+    if (perms.includes('Products') || perms.includes('ManageProducts')) {
+      return next();
+    }
+  }
+  return res.status(403).json({ error: 'You do not have permission to modify category settings.' });
+};
+
 const normalizeCategoryName = (raw) =>
   String(raw || '').trim().replace(/\s+/g, ' ').toUpperCase();
 
@@ -85,7 +97,7 @@ router.get('/', requireRole('Owner', 'Admin', 'Staff', 'Custom'), async (req, re
 });
 
 // Create new category (rejects duplicates cleanly)
-router.post('/', requireRole('Owner', 'Admin'), async (req, res) => {
+router.post('/', requireCategoryWriteAccess, async (req, res) => {
   try {
     const { category, sizes, add_ons } = req.body;
     const validation = validateCategoryName(category);
@@ -147,7 +159,7 @@ router.post('/', requireRole('Owner', 'Admin'), async (req, res) => {
 });
 
 // Rename an existing category across category_settings and all products (active + archived)
-router.patch('/:category/rename', requireRole('Owner', 'Admin'), async (req, res) => {
+router.patch('/:category/rename', requireCategoryWriteAccess, async (req, res) => {
   try {
     const oldCategory = normalizeCategoryName(req.params.category);
     const validation = validateCategoryName(req.body?.newCategory);
@@ -255,7 +267,7 @@ router.patch('/:category/rename', requireRole('Owner', 'Admin'), async (req, res
 });
 
 // Delete an unused category
-router.delete('/:category', requireRole('Owner', 'Admin'), async (req, res) => {
+router.delete('/:category', requireCategoryWriteAccess, async (req, res) => {
   try {
     const target = normalizeCategoryName(req.params.category);
     if (!target || RESERVED_CATEGORIES.has(target)) {
@@ -306,7 +318,7 @@ router.delete('/:category', requireRole('Owner', 'Admin'), async (req, res) => {
 });
 
 // Upsert category settings (Update if exists, insert if not)
-router.put('/:category', requireRole('Owner', 'Admin'), async (req, res) => {
+router.put('/:category', requireCategoryWriteAccess, async (req, res) => {
   try {
     const validation = validateCategoryName(req.params.category);
     if (!validation.ok) {

@@ -63,23 +63,62 @@ const buildCatalogMaps = (products = [], recipes = [], ingredients = []) => {
   return productsWithAvailability;
 };
 
+const normalizeCategoryKey = (category) =>
+  String(category || "").trim().replace(/\s+/g, " ").toUpperCase();
+
 export const getProducts = async () => {
-  // 1. Fetch active products, recipes, and ingredients concurrently for maximum speed
+  // 1. Fetch active products, recipes, ingredients, and category settings concurrently for maximum speed
   const [
     { data: products, error: prodError },
     { data: recipes, error: recError },
-    { data: ingredients, error: ingError }
+    { data: ingredients, error: ingError },
+    { data: categorySettings, error: catError }
   ] = await Promise.all([
     supabase.from("products").select("*").eq("is_archived", false),
     supabase.from("recipes").select("*"),
-    supabase.from("ingredients").select("*")
+    supabase.from("ingredients").select("*"),
+    supabase.from("category_settings").select("category, sizes")
   ]);
 
   if (prodError) throw prodError;
   if (recError) throw recError;
   if (ingError) throw ingError;
+  if (catError) throw catError;
 
-  return buildCatalogMaps(products || [], recipes || [], ingredients || []);
+  const categorySizesMap = new Map();
+  (categorySettings || []).forEach((row) => {
+    const key = normalizeCategoryKey(row.category);
+    if (key && Array.isArray(row.sizes) && row.sizes.length > 0) {
+      categorySizesMap.set(key, row.sizes);
+    }
+  });
+
+  const catalog = buildCatalogMaps(products || [], recipes || [], ingredients || []);
+
+  return catalog.map((product) => {
+    const ownSizes = Array.isArray(product.sizes) ? product.sizes : [];
+    const resolvedSizes =
+      ownSizes.length > 0
+        ? ownSizes
+        : (categorySizesMap.get(normalizeCategoryKey(product.category)) || []);
+
+    return {
+      id: product.id,
+      name: product.name,
+      category: product.category,
+      price: product.price,
+      description: product.description ?? null,
+      image_url: product.image_url ?? null,
+      sizes: resolvedSizes,
+      add_ons: Array.isArray(product.add_ons) ? product.add_ons : [],
+      track_stock: Boolean(product.track_stock),
+      is_available: Boolean(product.is_available),
+      is_out_of_stock:
+        product.is_out_of_stock !== undefined
+          ? Boolean(product.is_out_of_stock)
+          : !product.is_available
+    };
+  });
 };
 
 export const getPosCatalog = async () => {

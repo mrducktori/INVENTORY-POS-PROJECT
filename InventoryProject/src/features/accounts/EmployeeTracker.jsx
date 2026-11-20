@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getEmployeeShifts } from '../../api/usersApi';
 import Pagination from '../../components/shared/Pagination';
+import { getManilaDateOnly } from '../../utils/dateUtils';
 
 const EmployeeTracker = () => {
   const [shifts, setShifts] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [dateStr, setDateStr] = useState(new Date().toISOString().split('T')[0]);
+  const [dateStr, setDateStr] = useState(() => getManilaDateOnly());
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);

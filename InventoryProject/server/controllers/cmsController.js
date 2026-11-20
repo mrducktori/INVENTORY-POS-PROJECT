@@ -27,20 +27,64 @@ export const getCmsSection = async (req, res) => {
   }
 };
 
+const isSafeCmsImageUrl = (url) => {
+  if (url === undefined || url === null) return true;
+  if (typeof url !== 'string') return false;
+  const trimmed = url.trim().toLowerCase();
+  if (!trimmed) return true;
+  return (
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('http://') ||
+    (trimmed.startsWith('/') && !trimmed.startsWith('//'))
+  );
+};
+
 export const updateCmsContent = async (req, res) => {
   try {
     const { section_key } = req.params;
     if (!/^[a-z0-9_]{2,50}$/.test(section_key)) {
       return res.status(400).json({ error: "Invalid section key format" });
     }
+    if (
+      cmsService.INTERNAL_CMS_KEYS.has(section_key) ||
+      !cmsService.ALLOWED_CMS_KEYS.has(section_key)
+    ) {
+      return res.status(400).json({ error: `Invalid or disallowed CMS section key: ${section_key}` });
+    }
 
     const updates = req.body || {};
 
     // Validate image URL protocol if provided to prevent XSS (e.g. javascript: URLs)
-    if (updates.image_url && typeof updates.image_url === 'string') {
-      const trimmed = updates.image_url.trim();
-      if (trimmed && !trimmed.startsWith('https://') && !trimmed.startsWith('http://') && !trimmed.startsWith('/')) {
-        return res.status(400).json({ error: "Invalid image URL. Must be an HTTP/HTTPS URL." });
+    if (!isSafeCmsImageUrl(updates.image_url)) {
+      return res.status(400).json({ error: "Invalid image URL. Must start with https://, http://, or /." });
+    }
+
+    if (section_key === 'promo_section' && updates.description !== undefined && updates.description !== null) {
+      let slides = null;
+      if (Array.isArray(updates.description)) {
+        slides = updates.description;
+      } else if (typeof updates.description === 'string') {
+        const trimmedDesc = updates.description.trim();
+        if (trimmedDesc.startsWith('[') || trimmedDesc.startsWith('{')) {
+          try {
+            const parsed = JSON.parse(trimmedDesc);
+            if (Array.isArray(parsed)) {
+              slides = parsed;
+            } else if (parsed && typeof parsed === 'object') {
+              slides = [parsed];
+            }
+          } catch {
+            // Fallback for legacy plain text promo descriptions
+          }
+        }
+      }
+
+      if (slides) {
+        for (const slide of slides) {
+          if (slide && typeof slide === 'object' && !isSafeCmsImageUrl(slide.image_url)) {
+            return res.status(400).json({ error: "Invalid promo slide image URL. Must start with https://, http://, or /." });
+          }
+        }
       }
     }
 
@@ -52,7 +96,7 @@ export const updateCmsContent = async (req, res) => {
 
     res.json(data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 };
 

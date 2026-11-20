@@ -94,9 +94,7 @@ export default function SupplierCatalogSection() {
   const availableCategories = useMemo(() => {
     const set = new Set();
     items.forEach(row => {
-      if (row.ingredients?.category) {
-        set.add(row.ingredients.category.toUpperCase());
-      }
+      set.add((row.ingredients?.category || 'GENERAL').toUpperCase());
     });
     const list = RAW_MATERIAL_CATEGORIES.filter(c => set.has(c));
     set.forEach(c => {
@@ -182,7 +180,7 @@ export default function SupplierCatalogSection() {
     const result = items.filter(row => {
       const ing = row.ingredients || {};
       const name = (ing.name || '').toLowerCase();
-      const cat = (ing.category || '').toUpperCase();
+      const cat = (ing.category || 'GENERAL').toUpperCase();
       const ingredientId = row.ingredient_id || ing.id;
       const editData = edits[ingredientId];
       const isModified = editData && (

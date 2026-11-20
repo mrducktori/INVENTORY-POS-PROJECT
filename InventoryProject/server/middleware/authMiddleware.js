@@ -152,8 +152,8 @@ export const requireAuth = async (req, res, next) => {
       data = cached.data;
     } else {
       const selectCols = hasCurrentSessionIdCol
-        ? 'id, name, username, role, status, current_session_id'
-        : 'id, name, username, role, status';
+        ? 'id, name, username, role, status, permissions, current_session_id'
+        : 'id, name, username, role, status, permissions';
 
       const queryRes = await supabase
         .from('users')
@@ -169,7 +169,7 @@ export const requireAuth = async (req, res, next) => {
         hasCurrentSessionIdCol = false;
         const fallback = await supabase
           .from('users')
-          .select('id, name, username, role, status')
+          .select('id, name, username, role, status, permissions')
           .eq('id', decoded.userId)
           .single();
         data = fallback.data;

@@ -20,16 +20,6 @@ export const generalLimiter = rateLimit({
   }
 });
 
-// Auth rate limiter - stricter limits for login attempts
-export const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5,
-  message: 'Too many login attempts, please try again later',
-  standardHeaders: true,
-  legacyHeaders: false,
-  skipSuccessfulRequests: true
-});
-
 const isLocalOrDev = (req) => {
   const ip = req.ip || req.connection?.remoteAddress || '';
   return (
@@ -39,6 +29,17 @@ const isLocalOrDev = (req) => {
     process.env.NODE_ENV !== 'production'
   );
 };
+
+// Auth rate limiter - stricter limits for login attempts
+export const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  message: { error: 'Too many failed login attempts. Please try again in 15 minutes.', locked: true },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  skip: isLocalOrDev
+});
 
 // User management rate limiter - moderate limits for user creation/updates
 export const userManagementLimiter = rateLimit({

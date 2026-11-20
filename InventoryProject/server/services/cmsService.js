@@ -1,5 +1,23 @@
 import { supabase } from "../config/supabaseClient.js";
 
+export const ALLOWED_CMS_KEYS = new Set([
+  "browser_tab",
+  "brand_logo",
+  "landing_hero",
+  "menu_section",
+  "promo_section",
+  "location_info",
+  "social_links",
+  "footer_info"
+]);
+
+export const INTERNAL_CMS_KEYS = new Set(["raw_material_categories"]);
+
+const isPublicCmsKey = (sectionKey) =>
+  typeof sectionKey === "string" &&
+  !INTERNAL_CMS_KEYS.has(sectionKey) &&
+  ALLOWED_CMS_KEYS.has(sectionKey);
+
 const CMS_CACHE_TTL_MS = 60 * 1000; // 1 minute server-side cache for public CMS reads
 let cmsCache = null;
 let cmsCacheAt = 0;
@@ -24,7 +42,7 @@ export const getCmsContent = async () => {
     .select("*")
     .then(({ data, error }) => {
       if (error) throw error;
-      cmsCache = data || [];
+      cmsCache = (data || []).filter((row) => row && isPublicCmsKey(row.section_key));
       cmsCacheAt = Date.now();
       return cmsCache;
     })
@@ -36,6 +54,9 @@ export const getCmsContent = async () => {
 };
 
 export const getCmsSection = async (section_key) => {
+  if (!isPublicCmsKey(section_key)) {
+    return null;
+  }
   if (cmsCache && Date.now() - cmsCacheAt < CMS_CACHE_TTL_MS) {
     return cmsCache.find((s) => s.section_key === section_key) || null;
   }
@@ -49,6 +70,12 @@ export const getCmsSection = async (section_key) => {
 };
 
 export const updateCmsContent = async (section_key, updates = {}) => {
+  if (!isPublicCmsKey(section_key)) {
+    const err = new Error(`Invalid or disallowed CMS section key: ${section_key}`);
+    err.status = 400;
+    throw err;
+  }
+
   const payload = { section_key };
   if (updates.title !== undefined) payload.title = updates.title;
   if (updates.description !== undefined) payload.description = updates.description;

@@ -66,7 +66,7 @@ export default function ImageUploadField({
               <span>{uploading ? 'Uploading...' : 'Upload'}</span>
               <input
                 type="file"
-                accept="image/*"
+                accept=".png,.jpg,.jpeg,.webp,.gif,.ico"
                 disabled={uploading}
                 onChange={onUpload}
                 className="hidden"
