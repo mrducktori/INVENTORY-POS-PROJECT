@@ -17,10 +17,11 @@ const DemandForecasting = () => {
     ingredientData, loadingIngredients,
     statusFilter, setStatusFilter, searchTerm, setSearchTerm,
     selectedCategory, setSelectedCategory, selectedIngredientIds,
+    lockedSupplier, doesItemMatchSupplier,
     ingPage, setIngPage, ingSortField, ingSortDirection, handleIngSort,
     categories, filteredIngredients, paginatedIngredients,
     fetchIngredientForecast, handleToggleSelectAll, handleToggleItemSelect,
-    handleResetIngredientFilters, handleOrderAllCritical, handleOpenSingleItemPO, handleOpenBatchPO,
+    handleClearSelection, handleResetIngredientFilters, handleOrderAllCritical, handleOpenSingleItemPO, handleOpenBatchPO,
     loadingProducts, productSearch, setProductSearch,
     productCategory, setProductCategory, prodPage, setProdPage,
     prodSortField, prodSortDirection, handleProdSort,
@@ -29,7 +30,7 @@ const DemandForecasting = () => {
     aiTargetYear, aiTargetMonth, aiLoading, aiResult,
     handleOpenMonthlyModal, handleSelectAiYear, handleSelectAiMonth,
     suppliers, poModalOpen, setPoModalOpen,
-    poTargetSupplierId, handleSelectPoSupplier, poItems,
+    poTargetSupplierId, handleSelectPoSupplier, poPoolItems, poItems,
     poExpectedDate, setPoExpectedDate, poNotes, setPoNotes, submittingPO,
     handleUpdatePoItemQty, handleRemovePoItem, calculatePoTotal, handleConfirmSubmitPO,
     toast, setToast,
@@ -133,6 +134,8 @@ const DemandForecasting = () => {
           filteredIngredients={filteredIngredients}
           paginatedIngredients={paginatedIngredients}
           selectedIngredientIds={selectedIngredientIds}
+          lockedSupplier={lockedSupplier}
+          doesItemMatchSupplier={doesItemMatchSupplier}
           ingPage={ingPage}
           setIngPage={setIngPage}
           pageSize={ING_PAGE_SIZE}
@@ -141,6 +144,7 @@ const DemandForecasting = () => {
           onIngSort={handleIngSort}
           onToggleSelectAll={handleToggleSelectAll}
           onToggleItemSelect={handleToggleItemSelect}
+          onClearSelection={handleClearSelection}
           onResetFilters={handleResetIngredientFilters}
           onOpenBatchPO={handleOpenBatchPO}
           onOrderAllCritical={handleOrderAllCritical}
@@ -183,6 +187,7 @@ const DemandForecasting = () => {
         setPoTargetSupplierId={handleSelectPoSupplier}
         poExpectedDate={poExpectedDate}
         setPoExpectedDate={setPoExpectedDate}
+        poPoolItems={poPoolItems}
         poItems={poItems}
         poNotes={poNotes}
         setPoNotes={setPoNotes}

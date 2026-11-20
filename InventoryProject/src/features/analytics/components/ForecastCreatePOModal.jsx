@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { formatCurrency } from '../utils/forecastUtils';
+import { doesItemMatchSupplier } from '../hooks/useDemandForecasting';
 
 const ForecastCreatePOModal = ({
   isOpen,
@@ -10,6 +11,7 @@ const ForecastCreatePOModal = ({
   setPoTargetSupplierId,
   poExpectedDate,
   setPoExpectedDate,
+  poPoolItems = [],
   poItems,
   poNotes,
   setPoNotes,
@@ -19,50 +21,20 @@ const ForecastCreatePOModal = ({
   poTotal,
   onConfirmSubmit,
 }) => {
-  const [showAllForKey, setShowAllForKey] = useState(null);
+  const sourceItems = poPoolItems.length > 0 ? poPoolItems : poItems;
 
-  const modalKey = useMemo(
-    () => (isOpen ? poItems.map((item) => item.ingredient_id).join(',') : ''),
-    [isOpen, poItems]
-  );
-  const showAllSuppliers = Boolean(modalKey) && showAllForKey === modalKey;
-
-  const { preferredSuppliers, hasMissingLinks } = useMemo(() => {
-    const anyLinkedIds = new Set();
-    let commonLinkedIds = null;
-
-    poItems.forEach((item) => {
-      const linked = (item.available_suppliers || []).map((s) => String(s.supplier_id));
-      if (linked.length === 0) return;
-      linked.forEach((id) => anyLinkedIds.add(id));
-      const itemSet = new Set(linked);
-      if (commonLinkedIds === null) {
-        commonLinkedIds = itemSet;
-      } else {
-        commonLinkedIds = new Set([...commonLinkedIds].filter((id) => itemSet.has(id)));
-      }
-    });
-
-    const targetIds =
-      commonLinkedIds && commonLinkedIds.size > 0
-        ? commonLinkedIds
-        : anyLinkedIds.size > 0
-          ? anyLinkedIds
-          : null;
-
-    const matched = targetIds
-      ? suppliers.filter((sup) => targetIds.has(String(sup.id)))
-      : suppliers;
-
-    return {
-      preferredSuppliers: matched.length > 0 ? matched : suppliers,
-      hasMissingLinks: matched.length > 0 && matched.length < suppliers.length,
-    };
-  }, [poItems, suppliers]);
+  const supplierOptions = useMemo(() => {
+    const withCounts = suppliers.map((sup) => ({
+      ...sup,
+      matchCount: sourceItems.filter((item) => doesItemMatchSupplier(item, sup.id)).length,
+    }));
+    const matched = withCounts.filter((sup) => sup.matchCount > 0);
+    return matched.length > 0 ? matched : withCounts;
+  }, [sourceItems, suppliers]);
 
   if (!isOpen) return null;
 
-  const visibleSuppliers = showAllSuppliers ? suppliers : preferredSuppliers;
+  const isMultiSupplierPool = supplierOptions.length > 1 && sourceItems.length > poItems.length;
 
   return createPortal(
     <div
@@ -99,25 +71,13 @@ const ForecastCreatePOModal = ({
         <div className="p-6 overflow-y-auto space-y-5 flex-1">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <div className="flex items-center justify-between gap-2 mb-1.5">
-                <label className="block text-xs font-semibold text-zinc-700">
-                  Supplier *
-                </label>
-                {hasMissingLinks && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setShowAllForKey((prev) => (prev === modalKey ? null : modalKey))
-                    }
-                    className="text-[11px] font-semibold text-zinc-500 hover:text-zinc-900 bg-transparent border-none p-0 cursor-pointer underline"
-                  >
-                    {showAllSuppliers ? 'Linked only' : 'Show all suppliers'}
-                  </button>
-                )}
-              </div>
+              <label className="block text-xs font-semibold text-zinc-700 mb-1.5">
+                Supplier *
+              </label>
               <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-1 border border-zinc-200 rounded-lg bg-zinc-50/60">
-                {visibleSuppliers.map((sup) => {
+                {supplierOptions.map((sup) => {
                   const isSelected = String(poTargetSupplierId) === String(sup.id);
+                  const showCount = sourceItems.length > 1 && sup.matchCount > 0;
                   return (
                     <button
                       key={sup.id}
@@ -129,11 +89,18 @@ const ForecastCreatePOModal = ({
                           : 'bg-white hover:bg-zinc-100 text-zinc-700 border border-zinc-200'
                       }`}
                     >
-                      {sup.name}
+                      {sup.name}{showCount ? ` (${sup.matchCount})` : ''}
                     </button>
                   );
                 })}
               </div>
+              {isMultiSupplierPool && (
+                <p className="mt-1.5 mb-0 text-[11px] font-medium text-zinc-500">
+                  Showing {poItems.length} of {sourceItems.length}{' '}
+                  {poNotes?.toLowerCase().includes('critical') ? 'critical items' : 'items'} for the
+                  selected supplier. Switch suppliers above or submit to proceed to the next supplier.
+                </p>
+              )}
             </div>
 
             <div>

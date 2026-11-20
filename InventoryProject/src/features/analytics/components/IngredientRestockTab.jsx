@@ -17,6 +17,8 @@ const IngredientRestockTab = ({
   filteredIngredients,
   paginatedIngredients,
   selectedIngredientIds,
+  lockedSupplier,
+  doesItemMatchSupplier,
   ingPage,
   setIngPage,
   pageSize,
@@ -25,6 +27,7 @@ const IngredientRestockTab = ({
   onIngSort,
   onToggleSelectAll,
   onToggleItemSelect,
+  onClearSelection,
   onResetFilters,
   onOpenBatchPO,
   onOrderAllCritical,
@@ -33,6 +36,12 @@ const IngredientRestockTab = ({
   onRefresh,
 }) => {
   const totalPages = Math.ceil(filteredIngredients.length / pageSize);
+  const selectableFilteredIngredients = lockedSupplier?.id && doesItemMatchSupplier
+    ? filteredIngredients.filter((item) => doesItemMatchSupplier(item, lockedSupplier.id))
+    : filteredIngredients;
+  const isAllSelectableChecked =
+    selectableFilteredIngredients.length > 0 &&
+    selectableFilteredIngredients.every((item) => selectedIngredientIds.includes(item.id));
 
   return (
     <div className="space-y-5">
@@ -108,13 +117,28 @@ const IngredientRestockTab = ({
             {/* Right Action Buttons */}
             <div className="flex items-center gap-2 shrink-0">
               {selectedIngredientIds.length > 0 ? (
-                <button
-                  type="button"
-                  onClick={onOpenBatchPO}
-                  className="px-3.5 py-1.5 bg-zinc-900 hover:bg-black text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors cursor-pointer shadow-2xs"
-                >
-                  Create PO ({selectedIngredientIds.length} selected)
-                </button>
+                <div className="flex items-center gap-2">
+                  {lockedSupplier?.name && (
+                    <span className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-100 border border-zinc-200 text-xs font-medium text-zinc-700">
+                      <span>Supplier:</span>
+                      <strong className="text-zinc-900">{lockedSupplier.name}</strong>
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={onClearSelection}
+                    className="px-2.5 py-1.5 border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-600 hover:text-zinc-900 rounded-lg text-xs sm:text-sm font-semibold transition-colors cursor-pointer"
+                  >
+                    Clear
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onOpenBatchPO}
+                    className="px-3.5 py-1.5 bg-zinc-900 hover:bg-black text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors cursor-pointer shadow-2xs"
+                  >
+                    Create PO ({selectedIngredientIds.length} selected)
+                  </button>
+                </div>
               ) : (
                 ingredientData.summary.criticalCount > 0 && (
                   <button
@@ -236,11 +260,13 @@ const IngredientRestockTab = ({
                     <th className="py-3 px-4 w-10 text-center">
                       <input
                         type="checkbox"
-                        checked={
-                          filteredIngredients.length > 0 &&
-                          selectedIngredientIds.length === filteredIngredients.length
-                        }
+                        checked={isAllSelectableChecked}
                         onChange={onToggleSelectAll}
+                        title={
+                          lockedSupplier?.name
+                            ? `Select all items from ${lockedSupplier.name}`
+                            : 'Select all items for the first supplier in this list'
+                        }
                         className="rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900 cursor-pointer"
                       />
                     </th>
@@ -319,6 +345,12 @@ const IngredientRestockTab = ({
                 <tbody className="divide-y divide-zinc-100">
                   {paginatedIngredients.map((item) => {
                     const isSelected = selectedIngredientIds.includes(item.id);
+                    const isSupplierLockedOut = Boolean(
+                      lockedSupplier?.id &&
+                      !isSelected &&
+                      doesItemMatchSupplier &&
+                      !doesItemMatchSupplier(item, lockedSupplier.id)
+                    );
                     const needsOrder =
                       item.urgency_status === 'CRITICAL' ||
                       item.urgency_status === 'OUT_OF_STOCK' ||
@@ -328,15 +360,25 @@ const IngredientRestockTab = ({
                       <tr
                         key={item.id}
                         className={`transition-colors group ${
-                          isSelected ? 'bg-zinc-50' : 'hover:bg-zinc-50/60'
+                          isSelected
+                            ? 'bg-zinc-50'
+                            : isSupplierLockedOut
+                              ? 'opacity-50'
+                              : 'hover:bg-zinc-50/60'
                         }`}
                       >
                         <td className="py-3.5 px-4 text-center">
                           <input
                             type="checkbox"
                             checked={isSelected}
+                            disabled={isSupplierLockedOut}
                             onChange={() => onToggleItemSelect(item.id)}
-                            className="rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900 cursor-pointer"
+                            title={
+                              isSupplierLockedOut
+                                ? `Locked to ${lockedSupplier.name} — one supplier per Purchase Order`
+                                : `Select ${item.name}`
+                            }
+                            className="rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                           />
                         </td>
 

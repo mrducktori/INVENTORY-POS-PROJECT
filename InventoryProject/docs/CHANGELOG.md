@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Analytics/Purchasing: Single-Supplier Selection Lock & Scoped Critical Reordering - 2026-11-20]
+- **`src/features/analytics/hooks/useDemandForecasting.js`**:
+  - Added `doesItemMatchSupplier` and derived `lockedSupplier` from selected ingredients so batch PO selection locks to one common supplier.
+  - Updated `handleToggleItemSelect` and `handleToggleSelectAll` to prevent mixing ingredients from conflicting suppliers, and added `handleClearSelection`.
+  - Added `poPoolItems` and `getItemsForSupplier` so `Reorder All Critical` and `ForecastCreatePOModal` strictly scope displayed PO items to the active supplier, track edits across supplier switches, and automatically advance to the next remaining supplier after PO submission.
+- **`src/features/analytics/components/IngredientRestockTab.jsx` & `DemandForecasting.jsx`**:
+  - Disabled checkboxes and dimmed rows belonging to other suppliers once a supplier's item is selected, updated the Select All header state, and added a locked `Supplier:` indicator and **Clear** button beside `Create PO`.
+- **`src/features/analytics/components/ForecastCreatePOModal.jsx`**:
+  - Replaced `Show all suppliers` with supplier pills strictly derived from the PO item pool, showing per-supplier item counts and a concise notice when critical items span multiple vendors.
+
 ## [Suppliers/Purchasing: Mark Supplier Price Updates as Read - 2026-11-20]
 - **Backend (`server/routes/purchasing.js`, `server/controllers/purchasingController.js`, `server/services/purchasingService.js`)**:
   - Added `POST /api/purchasing/suppliers/:id/acknowledge-prices` (`acknowledgeSupplierPriceUpdates`) logging `SUPPLIER_PRICE_UPDATES_READ` in `audit_logs` per supplier or per individual `ingredient_id`.

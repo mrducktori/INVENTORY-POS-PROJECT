@@ -9,6 +9,24 @@ import { getSuppliers, createPurchaseOrder } from '../../../api/purchasingApi';
 export const ING_PAGE_SIZE = 15;
 export const PROD_PAGE_SIZE = 15;
 
+export const doesItemMatchSupplier = (item, supplierId) => {
+  if (!supplierId || !item) return false;
+  const target = String(supplierId);
+  if (Array.isArray(item.available_suppliers) && item.available_suppliers.length > 0) {
+    return item.available_suppliers.some((s) => String(s.supplier_id) === target);
+  }
+  return Boolean(item.supplier_id && String(item.supplier_id) === target);
+};
+
+const getItemSupplierIds = (item) => {
+  if (!item) return [];
+  const ids = (item.available_suppliers || []).map((s) => String(s.supplier_id)).filter(Boolean);
+  if (ids.length === 0 && item.supplier_id) {
+    ids.push(String(item.supplier_id));
+  }
+  return ids;
+};
+
 const getInitialTab = () => {
   if (typeof window !== 'undefined' && window.location.hash.includes('/')) {
     const sub = window.location.hash.split('/')[1];
@@ -128,6 +146,7 @@ export const useDemandForecasting = () => {
   const [suppliers, setSuppliers] = useState([]);
   const [poModalOpen, setPoModalOpen] = useState(false);
   const [poTargetSupplierId, setPoTargetSupplierId] = useState('');
+  const [poPoolItems, setPoPoolItems] = useState([]);
   const [poItems, setPoItems] = useState([]);
   const [poExpectedDate, setPoExpectedDate] = useState(() => {
     const d = new Date();
@@ -435,19 +454,80 @@ export const useDemandForecasting = () => {
     return { total7DayUnits, topProduct, trendingUpCount };
   }, [productForecasts]);
 
+  // Lock batch table selection to one common supplier so PO creation has no supplier conflicts
+  const lockedSupplier = useMemo(() => {
+    if (selectedIngredientIds.length === 0) return null;
+    const selectedItems = ingredientData.ingredients.filter((i) =>
+      selectedIngredientIds.includes(i.id)
+    );
+    if (selectedItems.length === 0) return null;
+
+    let commonIds = getItemSupplierIds(selectedItems[0]);
+    for (let idx = 1; idx < selectedItems.length; idx += 1) {
+      const nextSet = new Set(getItemSupplierIds(selectedItems[idx]));
+      commonIds = commonIds.filter((id) => nextSet.has(id));
+    }
+
+    const primaryId = selectedItems[0].supplier_id
+      ? String(selectedItems[0].supplier_id)
+      : getItemSupplierIds(selectedItems[0])[0] || null;
+    const lockedId = primaryId && commonIds.includes(primaryId) ? primaryId : commonIds[0] || primaryId;
+    if (!lockedId) return null;
+
+    const matchedSup = suppliers.find((s) => String(s.id) === lockedId);
+    const matchedName =
+      matchedSup?.name ||
+      selectedItems.find((i) => String(i.supplier_id) === lockedId)?.supplier_name ||
+      selectedItems
+        .flatMap((i) => i.available_suppliers || [])
+        .find((s) => String(s.supplier_id) === lockedId)?.supplier_name ||
+      'Selected Supplier';
+
+    return { id: lockedId, name: matchedName };
+  }, [selectedIngredientIds, ingredientData.ingredients, suppliers]);
+
   // Selection helpers
   const handleToggleSelectAll = () => {
-    if (selectedIngredientIds.length === filteredIngredients.length) {
+    const firstVisibleWithSupplier = sortedIngredients.find(
+      (i) => i.supplier_id || (Array.isArray(i.available_suppliers) && i.available_suppliers.length > 0)
+    );
+    const targetSupplierId = lockedSupplier?.id || firstVisibleWithSupplier?.supplier_id || getItemSupplierIds(firstVisibleWithSupplier)[0] || null;
+
+    const selectableItems = targetSupplierId
+      ? filteredIngredients.filter((i) => doesItemMatchSupplier(i, targetSupplierId))
+      : filteredIngredients;
+
+    const allSelectableSelected =
+      selectableItems.length > 0 &&
+      selectableItems.every((i) => selectedIngredientIds.includes(i.id));
+
+    if (allSelectableSelected) {
       setSelectedIngredientIds([]);
     } else {
-      setSelectedIngredientIds(filteredIngredients.map((item) => item.id));
+      setSelectedIngredientIds(selectableItems.map((item) => item.id));
     }
   };
 
   const handleToggleItemSelect = (id) => {
-    setSelectedIngredientIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
+    if (selectedIngredientIds.includes(id)) {
+      setSelectedIngredientIds((prev) => prev.filter((x) => x !== id));
+      return;
+    }
+
+    const clickedItem = ingredientData.ingredients.find((i) => i.id === id);
+    if (lockedSupplier?.id && !doesItemMatchSupplier(clickedItem, lockedSupplier.id)) {
+      showToast(
+        'error',
+        `Only items from ${lockedSupplier.name} can be combined into one Purchase Order.`
+      );
+      return;
+    }
+
+    setSelectedIngredientIds((prev) => [...prev, id]);
+  };
+
+  const handleClearSelection = () => {
+    setSelectedIngredientIds([]);
   };
 
   const handleResetIngredientFilters = () => {
@@ -470,6 +550,7 @@ export const useDemandForecasting = () => {
       base_unit_price: unitPrice,
       base_purchase_unit: purchaseUnit,
       base_conversion_factor: conversionFactor,
+      supplier_id: item.supplier_id || null,
       available_suppliers: item.available_suppliers || [],
       stock_quantity: item.stock_quantity,
       unit: item.unit,
@@ -502,10 +583,32 @@ export const useDemandForecasting = () => {
     });
   };
 
+  const getItemsForSupplier = (pool, supplierId) => {
+    const hasAnyLinkedSupplier = pool.some((item) => getItemSupplierIds(item).length > 0);
+    if (!hasAnyLinkedSupplier) {
+      return applySupplierToItems(pool, supplierId);
+    }
+    const matching = pool.filter((item) => doesItemMatchSupplier(item, supplierId));
+    return applySupplierToItems(matching, supplierId);
+  };
+
   const handleSelectPoSupplier = (supplierId) => {
     const idStr = String(supplierId);
     setPoTargetSupplierId(idStr);
-    setPoItems((prev) => applySupplierToItems(prev, idStr));
+    const sourcePool = poPoolItems.length > 0 ? poPoolItems : poItems;
+    const nextItems = getItemsForSupplier(sourcePool, idStr);
+    setPoItems(nextItems);
+
+    if (sourcePool.length > 1) {
+      setSelectedIngredientIds(nextItems.map((i) => i.ingredient_id));
+      const supName = suppliers.find((s) => String(s.id) === idStr)?.name;
+      setPoNotes((prevNotes) => {
+        const isCritical = prevNotes.toLowerCase().includes('critical');
+        const label = isCritical ? 'critical raw material(s)' : 'item(s)';
+        const base = isCritical ? 'Restock order' : 'Batch restock order';
+        return `${base} for ${nextItems.length} ${label}${supName ? ` (${supName})` : ''}.`;
+      });
+    }
   };
 
   const handleOrderAllCritical = () => {
@@ -514,26 +617,40 @@ export const useDemandForecasting = () => {
     );
     if (criticalItems.length === 0) return;
 
-    const firstSupplierId = criticalItems.find((i) => i.supplier_id)?.supplier_id;
+    const lockedMatchesCritical =
+      lockedSupplier?.id && criticalItems.some((i) => doesItemMatchSupplier(i, lockedSupplier.id));
+    const firstSupplierId = lockedMatchesCritical
+      ? lockedSupplier.id
+      : criticalItems.find((i) => getItemSupplierIds(i).length > 0)?.supplier_id ||
+        getItemSupplierIds(criticalItems.find((i) => getItemSupplierIds(i).length > 0))[0];
+
     const targetId = firstSupplierId
       ? String(firstSupplierId)
       : suppliers[0]?.id
         ? String(suppliers[0].id)
         : '';
+
+    const pool = criticalItems.map(mapToPoItem);
+    const scopedItems = getItemsForSupplier(pool, targetId);
+    setPoPoolItems(pool);
     setPoTargetSupplierId(targetId);
-    setPoItems(applySupplierToItems(criticalItems.map(mapToPoItem), targetId));
-    setPoNotes(`Restock order for ${criticalItems.length} critical raw materials.`);
+    setPoItems(scopedItems);
+    setSelectedIngredientIds(scopedItems.map((i) => i.ingredient_id));
+    setPoNotes(`Restock order for ${scopedItems.length} critical raw material(s).`);
     setPoModalOpen(true);
   };
 
   const handleOpenSingleItemPO = (item) => {
-    const targetId = item.supplier_id
-      ? String(item.supplier_id)
+    const firstId = item.supplier_id || getItemSupplierIds(item)[0];
+    const targetId = firstId
+      ? String(firstId)
       : suppliers[0]?.id
         ? String(suppliers[0].id)
         : '';
+    const pool = [mapToPoItem(item)];
+    setPoPoolItems(pool);
     setPoTargetSupplierId(targetId);
-    setPoItems(applySupplierToItems([mapToPoItem(item)], targetId));
+    setPoItems(applySupplierToItems(pool, targetId));
     setPoNotes(`Reorder for ${item.name} (Current stock: ${item.stock_quantity} ${item.unit}).`);
     setPoModalOpen(true);
   };
@@ -543,29 +660,47 @@ export const useDemandForecasting = () => {
     const selectedItems = ingredientData.ingredients.filter((item) =>
       selectedIngredientIds.includes(item.id)
     );
-    const firstSupplierId = selectedItems.find((i) => i.supplier_id)?.supplier_id;
+    const firstSupplierId =
+      lockedSupplier?.id ||
+      selectedItems.find((i) => getItemSupplierIds(i).length > 0)?.supplier_id ||
+      getItemSupplierIds(selectedItems.find((i) => getItemSupplierIds(i).length > 0))[0];
     const targetId = firstSupplierId
       ? String(firstSupplierId)
       : suppliers[0]?.id
         ? String(suppliers[0].id)
         : '';
+    const pool = selectedItems.map(mapToPoItem);
+    const scopedItems = getItemsForSupplier(pool, targetId);
+    setPoPoolItems(pool);
     setPoTargetSupplierId(targetId);
-    setPoItems(applySupplierToItems(selectedItems.map(mapToPoItem), targetId));
-    setPoNotes(`Batch restock order (${selectedItems.length} items).`);
+    setPoItems(scopedItems);
+    setPoNotes(`Batch restock order (${scopedItems.length} items).`);
     setPoModalOpen(true);
   };
 
   const handleUpdatePoItemQty = (index, value) => {
     const val = Math.max(1, parseInt(value, 10) || 1);
+    const targetIngId = poItems[index]?.ingredient_id;
     setPoItems((prev) => {
       const copy = [...prev];
       copy[index] = { ...copy[index], quantity: val };
       return copy;
     });
+    if (targetIngId) {
+      setPoPoolItems((prev) =>
+        prev.map((item) =>
+          item.ingredient_id === targetIngId ? { ...item, quantity: val } : item
+        )
+      );
+    }
   };
 
   const handleRemovePoItem = (index) => {
+    const targetIngId = poItems[index]?.ingredient_id;
     setPoItems((prev) => prev.filter((_, idx) => idx !== index));
+    if (targetIngId) {
+      setPoPoolItems((prev) => prev.filter((item) => item.ingredient_id !== targetIngId));
+    }
   };
 
   const calculatePoTotal = () => {
@@ -596,10 +731,34 @@ export const useDemandForecasting = () => {
           conversion_factor: item.conversion_factor,
         })),
       });
-      showToast('success', `Purchase order created for ${poItems.length} item(s).`);
-      setPoModalOpen(false);
-      setSelectedIngredientIds([]);
-      fetchIngredientForecast();
+
+      const orderedIds = new Set(poItems.map((i) => i.ingredient_id));
+      const remainingPool = poPoolItems.filter((i) => !orderedIds.has(i.ingredient_id));
+      const nextItemWithSupplier = remainingPool.find((i) => getItemSupplierIds(i).length > 0);
+      const nextSupplierId = nextItemWithSupplier
+        ? nextItemWithSupplier.supplier_id || getItemSupplierIds(nextItemWithSupplier)[0]
+        : null;
+
+      if (remainingPool.length > 0 && nextSupplierId) {
+        const nextIdStr = String(nextSupplierId);
+        const nextScoped = getItemsForSupplier(remainingPool, nextIdStr);
+        setPoPoolItems(remainingPool);
+        setPoTargetSupplierId(nextIdStr);
+        setPoItems(nextScoped);
+        setSelectedIngredientIds(nextScoped.map((i) => i.ingredient_id));
+        setPoNotes(`Restock order for ${nextScoped.length} critical raw material(s).`);
+        showToast(
+          'success',
+          `PO created (${poItems.length} item(s)). Loaded next supplier with ${nextScoped.length} remaining item(s).`
+        );
+        fetchIngredientForecast();
+      } else {
+        showToast('success', `Purchase order created for ${poItems.length} item(s).`);
+        setPoModalOpen(false);
+        setPoPoolItems([]);
+        setSelectedIngredientIds([]);
+        fetchIngredientForecast();
+      }
     } catch (err) {
       console.error('Failed to create purchase order:', err);
       showToast('error', err.message || 'Failed to create purchase order.');
@@ -625,6 +784,8 @@ export const useDemandForecasting = () => {
     selectedCategory,
     setSelectedCategory,
     selectedIngredientIds,
+    lockedSupplier,
+    doesItemMatchSupplier,
     ingPage,
     setIngPage,
     ingSortField,
@@ -636,6 +797,7 @@ export const useDemandForecasting = () => {
     fetchIngredientForecast,
     handleToggleSelectAll,
     handleToggleItemSelect,
+    handleClearSelection,
     handleResetIngredientFilters,
     handleOrderAllCritical,
     handleOpenSingleItemPO,
@@ -672,6 +834,7 @@ export const useDemandForecasting = () => {
     poTargetSupplierId,
     setPoTargetSupplierId,
     handleSelectPoSupplier,
+    poPoolItems,
     poItems,
     poExpectedDate,
     setPoExpectedDate,
