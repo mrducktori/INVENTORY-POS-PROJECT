@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { getSales } from '../../../api/salesApi';
 import { voidOrRefundSale, setManagerPin } from '../../../api/posApi';
+import Pagination from '../../../components/shared/Pagination';
 import { formatReceiptDateTime } from '../../../utils/receiptPrint';
 
 const ACTIONS = [
@@ -57,6 +58,9 @@ const PosVoidRefundSection = ({ user }) => {
     void loadSales();
   }, [loadSales]);
 
+  const [salesPage, setSalesPage] = useState(1);
+  const SALES_PER_PAGE = 10;
+
   const filteredSales = useMemo(() => {
     const q = search.trim().toLowerCase();
     return (sales || []).filter((sale) => {
@@ -69,6 +73,11 @@ const PosVoidRefundSection = ({ user }) => {
       return receiptNo.includes(q) || cashier.includes(q);
     });
   }, [sales, search, statusFilter]);
+
+  const pagedSales = filteredSales.slice(
+    (Math.min(salesPage, Math.max(1, Math.ceil(filteredSales.length / SALES_PER_PAGE))) - 1) * SALES_PER_PAGE,
+    Math.min(salesPage, Math.max(1, Math.ceil(filteredSales.length / SALES_PER_PAGE))) * SALES_PER_PAGE
+  );
 
   const selectedIsVoided = Boolean(
     selectedSale &&
@@ -259,7 +268,7 @@ const PosVoidRefundSection = ({ user }) => {
                       </td>
                     </tr>
                   ) : (
-                    filteredSales.map((sale) => {
+                    pagedSales.map((sale) => {
                       const status = String(
                         sale.void_info?.action_type === 'REFUND'
                           ? 'REFUNDED'
@@ -312,6 +321,7 @@ const PosVoidRefundSection = ({ user }) => {
                   )}
                 </tbody>
               </table>
+<Pagination currentPage={Math.min(salesPage,Math.max(1,Math.ceil(filteredSales.length/SALES_PER_PAGE)))} totalPages={Math.max(1,Math.ceil(filteredSales.length/SALES_PER_PAGE))} totalItems={filteredSales.length} itemsPerPage={SALES_PER_PAGE} onPageChange={setSalesPage} />
             </div>
           </div>
 

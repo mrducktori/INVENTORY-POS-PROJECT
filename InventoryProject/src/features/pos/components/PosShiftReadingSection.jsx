@@ -6,6 +6,7 @@ import {
   closeShiftZReading,
   getShiftHistory
 } from '../../../api/posApi';
+import Pagination from '../../../components/shared/Pagination';
 import { formatReceiptDateTime, printShiftReading } from '../../../utils/receiptPrint';
 import { round2, formatPeso } from '../../../utils/money';
 
@@ -13,6 +14,8 @@ const PosShiftReadingSection = ({ user }) => {
   const [currentShift, setCurrentShift] = useState(null);
   const [xReading, setXReading] = useState(null);
   const [history, setHistory] = useState([]);
+  const [historyPage, setHistoryPage] = useState(1);
+  const HISTORY_PER_PAGE = 8;
   const [loading, setLoading] = useState(true);
 
   const [openingCash, setOpeningCash] = useState('0');
@@ -403,7 +406,7 @@ const PosShiftReadingSection = ({ user }) => {
                   </td>
                 </tr>
               ) : (
-                history.map((s) => {
+                history.slice((Math.min(historyPage, Math.max(1, Math.ceil(history.length / HISTORY_PER_PAGE))) - 1) * HISTORY_PER_PAGE, Math.min(historyPage, Math.max(1, Math.ceil(history.length / HISTORY_PER_PAGE))) * HISTORY_PER_PAGE).map((s) => {
                   const shortOver = s.short_over !== undefined && s.short_over !== null ? Number(s.short_over) : null;
                   return (
                     <tr key={s.id} className="hover:bg-gray-50">
@@ -453,6 +456,7 @@ const PosShiftReadingSection = ({ user }) => {
               )}
             </tbody>
           </table>
+<Pagination currentPage={Math.min(historyPage,Math.max(1,Math.ceil(history.length/HISTORY_PER_PAGE)))} totalPages={Math.max(1,Math.ceil(history.length/HISTORY_PER_PAGE))} totalItems={history.length} itemsPerPage={HISTORY_PER_PAGE} onPageChange={setHistoryPage} />
         </div>
       </div>
     </div>

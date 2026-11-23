@@ -1,8 +1,11 @@
 import React, { useState, useMemo } from 'react';
+import Pagination from '../../../../components/shared/Pagination';
 
 const SupplierCatalogModal = ({ supplier, onClose, onAcknowledgePriceUpdates }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterMode, setFilterMode] = useState('ALL'); // 'ALL' | 'UPDATED'
+  const [catPage, setCatPage] = useState(1);
+  const CAT_PER_PAGE = 10;
 
   const recentUpdates = supplier?.recent_price_updates || null;
   const hasPriceUpdates = Boolean(recentUpdates && recentUpdates.changes_count > 0);
@@ -298,6 +301,7 @@ const SupplierCatalogModal = ({ supplier, onClose, onAcknowledgePriceUpdates }) 
               )}
             </div>
           ) : (
+            <>
             <table className="w-full text-left border-collapse whitespace-nowrap">
               <thead className="sticky top-0 bg-zinc-50 border-b border-zinc-200 z-10">
                 <tr className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
@@ -309,7 +313,7 @@ const SupplierCatalogModal = ({ supplier, onClose, onAcknowledgePriceUpdates }) 
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 text-sm">
-                {displayedItems.map((item) => {
+                {displayedItems.slice((Math.min(catPage, Math.max(1, Math.ceil(displayedItems.length / CAT_PER_PAGE))) - 1) * CAT_PER_PAGE, Math.min(catPage, Math.max(1, Math.ceil(displayedItems.length / CAT_PER_PAGE))) * CAT_PER_PAGE).map((item) => {
                   const change = item.priceChange;
                   return (
                     <tr
@@ -380,6 +384,8 @@ const SupplierCatalogModal = ({ supplier, onClose, onAcknowledgePriceUpdates }) 
                 })}
               </tbody>
             </table>
+<Pagination currentPage={Math.min(catPage,Math.max(1,Math.ceil(displayedItems.length/CAT_PER_PAGE)))} totalPages={Math.max(1,Math.ceil(displayedItems.length/CAT_PER_PAGE))} totalItems={displayedItems.length} itemsPerPage={CAT_PER_PAGE} onPageChange={setCatPage} />
+            </>
           )}
         </div>
 

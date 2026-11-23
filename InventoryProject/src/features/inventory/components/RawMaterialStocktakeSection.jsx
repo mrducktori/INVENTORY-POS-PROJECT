@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getStocktakeHistory, submitStocktake } from '../../../api/inventoryApi';
 import { formatQuantity } from '../../../utils/productUtils';
 import { formatDisplayDate } from '../../../utils/dateUtils';
+import Pagination from '../../../components/shared/Pagination';
 import { INPUT_LIMITS, validateAmountInput } from '../../../utils/validationUtils';
 
 const REASON_PRESETS = [
@@ -25,6 +26,10 @@ const RawMaterialStocktakeSection = ({ ingredients = [], onRefreshIngredients })
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [banner, setBanner] = useState({ type: '', text: '' });
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
+  const [historyPage, setHistoryPage] = useState(1);
+  const HISTORY_PER_PAGE = 5;
 
   const loadHistory = useCallback(async () => {
     try {
@@ -63,6 +68,10 @@ const RawMaterialStocktakeSection = ({ ingredients = [], onRefreshIngredients })
       })
       .sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }));
   }, [ingredients, searchTerm, categoryFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredIngredients.length / perPage));
+  const safePage = Math.min(page, totalPages);
+  const pagedIngredients = filteredIngredients.slice((safePage - 1) * perPage, safePage * perPage);
 
   const enteredEntries = useMemo(() => {
     return Object.entries(countsMap).filter(
@@ -197,12 +206,12 @@ const RawMaterialStocktakeSection = ({ ingredients = [], onRefreshIngredients })
               type="text"
               placeholder="Search ingredients..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
               className="w-full sm:w-56 px-3.5 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900"
             />
             <select
               value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
+              onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}
               className="w-full sm:w-52 px-3.5 py-2 border border-gray-300 rounded-lg text-sm bg-white font-medium focus:outline-none focus:ring-2 focus:ring-gray-900 cursor-pointer"
             >
               {categories.map((cat) => (
@@ -233,7 +242,7 @@ const RawMaterialStocktakeSection = ({ ingredients = [], onRefreshIngredients })
                   </td>
                 </tr>
               ) : (
-                filteredIngredients.map((ing) => {
+                pagedIngredients.map((ing) => {
                   const entry = countsMap[ing.id] || {};
                   const rawCount = entry.physicalCount ?? '';
                   const hasInput = String(rawCount).trim() !== '';
@@ -292,7 +301,7 @@ const RawMaterialStocktakeSection = ({ ingredients = [], onRefreshIngredients })
                           value={entry.reason || ''}
                           onChange={(e) => handleReasonChange(ing.id, e.target.value)}
                           placeholder="Physical Count Correction"
-                          className="w-full min-w-[200px] px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900"
+                          className="w-full min-w-[160px] max-w-[260px] px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900"
                         />
                       </td>
                     </tr>
@@ -302,6 +311,14 @@ const RawMaterialStocktakeSection = ({ ingredients = [], onRefreshIngredients })
             </tbody>
           </table>
         </div>
+        <Pagination
+          currentPage={safePage}
+          totalPages={totalPages}
+          totalItems={filteredIngredients.length}
+          itemsPerPage={perPage}
+          onPageChange={setPage}
+          onItemsPerPageChange={(n) => { setPerPage(n); setPage(1); }}
+        />
 
         {/* Summary Footer */}
         <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -374,7 +391,7 @@ const RawMaterialStocktakeSection = ({ ingredients = [], onRefreshIngredients })
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 text-xs md:text-sm">
-                {history.slice(0, 20).map((session) => {
+                {history.slice((historyPage - 1) * HISTORY_PER_PAGE, historyPage * HISTORY_PER_PAGE).map((session) => {
                   const adjusted = Array.isArray(session.items) ? session.items : [];
                   return (
                     <tr key={session.id} className="hover:bg-gray-50/50">
@@ -418,6 +435,13 @@ const RawMaterialStocktakeSection = ({ ingredients = [], onRefreshIngredients })
             </table>
           )}
         </div>
+        <Pagination
+          currentPage={historyPage}
+          totalPages={Math.max(1, Math.ceil(history.length / HISTORY_PER_PAGE))}
+          totalItems={history.length}
+          itemsPerPage={HISTORY_PER_PAGE}
+          onPageChange={setHistoryPage}
+        />
       </div>
     </div>
   );
