@@ -1,6 +1,7 @@
 import * as posService from "../services/posService.js";
 import * as posOperationsService from "../services/posOperationsService.js";
 import * as forecastService from "../services/forecastService.js";
+import * as extraSuppliesService from "../services/extraSuppliesService.js";
 
 // End-of-day totals feed the forecast; a failed refresh must never fail the sale/shift action.
 const refreshInBackground = (promise) => promise.catch((err) => console.warn("[forecast] daily refresh failed:", err.message));
@@ -376,6 +377,22 @@ export const getManagerPinStatus = async (req, res) => {
   try {
     const status = await posOperationsService.getManagerPinStatus();
     res.json(status);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+};
+
+export const getExtraSupplies = async (req, res) => {
+  try {
+    res.json(await extraSuppliesService.listExtraSupplies());
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+};
+
+export const useExtraSupply = async (req, res) => {
+  try {
+    res.status(201).json(await extraSuppliesService.useExtraSupply(req.body || {}, req.user.id));
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
   }

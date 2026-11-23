@@ -12,6 +12,7 @@ import PosKdsSection from "./components/PosKdsSection";
 import PosVoidRefundSection from "./components/PosVoidRefundSection";
 import PosShiftReadingSection from "./components/PosShiftReadingSection";
 import PosSettingsModal from "./components/PosSettingsModal";
+import ExtraSupplyButton from "./components/ExtraSupplyButton";
 import SalesReceiptModal from "../../components/SalesReceiptModal";
 import ConfirmModal from "../../components/shared/ConfirmModal";
 import { CardGridSkeleton } from "../../components/shared/SkeletonLoader";
@@ -54,6 +55,7 @@ const POS = ({ subTab = null, onSubTabChange = null }) => {
     cartStockValidation,
     stockIssuesByOrderId,
     stockNotice,
+    showStockNotice,
     clearStockNotice,
     ongoingOrders,
     activeTab,
@@ -285,6 +287,10 @@ const POS = ({ subTab = null, onSubTabChange = null }) => {
               >
                 Ongoing ({ongoingOrders.length})
               </button>
+            </div>
+
+            <div className="flex justify-end px-3 py-2 border-b border-gray-200">
+              <ExtraSupplyButton onNotice={showStockNotice} />
             </div>
 
             {/* Cart Tab */}

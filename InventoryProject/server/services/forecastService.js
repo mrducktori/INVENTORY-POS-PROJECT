@@ -14,7 +14,7 @@ import { supabase } from "../config/supabaseClient.js";
 import { getManilaDateOnly } from "../utils/dateUtils.js";
 import { convertToBaseUnit } from "../utils/unitUtils.js";
 import * as batchService from "./batchService.js";
-import { getVoidRefundMap } from "./posOperationsService.js";
+import { getVoidRefundMap, getPosSettings } from "./posOperationsService.js";
 import { validateTextLength } from "../utils/validationHelper.js";
 
 const WINDOW_DAYS = 56;
@@ -428,13 +428,37 @@ const recipeUsagePerUnit = (recipeRows) => {
 };
 
 export const getIngredientReorderPlan = async () => {
-  const [overview, ingRes, recipeRes, supplierRes] = await Promise.all([
+  const [overview, ingRes, recipeRes, supplierRes, catRes, posSettings] = await Promise.all([
     getForecastOverview({ horizon: 14 }), // same cache entry as the forecast page; next7 is its first 7 days
     supabase.from("ingredients").select("*").neq("is_archived", true),
-    supabase.from("recipes").select("product_id, quantity_used, recipe_unit, size_name, ingredients(id, unit)"),
-    supabase.from("supplier_ingredients").select("ingredient_id, suppliers(lead_time_days)")
+    supabase.from("recipes").select("product_id, quantity_used, recipe_unit, size_name, ingredients(id, unit), products(name, is_archived)"),
+    supabase.from("supplier_ingredients").select("ingredient_id, supplier_id, default_price, default_purchase_unit, default_conversion_factor, suppliers(id, name, description, lead_time_days)"),
+    supabase.from("category_settings").select("sizes, add_ons"),
+    getPosSettings().catch(() => null)
   ]);
-  for (const r of [ingRes, recipeRes, supplierRes]) if (r.error) throw r.error;
+  for (const r of [ingRes, recipeRes, supplierRes, catRes]) if (r.error) throw r.error;
+
+  // Ingredients can also be used outside recipes: cup-size packaging, add-ons and take-out packaging.
+  // Their ids live inside JSON settings, so a text search is the simplest reliable check.
+  const settingsText = JSON.stringify([catRes.data || [], posSettings?.takeout_packaging || null]);
+
+  // Per ingredient: which active products use it and the smallest amount one serving of each needs.
+  const linkedProducts = new Map();
+  {
+    const smallest = new Map(); // `${ingId}|${productId}` -> { name, need }
+    for (const r of recipeRes.data || []) {
+      if (!r.ingredients || !r.products || r.products.is_archived) continue;
+      const need = convertToBaseUnit(Number(r.quantity_used) || 0, r.recipe_unit || r.ingredients.unit, r.ingredients.unit);
+      if (!(need > 0)) continue;
+      const key = `${r.ingredients.id}|${r.product_id}`;
+      const cur = smallest.get(key);
+      if (!cur || need < cur.need) smallest.set(key, { ingId: r.ingredients.id, product_id: r.product_id, name: r.products.name, need });
+    }
+    for (const v of smallest.values()) {
+      if (!linkedProducts.has(v.ingId)) linkedProducts.set(v.ingId, []);
+      linkedProducts.get(v.ingId).push({ product_id: v.product_id, name: v.name, needs: Math.round(v.need * 1000) / 1000 });
+    }
+  }
 
   const recipesByProduct = new Map();
   for (const r of recipeRes.data || []) {
@@ -449,11 +473,28 @@ export const getIngredientReorderPlan = async () => {
       dailyUsage.set(ingId, (dailyUsage.get(ingId) || 0) + (qty * p.next7) / 7);
     }
   }
+  // Every active supplier that can deliver each ingredient (one PO is made per chosen supplier).
   const leadTime = new Map();
+  const suppliersByIngredient = new Map();
   for (const row of supplierRes.data || []) {
-    const days = Number(row.suppliers?.lead_time_days);
-    if (!Number.isFinite(days)) continue;
-    leadTime.set(row.ingredient_id, Math.min(leadTime.get(row.ingredient_id) ?? Infinity, days));
+    const sup = row.suppliers;
+    // Archived suppliers are marked by a "[ARCHIVED]" description prefix (there is no is_archived column).
+    if (!sup || String(sup.description || "").startsWith("[ARCHIVED]")) continue;
+    const days = Number(sup.lead_time_days);
+    const lead = Number.isFinite(days) ? days : DEFAULT_LEAD_TIME_DAYS;
+    leadTime.set(row.ingredient_id, Math.min(leadTime.get(row.ingredient_id) ?? Infinity, lead));
+    if (!suppliersByIngredient.has(row.ingredient_id)) suppliersByIngredient.set(row.ingredient_id, []);
+    suppliersByIngredient.get(row.ingredient_id).push({
+      supplier_id: row.supplier_id,
+      supplier_name: sup.name,
+      lead_time_days: lead,
+      default_price: Number(row.default_price) || 0,
+      default_purchase_unit: row.default_purchase_unit || null,
+      default_conversion_factor: Number(row.default_conversion_factor) || 1
+    });
+  }
+  for (const list of suppliersByIngredient.values()) {
+    list.sort((a, b) => a.lead_time_days - b.lead_time_days || a.default_price - b.default_price);
   }
 
   const enriched = await batchService.enrichIngredientsWithBatches(ingRes.data || []);
@@ -471,8 +512,17 @@ export const getIngredientReorderPlan = async () => {
     // Items with no recipe usage (e.g. new or unused) keep the manual threshold.
     const manualThreshold = Number(ing.low_stock_alert) || 0;
 
+    // Some stock left, but not enough for even one serving of a product that needs it.
+    const linked = linkedProducts.get(ing.id) || [];
+    const blocked = usable > 0 ? linked.filter((p) => usable + 1e-6 < p.needs) : [];
+    const usedOutsideRecipes = settingsText.includes(String(ing.id));
+    let usageStatus = "IN_USE";
+    if (linked.length === 0) usageStatus = usedOutsideRecipes ? "PACKAGING_OR_ADDON" : "NOT_IN_ANY_RECIPE";
+    else if (usage === 0) usageStatus = "NO_RECENT_SALES";
+
     let alert = null;
     if (usable <= 0) alert = "OUT_OF_STOCK";
+    else if (blocked.length > 0) alert = "CANNOT_MAKE";
     else if (usage > 0 && usable <= reorderPoint) alert = "REORDER_NOW";
     else if (manualThreshold > 0 && usable <= manualThreshold) alert = "BELOW_MANUAL_THRESHOLD"; // owner's own floor always counts
 
@@ -480,12 +530,17 @@ export const getIngredientReorderPlan = async () => {
       ...ing,
       daily_usage: usage,
       lead_time_days: lead,
+      available_suppliers: suppliersByIngredient.get(ing.id) || [],
       safety_days: SAFETY_DAYS,
       reorder_point: reorderPoint,
       days_of_cover: daysOfCover,
       suggested_order_qty: suggestedOrder,
       expiring_before_use_qty: expiringBeforeUse,
       expiry_risk: expiringBeforeUse > 0 || Number(ing.expired_stock) > 0,
+      usage_status: usageStatus,
+      linked_products_count: linked.length,
+      blocked_products: blocked.slice(0, 6),
+      blocked_count: blocked.length,
       alert
     };
   });
@@ -495,26 +550,40 @@ export const getIngredientReorderPlan = async () => {
 // Nightly explanations (Gemini optional) + scheduler
 // ---------------------------------------------------------------------------
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Gemini models are sometimes "overloaded" (503). Try each model with each key, in order, instead of
+// losing the whole night to one busy moment. GEMINI_MODEL / GEMINI_FALLBACK_MODEL override the first two.
 const askGemini = async (prompt) => {
   const keys = [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY_BACKUP].filter(Boolean);
-  const model = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
-  for (const key of keys) {
-    try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.2, responseMimeType: "application/json" }
-        }),
-        signal: AbortSignal.timeout(20000)
-      });
-      if (!res.ok) continue;
-      const body = await res.json();
-      const text = body?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (text) return JSON.parse(text.replace(/```json|```/gi, "").trim());
-    } catch {
-      // try the backup key
+  const models = [...new Set([
+    process.env.GEMINI_MODEL || "gemini-3.5-flash-lite",
+    process.env.GEMINI_FALLBACK_MODEL || "gemini-3.5-flash",
+    "gemini-3.1-flash-lite"
+  ])];
+  for (const model of models) {
+    for (const key of keys) {
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+          body: JSON.stringify({
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0.2, responseMimeType: "application/json" }
+          }),
+          signal: AbortSignal.timeout(30000)
+        });
+        if (!res.ok) {
+          console.warn(`[forecast] Gemini ${model} answered ${res.status}`);
+          if (res.status === 503 || res.status === 429) await sleep(1500);
+          continue;
+        }
+        const body = await res.json();
+        const text = (body?.candidates?.[0]?.content?.parts || []).map((p) => p.text || "").join("");
+        if (text) return JSON.parse(text.replace(/```json|```/gi, "").trim());
+      } catch (err) {
+        console.warn(`[forecast] Gemini ${model} failed: ${err.message}`);
+      }
     }
   }
   return null;

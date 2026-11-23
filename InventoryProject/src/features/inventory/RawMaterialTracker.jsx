@@ -7,6 +7,7 @@ import Pagination from '../../components/shared/Pagination';
 import { getCurrentUser } from '../../api/authApi';
 import { canStocktake } from '../../utils/permissions';
 import RawMaterialStocktakeSection from './components/RawMaterialStocktakeSection';
+import ExpiryLevelBadge from './components/ExpiryLevelBadge';
 
 const STATUS_GROUPS = [
   {
@@ -450,7 +451,12 @@ const RawMaterialTracker = ({ subTab = null, onSubTabChange = null }) => {
                                                           FEFO #1
                                                         </span>
                                                       )}
-                                                      {expStatus === 'EXPIRED' ? (
+                                                      {b.expiry_level && b.expiry_level !== 'NONE' && b.expiry_level !== 'OK' ? (
+                                                        <ExpiryLevelBadge
+                                                          level={b.expiry_level}
+                                                          title={b.days_until_expiry != null ? `${b.days_until_expiry} day(s) left` : undefined}
+                                                        />
+                                                      ) : expStatus === 'EXPIRED' ? (
                                                         <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-red-50 text-red-700 border border-red-200">
                                                           Expired
                                                         </span>

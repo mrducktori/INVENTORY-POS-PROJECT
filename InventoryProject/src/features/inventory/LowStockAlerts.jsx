@@ -4,6 +4,7 @@ import { formatQuantity } from '../../utils/productUtils';
 import { getManilaDateOnly } from '../../utils/dateUtils';
 import { TableSkeleton } from '../../components/shared/SkeletonLoader';
 import Pagination from '../../components/shared/Pagination';
+import ExpiryLevelBadge from './components/ExpiryLevelBadge';
 
 const getUsableStock = (alert) => {
   if (alert && alert.usable_stock !== undefined && alert.usable_stock !== null) {
@@ -92,8 +93,9 @@ const LowStockAlerts = () => {
     setCurrentPage(1);
   }, [searchTerm, activeTab]);
 
-  const getCriticalCount = () => alerts.filter(a => getSeverity(getUsableStock(a), a.low_stock_alert) === 'critical').length;
-  const getWarningCount = () => alerts.filter(a => getSeverity(getUsableStock(a), a.low_stock_alert) === 'warning').length;
+  const alertSeverity = (a) => (a?.alert === 'CANNOT_MAKE' ? 'critical' : getSeverity(getUsableStock(a), a?.low_stock_alert));
+  const getCriticalCount = () => alerts.filter(a => alertSeverity(a) === 'critical').length;
+  const getWarningCount = () => alerts.filter(a => alertSeverity(a) === 'warning').length;
   const expiredCount = expiryData.expiredBatches?.length || 0;
   const expiringSoonCount = expiryData.expiringSoonBatches?.length || 0;
 
@@ -198,13 +200,22 @@ const LowStockAlerts = () => {
                         const usable = getUsableStock(alert);
                         const expired = Number(alert.expired_stock) || 0;
                         const shortage = Math.max(0, (Number(alert.low_stock_alert) || 0) - usable);
-                        const severity = getSeverity(usable, alert.low_stock_alert);
+                        const severity = alertSeverity(alert);
+                        const blocked = Array.isArray(alert.blocked_products) ? alert.blocked_products : [];
+                        const first = blocked[0];
                         const expBadge = formatExpiryBadge(alert.nearest_expiry_date, todayManila);
 
                         return (
                           <tr key={alert.id} className="hover:bg-gray-50/50 transition-colors group">
                             <td className="px-6 py-4 sticky left-0 z-10 bg-white group-hover:bg-gray-50 transition-colors shadow-[1px_0_0_0_#f3f4f6]">
                               <strong className="text-sm font-bold text-gray-900">{alert.name}</strong>
+                              {alert.alert === 'CANNOT_MAKE' && (
+                                <div className="text-[11px] font-bold text-red-600 mt-0.5">
+                                  {first
+                                    ? `Can't make: needs ${formatQuantity(first.needs, alert.unit)} for ${first.name}${blocked.length > 1 ? ` +${blocked.length - 1} more` : ''}`
+                                    : "Can't make a full serving"}
+                                </div>
+                              )}
                             </td>
                             <td className="px-6 py-4 text-sm text-gray-500 font-medium">{alert.unit}</td>
                             <td className="px-6 py-4 text-sm font-extrabold text-gray-900 text-right">
@@ -352,15 +363,18 @@ const LowStockAlerts = () => {
                             </td>
                             <td className="px-6 py-4 text-sm font-semibold text-gray-700">{batch.expiry_date || '—'}</td>
                             <td className="px-6 py-4">
-                              {isExpired ? (
-                                <span className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-red-50 text-red-700 border border-red-200">
-                                  EXPIRED
-                                </span>
-                              ) : (
-                                <span className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-800 border border-amber-200">
-                                  {days === 0 ? 'EXPIRING TODAY' : `EXPIRING IN ${days}D`}
-                                </span>
-                              )}
+                              <div className="flex items-center gap-1.5">
+                                {isExpired ? (
+                                  <span className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-red-50 text-red-700 border border-red-200">
+                                    EXPIRED
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-800 border border-amber-200">
+                                    {days === 0 ? 'EXPIRING TODAY' : `EXPIRING IN ${days}D`}
+                                  </span>
+                                )}
+                                {!isExpired && <ExpiryLevelBadge level={batch.expiry_level} />}
+                              </div>
                             </td>
                           </tr>
                         );

@@ -31,6 +31,10 @@ router.get("/shifts/x-reading", requireAuth, requireCafeRole, posController.getX
 router.post("/shifts/close-z", requireAuth, requireCafeRole, posController.closeShiftZReading);
 router.get("/shifts/history", requireAuth, requireCafeRole, posController.getShiftHistory);
 
+// Extra supplies (e.g. replacement straw): stock-only, not part of a sale
+router.get("/extra-supplies", requireAuth, requireCafeRole, posController.getExtraSupplies);
+router.post("/extra-supplies/use", requireAuth, requireCafeRole, posController.useExtraSupply);
+
 // Kitchen / Barista Display System (KDS)
 router.get("/kds", requireAuth, requireCafeRole, posController.getKdsQueue);
 router.put("/kds/:id/status", requireAuth, requireCafeRole, posController.updateKdsTicketStatus);

@@ -1201,6 +1201,7 @@ export const usePOS = () => {
     cartStockValidation,
     stockIssuesByOrderId,
     stockNotice,
+    showStockNotice,
     clearStockNotice,
     ongoingOrders,
     activeTab,

@@ -13,6 +13,21 @@ const EPSILON = 1e-4;
 const MAX_STOCKTAKE_HISTORY = 100;
 export const EXPIRING_SOON_DAYS = 7;
 
+// Finer expiry levels so the owner can act early: use-first, promote, then throw away.
+//   EXPIRED  past its date            -> remove and record wastage
+//   CRITICAL 0-2 days left            -> use first, promote or discount today
+//   WARNING  3-6 days left            -> use first (FEFO), avoid reordering
+//   WATCH    7-14 days left           -> keep an eye on it
+export const expiryLevelFor = (daysUntilExpiry) => {
+  if (daysUntilExpiry === null || daysUntilExpiry === undefined) return "NONE";
+  if (daysUntilExpiry < 0) return "EXPIRED";
+  if (daysUntilExpiry <= 2) return "CRITICAL";
+  if (daysUntilExpiry <= 6) return "WARNING";
+  if (daysUntilExpiry <= 14) return "WATCH";
+  return "OK";
+};
+const EXPIRY_LEVEL_RANK = { NONE: 0, OK: 0, WATCH: 1, WARNING: 2, CRITICAL: 3, EXPIRED: 4 };
+
 let hasNativeStocktakeTables = null;
 
 // Only the stocktake history still lives in a JSON store; this serializes its read-modify-write.
@@ -235,7 +250,8 @@ export const annotateAndSortBatchesFEFO = (batches = [], todayManila = getManila
         expiry_date: expiryDate,
         is_expired: isExpired,
         days_until_expiry: daysUntilExpiry,
-        expiry_status: expiryStatus
+        expiry_status: expiryStatus,
+        expiry_level: expiryLevelFor(daysUntilExpiry)
       };
     });
 
@@ -259,8 +275,19 @@ const buildEnrichedIngredient = (ing, ingBatches, perishability, todayManila) =>
   const firstUsable = sortedBatches.find((b) => !b.is_expired && b.expiry_date);
   const firstExpired = sortedBatches.find((b) => b.is_expired && b.expiry_date);
 
+  // Worst level among lots that still have stock, and how much sits at each level.
+  const expiryQty = { EXPIRED: 0, CRITICAL: 0, WARNING: 0, WATCH: 0 };
+  let worstLevel = "NONE";
+  for (const b of sortedBatches) {
+    if (b.expiry_level in expiryQty) expiryQty[b.expiry_level] = round6(expiryQty[b.expiry_level] + b.quantity_remaining);
+    if (EXPIRY_LEVEL_RANK[b.expiry_level] > EXPIRY_LEVEL_RANK[worstLevel]) worstLevel = b.expiry_level;
+  }
+  if (worstLevel === "NONE" && sortedBatches.some((b) => b.expiry_level === "OK")) worstLevel = "OK";
+
   return {
     ...ing,
+    expiry_level: worstLevel,
+    expiring_qty_by_level: expiryQty,
     is_perishable: perishability.is_perishable,
     default_shelf_life_days: perishability.default_shelf_life_days,
     shelf_life_source: perishability.source,

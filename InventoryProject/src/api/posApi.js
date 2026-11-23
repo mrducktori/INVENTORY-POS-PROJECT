@@ -152,3 +152,16 @@ export async function updateInventory(itemId, quantity) {
     body: JSON.stringify({ quantity })
   });
 }
+
+/** Straw-type extra supplies for the quick action */
+export async function getExtraSupplies() {
+  return apiCall("/pos/extra-supplies", { method: "GET" });
+}
+
+/** Give one extra supply (not a sale) */
+export async function useExtraSupply({ ingredient_id, quantity = 1, note }) {
+  return apiCall("/pos/extra-supplies/use", {
+    method: "POST",
+    body: JSON.stringify({ ingredient_id, quantity, note })
+  });
+}

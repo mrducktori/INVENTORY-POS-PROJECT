@@ -27,6 +27,7 @@ const Skeleton = () => (
 
 const ALERT_LABEL = {
   OUT_OF_STOCK: 'Out of stock',
+  CANNOT_MAKE: "Can't make",
   REORDER_NOW: 'Order now',
   BELOW_MANUAL_THRESHOLD: 'Running low',
 };
@@ -124,7 +125,8 @@ const PredictiveInsights = ({ onNavigate }) => {
               <Skeleton />
             ) : alerts.length > 0 ? (
               alerts.slice(0, 4).map((item) => {
-                const urgent = item.alert === 'OUT_OF_STOCK' || item.alert === 'REORDER_NOW';
+                const urgent = ['OUT_OF_STOCK', 'CANNOT_MAKE', 'REORDER_NOW'].includes(item.alert);
+                const blockedNames = (item.blocked_products || []).map((p) => p.name).join(', ');
                 return (
                   <div key={item.id} className="space-y-1">
                     <div className="flex justify-between items-center text-sm">
@@ -144,6 +146,9 @@ const PredictiveInsights = ({ onNavigate }) => {
                         {item.suggested_order_qty > 0 ? ` · order ${item.suggested_order_qty} ${item.unit}` : ''}
                       </span>
                     </div>
+                    {item.alert === 'CANNOT_MAKE' && blockedNames && (
+                      <div className="text-[11px] text-red-700 font-medium">Not enough for: {blockedNames}</div>
+                    )}
                   </div>
                 );
               })

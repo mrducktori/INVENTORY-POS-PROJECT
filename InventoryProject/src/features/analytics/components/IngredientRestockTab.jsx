@@ -2,7 +2,7 @@ import React from 'react';
 import { TableSkeleton } from '../../../components/shared/SkeletonLoader';
 import { InfoTip } from '../../../components/shared/InfoTip';
 import { getManilaDateOnly } from '../../../utils/dateUtils';
-import { SortIcon, IngredientAlertBadge } from './ForecastBadges';
+import { SortIcon, IngredientAlertBadge, UsageBadge, ExpiryLevelBadge } from './ForecastBadges';
 
 const getDaysUntilDate = (dateStr, todayStr) => {
   if (!dateStr) return null;
@@ -25,8 +25,11 @@ const IngredientRestockTab = ({
   filteredIngredients,
   paginatedIngredients,
   selectedIngredientIds,
-  lockedSupplier,
-  doesItemMatchSupplier,
+  selectableIngredients,
+  selectedPoCount,
+  getChosenSupplier,
+  onChooseSupplier,
+  submittingPO,
   ingPage,
   setIngPage,
   pageSize,
@@ -45,12 +48,9 @@ const IngredientRestockTab = ({
 }) => {
   const todayManila = getManilaDateOnly();
   const totalPages = Math.ceil(filteredIngredients.length / pageSize);
-  const selectableFilteredIngredients = lockedSupplier?.id && doesItemMatchSupplier
-    ? filteredIngredients.filter((item) => doesItemMatchSupplier(item, lockedSupplier.id))
-    : filteredIngredients;
   const isAllSelectableChecked =
-    selectableFilteredIngredients.length > 0 &&
-    selectableFilteredIngredients.every((item) => selectedIngredientIds.includes(item.id));
+    selectableIngredients.length > 0 &&
+    selectableIngredients.every((item) => selectedIngredientIds.includes(item.id));
 
   return (
     <div className="space-y-5">
@@ -112,12 +112,6 @@ const IngredientRestockTab = ({
             <div className="flex items-center gap-2 shrink-0">
               {selectedIngredientIds.length > 0 ? (
                 <div className="flex items-center gap-2">
-                  {lockedSupplier?.name && (
-                    <span className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-100 border border-zinc-200 text-xs font-medium text-zinc-700">
-                      <span>Supplier:</span>
-                      <strong className="text-zinc-900">{lockedSupplier.name}</strong>
-                    </span>
-                  )}
                   <button
                     type="button"
                     onClick={onClearSelection}
@@ -128,9 +122,10 @@ const IngredientRestockTab = ({
                   <button
                     type="button"
                     onClick={onOpenBatchPO}
-                    className="px-3.5 py-1.5 bg-zinc-900 hover:bg-black text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors cursor-pointer shadow-2xs"
+                    disabled={submittingPO}
+                    className="px-3.5 py-1.5 bg-zinc-900 hover:bg-black text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors cursor-pointer shadow-2xs disabled:opacity-40"
                   >
-                    Create PO ({selectedIngredientIds.length} selected)
+                    {selectedPoCount > 1 ? `Create ${selectedPoCount} POs` : 'Create PO'} ({selectedIngredientIds.length} selected)
                   </button>
                 </div>
               ) : (
@@ -205,12 +200,15 @@ const IngredientRestockTab = ({
 
           {/* Row 3: Status Filter Pills with dynamic counts */}
           <div className="flex items-center justify-between gap-3 pt-0.5">
-            <div className="inline-flex items-center bg-zinc-100 p-0.5 rounded-lg border border-zinc-200/70">
+            <div className="flex flex-wrap items-center bg-zinc-100 p-0.5 rounded-lg border border-zinc-200/70">
               {[
                 { id: 'ALL', label: 'All', count: ingredientData.ingredients.length },
                 { id: 'ORDER', label: 'Order now', count: ingredientData.summary.criticalCount },
                 { id: 'WATCH', label: 'Running low', count: ingredientData.summary.lowStockCount },
                 { id: 'OK', label: 'Enough stock', count: ingredientData.summary.healthyCount },
+                { id: 'CANNOT_MAKE', label: "Can't make", count: ingredientData.summary.cannotMakeCount },
+                { id: 'EXPIRING', label: 'Expiring', count: ingredientData.summary.expiringLevelCount },
+                { id: 'UNUSED', label: 'Not used', count: ingredientData.summary.unusedCount },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -232,7 +230,7 @@ const IngredientRestockTab = ({
         {/* Table Content */}
         {loadingIngredients ? (
           <div className="p-6">
-            <TableSkeleton rows={6} cols={7} />
+            <TableSkeleton rows={6} cols={8} />
           </div>
         ) : filteredIngredients.length === 0 ? (
           <div className="py-14 text-center">
@@ -256,11 +254,7 @@ const IngredientRestockTab = ({
                         type="checkbox"
                         checked={isAllSelectableChecked}
                         onChange={onToggleSelectAll}
-                        title={
-                          lockedSupplier?.name
-                            ? `Select all items from ${lockedSupplier.name}`
-                            : 'Select all items for the first supplier in this list'
-                        }
+                        title="Select all items that have a supplier"
                         className="rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900 cursor-pointer"
                       />
                     </th>
@@ -274,6 +268,7 @@ const IngredientRestockTab = ({
                         <SortIcon active={ingSortField === 'name'} direction={ingSortDirection} />
                       </button>
                     </th>
+                    <th className="py-3 px-4 whitespace-nowrap">Supplier</th>
                     <th className="py-3 px-4 text-right">
                       <div className="inline-flex items-center justify-end gap-1.5">
                         <button
@@ -345,13 +340,15 @@ const IngredientRestockTab = ({
                 <tbody className="divide-y divide-zinc-100">
                   {paginatedIngredients.map((item) => {
                     const isSelected = selectedIngredientIds.includes(item.id);
-                    const isSupplierLockedOut = Boolean(
-                      lockedSupplier?.id &&
-                      !isSelected &&
-                      doesItemMatchSupplier &&
-                      !doesItemMatchSupplier(item, lockedSupplier.id)
-                    );
-                    const needsOrder = item.alert === 'OUT_OF_STOCK' || item.alert === 'REORDER_NOW';
+                    const suppliers = item.available_suppliers || [];
+                    const chosen = getChosenSupplier(item);
+                    const unused = item.usage_status === 'NOT_IN_ANY_RECIPE';
+                    const noSupplier = !chosen;
+                    const orderBlocked = noSupplier || unused;
+                    const blockedTitle = unused ? 'Not used by any product' : 'No supplier set. Add this item to a supplier catalog first.';
+                    const needsOrder = ['OUT_OF_STOCK', 'CANNOT_MAKE', 'REORDER_NOW'].includes(item.alert);
+                    const firstBlocked = item.alert === 'CANNOT_MAKE' ? (item.blocked_products || [])[0] : null;
+                    const moreBlocked = (item.blocked_products || []).length - 1;
                     const usable = Number(item.usable_stock) || 0;
                     const expired = Number(item.expired_stock) || 0;
                     const expiringQty = Number(item.expiring_before_use_qty) || 0;
@@ -362,20 +359,16 @@ const IngredientRestockTab = ({
                       <tr
                         key={item.id}
                         className={`transition-colors group ${
-                          isSelected ? 'bg-zinc-50' : isSupplierLockedOut ? 'opacity-50' : 'hover:bg-zinc-50/60'
-                        }`}
+                          isSelected ? 'bg-zinc-50' : 'hover:bg-zinc-50/60'
+                        } ${unused ? 'opacity-60' : ''}`}
                       >
                         <td className="py-3.5 px-4 text-center">
                           <input
                             type="checkbox"
                             checked={isSelected}
-                            disabled={isSupplierLockedOut}
+                            disabled={orderBlocked}
                             onChange={() => onToggleItemSelect(item.id)}
-                            title={
-                              isSupplierLockedOut
-                                ? `Locked to ${lockedSupplier.name} — one supplier per Purchase Order`
-                                : `Select ${item.name}`
-                            }
+                            title={orderBlocked ? blockedTitle : `Select ${item.name}`}
                             className="rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                           />
                         </td>
@@ -383,6 +376,31 @@ const IngredientRestockTab = ({
                         <td className="py-3.5 px-4 sticky left-0 z-10 bg-white group-hover:bg-zinc-50 transition-colors shadow-[1px_0_0_0_#f4f4f5] whitespace-nowrap">
                           <div className="font-semibold text-zinc-900">{item.name}</div>
                           <div className="text-xs text-zinc-400">{item.category}</div>
+                          {firstBlocked && (
+                            <div className="text-[11px] font-medium text-red-700">
+                              Needs {Number(firstBlocked.needs).toLocaleString()} {item.unit} for {firstBlocked.name}
+                              {moreBlocked > 0 ? ` +${moreBlocked} more` : ''}
+                            </div>
+                          )}
+                        </td>
+
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          {noSupplier ? (
+                            <span className="text-xs text-amber-700/80">No supplier set</span>
+                          ) : (
+                            <select
+                              value={chosen.supplier_id}
+                              onChange={(e) => onChooseSupplier(item.id, e.target.value)}
+                              aria-label={`Supplier for ${item.name}`}
+                              className="max-w-52 py-1 px-2 bg-white border border-zinc-200 rounded-lg text-xs text-zinc-800 focus:outline-none focus:border-zinc-400 cursor-pointer"
+                            >
+                              {suppliers.map((s) => (
+                                <option key={s.supplier_id} value={s.supplier_id}>
+                                  {`${s.supplier_name} · ${s.lead_time_days}d · ₱${Number(s.default_price) || 0}/${s.default_purchase_unit || item.unit}`}
+                                </option>
+                              ))}
+                            </select>
+                          )}
                         </td>
 
                         <td className="py-3.5 px-4 text-right font-mono whitespace-nowrap">
@@ -410,7 +428,11 @@ const IngredientRestockTab = ({
                           <div className="font-mono text-zinc-900">
                             {item.days_of_cover == null ? '—' : `${item.days_of_cover} days`}
                           </div>
-                          <IngredientAlertBadge alert={item.alert} daysOfCover={item.days_of_cover} />
+                          <IngredientAlertBadge alert={item.alert} daysOfCover={item.days_of_cover} blockedProducts={item.blocked_products} />
+                          <div className="mt-1 flex flex-wrap justify-end gap-1">
+                            <UsageBadge usageStatus={item.usage_status} />
+                            <ExpiryLevelBadge level={item.expiry_level} qtyByLevel={item.expiring_qty_by_level} unit={item.unit} />
+                          </div>
                         </td>
 
                         <td className="py-3.5 px-4 text-right font-mono whitespace-nowrap text-zinc-700">
@@ -448,7 +470,9 @@ const IngredientRestockTab = ({
                           <button
                             type="button"
                             onClick={() => onOpenSingleItemPO(item)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                            disabled={orderBlocked || submittingPO}
+                            title={orderBlocked ? blockedTitle : `Create a PO for ${item.name}`}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
                               needsOrder ? 'bg-zinc-900 hover:bg-black text-white' : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700'
                             }`}
                           >

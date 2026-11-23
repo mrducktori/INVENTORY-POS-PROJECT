@@ -42,10 +42,46 @@ const ModifyProductModal = ({
   const [editingRecipeId, setEditingRecipeId] = useState(null);
   const [editRecipeQty, setEditRecipeQty] = useState('');
   const [editRecipeUnit, setEditRecipeUnit] = useState('');
-  const [editRecipeSizeQtys, setEditRecipeSizeQtys] = useState({});
+  const [sizeTab, setSizeTab] = useState('');
   const quantityInputRef = useRef(null);
 
   if (!selectedProduct) return null;
+
+  // Selected tab: '' = Base. Falls back to Base if the size was removed/renamed.
+  const activeSize = editSizes.find((s) => s.name === sizeTab) || null;
+  const activeMult = Number(activeSize?.recipe_multiplier) > 0 ? Number(activeSize.recipe_multiplier) : 1;
+  const round3 = (n) => Number(Number(n).toFixed(3));
+  const overrideKey = (r) =>
+    activeSize && r.size_quantities && typeof r.size_quantities === 'object'
+      ? Object.keys(r.size_quantities).find((k) => k.trim().toLowerCase() === activeSize.name.trim().toLowerCase())
+      : undefined;
+  const overrideOf = (r) => {
+    const k = overrideKey(r);
+    const v = k === undefined ? null : r.size_quantities[k];
+    return v === null || v === '' || v === undefined ? null : v;
+  };
+  const autoOf = (r) => round3(Number(r.quantity_used) * activeMult);
+  // Saves this ingredient's override map with the selected size set to `val` (or removed when val is null).
+  const saveSizeValue = (r, val) => {
+    const map = { ...(r.size_quantities && typeof r.size_quantities === 'object' ? r.size_quantities : {}) };
+    const k = overrideKey(r);
+    if (k !== undefined) delete map[k];
+    if (val !== null) map[activeSize.name] = val;
+    return onUpdateRecipeItem(r.id, r.quantity_used, r.recipe_unit || r.ingredients?.unit, map);
+  };
+  const saveEdit = async (r, unitToUse) => {
+    const ok = activeSize
+      ? await saveSizeValue({ ...r, recipe_unit: unitToUse }, editRecipeQty)
+      : await onUpdateRecipeItem(r.id, editRecipeQty, editRecipeUnit, r.size_quantities);
+    if (ok !== false) setEditingRecipeId(null);
+  };
+  const copyBaseToSize = async () => {
+    if (!activeSize) return;
+    if (!window.confirm(`Write the current ${activeSize.name} amounts (Base x ${activeMult}) as fixed overrides for all ingredients without one? Later Base changes will no longer scale them.`)) return;
+    for (const r of recipe) {
+      if (overrideOf(r) === null) await saveSizeValue(r, autoOf(r));
+    }
+  };
 
   const baseCategories =
     Array.isArray(categories) && categories.length > 0
@@ -201,6 +237,44 @@ const ModifyProductModal = ({
               )}
             </div>
 
+            {recipe.length > 0 && (
+              <div className="mb-3">
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {[{ name: '' }, ...editSizes].map((sz) => {
+                    const on = (activeSize?.name || '') === sz.name;
+                    return (
+                      <button
+                        key={sz.name || '__base'}
+                        type="button"
+                        onClick={() => { setSizeTab(sz.name); setEditingRecipeId(null); }}
+                        className={`px-3.5 py-1.5 rounded-full text-xs font-bold border transition-colors cursor-pointer ${on ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'}`}
+                      >
+                        {sz.name || 'Base'}
+                      </button>
+                    );
+                  })}
+                </div>
+                {activeSize ? (
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-gray-600">
+                    <span>
+                      <strong className="text-gray-900">Editing: {activeSize.name}</strong> (auto x{activeMult} unless overridden). Edit an amount to set a fixed value for this size only.
+                    </span>
+                    <button
+                      type="button"
+                      onClick={copyBaseToSize}
+                      className="px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-100 cursor-pointer shrink-0"
+                    >
+                      Copy Base amounts to this size
+                    </button>
+                  </div>
+                ) : (
+                  <p className="m-0 text-xs text-gray-600">
+                    <strong className="text-gray-900">Editing: Base</strong> amounts. Other sizes scale from these automatically unless you set their own amount.
+                  </p>
+                )}
+              </div>
+            )}
+
             {recipe.length > 0 ? (
               <div className="overflow-x-auto border border-gray-200 rounded-xl shadow-xs mb-6">
                 <table className="w-full text-left border-collapse">
@@ -240,10 +314,7 @@ const ModifyProductModal = ({
                                     onKeyDown={async (e) => {
                                       if (e.key === 'Enter') {
                                         e.preventDefault();
-                                        const ok = await onUpdateRecipeItem(r.id, editRecipeQty, editRecipeUnit, editRecipeSizeQtys);
-                                        if (ok !== false) {
-                                          setEditingRecipeId(null);
-                                        }
+                                        await saveEdit(r, unitToUse);
                                       } else if (e.key === 'Escape') {
                                         setEditingRecipeId(null);
                                       }
@@ -256,12 +327,7 @@ const ModifyProductModal = ({
                                   </span>
                                   <button
                                     type="button"
-                                    onClick={async () => {
-                                      const ok = await onUpdateRecipeItem(r.id, editRecipeQty, editRecipeUnit, editRecipeSizeQtys);
-                                      if (ok !== false) {
-                                        setEditingRecipeId(null);
-                                      }
-                                    }}
+                                    onClick={() => saveEdit(r, unitToUse)}
                                     className="p-1.5 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-md border border-emerald-300 transition-colors cursor-pointer"
                                     title="Save quantity"
                                   >
@@ -280,48 +346,25 @@ const ModifyProductModal = ({
                                     </svg>
                                   </button>
                                 </div>
-                                {editSizes.length > 0 && (
-                                  <div className="flex flex-wrap gap-2 pt-1">
-                                    {editSizes.map((sz) => (
-                                      <div key={sz.name} className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded px-2 py-1">
-                                        <span className="text-[11px] font-bold text-gray-600">{sz.name}:</span>
-                                        <input
-                                          type="number"
-                                          step="any"
-                                          min="0.001"
-                                          max="100000"
-                                          placeholder="Auto"
-                                          value={editRecipeSizeQtys[sz.name] ?? ''}
-                                          onChange={(e) =>
-                                            setEditRecipeSizeQtys((prev) => ({
-                                              ...prev,
-                                              [sz.name]: e.target.value
-                                            }))
-                                          }
-                                          className="w-16 px-1.5 py-0.5 text-xs font-semibold bg-white border border-gray-300 rounded"
-                                        />
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
                               </div>
                             ) : (
                               <div className="flex flex-col gap-1">
                                 <div className="flex items-center gap-2">
-                                  <span className="px-3 py-1 text-sm font-bold bg-amber-50 text-amber-900 border border-amber-200/60 rounded-lg">
-                                    {r.quantity_used} {unitToUse}
-                                  </span>
+                                  {activeSize && overrideOf(r) === null ? (
+                                    <span className="px-3 py-1 text-sm font-semibold bg-gray-50 text-gray-500 border border-gray-200 rounded-lg">
+                                      {autoOf(r)} {unitToUse} <span className="text-[10px] font-bold uppercase ml-1 px-1.5 py-0.5 bg-gray-200 text-gray-600 rounded">Auto</span>
+                                    </span>
+                                  ) : (
+                                    <span className="px-3 py-1 text-sm font-bold bg-amber-50 text-amber-900 border border-amber-200/60 rounded-lg">
+                                      {activeSize ? round3(overrideOf(r)) : r.quantity_used} {unitToUse}
+                                    </span>
+                                  )}
                                   <button
                                     type="button"
                                     onClick={() => {
                                       setEditingRecipeId(r.id);
-                                      setEditRecipeQty(String(r.quantity_used));
+                                      setEditRecipeQty(String(activeSize ? (overrideOf(r) ?? autoOf(r)) : r.quantity_used));
                                       setEditRecipeUnit(unitToUse || '');
-                                      setEditRecipeSizeQtys(
-                                        r.size_quantities && typeof r.size_quantities === 'object'
-                                          ? Object.fromEntries(Object.entries(r.size_quantities).map(([k, v]) => [k, String(v)]))
-                                          : {}
-                                      );
                                     }}
                                     className="p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors cursor-pointer"
                                     title="Edit quantity"
@@ -330,16 +373,17 @@ const ModifyProductModal = ({
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                                     </svg>
                                   </button>
+                                  {activeSize && overrideOf(r) !== null && (
+                                    <button
+                                      type="button"
+                                      onClick={() => saveSizeValue(r, null)}
+                                      className="text-[11px] font-bold text-blue-600 hover:text-blue-800 underline cursor-pointer bg-transparent border-none p-0"
+                                      title="Remove the fixed amount and scale from Base again"
+                                    >
+                                      Reset to auto
+                                    </button>
+                                  )}
                                 </div>
-                                {r.size_quantities && Object.keys(r.size_quantities).length > 0 && (
-                                  <div className="flex flex-wrap gap-1">
-                                    {Object.entries(r.size_quantities).map(([szName, szVal]) => (
-                                      <span key={szName} className="text-[11px] font-semibold px-2 py-0.5 bg-zinc-100 text-zinc-700 border border-zinc-200 rounded">
-                                        {szName}: {szVal} {unitToUse}
-                                      </span>
-                                    ))}
-                                  </div>
-                                )}
                               </div>
                             )}
                           </td>
@@ -504,10 +548,11 @@ const ModifyProductModal = ({
                 </div>
 
                 {editSizes.length > 0 && (
-                  <div className="pt-2 border-t border-gray-200/70">
-                    <div className="text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-1.5">
-                      Per-Size Quantities (Optional overrides — leave blank for auto-scaling)
-                    </div>
+                  <details className="pt-2 border-t border-gray-200/70">
+                    <summary className="text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-1.5 cursor-pointer">
+                      Different amounts per size (optional)
+                    </summary>
+                    <p className="m-0 mb-2 text-xs text-gray-500">Leave blank to scale automatically from the base quantity.</p>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                       {editSizes.map((sz) => (
                         <div key={sz.name} className="flex flex-col gap-1">
@@ -533,7 +578,7 @@ const ModifyProductModal = ({
                         </div>
                       ))}
                     </div>
-                  </div>
+                  </details>
                 )}
               </form>
             </div>

@@ -6,7 +6,6 @@ import {
 } from './hooks/useDemandForecasting';
 import IngredientRestockTab from './components/IngredientRestockTab';
 import MenuDemandTab from './components/MenuDemandTab';
-import ForecastCreatePOModal from './components/ForecastCreatePOModal';
 import ProductForecastModal from './components/ProductForecastModal';
 import ForecastGuideModal from './components/ForecastGuideModal';
 import SpecialDatesPanel from './components/SpecialDatesPanel';
@@ -18,7 +17,7 @@ const DemandForecasting = () => {
     ingredientData, loadingIngredients,
     statusFilter, setStatusFilter, searchTerm, setSearchTerm,
     selectedCategory, setSelectedCategory, selectedIngredientIds,
-    lockedSupplier, doesItemMatchSupplier,
+    selectableIngredients, selectedPoCount, getChosenSupplier, handleChooseSupplier, submittingPO,
     ingPage, setIngPage, ingSortField, ingSortDirection, handleIngSort,
     categories, filteredIngredients, paginatedIngredients,
     fetchIngredientForecast, handleToggleSelectAll, handleToggleItemSelect,
@@ -28,10 +27,6 @@ const DemandForecasting = () => {
     prodSortField, prodSortDirection, handleProdSort,
     productCategories, filteredProducts, paginatedProducts, productSummary, fetchProductForecasts,
     detailProduct, setDetailProduct,
-    suppliers, poModalOpen, setPoModalOpen,
-    poTargetSupplierId, handleSelectPoSupplier, poPoolItems, poItems,
-    poExpectedDate, setPoExpectedDate, poNotes, setPoNotes, submittingPO,
-    handleUpdatePoItemQty, handleRemovePoItem, calculatePoTotal, handleConfirmSubmitPO,
     toast, setToast,
   } = useDemandForecasting();
 
@@ -133,8 +128,11 @@ const DemandForecasting = () => {
           filteredIngredients={filteredIngredients}
           paginatedIngredients={paginatedIngredients}
           selectedIngredientIds={selectedIngredientIds}
-          lockedSupplier={lockedSupplier}
-          doesItemMatchSupplier={doesItemMatchSupplier}
+          selectableIngredients={selectableIngredients}
+          selectedPoCount={selectedPoCount}
+          getChosenSupplier={getChosenSupplier}
+          onChooseSupplier={handleChooseSupplier}
+          submittingPO={submittingPO}
           ingPage={ingPage}
           setIngPage={setIngPage}
           pageSize={ING_PAGE_SIZE}
@@ -182,26 +180,6 @@ const DemandForecasting = () => {
       )}
 
       <SpecialDatesPanel />
-
-      {/* PURCHASE ORDER GENERATION MODAL */}
-      <ForecastCreatePOModal
-        isOpen={poModalOpen}
-        onClose={() => setPoModalOpen(false)}
-        suppliers={suppliers}
-        poTargetSupplierId={poTargetSupplierId}
-        setPoTargetSupplierId={handleSelectPoSupplier}
-        poExpectedDate={poExpectedDate}
-        setPoExpectedDate={setPoExpectedDate}
-        poPoolItems={poPoolItems}
-        poItems={poItems}
-        poNotes={poNotes}
-        setPoNotes={setPoNotes}
-        submittingPO={submittingPO}
-        onUpdateQty={handleUpdatePoItemQty}
-        onRemoveItem={handleRemovePoItem}
-        poTotal={calculatePoTotal()}
-        onConfirmSubmit={handleConfirmSubmitPO}
-      />
 
       <ProductForecastModal
         isOpen={Boolean(detailProduct)}

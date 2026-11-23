@@ -4,6 +4,16 @@ import ConfirmModal from '../../components/shared/ConfirmModal';
 import Pagination from '../../components/shared/Pagination';
 import RawMaterialCategoriesModal from './components/RawMaterialCategoriesModal';
 import { formatQuantity } from '../../utils/productUtils';
+import ExpiryLevelBadge from './components/ExpiryLevelBadge';
+
+const LEVEL_PHRASE = { EXPIRED: 'expired', CRITICAL: 'use today', WARNING: 'use first', WATCH: 'watch' };
+const expiringTitle = (ing) => {
+  const q = ing?.expiring_qty_by_level || {};
+  const parts = Object.keys(LEVEL_PHRASE)
+    .filter((k) => Number(q[k]) > 0)
+    .map((k) => `${formatQuantity(q[k], ing.unit)} ${LEVEL_PHRASE[k]}`);
+  return parts.length ? parts.join(', ') : undefined;
+};
 
 const ManageRawMaterials = () => {
   const {
@@ -377,6 +387,7 @@ const ManageRawMaterials = () => {
                                     Expired: {formatQuantity(i.expired_stock, i.unit)}
                                   </span>
                                 )}
+                                <ExpiryLevelBadge level={i.expiry_level} title={expiringTitle(i)} />
                               </div>
                             </td>
                             <td className="px-3.5 py-3.5 text-sm text-gray-500">{formatQuantity(i.low_stock_alert, i.unit)}</td>

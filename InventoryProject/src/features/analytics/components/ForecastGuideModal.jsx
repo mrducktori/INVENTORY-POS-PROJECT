@@ -11,6 +11,10 @@ const POINTS = [
   'New items or items with few sales show "Not enough data" instead of a made-up number.',
   'The numbers come from your own sales history. Each night an AI reads the results plus upcoming holidays and may nudge a forecast up or down by at most 10%, with a reason. It never invents sales.',
   'Ingredients: expected daily use comes from the forecast and your recipes. Reorder point = daily usage × (supplier lead time + 2 safety days). Expired stock is never counted.',
+  '"Can\'t make" means some stock is left, but not enough for one serving of a product that needs it (for example a product needs 20 g and only 13 g is left). Stock above zero is not always enough, so order it.',
+  '"Not used" means no active product uses this ingredient, so do not reorder it. Consider selling it or using it up.',
+  'Expiry levels: Watch (7-14 days left) means keep an eye on it; Use first (3-6 days) means use it before newer stock; Use today (0-2 days) means use it now; Expired means it can no longer be used and is not counted.',
+  'Items from different suppliers become separate POs, so each supplier can accept, decline or propose a new date on their own.',
 ];
 
 const ForecastGuideModal = ({ isOpen, onClose, method }) => {
