@@ -45,31 +45,25 @@ const QuickActions = ({ onNavigate, userRole }) => {
   });
 
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl p-6 md:p-8 shadow-xs">
-      <div className="pb-4 mb-6 border-b border-gray-100">
-        <h3 className="text-lg font-bold text-zinc-900 m-0">
-          Quick Shortcuts
-        </h3>
-      </div>
-
-      <div className="stagger-in grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+    <div>
+      <div className="stagger-in grid grid-cols-2 lg:grid-cols-4 gap-3">
         {visibleLinks.map((link) => (
           <button
             key={link.value}
             type="button"
             onClick={() => onNavigate(link.value)}
-            className="group p-6 rounded-xl border border-zinc-200 hover:border-zinc-500 bg-zinc-50 hover:bg-white text-left cursor-pointer transition-all duration-200 flex items-center justify-between hover:shadow-sm"
+            className="group px-4 py-3 rounded-lg border border-zinc-200 hover:border-zinc-400 bg-transparent hover:bg-white text-left cursor-pointer transition-all duration-200 flex items-center justify-between hover:shadow-sm"
           >
             <div>
-              <div className="text-base md:text-lg font-bold text-zinc-900 group-hover:text-black">
+              <div className="text-sm font-semibold text-zinc-800 group-hover:text-black">
                 {link.label}
               </div>
-              <div className="text-sm font-medium text-zinc-500 mt-1">
+              <div className="text-xs text-zinc-500 mt-0.5">
                 {link.desc}
               </div>
             </div>
 
-            <span className="text-zinc-400 group-hover:text-black group-hover:translate-x-1 transition-all text-xl font-bold ml-4 shrink-0">
+            <span className="text-zinc-400 group-hover:text-black group-hover:translate-x-0.5 transition-all text-base ml-3 shrink-0">
               →
             </span>
           </button>

@@ -12,6 +12,10 @@ import QuickActions from './components/QuickActions';
 import PredictiveInsights from './components/PredictiveInsights';
 import NotificationInbox from './components/NotificationInbox';
 
+const SectionLabel = ({ children }) => (
+  <h2 className="m-0 mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">{children}</h2>
+);
+
 const DashboardOverview = ({ onNavigate }) => {
   const user = getCurrentUser();
 
@@ -56,7 +60,7 @@ const DashboardOverview = ({ onNavigate }) => {
   }).format(new Date());
 
   return (
-    <div className="w-full px-6 lg:px-10 py-6 min-h-full space-y-6">
+    <div className="w-full px-6 lg:px-10 py-6 min-h-full space-y-8">
       {/* Header section with operational status */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-4 border-b border-gray-200">
         <div>
@@ -95,13 +99,16 @@ const DashboardOverview = ({ onNavigate }) => {
         </div>
       </div>
 
-      {/* Total Revenue + Mini Sparkline */}
-      <RevenueSnapshot
-        stats={stats}
-        loading={loading}
-        isTrendExpanded={isTrendExpanded}
-        onExpand={() => setIsTrendExpanded(true)}
-      />
+      {/* Level 1: the headline number */}
+      <section>
+        <SectionLabel>Today</SectionLabel>
+        <RevenueSnapshot
+          stats={stats}
+          loading={loading}
+          isTrendExpanded={isTrendExpanded}
+          onExpand={() => setIsTrendExpanded(true)}
+        />
+      </section>
 
       {/* Expanded Trend Chart */}
       {isTrendExpanded && (
@@ -123,10 +130,10 @@ const DashboardOverview = ({ onNavigate }) => {
         />
       )}
 
-      {/* KPI Cards Row */}
-      <StatCards 
-        cards={kpiCards} 
-        loading={loading} 
+      {/* Level 2: supporting counters */}
+      <StatCards
+        cards={kpiCards}
+        loading={loading}
       />
 
       {/* Expanded Low Stock Panel */}
@@ -138,11 +145,15 @@ const DashboardOverview = ({ onNavigate }) => {
         />
       )}
 
-      {/* Predictive Analytics Section */}
-      <PredictiveInsights onNavigate={onNavigate} />
+      {/* Level 3: what to act on */}
+      <section>
+        <SectionLabel>Needs attention</SectionLabel>
+        <PredictiveInsights onNavigate={onNavigate} />
+      </section>
 
-      {/* BI Grid: Sales Analytics */}
-      <div>
+      {/* Level 4: reference detail */}
+      <section>
+        <SectionLabel>Sales breakdown</SectionLabel>
         <TopSalesGrid
           loading={loading}
           topProductsByCategory={stats?.topProductsByCategory}
@@ -156,10 +167,13 @@ const DashboardOverview = ({ onNavigate }) => {
           onStartDateChange={setStartDate}
           onEndDateChange={setEndDate}
         />
-      </div>
+      </section>
 
-      {/* Role-based quick navigation */}
-      <QuickActions onNavigate={onNavigate} userRole={user?.role} />
+      {/* Level 5: quiet shortcuts */}
+      <section>
+        <SectionLabel>Shortcuts</SectionLabel>
+        <QuickActions onNavigate={onNavigate} userRole={user?.role} />
+      </section>
     </div>
   );
 };

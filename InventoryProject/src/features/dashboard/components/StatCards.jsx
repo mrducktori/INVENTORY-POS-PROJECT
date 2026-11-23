@@ -26,7 +26,7 @@ const ICONS = {
 
 const StatCards = ({ cards, loading }) => {
   return (
-    <div className="stagger-in grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div className="stagger-in grid grid-cols-1 md:grid-cols-3 gap-4">
       {cards.map((card) => {
         const isLowStock = card.label === 'Low Stock Items';
         const lowStockCount = parseInt(card.value, 10) || 0;
@@ -36,28 +36,28 @@ const StatCards = ({ cards, loading }) => {
           <div
             key={card.label}
             onClick={card.onClick}
-            className={`hover-lift bg-white border rounded-2xl p-6 md:p-8 flex flex-col justify-between transition-all duration-200 shadow-xs ${
+            className={`hover-lift bg-white border rounded-xl p-4 md:p-5 flex flex-col justify-between transition-all duration-200 shadow-xs ${
               card.clickable
                 ? 'cursor-pointer hover:border-zinc-500 hover:shadow-md'
                 : 'hover:border-zinc-300'
             } ${hasLowStockAlert ? 'border-amber-400 bg-amber-50/20' : 'border-gray-200'}`}
           >
             {/* Top Row: Clear Label */}
-            <div className="mb-3">
-              <span className="text-sm md:text-base font-bold uppercase tracking-wider text-zinc-500">
+            <div className="mb-1">
+              <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
                 {card.label}
               </span>
             </div>
 
             {/* Middle Row: Prominent, Big Numbers */}
-            <div className="mb-4">
-              <span className="text-4xl md:text-5xl font-extrabold text-zinc-900 tracking-tight tabular-nums">
+            <div className="mb-3">
+              <span className="text-3xl font-bold text-zinc-900 tracking-tight tabular-nums">
                 {loading ? '---' : card.value}
               </span>
             </div>
 
             {/* Bottom Row: Context / Action Prompt */}
-            <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-sm">
+            <div className="pt-2.5 border-t border-gray-100 flex items-center justify-between text-xs">
               {isLowStock ? (
                 hasLowStockAlert ? (
                   <span className="inline-flex items-center gap-2 font-bold text-amber-800">
