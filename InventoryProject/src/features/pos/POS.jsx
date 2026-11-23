@@ -11,6 +11,7 @@ import ProductInfoModal from "./components/ProductInfoModal";
 import PosKdsSection from "./components/PosKdsSection";
 import PosVoidRefundSection from "./components/PosVoidRefundSection";
 import PosShiftReadingSection from "./components/PosShiftReadingSection";
+import PosSettingsModal from "./components/PosSettingsModal";
 import SalesReceiptModal from "../../components/SalesReceiptModal";
 import ConfirmModal from "../../components/shared/ConfirmModal";
 import { CardGridSkeleton } from "../../components/shared/SkeletonLoader";
@@ -25,12 +26,16 @@ const WORKSPACE_TABS = [
 
 const POS = () => {
   const [workspace, setWorkspace] = useState("REGISTER");
+  const [showPosSettings, setShowPosSettings] = useState(false);
   const {
     products,
+    ingredients,
     recipesByProduct,
     ingredientsMap,
     categories,
     categorySettings,
+    posSettings,
+    setPosSettings,
     cart,
     orderType,
     setOrderType,
@@ -87,6 +92,7 @@ const POS = () => {
 
   const filteredProducts = filterProducts(products, category, searchTerm, categories);
   const selectedOptionsAvailability = getProductOptionsAvailability(selectedProduct, categorySettings);
+  const isManagerRole = user?.role === "Owner" || user?.role === "Admin";
 
   return (
     <div className="flex flex-col h-full lg:h-[calc(100vh-0px)] w-full bg-gray-50 overflow-hidden relative">
@@ -103,21 +109,41 @@ const POS = () => {
           <span className="text-sm font-bold text-gray-900 tracking-tight">POS Operations</span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5 bg-gray-100 p-1 rounded-xl border border-gray-200">
-          {WORKSPACE_TABS.map((tab) => (
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5 bg-gray-100 p-1 rounded-xl border border-gray-200">
+            {WORKSPACE_TABS.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setWorkspace(tab.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-none ${
+                  workspace === tab.id
+                    ? "bg-gray-900 text-white shadow-xs"
+                    : "bg-transparent text-gray-600 hover:text-gray-900 hover:bg-white/70"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {isManagerRole && (
             <button
-              key={tab.id}
               type="button"
-              onClick={() => setWorkspace(tab.id)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-none ${
-                workspace === tab.id
-                  ? "bg-gray-900 text-white shadow-xs"
-                  : "bg-transparent text-gray-600 hover:text-gray-900 hover:bg-white/70"
-              }`}
+              onClick={() => setShowPosSettings(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border border-gray-300 bg-white text-gray-800 hover:bg-gray-50 cursor-pointer transition-colors"
             >
-              {tab.label}
+              <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              POS Setup
             </button>
-          ))}
+          )}
         </div>
       </div>
       {saleComplete &&
@@ -159,7 +185,16 @@ const POS = () => {
           document.body
         )}
 
-      {workspace === "KDS" && <PosKdsSection />}
+      {workspace === "KDS" && (
+        <PosKdsSection
+          categorySettings={categorySettings}
+          ongoingOrders={ongoingOrders}
+          onOpenOngoingOrder={() => {
+            setWorkspace("REGISTER");
+            setActiveTab("ongoing");
+          }}
+        />
+      )}
       {workspace === "VOIDS" && <PosVoidRefundSection user={user} />}
       {workspace === "SHIFTS" && <PosShiftReadingSection user={user} />}
 
@@ -327,8 +362,19 @@ const POS = () => {
       {showPaymentModal && paymentOrder && (
         <PaymentModal
           order={paymentOrder}
+          posSettings={posSettings}
           onConfirm={confirmPayment}
           onClose={() => setShowPaymentModal(false)}
+        />
+      )}
+
+      {/* Store POS Setup Modal */}
+      {showPosSettings && (
+        <PosSettingsModal
+          allIngredients={ingredients}
+          initialSettings={posSettings}
+          onSaved={(saved) => setPosSettings(saved)}
+          onClose={() => setShowPosSettings(false)}
         />
       )}
 

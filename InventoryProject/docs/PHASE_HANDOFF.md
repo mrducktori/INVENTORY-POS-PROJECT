@@ -52,6 +52,10 @@ Reference SQL migrations stored in `docs/database/` (apply sequentially in Supab
 
 ## 5. Remaining Minor Notes & Future Recommendations
 1. **Security Hardening**: Migrate auth from spoofable `x-user-id` headers to signed JWTs/HTTP-only cookies, install `helmet`, restrict CORS origins, and move in-memory `loginAttempts` / `pinFailureBuckets` rate limits into Redis or Supabase.
-2. **Default Manager PIN Override**: `verifyManagerPin` falls back to `'1234'` only while zero custom PINs exist — set an Owner/Admin custom 4–8 digit PIN in **POS -> Void & Refund -> Manager Approval PIN Settings** before production rollout.
+2. **Client Setup & Configuration Locations (Quick Guide)**:
+   - **Categories, Cup Sizes, Lids/Straws & KDS Prep Station (`Barista` vs `Kitchen`)**: **Products -> Manage Categories** (`CategorySettingsModal.jsx`) configures category prep station and default options inherited by new products; individual items can also customize sizes/recipes in **Add / Modify Product**.
+   - **Promo Codes, Student/Staff Discounts, Store GCash/Maya Static QR & Take-Out Bags**: **POS -> POS Setup** (`PosSettingsModal.jsx`, Owner/Admin only).
+   - **Manager Void/Refund Approval PINs**: **Staff & Security -> Access Control -> Manager PINs** (`AccountManager.jsx`) or inline inside **POS -> Void & Refund**.
+   - **Held Orders vs. Paid Orders in KDS**: Cashiers can hold orders (`Ongoing`) before payment and view both `HELD (UNPAID)` tickets and paid `PENDING`/`PREPARING`/`READY` tickets in **POS -> Order Queue / KDS**.
 3. **Historical Store Backfill & Single-Shift Scale**: Records written to `cms_content` stores prior to running `phase4_pos_payments_void_shifts_kds.sql` stay readable via dual-layer services; optionally backfill them into native tables for external SQL reporting. `computeXReading` assumes single-register shifts under 1,000 sales per shift window.
 4. **Live Gateway & Print Hardware**: Wire live GCash/Maya/QRPH webhooks (`PAYMENT_WEBHOOK_SECRET`), optional thermal ESC/POS printing, and explicit base-vs-purchase unit conversion toggles on OCR intake lines if suppliers mix pack sizes and gram/mL quantities.

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { getPosCatalog, createSale } from "../../../api/posApi";
+import { getPosCatalog, createSale, getPosSettings } from "../../../api/posApi";
 import { getCategorySettings, extractCategoryNames } from "../../../api/categorySettingsApi";
 import { getCurrentUser } from "../../../utils/authUtils";
 import { getProductOptionsAvailability } from "../../../utils/productUtils";
@@ -112,6 +112,7 @@ export const usePOS = () => {
   const [loading, setLoading] = useState(false);
 
   const [categorySettings, setCategorySettings] = useState({});
+  const [posSettings, setPosSettings] = useState(null);
   const [saleComplete, setSaleComplete] = useState(false);
   const [recipeProduct, setRecipeProduct] = useState(null);
   const [ongoingOrders, setOngoingOrders] = useState(() => {
@@ -225,10 +226,20 @@ export const usePOS = () => {
     }
   }, []);
 
+  const fetchPosSettings = useCallback(async () => {
+    try {
+      const data = await getPosSettings();
+      if (data) setPosSettings(data);
+    } catch (err) {
+      console.error("Failed to fetch POS settings", err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchCatalog();
     fetchCategorySettings();
-  }, [fetchCatalog, fetchCategorySettings]);
+    fetchPosSettings();
+  }, [fetchCatalog, fetchCategorySettings, fetchPosSettings]);
 
   const categories = useMemo(() => {
     const combined = [
@@ -819,12 +830,13 @@ export const usePOS = () => {
 
   const getCartDiscountDetails = (rawSubtotal = calculateTotal()) => {
     const subtotal = parseFloat(rawSubtotal) || 0;
+    const presets = posSettings?.discount_presets || {};
     const rates = {
       NONE: { label: "No Discount", rate: 0 },
-      SENIOR: { label: "Senior Citizen", rate: 0.20 },
-      PWD: { label: "PWD", rate: 0.20 },
-      STUDENT: { label: "Student / Promo", rate: 0.10 },
-      STAFF: { label: "Employee / Staff", rate: 0.15 }
+      SENIOR: { label: "Senior Citizen", rate: presets.senior_rate ?? 0.20 },
+      PWD: { label: "PWD", rate: presets.pwd_rate ?? 0.20 },
+      STUDENT: { label: "Student", rate: presets.student_rate ?? 0.10 },
+      STAFF: { label: "Employee / Staff", rate: presets.staff_rate ?? 0.15 }
     };
 
     let disc = 0;
@@ -1192,10 +1204,14 @@ export const usePOS = () => {
   return {
     products,
     recipes,
+    ingredients,
     recipesByProduct,
     ingredientsMap,
     categories,
     categorySettings,
+    posSettings,
+    setPosSettings,
+    refreshPosSettings: fetchPosSettings,
     cart,
     orderType,
     setOrderType,

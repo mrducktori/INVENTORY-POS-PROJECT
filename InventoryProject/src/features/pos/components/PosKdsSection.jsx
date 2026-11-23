@@ -21,13 +21,37 @@ const STATUS_FILTERS = [
   { id: 'SERVED', label: 'Served' }
 ];
 
-const KITCHEN_CATEGORY_PATTERN = /PASTRY|PASTRIES|FOOD|SNACK|SANDWICH|CAKE|WAFFLE|CROFFLE/i;
+const KITCHEN_CATEGORY_PATTERN =
+  /PASTRY|PASTRIES|PASTA|SPAGHETTI|CARBONARA|LASAGNA|MACARONI|PENNE|FETTUCCINE|NOODLE|RAMEN|PANCIT|FOOD|MEAL|RICE|SILOG|BREAKFAST|LUNCH|DINNER|SNACK|SANDWICH|BURGER|PIZZA|CAKE|WAFFLE|CROFFLE|BREAD|TOAST|BAGEL|PANINI|COOKIE|BROWNIE|MUFFIN|CUPCAKE|DONUT|CROISSANT|PIE|TART|PUDDING|FRIES|NACHOS|WINGS|CHICKEN|PORK|BEEF|FISH|SEAFOOD|SAUSAGE|HOTDOG|BACON|HAM|EGG|OMELET|SALAD|SOUP|STEAK|RIBS|SISIG|LUMPIA|DIMSUM|SIOMAI|EMPANADA|QUESADILLA|TACO|BURRITO|WRAP|DESSERT|PLATTER|COMBO|SOLO|SIDE|APPETIZER|STARTER|BENTO|BOWL/i;
+const BARISTA_CATEGORY_PATTERN =
+  /COFFEE|ESPRESSO|LATTE|CAPPUCCINO|MACCHIATO|MOCHA|AMERICANO|COLD BREW|BREW|FRAPPE|FRAPPUCCINO|SMOOTHIE|SHAKE|MILKSHAKE|TEA|MILK TEA|MATCHA|HOJICHA|CHAI|FRUIT TEA|ICED TEA|LEMONADE|SODA|SPARKLING|FIZZ|JUICE|DRINK|BEVERAGE|CHOCOLATE|COCOA|MILO|HORCHATA|YOGURT|YAKULT|FLOAT|AFFOGATO|REFRESH|COOLER/i;
 
-const inferItemStation = (item) => {
+const normalizeCatKey = (raw) =>
+  String(raw || '').trim().replace(/\s+/g, ' ').toUpperCase();
+
+const inferItemStation = (item, categoryStationMap = {}) => {
+  const explicitPrep = String(item?.prep_station || '').trim().toUpperCase();
+  if (explicitPrep === 'BARISTA' || explicitPrep === 'KITCHEN') return explicitPrep;
+
+  const cat = String(item?.category || item?.products?.category || '').trim();
+  const catKey = normalizeCatKey(cat);
+  if (catKey && categoryStationMap[catKey]) {
+    return categoryStationMap[catKey];
+  }
+
+  const name = String(item?.name || item?.product_name || item?.products?.name || '').trim();
+  if (KITCHEN_CATEGORY_PATTERN.test(cat)) return 'KITCHEN';
+  if (BARISTA_CATEGORY_PATTERN.test(cat)) return 'BARISTA';
+  if (KITCHEN_CATEGORY_PATTERN.test(name)) return 'KITCHEN';
+  if (BARISTA_CATEGORY_PATTERN.test(name)) return 'BARISTA';
+
   const explicit = String(item?.station || '').trim().toUpperCase();
   if (explicit === 'BARISTA' || explicit === 'KITCHEN') return explicit;
-  const cat = String(item?.category || item?.products?.category || '').trim();
-  return KITCHEN_CATEGORY_PATTERN.test(cat) ? 'KITCHEN' : 'BARISTA';
+
+  if (item?.cup_size || (Array.isArray(item?.sizes) && item.sizes.length > 0)) {
+    return 'BARISTA';
+  }
+  return 'KITCHEN';
 };
 
 const getStatusBadgeClasses = (status) => {
@@ -46,7 +70,7 @@ const getOrderTypeBadgeClasses = (orderType) => {
   return 'bg-zinc-100 text-zinc-800 border-zinc-200';
 };
 
-const PosKdsSection = () => {
+const PosKdsSection = ({ categorySettings = {}, ongoingOrders = [], onOpenOngoingOrder = null }) => {
   const [tickets, setTickets] = useState([]);
   const [stationFilter, setStationFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ACTIVE');
@@ -55,6 +79,17 @@ const PosKdsSection = () => {
   const [updatingId, setUpdatingId] = useState(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+
+  const categoryStationMap = useMemo(() => {
+    const map = {};
+    Object.entries(categorySettings || {}).forEach(([k, val]) => {
+      const ps = String(val?.prep_station || '').trim().toUpperCase();
+      if (ps === 'BARISTA' || ps === 'KITCHEN') {
+        map[normalizeCatKey(k)] = ps;
+      }
+    });
+    return map;
+  }, [categorySettings]);
 
   const fetchQueue = useCallback(async (silent = false) => {
     try {
@@ -106,20 +141,39 @@ const PosKdsSection = () => {
     }
   };
 
+  const heldTickets = useMemo(() => {
+    if (statusFilter !== 'ACTIVE' && statusFilter !== 'PENDING') return [];
+    return (Array.isArray(ongoingOrders) ? ongoingOrders : []).map((order) => ({
+      id: `held-${order.id}`,
+      held_order_id: order.id,
+      is_held: true,
+      receipt_number: `HELD #${String(order.id).slice(-6)}`,
+      order_type: order.order_type || 'DINE_IN',
+      status: 'PENDING',
+      display_time: order.timestamp || '',
+      created_at: order.created_at || null,
+      items: (order.items || []).map((item) => ({
+        ...item,
+        station: inferItemStation(item, categoryStationMap)
+      }))
+    }));
+  }, [ongoingOrders, statusFilter, categoryStationMap]);
+
   const visibleTickets = useMemo(() => {
-    return (tickets || []).filter((t) => {
+    const paidVisible = (tickets || []).filter((t) => {
       const status = String(t.status || 'PENDING').toUpperCase();
       if (status === 'CANCELLED') return false;
       if (statusFilter === 'ACTIVE') return status !== 'SERVED';
       return status === statusFilter;
     });
-  }, [tickets, statusFilter]);
+    return [...heldTickets, ...paidVisible];
+  }, [tickets, heldTickets, statusFilter]);
 
   const splitTicketsForStation = useCallback((station) => {
     return visibleTickets
       .map((ticket) => {
         const rawItems = Array.isArray(ticket.items) ? ticket.items : [];
-        const stationItems = rawItems.filter((item) => inferItemStation(item) === station);
+        const stationItems = rawItems.filter((item) => inferItemStation(item, categoryStationMap) === station);
         if (stationItems.length === 0 && rawItems.length > 0) return null;
         if (rawItems.length === 0 && String(ticket.station || 'BARISTA').toUpperCase() !== station) {
           return null;
@@ -130,7 +184,7 @@ const PosKdsSection = () => {
         };
       })
       .filter(Boolean);
-  }, [visibleTickets]);
+  }, [visibleTickets, categoryStationMap]);
 
   const baristaTickets = useMemo(() => splitTicketsForStation('BARISTA'), [splitTicketsForStation]);
   const kitchenTickets = useMemo(() => splitTicketsForStation('KITCHEN'), [splitTicketsForStation]);
@@ -143,7 +197,9 @@ const PosKdsSection = () => {
     return (
       <div
         key={ticket.id}
-        className="bg-white border border-gray-200 rounded-xl shadow-xs overflow-hidden flex flex-col justify-between"
+        className={`bg-white border rounded-xl shadow-xs overflow-hidden flex flex-col justify-between ${
+          ticket.is_held ? 'border-amber-300' : 'border-gray-200'
+        }`}
       >
         <div>
           <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between gap-2 flex-wrap">
@@ -152,7 +208,7 @@ const PosKdsSection = () => {
                 {ticket.receipt_number || `TKT-${String(ticket.id || '').slice(0, 8)}`}
               </div>
               <div className="text-[11px] text-gray-500">
-                {formatReceiptDateTime(ticket.created_at)}
+                {ticket.display_time || formatReceiptDateTime(ticket.created_at)}
               </div>
             </div>
             <div className="flex items-center gap-1.5">
@@ -163,13 +219,19 @@ const PosKdsSection = () => {
               >
                 {orderTypeLabel}
               </span>
-              <span
-                className={`px-2 py-0.5 rounded-md border text-[10px] font-bold uppercase tracking-wider ${getStatusBadgeClasses(
-                  status
-                )}`}
-              >
-                {status}
-              </span>
+              {ticket.is_held ? (
+                <span className="px-2 py-0.5 rounded-md border text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-800 border-amber-200">
+                  HELD (UNPAID)
+                </span>
+              ) : (
+                <span
+                  className={`px-2 py-0.5 rounded-md border text-[10px] font-bold uppercase tracking-wider ${getStatusBadgeClasses(
+                    status
+                  )}`}
+                >
+                  {status}
+                </span>
+              )}
             </div>
           </div>
 
@@ -219,40 +281,52 @@ const PosKdsSection = () => {
         </div>
 
         <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 flex items-center gap-2">
-          {status === 'PENDING' && (
+          {ticket.is_held ? (
             <button
               type="button"
-              onClick={() => handleStatusChange(ticket.id, 'PREPARING')}
-              disabled={isBusy}
-              className="flex-1 py-2 px-3 rounded-lg bg-gray-900 hover:bg-black text-white text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
+              onClick={() => onOpenOngoingOrder?.(ticket.held_order_id)}
+              className="flex-1 py-2 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-colors cursor-pointer border-none"
             >
-              {isBusy ? 'Updating...' : 'Start Preparing'}
+              Open in Register (Pay)
             </button>
-          )}
-          {status === 'PREPARING' && (
-            <button
-              type="button"
-              onClick={() => handleStatusChange(ticket.id, 'READY')}
-              disabled={isBusy}
-              className="flex-1 py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
-            >
-              {isBusy ? 'Updating...' : 'Mark Ready'}
-            </button>
-          )}
-          {status === 'READY' && (
-            <button
-              type="button"
-              onClick={() => handleStatusChange(ticket.id, 'SERVED')}
-              disabled={isBusy}
-              className="flex-1 py-2 px-3 rounded-lg bg-zinc-900 hover:bg-black text-white text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
-            >
-              {isBusy ? 'Updating...' : 'Serve'}
-            </button>
-          )}
-          {status === 'SERVED' && (
-            <div className="w-full text-center text-xs font-semibold text-gray-500 py-1">
-              Served
-            </div>
+          ) : (
+            <>
+              {status === 'PENDING' && (
+                <button
+                  type="button"
+                  onClick={() => handleStatusChange(ticket.id, 'PREPARING')}
+                  disabled={isBusy}
+                  className="flex-1 py-2 px-3 rounded-lg bg-gray-900 hover:bg-black text-white text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  {isBusy ? 'Updating...' : 'Start Preparing'}
+                </button>
+              )}
+              {status === 'PREPARING' && (
+                <button
+                  type="button"
+                  onClick={() => handleStatusChange(ticket.id, 'READY')}
+                  disabled={isBusy}
+                  className="flex-1 py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  {isBusy ? 'Updating...' : 'Mark Ready'}
+                </button>
+              )}
+              {status === 'READY' && (
+                <button
+                  type="button"
+                  onClick={() => handleStatusChange(ticket.id, 'SERVED')}
+                  disabled={isBusy}
+                  className="flex-1 py-2 px-3 rounded-lg bg-zinc-900 hover:bg-black text-white text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  {isBusy ? 'Updating...' : 'Serve'}
+                </button>
+              )}
+              {status === 'SERVED' && (
+                <div className="w-full text-center text-xs font-semibold text-gray-500 py-1">
+                  Served
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

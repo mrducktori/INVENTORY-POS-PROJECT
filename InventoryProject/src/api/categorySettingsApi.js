@@ -11,7 +11,8 @@ export const createCategory = async (category, data = {}) => {
     body: JSON.stringify({
       category,
       sizes: data.sizes || [],
-      add_ons: data.add_ons || []
+      add_ons: data.add_ons || [],
+      ...(data.prep_station ? { prep_station: data.prep_station } : {})
     })
   });
 };

@@ -6,10 +6,13 @@ import {
   renameCategory,
   deleteCategory
 } from '../../../../api/categorySettingsApi';
+import { INPUT_LIMITS, validateAmountInput } from '../../../../utils/validationUtils';
 import CategoryListSidebar from './CategoryListSidebar';
 import CategoryDefaultsEditor from './CategoryDefaultsEditor';
 
 const normalizeInput = (val) => String(val || '').trim().replace(/\s+/g, ' ').toUpperCase();
+const KITCHEN_HINT_PATTERN =
+  /PASTRY|PASTRIES|PASTA|SPAGHETTI|FOOD|MEAL|RICE|SNACK|SANDWICH|CAKE|WAFFLE|CROFFLE|BREAD|BURGER|PIZZA|DESSERT|NOODLE/i;
 
 const CategorySettingsModal = ({ onClose, allIngredients = [], onCategoriesChanged }) => {
   const [categoryList, setCategoryList] = useState([]);
@@ -22,14 +25,14 @@ const CategorySettingsModal = ({ onClose, allIngredients = [], onCategoriesChang
 
   // Category CRUD Form States
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryStation, setNewCategoryStation] = useState('BARISTA');
   const [renameValue, setRenameValue] = useState('');
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
-  // Sizes & Add-ons Form State for current category
+  // Prep Station, Sizes & Add-ons Form State for current category
+  const [editPrepStation, setEditPrepStation] = useState('BARISTA');
   const [editSizes, setEditSizes] = useState([]);
   const [editAddOns, setEditAddOns] = useState([]);
-  const [newSize, setNewSize] = useState({ name: '', price_add: '', ingredient_id: '' });
-  const [newAddOn, setNewAddOn] = useState({ name: '', price: '', ingredient_id: '', quantity: '', unit: '' });
 
   const showNotice = useCallback((type, text) => {
     setNotice({ type, text });
@@ -73,13 +76,24 @@ const CategorySettingsModal = ({ onClose, allIngredients = [], onCategoriesChang
     setRenameValue(selectedCategory || '');
     setConfirmDeleteOpen(false);
     if (activeCategoryObj) {
+      setEditPrepStation(String(activeCategoryObj.prep_station || 'BARISTA').toUpperCase() === 'KITCHEN' ? 'KITCHEN' : 'BARISTA');
       setEditSizes(activeCategoryObj.sizes || []);
       setEditAddOns(activeCategoryObj.add_ons || []);
     } else {
+      setEditPrepStation('BARISTA');
       setEditSizes([]);
       setEditAddOns([]);
     }
   }, [selectedCategory, activeCategoryObj]);
+
+  const handleNewCategoryNameChange = (val) => {
+    setNewCategoryName(val);
+    if (KITCHEN_HINT_PATTERN.test(val)) {
+      setNewCategoryStation('KITCHEN');
+    } else if (/COFFEE|TEA|FRAPPE|DRINK|JUICE|SODA|LATTE/i.test(val)) {
+      setNewCategoryStation('BARISTA');
+    }
+  };
 
   const handleAddCategory = async (e) => {
     e.preventDefault();
@@ -87,8 +101,13 @@ const CategorySettingsModal = ({ onClose, allIngredients = [], onCategoriesChang
     if (!cleaned) return;
     try {
       setLoading(true);
-      const created = await createCategory(cleaned, { sizes: [], add_ons: [] });
+      const created = await createCategory(cleaned, {
+        sizes: [],
+        add_ons: [],
+        prep_station: newCategoryStation
+      });
       setNewCategoryName('');
+      setNewCategoryStation('BARISTA');
       await fetchSettings(created.category || cleaned);
       await onCategoriesChanged?.();
       showNotice('success', `Category "${created.category || cleaned}" created.`);
@@ -138,7 +157,11 @@ const CategorySettingsModal = ({ onClose, allIngredients = [], onCategoriesChang
         }
       }
 
-      await updateCategorySettings(targetCategory, { sizes: editSizes, add_ons: editAddOns });
+      await updateCategorySettings(targetCategory, {
+        sizes: editSizes,
+        add_ons: editAddOns,
+        prep_station: editPrepStation
+      });
       await fetchSettings(targetCategory);
       await onCategoriesChanged?.();
 
@@ -154,27 +177,86 @@ const CategorySettingsModal = ({ onClose, allIngredients = [], onCategoriesChang
     }
   };
 
-  const handleAddSize = () => {
-    if (!newSize.name) return;
-    setEditSizes((prev) => [...prev, { ...newSize, price_add: parseFloat(newSize.price_add) || 0 }]);
-    setNewSize({ name: '', price_add: '', ingredient_id: '' });
+  const handleAddSize = (sizeObj) => {
+    if (!sizeObj?.name?.trim()) return false;
+    const priceCheck = validateAmountInput(sizeObj.price_add === '' ? 0 : (sizeObj.price_add ?? 0), {
+      label: `Size price add for ${sizeObj.name}`,
+      min: 0,
+      max: INPUT_LIMITS.ADDON_PRICE_MAX
+    });
+    if (!priceCheck.valid) {
+      showNotice('error', priceCheck.error);
+      return false;
+    }
+    const multVal =
+      sizeObj.recipe_multiplier === '' || sizeObj.recipe_multiplier === null || sizeObj.recipe_multiplier === undefined
+        ? 1
+        : sizeObj.recipe_multiplier;
+    const multCheck = validateAmountInput(multVal, {
+      label: `Recipe multiplier for ${sizeObj.name}`,
+      min: 0.1,
+      max: 10
+    });
+    if (!multCheck.valid) {
+      showNotice('error', multCheck.error);
+      return false;
+    }
+
+    setEditSizes((prev) => [
+      ...prev,
+      {
+        ...sizeObj,
+        name: sizeObj.name.trim(),
+        price_add: priceCheck.numericValue,
+        recipe_multiplier: multCheck.numericValue,
+        ingredient_id: sizeObj.ingredient_id || null,
+        lid_ingredient_id: sizeObj.lid_ingredient_id || null,
+        straw_ingredient_id: sizeObj.straw_ingredient_id || null,
+        dine_in_no_cup: Boolean(sizeObj.dine_in_no_cup)
+      }
+    ]);
+    return true;
   };
 
   const handleRemoveSize = (index) => {
     setEditSizes((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleAddAddOn = () => {
-    if (!newAddOn.name) return;
+  const handleUpdateSize = (index, patch) => {
+    setEditSizes((prev) => prev.map((sz, i) => (i === index ? { ...sz, ...patch } : sz)));
+  };
+
+  const handleAddAddOn = (addonObj) => {
+    if (!addonObj?.name?.trim()) return false;
+    const priceCheck = validateAmountInput(addonObj.price === '' ? 0 : (addonObj.price ?? 0), {
+      label: `Add-on price for ${addonObj.name}`,
+      min: 0,
+      max: INPUT_LIMITS.ADDON_PRICE_MAX
+    });
+    if (!priceCheck.valid) {
+      showNotice('error', priceCheck.error);
+      return false;
+    }
+    const qtyCheck = validateAmountInput(addonObj.quantity === '' ? 0 : (addonObj.quantity ?? 0), {
+      label: `Add-on quantity for ${addonObj.name}`,
+      min: 0,
+      max: INPUT_LIMITS.RECIPE_QTY_MAX
+    });
+    if (!qtyCheck.valid) {
+      showNotice('error', qtyCheck.error);
+      return false;
+    }
+
     setEditAddOns((prev) => [
       ...prev,
       {
-        ...newAddOn,
-        price: parseFloat(newAddOn.price) || 0,
-        quantity: parseFloat(newAddOn.quantity) || 0
+        ...addonObj,
+        name: addonObj.name.trim(),
+        price: priceCheck.numericValue,
+        quantity: qtyCheck.numericValue
       }
     ]);
-    setNewAddOn({ name: '', price: '', ingredient_id: '', quantity: '', unit: '' });
+    return true;
   };
 
   const handleRemoveAddOn = (index) => {
@@ -232,7 +314,9 @@ const CategorySettingsModal = ({ onClose, allIngredients = [], onCategoriesChang
               selectedCategory={selectedCategory}
               onSelectCategory={setSelectedCategory}
               newCategoryName={newCategoryName}
-              onNewCategoryNameChange={setNewCategoryName}
+              onNewCategoryNameChange={handleNewCategoryNameChange}
+              newCategoryStation={newCategoryStation}
+              onNewCategoryStationChange={setNewCategoryStation}
               onAddCategory={handleAddCategory}
               loading={loading}
             />
@@ -331,14 +415,13 @@ const CategorySettingsModal = ({ onClose, allIngredients = [], onCategoriesChang
 
                   <CategoryDefaultsEditor
                     allIngredients={allIngredients}
+                    prepStation={editPrepStation}
+                    onPrepStationChange={setEditPrepStation}
                     editSizes={editSizes}
-                    newSize={newSize}
-                    onNewSizeChange={setNewSize}
                     onAddSize={handleAddSize}
                     onRemoveSize={handleRemoveSize}
+                    onUpdateSize={handleUpdateSize}
                     editAddOns={editAddOns}
-                    newAddOn={newAddOn}
-                    onNewAddOnChange={setNewAddOn}
                     onAddAddOn={handleAddAddOn}
                     onRemoveAddOn={handleRemoveAddOn}
                   />

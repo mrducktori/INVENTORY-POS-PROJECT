@@ -22,7 +22,9 @@ export const INTERNAL_CMS_KEYS = new Set([
   "pos_voids_refunds_store",
   "pos_kds_queue_store",
   "manager_pins_store",
-  "pos_sale_metadata_store"
+  "pos_sale_metadata_store",
+  "category_prep_stations_map",
+  "pos_store_settings"
 ]);
 
 const isPublicCmsKey = (sectionKey) =>

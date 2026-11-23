@@ -47,9 +47,28 @@ export async function voidOrRefundSale(saleId, payload) {
   });
 }
 
+export async function getManagerPinStatus() {
+  return apiCall("/pos/pins", {
+    method: "GET"
+  });
+}
+
 export async function setManagerPin(payload) {
   return apiCall("/pos/pin", {
     method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function getPosSettings() {
+  return apiCall("/pos/settings", {
+    method: "GET"
+  });
+}
+
+export async function updatePosSettings(payload) {
+  return apiCall("/pos/settings", {
+    method: "PUT",
     body: JSON.stringify(payload)
   });
 }

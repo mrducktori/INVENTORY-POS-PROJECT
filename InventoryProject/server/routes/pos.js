@@ -13,8 +13,13 @@ router.get("/catalog", requireAuth, requireCafeRole, posController.getPosCatalog
 router.post("/sale", requireAuth, requireCafeRole, posController.createSale);
 router.post("/payment-intent", requireAuth, requireCafeRole, posController.createPaymentIntent);
 
+// Store POS Settings (Promos, Discount Presets, E-Wallet QR Accounts, Take-Out Packaging)
+router.get("/settings", requireAuth, requireCafeRole, posController.getPosSettings);
+router.put("/settings", requireAuth, requireRole("Owner", "Admin"), posController.updatePosSettings);
+
 // Void / Return / Refund & Manager PIN Management
 router.post("/sales/:id/void", requireAuth, requireCafeRole, posController.voidOrRefundSale);
+router.get("/pins", requireAuth, requireRole("Owner", "Admin"), posController.getManagerPinStatus);
 router.post("/pin", requireAuth, requireRole("Owner", "Admin"), posController.setManagerPin);
 
 // Shift Management (X-Reading & Z-Reading)

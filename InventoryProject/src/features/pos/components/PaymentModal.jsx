@@ -1,22 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { createPaymentIntent } from '../../../api/posApi';
+import { createPaymentIntent, getPosSettings } from '../../../api/posApi';
 
-const DISCOUNT_OPTIONS = [
-  { id: 'NONE', label: 'No Discount', rate: 0, badge: '0%' },
-  { id: 'SENIOR', label: 'Senior Citizen', rate: 0.20, badge: '20% OFF + ID' },
-  { id: 'PWD', label: 'PWD', rate: 0.20, badge: '20% OFF + ID' },
-  { id: 'STUDENT', label: 'Student', rate: 0.10, badge: '10% OFF' },
-  { id: 'STAFF', label: 'Employee / Staff', rate: 0.15, badge: '15% OFF' },
-  { id: 'PROMO_CODE', label: 'Promo Code / B1T1', rate: null, badge: 'Code' },
-  { id: 'CUSTOM', label: 'Custom', rate: null, badge: 'Custom' },
-];
-
-const PROMO_CODES = [
-  { code: 'COFTEA10', hint: '10% off' },
-  { code: 'COFTEA20', hint: '20% off' },
-  { code: 'WELCOME50', hint: '₱50 off min ₱200' },
-  { code: 'B1T1', hint: 'Buy 1 Take 1' }
+const DEFAULT_PROMOS = [
+  { code: 'COFTEA10', type: 'PERCENT', value: 10, min_subtotal: 0, active: true, description: '10% off' },
+  { code: 'COFTEA20', type: 'PERCENT', value: 20, min_subtotal: 0, active: true, description: '20% off' },
+  { code: 'WELCOME50', type: 'FIXED', value: 50, min_subtotal: 200, active: true, description: '₱50 off min ₱200' },
+  { code: 'B1T1', type: 'B1T1', value: 0, min_subtotal: 0, active: true, description: 'Buy 1 Take 1' }
 ];
 
 const PAYMENT_METHODS = [
@@ -39,7 +29,50 @@ const generateIdempotencyKey = () => {
 
 const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 
-const PaymentModal = ({ order, onConfirm, onClose }) => {
+const PaymentModal = ({ order, posSettings = null, onConfirm, onClose }) => {
+  const [localSettings, setLocalSettings] = useState(posSettings);
+  useEffect(() => {
+    if (posSettings) {
+      setLocalSettings(posSettings);
+      return;
+    }
+    let mounted = true;
+    getPosSettings()
+      .then((res) => {
+        if (mounted && res) setLocalSettings(res);
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, [posSettings]);
+
+  const effectiveSettings = posSettings || localSettings;
+
+  const discountOptions = useMemo(() => {
+    const presets = effectiveSettings?.discount_presets || {};
+    const seniorRate = presets.senior_rate ?? 0.20;
+    const pwdRate = presets.pwd_rate ?? 0.20;
+    const studentRate = presets.student_rate ?? 0.10;
+    const staffRate = presets.staff_rate ?? 0.15;
+    return [
+      { id: 'NONE', label: 'No Discount', rate: 0, badge: '0%' },
+      { id: 'SENIOR', label: 'Senior Citizen', rate: seniorRate, badge: `${Math.round(seniorRate * 100)}% OFF + ID` },
+      { id: 'PWD', label: 'PWD', rate: pwdRate, badge: `${Math.round(pwdRate * 100)}% OFF + ID` },
+      { id: 'STUDENT', label: 'Student', rate: studentRate, badge: `${Math.round(studentRate * 100)}% OFF` },
+      { id: 'STAFF', label: 'Employee / Staff', rate: staffRate, badge: `${Math.round(staffRate * 100)}% OFF` },
+      { id: 'PROMO_CODE', label: 'Promo Code / B1T1', rate: null, badge: 'Code' },
+      { id: 'CUSTOM', label: 'Custom', rate: null, badge: 'Custom' }
+    ];
+  }, [effectiveSettings]);
+
+  const activePromoCodes = useMemo(() => {
+    const list = Array.isArray(effectiveSettings?.promo_codes)
+      ? effectiveSettings.promo_codes
+      : DEFAULT_PROMOS;
+    return list.filter((p) => p && p.active !== false);
+  }, [effectiveSettings]);
+
   const [idempotencyKey] = useState(generateIdempotencyKey);
   const [method, setMethod] = useState('CASH');
   const [discountType, setDiscountType] = useState(() => {
@@ -67,9 +100,10 @@ const PaymentModal = ({ order, onConfirm, onClose }) => {
 
   const subtotal = round2(parseFloat(order?.total) || 0);
   const isQrProvider = method === 'GCASH' || method === 'MAYA' || method === 'QRPH';
+  const activeWalletConfig = isQrProvider ? effectiveSettings?.ewallet_accounts?.[method] || null : null;
 
   const { discountAmount, discountLabel, finalTotal, discountError } = useMemo(() => {
-    const selected = DISCOUNT_OPTIONS.find((d) => d.id === discountType) || DISCOUNT_OPTIONS[0];
+    const selected = discountOptions.find((d) => d.id === discountType) || discountOptions[0];
     let disc = 0;
     let label = '';
     let dErr = '';
@@ -81,33 +115,33 @@ const PaymentModal = ({ order, onConfirm, onClose }) => {
       const code = promoCode.trim().toUpperCase();
       if (!code) {
         dErr = 'Enter or select a promo code.';
-      } else if (code === 'COFTEA10') {
-        disc = subtotal * 0.10;
-        label = 'Promo COFTEA10 (10%)';
-      } else if (code === 'COFTEA20') {
-        disc = subtotal * 0.20;
-        label = 'Promo COFTEA20 (20%)';
-      } else if (code === 'WELCOME50') {
-        if (subtotal < 200) {
-          dErr = 'WELCOME50 requires a minimum subtotal of ₱200.00.';
-        } else {
-          disc = Math.min(subtotal, 50);
-          label = 'Promo WELCOME50 (-₱50.00)';
-        }
-      } else if (code === 'B1T1') {
-        const items = Array.isArray(order?.items) ? order.items : [];
-        const totalQty = items.reduce((sum, it) => sum + (Number(it.qty ?? it.quantity) || 0), 0);
-        if (totalQty < 2) {
-          dErr = 'B1T1 requires at least 2 items in the order.';
-        } else {
-          const unitPrices = items
-            .map((it) => parseFloat(it.price) || 0)
-            .filter((p) => p > 0);
-          disc = unitPrices.length > 0 ? Math.min(...unitPrices) : 0;
-          label = disc > 0 ? `Promo B1T1 (-₱${disc.toFixed(2)})` : '';
-        }
       } else {
-        dErr = `Unknown promo code "${code}".`;
+        const matchedPromo = activePromoCodes.find(
+          (p) => String(p.code || '').trim().toUpperCase() === code
+        );
+        if (!matchedPromo) {
+          dErr = `Unknown or inactive promo code "${code}".`;
+        } else if (Number(matchedPromo.min_subtotal) > 0 && subtotal < Number(matchedPromo.min_subtotal)) {
+          dErr = `${code} requires a minimum subtotal of ₱${Number(matchedPromo.min_subtotal).toFixed(2)}.`;
+        } else if (matchedPromo.type === 'PERCENT') {
+          disc = subtotal * (Number(matchedPromo.value || 0) / 100);
+          label = `Promo ${code} (${matchedPromo.value}%)`;
+        } else if (matchedPromo.type === 'FIXED') {
+          disc = Math.min(subtotal, Number(matchedPromo.value || 0));
+          label = `Promo ${code} (-₱${round2(disc).toFixed(2)})`;
+        } else if (matchedPromo.type === 'B1T1') {
+          const items = Array.isArray(order?.items) ? order.items : [];
+          const totalQty = items.reduce((sum, it) => sum + (Number(it.qty ?? it.quantity) || 0), 0);
+          if (totalQty < 2) {
+            dErr = `${code} requires at least 2 items in the order.`;
+          } else {
+            const unitPrices = items
+              .map((it) => parseFloat(it.price) || 0)
+              .filter((p) => p > 0);
+            disc = unitPrices.length > 0 ? Math.min(...unitPrices) : 0;
+            label = disc > 0 ? `Promo ${code} (-₱${disc.toFixed(2)})` : '';
+          }
+        }
       }
     } else if (discountType === 'CUSTOM') {
       const val = parseFloat(customValue);
@@ -142,7 +176,7 @@ const PaymentModal = ({ order, onConfirm, onClose }) => {
       finalTotal: netTotal,
       discountError: dErr
     };
-  }, [subtotal, discountType, customMode, customValue, promoCode, order?.items]);
+  }, [subtotal, discountType, customMode, customValue, promoCode, order?.items, discountOptions, activePromoCodes]);
 
   const maxCashAllowed = Math.min(100000, Math.max(finalTotal + 5000, 50000));
   const received = parseFloat(amountReceived) || 0;
@@ -376,7 +410,7 @@ const PaymentModal = ({ order, onConfirm, onClose }) => {
                 Discount Option
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {DISCOUNT_OPTIONS.map((opt) => {
+                {discountOptions.map((opt) => {
                   const isSelected = discountType === opt.id;
                   return (
                     <button
@@ -442,23 +476,32 @@ const PaymentModal = ({ order, onConfirm, onClose }) => {
                     className="w-full px-3 py-1.5 text-xs font-bold uppercase bg-white border border-zinc-300 rounded-lg focus:outline-none focus:border-zinc-900"
                   />
                   <div className="flex flex-wrap gap-1.5">
-                    {PROMO_CODES.map((p) => (
-                      <button
-                        key={p.code}
-                        type="button"
-                        onClick={() => {
-                          setPromoCode(p.code);
-                          setError('');
-                        }}
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer transition-colors ${
-                          promoCode.trim().toUpperCase() === p.code
-                            ? 'bg-zinc-900 text-white border-zinc-900'
-                            : 'bg-white text-zinc-700 border-zinc-300 hover:bg-zinc-100'
-                        }`}
-                      >
-                        {p.code} ({p.hint})
-                      </button>
-                    ))}
+                    {activePromoCodes.map((p) => {
+                      const hint =
+                        p.description ||
+                        (p.type === 'PERCENT'
+                          ? `${p.value}% off`
+                          : p.type === 'FIXED'
+                          ? `₱${p.value} off`
+                          : 'Buy 1 Take 1');
+                      return (
+                        <button
+                          key={p.code}
+                          type="button"
+                          onClick={() => {
+                            setPromoCode(p.code);
+                            setError('');
+                          }}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer transition-colors ${
+                            promoCode.trim().toUpperCase() === p.code
+                              ? 'bg-zinc-900 text-white border-zinc-900'
+                              : 'bg-white text-zinc-700 border-zinc-300 hover:bg-zinc-100'
+                          }`}
+                        >
+                          {p.code} ({hint})
+                        </button>
+                      );
+                    })}
                   </div>
                   {discountError && (
                     <div className="text-[11px] font-semibold text-rose-600">{discountError}</div>
@@ -592,6 +635,43 @@ const PaymentModal = ({ order, onConfirm, onClose }) => {
             {/* QR PROVIDERS: GCASH / MAYA / QRPH */}
             {isQrProvider && (
               <div className="flex flex-col gap-3.5">
+                {activeWalletConfig &&
+                  (activeWalletConfig.qr_image_url ||
+                    activeWalletConfig.account_number ||
+                    activeWalletConfig.account_name) && (
+                    <div className="p-3.5 bg-white border border-zinc-200 rounded-xl flex items-center gap-3.5 shadow-2xs">
+                      {activeWalletConfig.qr_image_url && (
+                        <div className="w-24 h-24 rounded-lg border border-zinc-200 overflow-hidden bg-zinc-50 shrink-0 flex items-center justify-center">
+                          <img
+                            src={activeWalletConfig.qr_image_url}
+                            alt={`${method} Store QR`}
+                            className="w-full h-full object-contain"
+                          />
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="text-xs font-extrabold text-zinc-900 uppercase tracking-wider">
+                          {method} Account Details
+                        </div>
+                        {activeWalletConfig.account_name && (
+                          <div className="text-xs font-bold text-zinc-800 truncate">
+                            {activeWalletConfig.account_name}
+                          </div>
+                        )}
+                        {activeWalletConfig.account_number && (
+                          <div className="text-xs font-mono font-bold text-zinc-900">
+                            {activeWalletConfig.account_number}
+                          </div>
+                        )}
+                        {activeWalletConfig.instructions && (
+                          <div className="text-[11px] text-zinc-500 leading-snug">
+                            {activeWalletConfig.instructions}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                 <div className="p-3.5 bg-zinc-50 border border-zinc-200 rounded-xl space-y-2.5">
                   <div className="flex items-center justify-between gap-2">
                     <div>
@@ -599,7 +679,7 @@ const PaymentModal = ({ order, onConfirm, onClose }) => {
                         {method} QR Payment & Reference Verification
                       </div>
                       <div className="text-[11px] text-zinc-500 font-medium">
-                        Generate a QR intent or verify customer payment reference below
+                        Generate a tracking intent or verify customer payment reference below
                       </div>
                     </div>
                     <button

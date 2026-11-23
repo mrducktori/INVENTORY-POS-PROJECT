@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getUsers, createUser, updateUser, updateUserStatus, deleteUser } from '../../api/usersApi';
 import { getCurrentUser } from '../../api/authApi';
 import { getSuppliers } from '../../api/purchasingApi';
+import { getManagerPinStatus, setManagerPin } from '../../api/posApi';
 import { supabase } from '../../config/supabaseClient';
 import { STAFF_DEFAULT_PERMISSIONS } from '../../utils/permissions';
 import { validatePasswordForSubmission } from '../../utils/passwordRules';
@@ -35,6 +36,28 @@ const AccountManager = () => {
   const [countdown, setCountdown] = useState(0);
 
   const [suppliers, setSuppliers] = useState([]);
+  const [pinStatus, setPinStatus] = useState({ has_any_custom_pin: false, managers: [] });
+  const [pinsLoading, setPinsLoading] = useState(false);
+  const [pinInputs, setPinInputs] = useState({});
+  const [savingPinId, setSavingPinId] = useState(null);
+  const isManagerRole = currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
+
+  const fetchPinStatus = useCallback(async () => {
+    if (!isManagerRole) return;
+    try {
+      setPinsLoading(true);
+      const data = await getManagerPinStatus();
+      if (data) setPinStatus(data);
+    } catch (err) {
+      console.error('Failed to load Manager PIN status:', err);
+    } finally {
+      setPinsLoading(false);
+    }
+  }, [isManagerRole]);
+
+  useEffect(() => {
+    fetchPinStatus();
+  }, [fetchPinStatus]);
 
   useEffect(() => {
     fetchUsers();
@@ -233,6 +256,25 @@ const AccountManager = () => {
     setView('form');
   };
 
+  const handleSaveManagerPin = async (targetUser) => {
+    const cleanPin = String(pinInputs[targetUser.id] || '').trim();
+    if (!/^\d{4,8}$/.test(cleanPin)) {
+      flash('error', 'Manager PIN must be 4 to 8 numeric digits.');
+      return;
+    }
+    try {
+      setSavingPinId(targetUser.id);
+      await setManagerPin({ targetUserId: targetUser.id, pin: cleanPin });
+      setPinInputs((prev) => ({ ...prev, [targetUser.id]: '' }));
+      flash('success', `Manager approval PIN updated for ${targetUser.name}.`);
+      await fetchPinStatus();
+    } catch (err) {
+      flash('error', err.message || 'Failed to update Manager PIN.');
+    } finally {
+      setSavingPinId(null);
+    }
+  };
+
   const handleToggleStatusClick = (id, currentStatus) => {
     const targetUser = users.find((u) => u.id === id);
     const isOnline = Boolean(targetUser?.current_session_id);
@@ -295,11 +337,20 @@ const AccountManager = () => {
           {[
             { id: 'list', label: 'Accounts' },
             { id: 'form', label: editingUserId ? 'Edit Account' : 'Create Account' },
+            ...(isManagerRole ? [{ id: 'pins', label: 'Manager PINs' }] : [])
           ].map((t) => (
             <button
               key={t.id}
               type="button"
-              onClick={() => (t.id === 'list' ? resetForm() : view !== 'form' && startCreate())}
+              onClick={() => {
+                if (t.id === 'list') resetForm();
+                else if (t.id === 'form') {
+                  if (view !== 'form') startCreate();
+                } else if (t.id === 'pins') {
+                  setView('pins');
+                  fetchPinStatus();
+                }
+              }}
               className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer ${
                 view === t.id ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-900'
               }`}
@@ -329,6 +380,95 @@ const AccountManager = () => {
           onToggleStatus={handleToggleStatusClick}
           onDeleteUser={handleDeleteUserClick}
         />
+      ) : view === 'pins' && isManagerRole ? (
+        <div className="bg-white border border-zinc-200 rounded-xl max-w-4xl overflow-hidden">
+          <div className="px-6 py-5 border-b border-zinc-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h2 className="m-0 text-lg font-bold text-zinc-900">POS Manager Approval PINs</h2>
+              <p className="m-0 mt-1 text-xs text-zinc-500">
+                4–8 digit numeric PINs used to authorize Voids, Returns, and Refunds inside POS Operations.
+              </p>
+            </div>
+            <span
+              className={`px-2.5 py-1 rounded-full text-[11px] font-bold border self-start sm:self-auto ${
+                pinStatus.has_any_custom_pin
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  : 'bg-amber-50 text-amber-800 border-amber-200'
+              }`}
+            >
+              {pinStatus.has_any_custom_pin ? 'Custom PIN Active' : 'Default Fallback PIN Active (1234)'}
+            </span>
+          </div>
+
+          <div className="divide-y divide-zinc-100">
+            {pinsLoading && (pinStatus.managers || []).length === 0 ? (
+              <div className="p-8 text-center text-sm text-zinc-500">Loading manager accounts...</div>
+            ) : (pinStatus.managers || []).length === 0 ? (
+              <div className="p-8 text-center text-sm text-zinc-500">No active Owner or Admin accounts found.</div>
+            ) : (
+              (pinStatus.managers || []).map((mgr) => {
+                const cannotEditOwner = currentUser?.role === 'Admin' && mgr.role === 'Owner' && String(mgr.id) !== String(currentUser?.id);
+                const isSaving = savingPinId === mgr.id;
+                return (
+                  <div key={mgr.id} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-bold text-zinc-900">{mgr.name}</span>
+                        <span className="text-xs font-mono text-zinc-500">@{mgr.username}</span>
+                        <span className="px-2 py-0.5 rounded bg-zinc-100 border border-zinc-200 text-[10px] font-bold uppercase text-zinc-700">
+                          {mgr.role}
+                        </span>
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${
+                            mgr.has_custom_pin
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : 'bg-zinc-50 text-zinc-500 border-zinc-200'
+                          }`}
+                        >
+                          {mgr.has_custom_pin ? 'PIN Set' : 'No Custom PIN'}
+                        </span>
+                      </div>
+                      {mgr.pin_updated_at && (
+                        <div className="text-[11px] text-zinc-400 mt-1">
+                          Updated: {new Date(mgr.pin_updated_at).toLocaleString()}
+                        </div>
+                      )}
+                    </div>
+
+                    {cannotEditOwner ? (
+                      <span className="text-xs font-medium text-zinc-400">Managed by Owner</span>
+                    ) : (
+                      <div className="flex items-center gap-2 shrink-0">
+                        <input
+                          type="password"
+                          inputMode="numeric"
+                          maxLength={8}
+                          placeholder="4–8 digit PIN"
+                          value={pinInputs[mgr.id] || ''}
+                          onChange={(e) =>
+                            setPinInputs((prev) => ({
+                              ...prev,
+                              [mgr.id]: e.target.value.replace(/\D/g, '')
+                            }))
+                          }
+                          className="w-36 px-3 py-2 border border-zinc-300 rounded-lg text-xs font-mono focus:outline-none focus:border-zinc-900"
+                        />
+                        <button
+                          type="button"
+                          disabled={isSaving}
+                          onClick={() => handleSaveManagerPin(mgr)}
+                          className="px-3.5 py-2 bg-zinc-900 hover:bg-black text-white rounded-lg text-xs font-bold uppercase tracking-wider cursor-pointer border-none disabled:opacity-50"
+                        >
+                          {isSaving ? 'Saving...' : mgr.has_custom_pin ? 'Reset PIN' : 'Set PIN'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
       ) : (
         <div className="bg-white border border-zinc-200 rounded-xl max-w-5xl">
           <div className="px-6 py-5 border-b border-zinc-100">

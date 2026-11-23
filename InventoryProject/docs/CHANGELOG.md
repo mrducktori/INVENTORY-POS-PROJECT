@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Integration & Client-Setup Refactor: Category Prep Stations, POS Store Setup, KDS Sync & Access Control PINs - 2026-11-23]
+- **KDS Prep Station Routing & Manage Categories Overhaul (`server/routes/categorySettings.js`, `server/services/posOperationsService.js`, `server/services/cmsService.js`, `src/api/categorySettingsApi.js`, `src/features/inventory/components/products/CategorySettingsModal.jsx`, `CategoryDefaultsEditor.jsx`, `CategoryListSidebar.jsx`, `PosKdsSection.jsx`)**:
+  - Replaced `BARISTA`-defaulting regex with `classifyKdsStation()` using explicit `prep_station` mappings (`category_prep_stations_map`), expanded food/pasta/pastry/meal keywords (fixing `SPAGHETTI` routing to `KITCHEN`), cup-size heuristics, and retroactive re-classification in `getKdsQueue`.
+  - Upgraded `Manage Categories` (`CategorySettingsModal.jsx` + `CategoryDefaultsEditor.jsx`) to include the KDS Prep Station toggle (`Barista` vs `Kitchen`) and full Phase 3 `ProductOptionsEditor` controls (Cup Size, Lid, Straw, Recipe Multiplier, Dine-In Glassware toggle, and Add-ons).
+- **Client-Configurable POS Store Setup (`server/services/posOperationsService.js`, `server/controllers/posController.js`, `server/routes/pos.js`, `src/api/posApi.js`, `src/features/pos/components/PosSettingsModal.jsx`, `PaymentModal.jsx`, `usePOS.js`, `POS.jsx`)**:
+  - Replaced hardcoded promos/discount presets and unconfigured QR channels with persisted `pos_store_settings` (`GET/PUT /api/pos/settings`) editable via **POS -> POS Setup** (`PosSettingsModal.jsx`) for Owner/Admin: custom Promo Codes (`PERCENT`, `FIXED`, `B1T1`), Student/Staff discount percentages, GCash/Maya/QRPH merchant accounts & uploaded static QR images (rendered live inside `PaymentModal.jsx`), and default Take-Out/Delivery carrier bag auto-deduction.
+- **Ongoing Orders <-> KDS & Access Control Manager PIN Integration (`PosKdsSection.jsx`, `POS.jsx`, `AccountManager.jsx`, `posOperationsService.js`)**:
+  - Surfaced held `Ongoing` orders (`pos_ongoingOrders`) directly inside **Order Queue / KDS** with `HELD (UNPAID)` badges and one-click return to Register payment.
+  - Added **Manager PINs** tab (`GET /api/pos/pins` + `setManagerPin`) inside **Access Control (`AccountManager.jsx`)** with Owner protection and PIN status indicators.
+- **Safe Phase 1 SQL Migration (`docs/database/phase1_duplicate_and_bounds.sql`)**:
+  - Added pre-index active duplicate archiving (`is_archived = true` on `rn > 1`) and `NOT VALID` on numeric `CHECK` constraints so migration runs cleanly on existing production/capstone databases.
+
 ## [Phase 6: Perishability/FEFO Forecasting, Shelf-Life Restock Caps, Carryover Fixes & Full-System Scan - 2026-11-23]
 - **Backend Perishability Forecasting, Void Exclusion & PO Enrichment (`server/routes/analytics.js`, `server/services/aiForecastingService.js`, `server/services/batchService.js`, `server/services/recipesService.js`, `server/services/purchasingService.js`)**:
   - Updated `fetchSalesSince` in `analytics.js` to filter out `VOIDED`/`REFUNDED`/`RETURNED` sales (`sales.status` + `posOperationsService.getVoidRefundMap()`) and resolve per-size ingredient burn using `recipesService.resolveRecipeQuantityForSize`.

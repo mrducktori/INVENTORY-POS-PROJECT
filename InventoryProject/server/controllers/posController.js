@@ -114,6 +114,7 @@ export const createSale = async (req, res) => {
       idempotencyKey,
       req.user.id,
       async () => {
+        const posSettings = await posOperationsService.getPosSettings();
         const { subtotal, itemPrices } = await posOperationsService.computeAuthoritativeSubtotal(cart);
         const discountResult = posOperationsService.validateAndComputeDiscount({
           subtotal,
@@ -124,7 +125,8 @@ export const createSale = async (req, res) => {
           customer_name,
           promo_code,
           custom_discount_mode,
-          custom_discount_value
+          custom_discount_value,
+          posSettings
         });
         const paymentResult = posOperationsService.validateAndNormalizePayments({
           payment_method,
@@ -139,10 +141,29 @@ export const createSale = async (req, res) => {
           price: itemPrices[idx]?.unit_price ?? item.price
         }));
 
+        let orderPackagingItems = Array.isArray(req.body.order_packaging_items)
+          ? req.body.order_packaging_items
+          : [];
+        const takeoutCfg = posSettings?.takeout_packaging;
+        if (
+          orderPackagingItems.length === 0 &&
+          takeoutCfg?.carrier_ingredient_id &&
+          ((normalizedOrderType === "TAKE_OUT" && takeoutCfg.apply_to_takeout) ||
+            (normalizedOrderType === "DELIVERY" && takeoutCfg.apply_to_delivery))
+        ) {
+          const pkgQty = Number(takeoutCfg.carrier_qty_per_order) || 1;
+          if (pkgQty > 0) {
+            orderPackagingItems = [
+              { ingredient_id: takeoutCfg.carrier_ingredient_id, quantity: pkgQty }
+            ];
+          }
+        }
+
         const createdSale = await posService.createSale({
           ...req.body,
           cart: authoritativeCart,
           order_type: normalizedOrderType,
+          order_packaging_items: orderPackagingItems,
           total: discountResult.final_total,
           discount_amount: discountResult.discount_amount,
           payment_method: paymentResult.payment_method,
@@ -302,6 +323,33 @@ export const updateKdsTicketStatus = async (req, res) => {
       req.user
     );
     res.json(ticket);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+};
+
+export const getPosSettings = async (req, res) => {
+  try {
+    const settings = await posOperationsService.getPosSettings();
+    res.json(settings);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+};
+
+export const updatePosSettings = async (req, res) => {
+  try {
+    const settings = await posOperationsService.updatePosSettings(req.body, req.user);
+    res.json(settings);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+};
+
+export const getManagerPinStatus = async (req, res) => {
+  try {
+    const status = await posOperationsService.getManagerPinStatus();
+    res.json(status);
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
   }

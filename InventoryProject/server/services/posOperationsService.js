@@ -15,6 +15,8 @@ const VOIDS_STORE_KEY = "pos_voids_refunds_store";
 const KDS_STORE_KEY = "pos_kds_queue_store";
 const MANAGER_PINS_STORE_KEY = "manager_pins_store";
 const SALE_METADATA_STORE_KEY = "pos_sale_metadata_store";
+const CATEGORY_STATIONS_STORE_KEY = "category_prep_stations_map";
+const POS_SETTINGS_STORE_KEY = "pos_store_settings";
 
 const MAX_IDEMPOTENCY_KEYS = 300;
 const MAX_KDS_TICKETS = 100;
@@ -131,6 +133,200 @@ const parseAddOnEntry = (raw) => {
   }
 };
 
+export const DEFAULT_POS_SETTINGS = {
+  promo_codes: [
+    { code: "COFTEA10", type: "PERCENT", value: 10, min_subtotal: 0, active: true, description: "10% off order" },
+    { code: "COFTEA20", type: "PERCENT", value: 20, min_subtotal: 0, active: true, description: "20% off order" },
+    { code: "WELCOME50", type: "FIXED", value: 50, min_subtotal: 200, active: true, description: "₱50 off min ₱200" },
+    { code: "B1T1", type: "B1T1", value: 0, min_subtotal: 0, active: true, description: "Buy 1 Take 1 (free lowest item)" }
+  ],
+  discount_presets: {
+    senior_rate: 0.20,
+    pwd_rate: 0.20,
+    student_rate: 0.10,
+    staff_rate: 0.15
+  },
+  ewallet_accounts: {
+    GCASH: {
+      account_name: "CofTea Cafe",
+      account_number: "",
+      qr_image_url: "",
+      instructions: "Scan QR or send to GCash number and enter the Reference #."
+    },
+    MAYA: {
+      account_name: "CofTea Cafe",
+      account_number: "",
+      qr_image_url: "",
+      instructions: "Scan QR or send to Maya number and enter the Reference #."
+    },
+    QRPH: {
+      account_name: "CofTea Cafe",
+      account_number: "",
+      qr_image_url: "",
+      instructions: "Scan QRPH code and enter the Reference #."
+    }
+  },
+  takeout_packaging: {
+    carrier_ingredient_id: null,
+    carrier_qty_per_order: 1,
+    apply_to_takeout: true,
+    apply_to_delivery: true
+  }
+};
+
+const isSafeOptionalUrl = (val) => {
+  if (!val) return true;
+  const s = String(val).trim();
+  if (!s) return true;
+  return s.startsWith("https://") || s.startsWith("http://") || s.startsWith("/");
+};
+
+export const normalizePosSettings = (raw = {}, { strict = false } = {}) => {
+  const src = raw && typeof raw === "object" ? raw : {};
+
+  // 1. Promo codes
+  const rawPromos = Array.isArray(src.promo_codes) ? src.promo_codes : DEFAULT_POS_SETTINGS.promo_codes;
+  const seenCodes = new Set();
+  const promo_codes = [];
+
+  for (const entry of rawPromos.slice(0, 50)) {
+    const code = String(entry?.code || "").trim().toUpperCase();
+    if (!code) {
+      if (strict) throw createHttpError(400, "Each promo entry must have a code.");
+      continue;
+    }
+    if (!/^[A-Z0-9_-]{2,30}$/.test(code)) {
+      if (strict) throw createHttpError(400, `Promo code "${code}" must be 2-30 alphanumeric characters (A-Z, 0-9, -, _).`);
+      continue;
+    }
+    if (seenCodes.has(code)) {
+      if (strict) throw createHttpError(400, `Duplicate promo code "${code}" is not allowed.`);
+      continue;
+    }
+    seenCodes.add(code);
+
+    const pType = String(entry?.type || "PERCENT").trim().toUpperCase();
+    if (!["PERCENT", "FIXED", "B1T1"].includes(pType)) {
+      if (strict) throw createHttpError(400, `Invalid promo type "${entry?.type}" for ${code}.`);
+      continue;
+    }
+
+    let pVal = Number(entry?.value ?? 0);
+    if (pType === "B1T1") {
+      pVal = 0;
+    } else if (pType === "PERCENT") {
+      if (!Number.isFinite(pVal) || pVal <= 0 || pVal > 100) {
+        if (strict) throw createHttpError(400, `Percentage for promo "${code}" must be between 1 and 100.`);
+        pVal = Math.min(100, Math.max(1, Number.isFinite(pVal) ? pVal : 10));
+      }
+      pVal = round2(pVal);
+    } else {
+      if (!Number.isFinite(pVal) || pVal <= 0 || pVal > 100000) {
+        if (strict) throw createHttpError(400, `Fixed amount for promo "${code}" must be between ₱1 and ₱100,000.`);
+        pVal = Math.min(100000, Math.max(1, Number.isFinite(pVal) ? pVal : 50));
+      }
+      pVal = round2(pVal);
+    }
+
+    let minSub = Number(entry?.min_subtotal ?? 0);
+    if (!Number.isFinite(minSub) || minSub < 0 || minSub > 100000) {
+      if (strict) throw createHttpError(400, `Minimum subtotal for promo "${code}" must be between 0 and 100,000.`);
+      minSub = 0;
+    }
+
+    promo_codes.push({
+      code,
+      type: pType,
+      value: pVal,
+      min_subtotal: round2(minSub),
+      active: entry?.active !== false,
+      description: String(entry?.description || "").trim().slice(0, 120)
+    });
+  }
+
+  // 2. Discount presets
+  const rawPresets = src.discount_presets && typeof src.discount_presets === "object"
+    ? src.discount_presets
+    : {};
+  const clampRate = (val, fallback, label) => {
+    const n = Number(val);
+    if (val === undefined || val === null || val === "") return fallback;
+    if (!Number.isFinite(n) || n < 0 || n > 1) {
+      if (strict) throw createHttpError(400, `${label} rate must be between 0% and 100%.`);
+      return fallback;
+    }
+    return Math.round(n * 10000) / 10000;
+  };
+  const discount_presets = {
+    senior_rate: clampRate(rawPresets.senior_rate, DEFAULT_POS_SETTINGS.discount_presets.senior_rate, "Senior Citizen"),
+    pwd_rate: clampRate(rawPresets.pwd_rate, DEFAULT_POS_SETTINGS.discount_presets.pwd_rate, "PWD"),
+    student_rate: clampRate(rawPresets.student_rate, DEFAULT_POS_SETTINGS.discount_presets.student_rate, "Student"),
+    staff_rate: clampRate(rawPresets.staff_rate, DEFAULT_POS_SETTINGS.discount_presets.staff_rate, "Staff")
+  };
+
+  // 3. E-wallet accounts
+  const rawWallets = src.ewallet_accounts && typeof src.ewallet_accounts === "object"
+    ? src.ewallet_accounts
+    : {};
+  const ewallet_accounts = {};
+  for (const prov of QR_PROVIDERS) {
+    const def = DEFAULT_POS_SETTINGS.ewallet_accounts[prov];
+    const w = rawWallets[prov] && typeof rawWallets[prov] === "object" ? rawWallets[prov] : {};
+    const qrUrl = String(w.qr_image_url ?? def.qr_image_url).trim().slice(0, 500);
+    if (strict && !isSafeOptionalUrl(qrUrl)) {
+      throw createHttpError(400, `Invalid QR image URL for ${prov}. Use an uploaded image or http(s) URL.`);
+    }
+    ewallet_accounts[prov] = {
+      account_name: String(w.account_name ?? def.account_name).trim().slice(0, 100),
+      account_number: String(w.account_number ?? def.account_number).trim().slice(0, 40),
+      qr_image_url: isSafeOptionalUrl(qrUrl) ? qrUrl : "",
+      instructions: String(w.instructions ?? def.instructions).trim().slice(0, 250)
+    };
+  }
+
+  // 4. Take-out packaging defaults
+  const rawPkg = src.takeout_packaging && typeof src.takeout_packaging === "object"
+    ? src.takeout_packaging
+    : {};
+  let carrierQty = Number(rawPkg.carrier_qty_per_order ?? 1);
+  if (!Number.isFinite(carrierQty) || carrierQty < 0 || carrierQty > 100) {
+    if (strict) throw createHttpError(400, "Take-out carrier quantity per order must be between 0 and 100.");
+    carrierQty = 1;
+  }
+  const takeout_packaging = {
+    carrier_ingredient_id: rawPkg.carrier_ingredient_id ? String(rawPkg.carrier_ingredient_id).trim() : null,
+    carrier_qty_per_order: round2(carrierQty),
+    apply_to_takeout: rawPkg.apply_to_takeout !== false,
+    apply_to_delivery: rawPkg.apply_to_delivery !== false
+  };
+
+  return {
+    promo_codes,
+    discount_presets,
+    ewallet_accounts,
+    takeout_packaging
+  };
+};
+
+export const getPosSettings = async () => {
+  const stored = await readCmsStore(POS_SETTINGS_STORE_KEY, null);
+  return normalizePosSettings(stored || {});
+};
+
+export const updatePosSettings = async (payload, actingUser) => {
+  const normalized = normalizePosSettings(payload, { strict: true });
+  await withStoreLock(POS_SETTINGS_STORE_KEY, async () => {
+    await writeCmsStore(POS_SETTINGS_STORE_KEY, "POS Store Settings", normalized);
+  });
+
+  await logAudit("POS_SETTINGS_UPDATED", actingUser?.id || null, {
+    promo_count: normalized.promo_codes.length,
+    updated_by: actingUser?.name || "Admin"
+  });
+
+  return normalized;
+};
+
 /**
  * Pure authoritative pricing calculator from catalog maps (testable without DB).
  */
@@ -241,8 +437,11 @@ export const validateAndComputeDiscount = ({
   customer_name = "",
   promo_code = "",
   custom_discount_mode = "PERCENT",
-  custom_discount_value = 0
+  custom_discount_value = 0,
+  posSettings = null
 }) => {
+  const settings = normalizePosSettings(posSettings || DEFAULT_POS_SETTINGS);
+  const presets = settings.discount_presets || DEFAULT_POS_SETTINGS.discount_presets;
   const safeSubtotal = Math.max(0, round2(subtotal));
   let type = String(discount_type || "NONE").trim().toUpperCase();
   if (type === "PROMO") type = "PROMO_CODE";
@@ -270,53 +469,62 @@ export const validateAndComputeDiscount = ({
       required: true
     });
 
-    discountAmount = round2(safeSubtotal * 0.2);
+    const rate = type === "SENIOR" ? (presets.senior_rate ?? 0.2) : (presets.pwd_rate ?? 0.2);
+    discountAmount = round2(safeSubtotal * rate);
     const vatExemptSales = round2(safeSubtotal / 1.12);
     const vatDeducted = round2(safeSubtotal - vatExemptSales);
-    discountLabel = type === "SENIOR" ? "Senior Citizen (20%)" : "PWD (20%)";
+    const pctText = `${Math.round(rate * 100)}%`;
+    discountLabel = type === "SENIOR" ? `Senior Citizen (${pctText})` : `PWD (${pctText})`;
     discountDetails.customer_name = cleanName;
     discountDetails.discount_id_number = cleanId;
     discountDetails.vat_exempt_sales = vatExemptSales;
     discountDetails.vat_deducted = vatDeducted;
   } else if (type === "STUDENT") {
-    discountAmount = round2(safeSubtotal * 0.1);
-    discountLabel = "Student (10%)";
+    const rate = presets.student_rate ?? 0.1;
+    discountAmount = round2(safeSubtotal * rate);
+    discountLabel = `Student (${Math.round(rate * 100)}%)`;
   } else if (type === "STAFF") {
-    discountAmount = round2(safeSubtotal * 0.15);
-    discountLabel = "Employee / Staff (15%)";
+    const rate = presets.staff_rate ?? 0.15;
+    discountAmount = round2(safeSubtotal * rate);
+    discountLabel = `Employee / Staff (${Math.round(rate * 100)}%)`;
   } else if (type === "PROMO_CODE") {
     const code = String(promo_code || "").trim().toUpperCase();
     if (!code) {
       throw createHttpError(400, "Promo code is required.");
     }
-    if (code === "COFTEA10") {
-      discountAmount = round2(safeSubtotal * 0.1);
-      discountLabel = "Promo COFTEA10 (10%)";
-    } else if (code === "COFTEA20") {
-      discountAmount = round2(safeSubtotal * 0.2);
-      discountLabel = "Promo COFTEA20 (20%)";
-    } else if (code === "WELCOME50") {
-      if (safeSubtotal < 200) {
-        throw createHttpError(400, "Promo code WELCOME50 requires a minimum subtotal of ₱200.");
-      }
-      discountAmount = 50;
-      discountLabel = "Promo WELCOME50 (-₱50)";
-    } else if (code === "B1T1") {
+    const matchedPromo = (settings.promo_codes || []).find(
+      (p) => String(p.code || "").trim().toUpperCase() === code && p.active !== false
+    );
+    if (!matchedPromo) {
+      throw createHttpError(400, `Invalid or inactive promo code "${code}".`);
+    }
+    if (matchedPromo.min_subtotal > 0 && safeSubtotal < matchedPromo.min_subtotal) {
+      throw createHttpError(
+        400,
+        `Promo code ${code} requires a minimum subtotal of ₱${Number(matchedPromo.min_subtotal).toFixed(2)}.`
+      );
+    }
+
+    if (matchedPromo.type === "PERCENT") {
+      discountAmount = round2(safeSubtotal * (Number(matchedPromo.value || 0) / 100));
+      discountLabel = `Promo ${code} (${matchedPromo.value}%)`;
+    } else if (matchedPromo.type === "FIXED") {
+      discountAmount = round2(Number(matchedPromo.value || 0));
+      discountLabel = `Promo ${code} (-₱${discountAmount.toFixed(2)})`;
+    } else if (matchedPromo.type === "B1T1") {
       const totalQty = (cart || []).reduce((sum, i) => sum + (Number(i?.qty ?? i?.quantity) || 0), 0);
       if (totalQty < 2) {
-        throw createHttpError(400, "Promo code B1T1 requires at least 2 items in the cart.");
+        throw createHttpError(400, `Promo code ${code} requires at least 2 items in the cart.`);
       }
       const candidateUnitPrices = (itemPrices.length > 0 ? itemPrices : cart)
         .filter((i) => (Number(i?.qty ?? i?.quantity) || 0) > 0)
         .map((i) => parseFloat(i?.unit_price ?? i?.price) || 0)
         .filter((p) => p > 0);
       if (candidateUnitPrices.length === 0) {
-        throw createHttpError(400, "No eligible priced items found for B1T1.");
+        throw createHttpError(400, `No eligible priced items found for ${code}.`);
       }
       discountAmount = round2(Math.min(...candidateUnitPrices));
-      discountLabel = "Promo B1T1 (Free Cheapest Item)";
-    } else {
-      throw createHttpError(400, `Invalid promo code "${code}".`);
+      discountLabel = `Promo ${code} (Free Cheapest Item)`;
     }
     discountDetails.promo_code = code;
   } else if (type === "CUSTOM") {
@@ -634,6 +842,36 @@ export const clearPinFailures = (rateKey = "global") => {
   pinFailureBuckets.delete(rateKey);
 };
 
+export const getManagerPinStatus = async () => {
+  const [{ data: managers, error }, pinsMap] = await Promise.all([
+    supabase
+      .from("users")
+      .select("id, name, username, role, status")
+      .in("role", ["Owner", "Admin"])
+      .eq("status", "ACTIVE")
+      .order("role", { ascending: false }),
+    readCmsStore(MANAGER_PINS_STORE_KEY, {})
+  ]);
+  if (error) throw error;
+
+  const list = (managers || []).map((u) => {
+    const entry = pinsMap?.[u.id];
+    return {
+      id: u.id,
+      name: u.name,
+      username: u.username,
+      role: u.role,
+      has_custom_pin: Boolean(entry?.hash),
+      pin_updated_at: entry?.updated_at || null
+    };
+  });
+
+  return {
+    has_any_custom_pin: list.some((m) => m.has_custom_pin),
+    managers: list
+  };
+};
+
 export const setManagerPin = async ({ targetUserId, pin, actingUser }) => {
   const pinStr = String(pin ?? "").trim();
   if (!/^\d{4,8}$/.test(pinStr)) {
@@ -643,6 +881,20 @@ export const setManagerPin = async ({ targetUserId, pin, actingUser }) => {
   const effectiveTargetId = targetUserId || actingUser?.id;
   if (!effectiveTargetId) {
     throw createHttpError(400, "Target user ID is required.");
+  }
+
+  const { data: targetUser } = await supabase
+    .from("users")
+    .select("id, role")
+    .eq("id", effectiveTargetId)
+    .maybeSingle();
+
+  if (
+    actingUser?.role === "Admin" &&
+    targetUser?.role === "Owner" &&
+    String(targetUser.id) !== String(actingUser.id)
+  ) {
+    throw createHttpError(403, "Only the Owner can change the Owner Manager PIN.");
   }
 
   const hash = await bcrypt.hash(pinStr, 10);
@@ -1370,24 +1622,82 @@ export const closeShiftZReading = async ({ shift_id = null, actual_cash_counted,
   return closedShift;
 };
 
-export const classifyKdsStation = (category) =>
-  /PASTRY|PASTRIES|FOOD|SNACK|SANDWICH|CAKE|WAFFLE|CROFFLE/i.test(String(category || ""))
-    ? "KITCHEN"
-    : "BARISTA";
+const KITCHEN_STATION_PATTERN =
+  /PASTRY|PASTRIES|PASTA|SPAGHETTI|CARBONARA|LASAGNA|MACARONI|PENNE|FETTUCCINE|NOODLE|RAMEN|PANCIT|FOOD|MEAL|RICE|SILOG|BREAKFAST|LUNCH|DINNER|SNACK|SANDWICH|BURGER|PIZZA|CAKE|WAFFLE|CROFFLE|BREAD|TOAST|BAGEL|PANINI|COOKIE|BROWNIE|MUFFIN|CUPCAKE|DONUT|CROISSANT|PIE|TART|PUDDING|FRIES|NACHOS|WINGS|CHICKEN|PORK|BEEF|FISH|SEAFOOD|SAUSAGE|HOTDOG|BACON|HAM|EGG|OMELET|SALAD|SOUP|STEAK|RIBS|SISIG|LUMPIA|DIMSUM|SIOMAI|EMPANADA|QUESADILLA|TACO|BURRITO|WRAP|DESSERT|PLATTER|COMBO|SOLO|SIDE|APPETIZER|STARTER|BENTO|BOWL/i;
+const BARISTA_STATION_PATTERN =
+  /COFFEE|ESPRESSO|LATTE|CAPPUCCINO|MACCHIATO|MOCHA|AMERICANO|COLD BREW|BREW|FRAPPE|FRAPPUCCINO|SMOOTHIE|SHAKE|MILKSHAKE|TEA|MILK TEA|MATCHA|HOJICHA|CHAI|FRUIT TEA|ICED TEA|LEMONADE|SODA|SPARKLING|FIZZ|JUICE|DRINK|BEVERAGE|CHOCOLATE|COCOA|MILO|HORCHATA|YOGURT|YAKULT|FLOAT|AFFOGATO|REFRESH|COOLER/i;
 
-export const buildKdsTicketFromOrder = ({ sale, cart = [], order_type = "DINE_IN", productCategoryMap = new Map() }) => {
+export const classifyKdsStation = (input = "", maybeName = "") => {
+  const opts =
+    input && typeof input === "object" && !Array.isArray(input)
+      ? input
+      : { category: input, name: maybeName };
+
+  const explicit = String(opts.prep_station || "").trim().toUpperCase();
+  if (explicit === "BARISTA" || explicit === "KITCHEN") {
+    return explicit;
+  }
+
+  const catStr = String(opts.category || "").trim();
+  const catKey = normalizeCategoryKey(catStr);
+  if (catKey && opts.categoryStationMap) {
+    const mapped =
+      opts.categoryStationMap instanceof Map
+        ? opts.categoryStationMap.get(catKey)
+        : opts.categoryStationMap[catKey];
+    const mappedUpper = String(mapped || "").trim().toUpperCase();
+    if (mappedUpper === "BARISTA" || mappedUpper === "KITCHEN") {
+      return mappedUpper;
+    }
+  }
+
+  const nameStr = String(opts.name || "").trim();
+  if (KITCHEN_STATION_PATTERN.test(catStr)) return "KITCHEN";
+  if (BARISTA_STATION_PATTERN.test(catStr)) return "BARISTA";
+  if (KITCHEN_STATION_PATTERN.test(nameStr)) return "KITCHEN";
+  if (BARISTA_STATION_PATTERN.test(nameStr)) return "BARISTA";
+
+  if (opts.cup_size || (Array.isArray(opts.sizes) && opts.sizes.length > 0)) {
+    return "BARISTA";
+  }
+  if (opts.track_stock === true) {
+    return "KITCHEN";
+  }
+  return catStr && !opts.name ? "BARISTA" : "KITCHEN";
+};
+
+export const buildKdsTicketFromOrder = ({
+  sale,
+  cart = [],
+  order_type = "DINE_IN",
+  productCategoryMap = new Map(),
+  productMetaMap = new Map(),
+  categoryStationMap = null
+}) => {
   const items = (cart || []).map((item) => {
-    const category = item.category || productCategoryMap.get(String(item.id)) || "";
+    const prodMeta = productMetaMap.get(String(item.id)) || null;
+    const category = item.category || prodMeta?.category || productCategoryMap.get(String(item.id)) || "";
+    const sizes = Array.isArray(item.sizes) && item.sizes.length > 0 ? item.sizes : prodMeta?.sizes;
+    const trackStock = item.track_stock ?? prodMeta?.track_stock;
     return {
       product_id: item.id,
       name: item.name || "Item",
+      category: category || null,
       qty: Number(item.qty ?? item.quantity) || 1,
       cup_size: item.cup_size || null,
       modifiers: item.modifiers || null,
       add_ons: Array.isArray(item.add_ons)
         ? item.add_ons.map((ao) => ({ name: ao?.name || ao, customer_qty: ao?.customer_qty ?? ao?.quantity ?? 1 }))
         : [],
-      station: classifyKdsStation(category)
+      station: classifyKdsStation({
+        category,
+        name: item.name,
+        prep_station: item.prep_station || prodMeta?.prep_station,
+        cup_size: item.cup_size,
+        sizes,
+        track_stock: trackStock,
+        categoryStationMap
+      })
     };
   });
 
@@ -1410,14 +1720,28 @@ export const buildKdsTicketFromOrder = ({ sale, cart = [], order_type = "DINE_IN
 export const enqueueKdsOrder = async ({ sale, cart = [], order_type = "DINE_IN" }) => {
   const productIds = [...new Set((cart || []).map((i) => i?.id).filter(Boolean))];
   const productCategoryMap = new Map();
-  if (productIds.length > 0) {
-    const { data: prods } = await supabase.from("products").select("id, category").in("id", productIds);
-    for (const p of prods || []) {
-      productCategoryMap.set(String(p.id), p.category);
-    }
+  const productMetaMap = new Map();
+
+  const [prodsRes, categoryStationMap] = await Promise.all([
+    productIds.length > 0
+      ? supabase.from("products").select("id, category, sizes, track_stock").in("id", productIds)
+      : Promise.resolve({ data: [] }),
+    readCmsStore(CATEGORY_STATIONS_STORE_KEY, {})
+  ]);
+
+  for (const p of prodsRes?.data || []) {
+    productCategoryMap.set(String(p.id), p.category);
+    productMetaMap.set(String(p.id), p);
   }
 
-  const ticket = buildKdsTicketFromOrder({ sale, cart, order_type, productCategoryMap });
+  const ticket = buildKdsTicketFromOrder({
+    sale,
+    cart,
+    order_type,
+    productCategoryMap,
+    productMetaMap,
+    categoryStationMap
+  });
 
   await withStoreLock(KDS_STORE_KEY, async () => {
     const store = await readCmsStore(KDS_STORE_KEY, { tickets: [] });
@@ -1454,9 +1778,80 @@ export const enqueueKdsOrder = async ({ sale, cart = [], order_type = "DINE_IN" 
 };
 
 export const getKdsQueue = async ({ station = "ALL", includeServed = false } = {}) => {
-  const store = await readCmsStore(KDS_STORE_KEY, { tickets: [] });
+  const [store, categoryStationMap] = await Promise.all([
+    readCmsStore(KDS_STORE_KEY, { tickets: [] }),
+    readCmsStore(CATEGORY_STATIONS_STORE_KEY, {})
+  ]);
   let tickets = Array.isArray(store.tickets) ? store.tickets : [];
 
+  const referencedProductIds = [
+    ...new Set(
+      tickets.flatMap((t) =>
+        Array.isArray(t.items) ? t.items.map((it) => it?.product_id).filter(Boolean) : []
+      )
+    )
+  ];
+
+  const productMetaMap = new Map();
+  if (referencedProductIds.length > 0) {
+    const { data: prods } = await supabase
+      .from("products")
+      .select("id, category, sizes, track_stock")
+      .in("id", referencedProductIds);
+    for (const p of prods || []) {
+      productMetaMap.set(String(p.id), p);
+    }
+  }
+
+  let anyReclassified = false;
+  const normalizedTickets = tickets.map((t) => {
+    const rawItems = Array.isArray(t.items) ? t.items : [];
+    let ticketChanged = false;
+    const updatedItems = rawItems.map((it) => {
+      const prodMeta = it?.product_id ? productMetaMap.get(String(it.product_id)) : null;
+      const category = it.category || prodMeta?.category || "";
+      const nextStation = classifyKdsStation({
+        category,
+        name: it.name,
+        prep_station: it.prep_station || prodMeta?.prep_station,
+        cup_size: it.cup_size,
+        sizes: prodMeta?.sizes,
+        track_stock: prodMeta?.track_stock,
+        categoryStationMap
+      });
+      if (nextStation !== it.station || (category && !it.category)) {
+        ticketChanged = true;
+        anyReclassified = true;
+        return {
+          ...it,
+          ...(category ? { category } : {}),
+          station: nextStation
+        };
+      }
+      return it;
+    });
+
+    if (!ticketChanged) return t;
+    return {
+      ...t,
+      items: updatedItems,
+      stations: [...new Set(updatedItems.map((i) => i.station))]
+    };
+  });
+
+  if (anyReclassified) {
+    await withStoreLock(KDS_STORE_KEY, async () => {
+      const latestStore = await readCmsStore(KDS_STORE_KEY, { tickets: [] });
+      const latestTickets = Array.isArray(latestStore.tickets) ? latestStore.tickets : [];
+      const reclassifiedLatest = latestTickets.map((t) => {
+        const match = normalizedTickets.find((nt) => nt.id === t.id);
+        return match ? { ...t, items: match.items, stations: match.stations } : t;
+      });
+      await writeCmsStore(KDS_STORE_KEY, "POS KDS Queue Store", { tickets: reclassifiedLatest });
+    });
+  }
+
+  tickets = normalizedTickets;
   if (!includeServed) {
     tickets = tickets.filter((t) => !["SERVED", "CANCELLED"].includes(String(t.status || "").toUpperCase()));
   }

@@ -8,6 +8,53 @@ const router = express.Router();
 
 const RESERVED_CATEGORIES = new Set(['ALL', 'OTHERS', 'UNCATEGORIZED']);
 const MAX_CATEGORY_LENGTH = 40;
+const CATEGORY_STATIONS_STORE_KEY = 'category_prep_stations_map';
+
+const KITCHEN_KEYWORD_PATTERN =
+  /PASTRY|PASTRIES|PASTA|SPAGHETTI|CARBONARA|LASAGNA|MACARONI|PENNE|FETTUCCINE|NOODLE|RAMEN|PANCIT|FOOD|MEAL|RICE|SILOG|BREAKFAST|LUNCH|DINNER|SNACK|SANDWICH|BURGER|PIZZA|CAKE|WAFFLE|CROFFLE|BREAD|TOAST|BAGEL|PANINI|COOKIE|BROWNIE|MUFFIN|CUPCAKE|DONUT|CROISSANT|PIE|TART|PUDDING|FRIES|NACHOS|WINGS|CHICKEN|PORK|BEEF|FISH|SEAFOOD|SAUSAGE|HOTDOG|BACON|HAM|EGG|OMELET|SALAD|SOUP|STEAK|RIBS|SISIG|LUMPIA|DIMSUM|SIOMAI|EMPANADA|QUESADILLA|TACO|BURRITO|WRAP|DESSERT|PLATTER|COMBO|SOLO|SIDE|APPETIZER|STARTER|BENTO|BOWL/i;
+const DRINK_KEYWORD_PATTERN =
+  /COFFEE|ESPRESSO|LATTE|CAPPUCCINO|MACCHIATO|MOCHA|AMERICANO|COLD BREW|BREW|FRAPPE|FRAPPUCCINO|SMOOTHIE|SHAKE|MILKSHAKE|TEA|MILK TEA|MATCHA|HOJICHA|CHAI|FRUIT TEA|ICED TEA|LEMONADE|SODA|SPARKLING|FIZZ|JUICE|DRINK|BEVERAGE|CHOCOLATE|COCOA|MILO|HORCHATA|YOGURT|YAKULT|FLOAT|AFFOGATO|REFRESH|COOLER/i;
+
+const normalizePrepStation = (raw) => {
+  const s = String(raw || '').trim().toUpperCase();
+  return s === 'BARISTA' || s === 'KITCHEN' ? s : null;
+};
+
+const inferDefaultCategoryStation = (catName, sizes = []) => {
+  const name = String(catName || '').trim();
+  if (KITCHEN_KEYWORD_PATTERN.test(name)) return 'KITCHEN';
+  if (DRINK_KEYWORD_PATTERN.test(name)) return 'BARISTA';
+  return Array.isArray(sizes) && sizes.length > 0 ? 'BARISTA' : 'KITCHEN';
+};
+
+const readCategoryStationsMap = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('cms_content')
+      .select('description')
+      .eq('section_key', CATEGORY_STATIONS_STORE_KEY)
+      .maybeSingle();
+    if (error || !data?.description) return {};
+    const parsed = JSON.parse(data.description);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
+const writeCategoryStationsMap = async (map) => {
+  const { error } = await supabase
+    .from('cms_content')
+    .upsert(
+      {
+        section_key: CATEGORY_STATIONS_STORE_KEY,
+        title: 'Category Prep Stations Map',
+        description: JSON.stringify(map || {})
+      },
+      { onConflict: 'section_key' }
+    );
+  if (error) throw error;
+};
 
 const requireCategoryWriteAccess = (req, res, next) => {
   const role = String(req.user?.role || '').toLowerCase();
@@ -52,9 +99,10 @@ const validateCategoryName = (raw) => {
 // Get all category settings merged with distinct product categories & counts
 router.get('/', requireRole('Owner', 'Admin', 'Staff', 'Custom'), async (req, res) => {
   try {
-    const [settingsRes, productsRes] = await Promise.all([
+    const [settingsRes, productsRes, stationMap] = await Promise.all([
       supabase.from('category_settings').select('*'),
-      supabase.from('products').select('category')
+      supabase.from('products').select('category'),
+      readCategoryStationsMap()
     ]);
 
     if (settingsRes.error) throw settingsRes.error;
@@ -65,10 +113,12 @@ router.get('/', requireRole('Owner', 'Admin', 'Staff', 'Custom'), async (req, re
     (settingsRes.data || []).forEach((row) => {
       const key = normalizeCategoryName(row.category);
       if (!key) return;
+      const cleanSizes = Array.isArray(row.sizes) ? row.sizes : [];
       mergedMap.set(key, {
         category: key,
-        sizes: Array.isArray(row.sizes) ? row.sizes : [],
+        sizes: cleanSizes,
         add_ons: Array.isArray(row.add_ons) ? row.add_ons : [],
+        prep_station: normalizePrepStation(stationMap[key]) || inferDefaultCategoryStation(key, cleanSizes),
         product_count: 0
       });
     });
@@ -81,6 +131,7 @@ router.get('/', requireRole('Owner', 'Admin', 'Staff', 'Custom'), async (req, re
           category: key,
           sizes: [],
           add_ons: [],
+          prep_station: normalizePrepStation(stationMap[key]) || inferDefaultCategoryStation(key, []),
           product_count: 0
         });
       }
@@ -99,7 +150,7 @@ router.get('/', requireRole('Owner', 'Admin', 'Staff', 'Custom'), async (req, re
 // Create new category (rejects duplicates cleanly)
 router.post('/', requireCategoryWriteAccess, async (req, res) => {
   try {
-    const { category, sizes, add_ons } = req.body;
+    const { category, sizes, add_ons, prep_station } = req.body;
     const validation = validateCategoryName(category);
     if (!validation.ok) {
       return res.status(400).json({ error: validation.error });
@@ -126,6 +177,7 @@ router.post('/', requireCategoryWriteAccess, async (req, res) => {
 
     const cleanSizes = Array.isArray(sizes) ? sizes : [];
     const cleanAddOns = Array.isArray(add_ons) ? add_ons : [];
+    const resolvedStation = normalizePrepStation(prep_station) || inferDefaultCategoryStation(name, cleanSizes);
 
     const { data, error } = await supabase
       .from('category_settings')
@@ -144,15 +196,20 @@ router.post('/', requireCategoryWriteAccess, async (req, res) => {
       throw error;
     }
 
+    const stationMap = await readCategoryStationsMap();
+    stationMap[name] = resolvedStation;
+    await writeCategoryStationsMap(stationMap);
+
     invalidateAnalyticsCache();
 
     await logAudit('CATEGORY_CREATED', req.user.id, {
       category: name,
+      prep_station: resolvedStation,
       sizes_count: cleanSizes.length,
       addons_count: cleanAddOns.length
     });
 
-    res.status(201).json({ ...data, product_count: 0 });
+    res.status(201).json({ ...data, prep_station: resolvedStation, product_count: 0 });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -248,6 +305,14 @@ router.patch('/:category/rename', requireCategoryWriteAccess, async (req, res) =
       }
     }
 
+    // Carry over explicit prep_station mapping if configured
+    const stationMap = await readCategoryStationsMap();
+    if (stationMap[oldCategory]) {
+      stationMap[newCategory] = stationMap[oldCategory];
+      delete stationMap[oldCategory];
+      await writeCategoryStationsMap(stationMap);
+    }
+
     invalidateAnalyticsCache();
 
     await logAudit('CATEGORY_RENAMED', req.user.id, {
@@ -305,6 +370,12 @@ router.delete('/:category', requireCategoryWriteAccess, async (req, res) => {
       .eq('category', existingRow.category);
     if (delErr) throw delErr;
 
+    const stationMap = await readCategoryStationsMap();
+    if (stationMap[target]) {
+      delete stationMap[target];
+      await writeCategoryStationsMap(stationMap);
+    }
+
     invalidateAnalyticsCache();
 
     await logAudit('CATEGORY_DELETED', req.user.id, {
@@ -325,7 +396,7 @@ router.put('/:category', requireCategoryWriteAccess, async (req, res) => {
       return res.status(400).json({ error: validation.error });
     }
     const name = validation.value;
-    const { sizes, add_ons } = req.body;
+    const { sizes, add_ons, prep_station } = req.body;
     const cleanSizes = Array.isArray(sizes) ? sizes : [];
     const cleanAddOns = Array.isArray(add_ons) ? add_ons : [];
 
@@ -343,15 +414,24 @@ router.put('/:category', requireCategoryWriteAccess, async (req, res) => {
 
     if (error) throw error;
 
+    const stationMap = await readCategoryStationsMap();
+    const resolvedStation =
+      normalizePrepStation(prep_station) ||
+      normalizePrepStation(stationMap[name]) ||
+      inferDefaultCategoryStation(name, cleanSizes);
+    stationMap[name] = resolvedStation;
+    await writeCategoryStationsMap(stationMap);
+
     invalidateAnalyticsCache();
 
     await logAudit('CATEGORY_SETTINGS_UPDATED', req.user.id, {
       category: name,
+      prep_station: resolvedStation,
       sizes_count: cleanSizes.length,
       addons_count: cleanAddOns.length
     });
 
-    res.json(data);
+    res.json({ ...data, prep_station: resolvedStation });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -6,6 +6,8 @@ const CategoryListSidebar = ({
   onSelectCategory,
   newCategoryName,
   onNewCategoryNameChange,
+  newCategoryStation = 'BARISTA',
+  onNewCategoryStationChange,
   onAddCategory,
   loading
 }) => {
@@ -13,7 +15,7 @@ const CategoryListSidebar = ({
     <div className="w-full lg:w-64 shrink-0 flex flex-col gap-4">
       <form
         onSubmit={onAddCategory}
-        className="p-3.5 bg-gray-50 border border-gray-200 rounded-xl flex flex-col gap-2"
+        className="p-3.5 bg-gray-50 border border-gray-200 rounded-xl flex flex-col gap-2.5"
       >
         <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">
           New Category
@@ -36,6 +38,33 @@ const CategoryListSidebar = ({
             Add
           </button>
         </div>
+        {onNewCategoryStationChange && (
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+              KDS Prep Station
+            </span>
+            <div className="grid grid-cols-2 p-0.5 bg-gray-200/70 rounded-lg gap-0.5">
+              {[
+                { id: 'BARISTA', label: 'Barista' },
+                { id: 'KITCHEN', label: 'Kitchen' }
+              ].map((st) => (
+                <button
+                  key={st.id}
+                  type="button"
+                  onClick={() => onNewCategoryStationChange(st.id)}
+                  disabled={loading}
+                  className={`py-1 rounded-md text-[11px] font-bold transition-colors cursor-pointer border-none ${
+                    newCategoryStation === st.id
+                      ? 'bg-gray-900 text-white shadow-2xs'
+                      : 'bg-transparent text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  {st.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </form>
 
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden flex flex-col">
@@ -53,6 +82,7 @@ const CategoryListSidebar = ({
             categoryList.map((item) => {
               const isSelected = item.category === selectedCategory;
               const count = item.product_count ?? 0;
+              const station = String(item.prep_station || 'BARISTA').toUpperCase();
               return (
                 <button
                   key={item.category}
@@ -64,9 +94,22 @@ const CategoryListSidebar = ({
                       : 'bg-white text-gray-800 hover:bg-gray-50'
                   }`}
                 >
-                  <span className="text-xs md:text-sm font-bold truncate">
-                    {item.category}
-                  </span>
+                  <div className="min-w-0 flex-1 flex items-center gap-1.5">
+                    <span className="text-xs md:text-sm font-bold truncate">
+                      {item.category}
+                    </span>
+                    <span
+                      className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider shrink-0 ${
+                        isSelected
+                          ? 'bg-white/15 text-gray-100'
+                          : station === 'KITCHEN'
+                          ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                          : 'bg-zinc-100 text-zinc-700 border border-zinc-200'
+                      }`}
+                    >
+                      {station === 'KITCHEN' ? 'Kitchen' : 'Barista'}
+                    </span>
+                  </div>
                   <span
                     className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-bold shrink-0 ${
                       isSelected
