@@ -50,7 +50,15 @@ export const SortIcon = ({ active, direction, className = '' }) => {
   );
 };
 
-/** Small marker shown only when the AI nudged a forecast (aiFactor !== 1). */
+/** Quiet status chip: neutral text with a small coloured dot. */
+const DOT = { red: 'bg-red-500', amber: 'bg-amber-500', green: 'bg-emerald-500', gray: 'bg-zinc-400', violet: 'bg-violet-400' };
+const Chip = ({ dot, children, title, strong }) => (
+  <span title={title} className={`inline-flex items-center gap-1.5 text-xs whitespace-nowrap ${strong ? 'font-semibold text-zinc-900' : 'font-medium text-zinc-600'}`}>
+    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${DOT[dot]}`} />
+    {children}
+  </span>
+);
+
 const aiPctText = (f) => `${f > 1 ? '+' : '-'}${Math.abs(Math.round((f - 1) * 100))}%`;
 
 export const AiAdjustBadge = ({ factor, reason }) => {
@@ -58,43 +66,25 @@ export const AiAdjustBadge = ({ factor, reason }) => {
   return (
     <span
       title={`AI adjustment ${aiPctText(factor)}${reason ? `: ${reason}` : ''}`}
-      className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold border bg-violet-50 text-violet-700 border-violet-200 align-middle"
+      className="ml-1.5 text-[10px] font-medium text-zinc-500 align-middle"
     >
       AI {aiPctText(factor)}
     </span>
   );
 };
 
-/**
- * Stock status for an ingredient row, from the server's reorder-plan alert.
- */
+/** Stock status for an ingredient row, from the server's reorder-plan alert. */
 export const IngredientAlertBadge = ({ alert, daysOfCover, blockedProducts }) => {
-  const base = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border';
   if (alert === 'CANNOT_MAKE') {
     const names = (blockedProducts || []).map((p) => p.name).join(', ');
-    return (
-      <span title={`Not enough for one serving of: ${names}`} className={`${base} bg-orange-50 text-red-700 border-red-200`}>
-        Can't make
-      </span>
-    );
+    return <Chip dot="red" strong title={`Not enough for one serving of: ${names}`}>Can't make</Chip>;
   }
-  if (alert === 'OUT_OF_STOCK') {
-    return <span className={`${base} bg-red-50 text-red-700 border-red-200`}>Out of stock</span>;
-  }
-  if (alert === 'REORDER_NOW') {
-    return <span className={`${base} bg-red-50 text-red-700 border-red-200`}>Order now</span>;
-  }
-  if (alert === 'BELOW_MANUAL_THRESHOLD') {
-    return <span className={`${base} bg-amber-50 text-amber-800 border-amber-200`}>Running low</span>;
-  }
-  return (
-    <span className={`${base} bg-emerald-50 text-emerald-700 border-emerald-200`}>
-      {daysOfCover == null ? 'OK' : 'Enough stock'}
-    </span>
-  );
+  if (alert === 'OUT_OF_STOCK') return <Chip dot="red" strong>Out of stock</Chip>;
+  if (alert === 'REORDER_NOW') return <Chip dot="red" strong>Order now</Chip>;
+  if (alert === 'BELOW_MANUAL_THRESHOLD') return <Chip dot="amber">Running low</Chip>;
+  return <Chip dot="green">{daysOfCover == null ? 'OK' : 'Enough stock'}</Chip>;
 };
 
-const smallPill = 'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border';
 
 /** Grey pill for ingredients no active product uses, or that are not selling lately. */
 export const UsageBadge = ({ usageStatus }) => {
@@ -103,26 +93,21 @@ export const UsageBadge = ({ usageStatus }) => {
   const title =
     usageStatus === 'NOT_IN_ANY_RECIPE' ? 'No active product uses this ingredient.' : 'Used in a recipe, but those products are not selling lately.';
   return (
-    <span title={title} className={`${smallPill} bg-zinc-100 text-zinc-600 border-zinc-200`}>
-      {label}
-    </span>
+    <Chip dot="gray" title={title}>{label}</Chip>
   );
 };
 
 const EXPIRY_STYLE = {
-  EXPIRED: ['Expired', 'bg-red-100 text-red-900 border-red-300'],
-  CRITICAL: ['Use today (0-2d)', 'bg-red-50 text-red-700 border-red-200'],
-  WARNING: ['Use first (3-6d)', 'bg-orange-50 text-orange-700 border-orange-200'],
-  WATCH: ['Watch (7-14d)', 'bg-yellow-50 text-yellow-800 border-yellow-200'],
+  EXPIRED: ['Expired', 'red', true],
+  CRITICAL: ['Use today (0-2d)', 'red', true],
+  WARNING: ['Use first (3-6d)', 'amber', false],
+  WATCH: ['Watch (7-14d)', 'gray', false],
 };
 
 export const ExpiryLevelBadge = ({ level, qtyByLevel, unit }) => {
   const style = EXPIRY_STYLE[level];
   if (!style) return null;
   const qty = Number(qtyByLevel?.[level]) || 0;
-  return (
-    <span title={qty > 0 ? `${qty.toLocaleString()} ${unit || ''} ${level === 'EXPIRED' ? 'already expired' : 'expiring soon'}`.trim() : style[0]} className={`${smallPill} ${style[1]}`}>
-      {style[0]}
-    </span>
-  );
+  const title = qty > 0 ? `${qty.toLocaleString()} ${unit || ''} ${level === 'EXPIRED' ? 'already expired' : 'expiring soon'}`.trim() : style[0];
+  return <Chip dot={style[1]} strong={style[2]} title={title}>{style[0]}</Chip>;
 };

@@ -1,8 +1,8 @@
 const LEVELS = {
-  EXPIRED: { label: 'Expired', cls: 'bg-red-100 text-red-900 border-red-300' },
-  CRITICAL: { label: 'Use today (0-2d)', cls: 'bg-red-50 text-red-700 border-red-200' },
-  WARNING: { label: 'Use first (3-6d)', cls: 'bg-orange-50 text-orange-700 border-orange-200' },
-  WATCH: { label: 'Watch (7-14d)', cls: 'bg-yellow-50 text-yellow-800 border-yellow-200' },
+  EXPIRED: { label: 'Expired', dot: 'bg-red-500', strong: true },
+  CRITICAL: { label: 'Use today (0-2d)', dot: 'bg-red-500', strong: true },
+  WARNING: { label: 'Use first (3-6d)', dot: 'bg-amber-500' },
+  WATCH: { label: 'Watch (7-14d)', dot: 'bg-zinc-400' },
 };
 
 const ExpiryLevelBadge = ({ level, title }) => {
@@ -11,8 +11,9 @@ const ExpiryLevelBadge = ({ level, title }) => {
   return (
     <span
       title={title}
-      className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border whitespace-nowrap ${meta.cls}`}
+      className={`inline-flex items-center gap-1.5 text-[11px] whitespace-nowrap ${meta.strong ? 'font-semibold text-zinc-900' : 'font-medium text-zinc-600'}`}
     >
+      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${meta.dot}`} />
       {meta.label}
     </span>
   );
