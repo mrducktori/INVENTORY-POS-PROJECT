@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { INPUT_LIMITS, validateAmountInput } from '../../../../utils/validationUtils';
 
 const CATEGORIES = ['All', 'Coffee & Tea', 'Dairy', 'Syrups & Powders', 'Packaging'];
 
@@ -58,6 +59,7 @@ const SupplierFormModal = ({
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCat, setSelectedCat] = useState('All');
+  const [validationError, setValidationError] = useState('');
 
   // Classified ingredients
   const categorizedIngredients = useMemo(() => {
@@ -147,26 +149,85 @@ const SupplierFormModal = ({
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    setValidationError('');
 
-    // Prepare structured items payload
-    const ingredientItems = Object.entries(formData.items)
-      .filter(([, item]) => item.selected)
-      .map(([ingId, item]) => {
-        const defaultIng = ingredients.find((i) => i.id === ingId);
-        return {
-          ingredient_id: ingId,
-          default_price: parseFloat(item.price) || 0,
-          default_purchase_unit: (item.purchase_unit || defaultIng?.purchase_unit || 'Unit').trim(),
-          default_conversion_factor: parseFloat(item.conversion_factor) || defaultIng?.conversion_factor || 1
-        };
+    const trimmedName = formData.name.trim();
+    const trimmedContact = formData.contact_person.trim();
+    const trimmedEmail = formData.email.trim();
+    const trimmedAddress = formData.address.trim();
+
+    if (!trimmedName || trimmedName.length > INPUT_LIMITS.NAME_MAX_LEN) {
+      setValidationError(`Supplier name must be between 1 and ${INPUT_LIMITS.NAME_MAX_LEN} characters.`);
+      return;
+    }
+    if (trimmedContact.length > 100) {
+      setValidationError('Contact person must be 100 characters or less.');
+      return;
+    }
+    if (trimmedEmail.length > 120) {
+      setValidationError('Email address must be 120 characters or less.');
+      return;
+    }
+    if (trimmedAddress.length > 250) {
+      setValidationError('Address must be 250 characters or less.');
+      return;
+    }
+
+    const selectedEntries = Object.entries(formData.items).filter(([, item]) => item.selected);
+    const ingredientItems = [];
+
+    for (const [ingId, item] of selectedEntries) {
+      const defaultIng = ingredients.find((i) => i.id === ingId);
+      const ingName = defaultIng?.name || 'item';
+      const purchaseUnit = String(item.purchase_unit || defaultIng?.purchase_unit || 'Unit').trim();
+
+      if (!purchaseUnit || purchaseUnit.length > 40) {
+        setValidationError(`Purchase unit for ${ingName} must be between 1 and 40 characters.`);
+        return;
+      }
+
+      const rawFactor =
+        item.conversion_factor === '' || item.conversion_factor === null || item.conversion_factor === undefined
+          ? (defaultIng?.conversion_factor ?? 1)
+          : item.conversion_factor;
+      const factorCheck = validateAmountInput(rawFactor, {
+        label: `Conversion factor for ${ingName}`,
+        min: 0.01,
+        max: INPUT_LIMITS.CONVERSION_FACTOR_MAX
       });
+      if (!factorCheck.valid) {
+        setValidationError(factorCheck.error);
+        return;
+      }
+
+      const rawPrice =
+        item.price === '' || item.price === null || item.price === undefined
+          ? 0
+          : item.price;
+      const priceCheck = validateAmountInput(rawPrice, {
+        label: `Price for ${ingName}`,
+        min: 0,
+        max: INPUT_LIMITS.PURCHASE_COST_MAX
+      });
+      if (!priceCheck.valid) {
+        setValidationError(priceCheck.error);
+        return;
+      }
+
+      ingredientItems.push({
+        ingredient_id: ingId,
+        default_price: priceCheck.numericValue,
+        default_purchase_unit: purchaseUnit,
+        default_conversion_factor: factorCheck.numericValue
+      });
+    }
 
     onSave({
-      name: formData.name.trim(),
-      contact_person: formData.contact_person.trim(),
+      name: trimmedName,
+      contact_person: trimmedContact,
       contact_number: formData.contact_number.trim(),
-      email: formData.email.trim(),
-      address: formData.address.trim(),
+      email: trimmedEmail,
+      address: trimmedAddress,
       ingredient_items: ingredientItems,
       ingredient_ids: ingredientItems.map((i) => i.ingredient_id)
     });
@@ -205,6 +266,18 @@ const SupplierFormModal = ({
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden min-h-0 flex-1">
           <div className="p-6 overflow-y-auto flex-1 flex flex-col gap-6">
+            {validationError && (
+              <div className="p-3.5 bg-red-50 text-red-700 border border-red-200 rounded-xl text-xs font-bold flex items-center justify-between">
+                <span>{validationError}</span>
+                <button
+                  type="button"
+                  onClick={() => setValidationError('')}
+                  className="text-red-600 hover:text-red-900 font-bold uppercase cursor-pointer ml-3"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
             {/* General Info Card */}
             <div className="p-5 bg-zinc-50 border border-zinc-200 rounded-xl space-y-4">
               <div className="text-xs font-bold text-zinc-700 uppercase tracking-wider">
@@ -219,6 +292,7 @@ const SupplierFormModal = ({
                   <input
                     type="text"
                     required
+                    maxLength={100}
                     placeholder="e.g. Metro Dairy Co."
                     className="px-3.5 py-2 border border-zinc-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900"
                     value={formData.name}
@@ -232,6 +306,7 @@ const SupplierFormModal = ({
                   </label>
                   <input
                     type="text"
+                    maxLength={100}
                     placeholder="e.g. Jane Smith"
                     className="px-3.5 py-2 border border-zinc-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900"
                     value={formData.contact_person}
@@ -258,6 +333,7 @@ const SupplierFormModal = ({
                   </label>
                   <input
                     type="email"
+                    maxLength={120}
                     placeholder="e.g. orders@supplier.ph"
                     className="px-3.5 py-2 border border-zinc-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900"
                     value={formData.email}
@@ -272,6 +348,7 @@ const SupplierFormModal = ({
                 </label>
                 <input
                   type="text"
+                  maxLength={250}
                   placeholder="e.g. 45 Industrial Road, Pasig City"
                   className="px-3.5 py-2 border border-zinc-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900"
                   value={formData.address}
@@ -384,6 +461,7 @@ const SupplierFormModal = ({
                               <span className="text-[11px] font-bold text-zinc-500 uppercase">Unit:</span>
                               <input
                                 type="text"
+                                maxLength={40}
                                 value={itemConfig.purchase_unit || ''}
                                 onChange={(e) => handleFieldChange(ing.id, 'purchase_unit', e.target.value)}
                                 placeholder="e.g. 1 kg Bag"
@@ -396,7 +474,9 @@ const SupplierFormModal = ({
                               <span className="text-[11px] font-bold text-zinc-500 uppercase">Yield ({ing.unit}):</span>
                               <input
                                 type="number"
-                                min="1"
+                                min="0.01"
+                                max="1000000"
+                                step="any"
                                 value={itemConfig.conversion_factor || ''}
                                 onChange={(e) => handleFieldChange(ing.id, 'conversion_factor', e.target.value)}
                                 className="w-20 px-2 py-1 text-xs border border-zinc-300 rounded font-semibold bg-white focus:outline-none focus:ring-1 focus:ring-black font-mono"
@@ -418,6 +498,7 @@ const SupplierFormModal = ({
                                 <input
                                   type="number"
                                   min="0"
+                                  max="1000000"
                                   step="0.01"
                                   value={itemConfig.price || ''}
                                   onChange={(e) => handleFieldChange(ing.id, 'price', e.target.value)}

@@ -2,6 +2,17 @@ import * as inventoryService from "../services/inventoryService.js";
 import { logAudit } from "../utils/auditHelper.js";
 import { invalidateAnalyticsCache } from "../routes/analytics.js";
 
+const handleInventoryError = (res, err) => {
+  if (err?.is_hard_duplicate || err?.is_duplicate_warning) {
+    return res.status(409).json({
+      error: err.message,
+      is_hard_duplicate: !!err.is_hard_duplicate,
+      is_duplicate_warning: !!err.is_duplicate_warning
+    });
+  }
+  return res.status(err?.status || 500).json({ error: err?.message || err });
+};
+
 export const getIngredients = async (req, res) => {
   try {
     const includeArchived = req.query.include_archived === "true";
@@ -35,10 +46,7 @@ export const createIngredient = async (req, res) => {
 
     res.status(201).json(data);
   } catch (err) {
-    if (err.is_duplicate_warning) {
-      return res.status(409).json({ error: err.message, is_duplicate_warning: true });
-    }
-    res.status(500).json({ error: err.message || err });
+    handleInventoryError(res, err);
   }
 };
 
@@ -57,7 +65,7 @@ export const updateIngredient = async (req, res) => {
 
     res.json(data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    handleInventoryError(res, err);
   }
 };
 
@@ -86,19 +94,19 @@ export const receiveStock = async (req, res) => {
     const { quantity } = req.body;
     // Fetch ingredient name before updating
     const existing = await inventoryService.getIngredientById(req.params.id).catch(() => null);
-    const data = await inventoryService.receiveStock(req.params.id, parseFloat(quantity));
+    const data = await inventoryService.receiveStock(req.params.id, quantity);
     invalidateAnalyticsCache();
 
     await logAudit('RAW_MATERIAL_STOCK_RECEIVED', req.user.id, {
       ingredient_id: req.params.id,
       name: existing?.name || 'Unknown',
-      quantity_added: parseFloat(quantity),
+      quantity_added: Number(quantity),
       new_stock: data.stock_quantity
     });
 
     res.json(data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    handleInventoryError(res, err);
   }
 };
 

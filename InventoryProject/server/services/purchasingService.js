@@ -1,6 +1,7 @@
 import { supabase } from "../config/supabaseClient.js";
 import { logAudit } from "../utils/auditHelper.js";
 import { getManilaDateOnly } from "../utils/dateUtils.js";
+import { LIMITS, validateNumberBound } from "../utils/validationHelper.js";
 
 const safeParseAuditDetails = (rawDetails) => {
   if (!rawDetails) return {};
@@ -138,17 +139,39 @@ export const getSuppliers = async () => {
 const buildSupplierIngredientMappings = async (supplierId, ingredientItems, ingredientIds, existingPriceMap = new Map()) => {
   if (Array.isArray(ingredientItems) && ingredientItems.length > 0) {
     return ingredientItems.map(item => {
-      // If supplier already set an agreed price, preserve it from admin overwrites!
-      const finalPrice = existingPriceMap.has(item.ingredient_id)
-        ? existingPriceMap.get(item.ingredient_id)
-        : (parseFloat(item.default_price ?? item.price ?? item.unit_price) || 0);
+      const rawFactor = item.default_conversion_factor ?? item.conversion_factor;
+      const hasFactor = rawFactor !== undefined && rawFactor !== null && rawFactor !== '';
+      const conversionFactor = hasFactor
+        ? validateNumberBound(rawFactor, {
+            label: 'Conversion factor',
+            min: LIMITS.CONVERSION_FACTOR_MIN,
+            max: LIMITS.CONVERSION_FACTOR_MAX,
+            allowZero: false
+          })
+        : 1;
+
+      let finalPrice;
+      if (existingPriceMap.has(item.ingredient_id)) {
+        // If supplier already set an agreed price, preserve it from admin overwrites!
+        finalPrice = parseFloat(existingPriceMap.get(item.ingredient_id)) || 0;
+      } else {
+        const rawPrice = item.default_price ?? item.price ?? item.unit_price;
+        const hasPrice = rawPrice !== undefined && rawPrice !== null && rawPrice !== '';
+        finalPrice = hasPrice
+          ? validateNumberBound(rawPrice, {
+              label: 'Supplier item price',
+              min: LIMITS.PURCHASE_COST_MIN,
+              max: LIMITS.PURCHASE_COST_MAX
+            })
+          : 0;
+      }
 
       return {
         supplier_id: supplierId,
         ingredient_id: item.ingredient_id,
         default_purchase_unit: item.default_purchase_unit || item.purchase_unit || 'Unit',
-        default_conversion_factor: parseFloat(item.default_conversion_factor || item.conversion_factor) || 1,
-        default_price: parseFloat(finalPrice) || 0
+        default_conversion_factor: conversionFactor,
+        default_price: finalPrice
       };
     });
   }
@@ -190,6 +213,7 @@ const sanitizeSupplierDetails = (details) => {
 export const createSupplier = async (supplierData) => {
   const { ingredient_ids, ingredient_items, ...details } = supplierData;
   const payload = sanitizeSupplierDetails(details);
+  const prebuiltMappings = await buildSupplierIngredientMappings(null, ingredient_items, ingredient_ids);
   
   let res = await supabase.from("suppliers").insert([payload]).select().single();
   if (res.error && res.error.message && res.error.message.includes('description')) {
@@ -199,7 +223,7 @@ export const createSupplier = async (supplierData) => {
   if (res.error) throw res.error;
   const data = res.data;
 
-  const mappings = await buildSupplierIngredientMappings(data.id, ingredient_items, ingredient_ids);
+  const mappings = prebuiltMappings.map(m => ({ ...m, supplier_id: data.id }));
   if (mappings.length > 0) {
     const { error: mappingError } = await supabase
       .from("supplier_ingredients")
@@ -213,6 +237,16 @@ export const createSupplier = async (supplierData) => {
 export const updateSupplier = async (id, supplierData) => {
   const { ingredient_ids, ingredient_items, ...details } = supplierData;
   const payload = sanitizeSupplierDetails(details);
+
+  // Preserve existing supplier prices so admin edits do not overwrite prices set by supplier!
+  const { data: existingSupplierItems } = await supabase
+    .from("supplier_ingredients")
+    .select("ingredient_id, default_price")
+    .eq("supplier_id", id);
+  const existingPriceMap = new Map((existingSupplierItems || []).map(r => [r.ingredient_id, r.default_price]));
+
+  // Validate and build new mappings before mutating the supplier or deleting old mappings
+  const mappings = await buildSupplierIngredientMappings(id, ingredient_items, ingredient_ids, existingPriceMap);
   
   let res = await supabase.from("suppliers").update(payload).eq("id", id).select().single();
   if (res.error && res.error.message && res.error.message.includes('description')) {
@@ -222,20 +256,12 @@ export const updateSupplier = async (id, supplierData) => {
   if (res.error) throw res.error;
   const data = res.data;
 
-  // Preserve existing supplier prices so admin edits do not overwrite prices set by supplier!
-  const { data: existingSupplierItems } = await supabase
-    .from("supplier_ingredients")
-    .select("ingredient_id, default_price")
-    .eq("supplier_id", id);
-  const existingPriceMap = new Map((existingSupplierItems || []).map(r => [r.ingredient_id, r.default_price]));
-
   // Delete existing mappings
   await supabase
     .from("supplier_ingredients")
     .delete()
     .eq("supplier_id", id);
 
-  const mappings = await buildSupplierIngredientMappings(id, ingredient_items, ingredient_ids, existingPriceMap);
   if (mappings.length > 0) {
     const { error: mappingError } = await supabase
       .from("supplier_ingredients")
@@ -654,8 +680,38 @@ export const createPurchaseOrder = async (poData) => {
     throw err;
   }
 
+  const validatedItems = items.map((item) => {
+    const quantity = validateNumberBound(item?.quantity, {
+      label: 'Purchase order item quantity',
+      min: LIMITS.PO_QTY_MIN,
+      max: LIMITS.PO_QTY_MAX,
+      allowZero: false
+    });
+    const unit_price = validateNumberBound(item?.unit_price, {
+      label: 'Purchase order unit price',
+      min: LIMITS.PURCHASE_COST_MIN,
+      max: LIMITS.PURCHASE_COST_MAX
+    });
+    const hasConv = item?.conversion_factor !== undefined && item?.conversion_factor !== null && item?.conversion_factor !== '';
+    const conversion_factor = hasConv
+      ? validateNumberBound(item.conversion_factor, {
+          label: 'Conversion factor',
+          min: LIMITS.CONVERSION_FACTOR_MIN,
+          max: LIMITS.CONVERSION_FACTOR_MAX,
+          allowZero: false
+        })
+      : 1;
+
+    return {
+      ...item,
+      quantity,
+      unit_price,
+      conversion_factor
+    };
+  });
+
   // Calculate total amount
-  const total_amount = items.reduce((sum, item) => sum + (Number(item.quantity) * Number(item.unit_price)), 0);
+  const total_amount = validatedItems.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
   
   // Base PO payload with guaranteed existing columns
   const basePo = {
@@ -701,14 +757,14 @@ export const createPurchaseOrder = async (poData) => {
   if (poError) throw poError;
 
   // 2. Insert items
-  const itemsToInsert = items.map(item => ({
+  const itemsToInsert = validatedItems.map(item => ({
     purchase_order_id: po.id,
     ingredient_id: item.ingredient_id,
     quantity: item.quantity,
     unit_price: item.unit_price,
     subtotal: item.quantity * item.unit_price,
     purchase_unit: item.purchase_unit || 'Unit',
-    conversion_factor: item.conversion_factor || 1
+    conversion_factor: item.conversion_factor
   }));
 
   const { error: itemsError } = await supabase
@@ -739,6 +795,17 @@ export const updatePurchaseOrderStatus = async (id, status = null, items_receive
     const err = new Error(`Cannot update purchase order because its status is already ${existingPO.status}.`);
     err.status = 400;
     throw err;
+  }
+
+  if (Array.isArray(items_received) && items_received.length > 0) {
+    for (const item of items_received) {
+      validateNumberBound(item?.quantity_received_now, {
+        label: 'Quantity received',
+        min: LIMITS.PO_QTY_MIN,
+        max: LIMITS.PO_QTY_MAX,
+        allowZero: false
+      });
+    }
   }
 
   const updates = {};
@@ -800,8 +867,12 @@ export const updatePurchaseOrderStatus = async (id, status = null, items_receive
   const appliedReceipts = [];
   if (items_received && items_received.length > 0 && !isTerminalStatus) {
     for (const item of items_received) {
-      const rawQtyNow = Number(item.quantity_received_now);
-      if (!Number.isFinite(rawQtyNow) || rawQtyNow <= 0) continue;
+      const rawQtyNow = validateNumberBound(item.quantity_received_now, {
+        label: 'Quantity received',
+        min: LIMITS.PO_QTY_MIN,
+        max: LIMITS.PO_QTY_MAX,
+        allowZero: false
+      });
 
       // Fetch current item to properly add quantities and prefer authoritative conversion factor
       let currentItem;

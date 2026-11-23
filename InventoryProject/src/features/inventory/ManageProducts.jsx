@@ -262,7 +262,7 @@ const ManageProducts = () => {
         <ModifyProductModal
           selectedProduct={selectedProduct}
           categories={categories}
-          onClose={() => setSelectedProduct(null)}
+          onClose={() => { setSelectedProduct(null); setMessage(''); }}
           editName={editName}
           setEditName={setEditName}
           editCategory={editCategory}
@@ -285,6 +285,8 @@ const ManageProducts = () => {
           onAddRecipeItem={handleAddRecipeItem}
           onUpdateRecipeItem={handleUpdateRecipeItem}
           onDeleteRecipeItem={handleDeleteRecipeItem}
+          message={message}
+          onClearMessage={() => setMessage('')}
         />
       )}
 

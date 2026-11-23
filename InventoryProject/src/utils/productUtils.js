@@ -99,35 +99,75 @@ export const normalizeName = (name) => {
     .trim();
 };
 
-export const checkDuplicateOrSimilar = (newName, existingItems, excludeId = null) => {
+export const checkDuplicateOrSimilar = (newName, existingItems, excludeId = null, newCategory = null) => {
   const normNew = normalizeName(newName);
   if (!normNew) return null;
-  
-  const newWords = normNew.split(' ');
 
-  for (const item of existingItems) {
-    if (excludeId && item.id === excludeId) continue;
+  const normNewCat = String(newCategory || 'GENERAL').trim().replace(/\s+/g, ' ').toUpperCase();
+  const items = Array.isArray(existingItems) ? existingItems : [];
+  const newWords = normNew.split(' ').filter(Boolean);
+
+  // First pass: exact name AND same category -> hard duplicate (never bypassable)
+  for (const item of items) {
+    if (excludeId != null && String(item.id) === String(excludeId)) continue;
 
     const normExisting = normalizeName(item.name);
-    
-    if (normNew === normExisting) {
-      return { isExactMatch: true, matchName: item.name };
-    }
-    
-    // Substring or subset word matches
-    if (normNew.length > 3 && normExisting.length > 3 && (normNew.includes(normExisting) || normExisting.includes(normNew))) {
-      return { isExactMatch: false, matchName: item.name };
-    }
-    
-    const existingWords = normExisting.split(' ');
-    
-    const newContainsAllExisting = existingWords.length > 0 && existingWords.every(w => newWords.includes(w));
-    const existingContainsAllNew = newWords.length > 0 && newWords.every(w => existingWords.includes(w));
-    
-    if (newContainsAllExisting || existingContainsAllNew) {
-      return { isExactMatch: false, matchName: item.name };
+    const normExistingCat = String(item.category || 'GENERAL').trim().replace(/\s+/g, ' ').toUpperCase();
+    if (normExisting === normNew && normExistingCat === normNewCat) {
+      return {
+        isHardDuplicate: true,
+        isExactMatch: true,
+        matchName: item.name,
+        matchCategory: item.category || 'GENERAL'
+      };
     }
   }
-  
+
+  // Second pass: exact name in a different category -> soft warning
+  for (const item of items) {
+    if (excludeId != null && String(item.id) === String(excludeId)) continue;
+
+    const normExisting = normalizeName(item.name);
+    if (normExisting === normNew) {
+      return {
+        isHardDuplicate: false,
+        isExactMatch: true,
+        isDifferentCategory: true,
+        matchName: item.name,
+        matchCategory: item.category || 'GENERAL'
+      };
+    }
+  }
+
+  // Third pass: substring or subset word matches -> soft warning
+  for (const item of items) {
+    if (excludeId != null && String(item.id) === String(excludeId)) continue;
+
+    const normExisting = normalizeName(item.name);
+    if (!normExisting) continue;
+
+    if (normNew.length > 3 && normExisting.length > 3 && (normNew.includes(normExisting) || normExisting.includes(normNew))) {
+      return {
+        isHardDuplicate: false,
+        isExactMatch: false,
+        matchName: item.name,
+        matchCategory: item.category || 'GENERAL'
+      };
+    }
+
+    const existingWords = normExisting.split(' ').filter(Boolean);
+    const newContainsAllExisting = existingWords.length > 0 && existingWords.every(w => newWords.includes(w));
+    const existingContainsAllNew = newWords.length > 0 && newWords.every(w => existingWords.includes(w));
+
+    if (newContainsAllExisting || existingContainsAllNew) {
+      return {
+        isHardDuplicate: false,
+        isExactMatch: false,
+        matchName: item.name,
+        matchCategory: item.category || 'GENERAL'
+      };
+    }
+  }
+
   return null;
 };

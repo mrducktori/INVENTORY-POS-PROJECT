@@ -169,6 +169,7 @@ const ManageRawMaterials = () => {
                   <input
                     type="text"
                     name="name"
+                    maxLength={100}
                     value={formData.name}
                     onChange={handleInputChange}
                     placeholder="e.g. COFFEE BEANS"
@@ -221,6 +222,7 @@ const ManageRawMaterials = () => {
                       type="number"
                       step="any"
                       min="0"
+                      max="1000000"
                       name="low_stock_alert"
                       value={formData.low_stock_alert}
                       onChange={handleInputChange}
@@ -566,7 +568,7 @@ const ManageRawMaterials = () => {
       {selectedIngredient && (
         <div 
           className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[9999] p-4 flex justify-center items-start pt-6 sm:pt-10 md:pt-14 pb-12 animate-[modalBackdropFadeIn_0.2s_ease-out]" 
-          onMouseDown={(e) => { if (e.target === e.currentTarget) setSelectedIngredient(null); }}
+          onMouseDown={(e) => { if (e.target === e.currentTarget) { setSelectedIngredient(null); setMessage(''); } }}
         >
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)] flex flex-col max-h-[calc(100vh-5rem)] md:max-h-[calc(100vh-6rem)]" onClick={e => e.stopPropagation()}>
             <div className="bg-gray-900 text-white px-6 py-4 flex justify-between items-center shrink-0">
@@ -574,15 +576,32 @@ const ManageRawMaterials = () => {
               <button 
                 type="button"
                 className="text-gray-400 hover:text-white transition-colors bg-transparent border-none text-2xl leading-none cursor-pointer p-0" 
-                onClick={() => setSelectedIngredient(null)}
+                onClick={() => { setSelectedIngredient(null); setMessage(''); }}
                aria-label="Clear"><svg className="w-3.5 h-3.5 text-zinc-400 hover:text-zinc-700" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
             </div>
-            <div className="p-6">
+            <div className="p-6 overflow-y-auto">
+              {message && (
+                <div className={`p-3 mb-4 rounded-xl text-xs md:text-sm font-semibold flex items-center justify-between shadow-xs ${
+                  message.includes('success') || message.includes('created') || message.includes('updated')
+                    ? 'bg-green-50 text-green-700 border border-green-200'
+                    : 'bg-red-50 text-red-700 border border-red-200'
+                }`}>
+                  <span>{message}</span>
+                  <button
+                    type="button"
+                    onClick={() => setMessage('')}
+                    className="text-xs font-bold uppercase opacity-75 hover:opacity-100 cursor-pointer ml-3"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
               <form id="edit-material-form" onSubmit={handleUpdateIngredient} className="flex flex-col gap-5">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider">Ingredient Name</label>
                   <input
                     type="text"
+                    maxLength={100}
                     value={editName}
                     onChange={e => setEditName(e.target.value)}
                     className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-sm md:text-base font-semibold focus:outline-none focus:bg-white focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors"
@@ -638,6 +657,7 @@ const ManageRawMaterials = () => {
                       type="number"
                       step="0.01"
                       min="0"
+                      max="1000000"
                       value={editAlert}
                       onChange={e => setEditAlert(e.target.value)}
                       className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm md:text-base font-semibold focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-colors"
@@ -658,6 +678,7 @@ const ManageRawMaterials = () => {
                       <label className="text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider">Purchase Unit</label>
                       <input
                         type="text"
+                        maxLength={40}
                         placeholder="e.g. Bag, Box, Sack"
                         value={editPurchaseUnit}
                         onChange={e => setEditPurchaseUnit(e.target.value)}
@@ -668,8 +689,9 @@ const ManageRawMaterials = () => {
                       <label className="text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider">Conversion Factor</label>
                       <input
                         type="number"
-                        step="0.01"
-                        min="0.01"
+                        step="any"
+                        min="0.0001"
+                        max="1000000"
                         placeholder="e.g. 500"
                         value={editConversionFactor}
                         onChange={e => setEditConversionFactor(e.target.value)}
@@ -683,6 +705,7 @@ const ManageRawMaterials = () => {
                         type="number"
                         step="0.01"
                         min="0"
+                        max="1000000"
                         placeholder="₱0.00"
                         value={editCost}
                         onChange={e => setEditCost(e.target.value)}
@@ -697,7 +720,7 @@ const ManageRawMaterials = () => {
               <button 
                 type="button"
                 className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm md:text-base font-bold uppercase tracking-wider hover:bg-gray-100 transition-colors cursor-pointer" 
-                onClick={() => setSelectedIngredient(null)}
+                onClick={() => { setSelectedIngredient(null); setMessage(''); }}
               >
                 Cancel
               </button>

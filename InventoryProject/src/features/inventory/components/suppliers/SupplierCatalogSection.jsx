@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { getSupplierOwnCatalog, updateSupplierOwnCatalog } from '../../../../api/purchasingApi';
 import Pagination from '../../../../components/shared/Pagination';
 import { TableSkeleton } from '../../../../components/shared/SkeletonLoader';
+import { INPUT_LIMITS, validateAmountInput } from '../../../../utils/validationUtils';
 
 const RAW_MATERIAL_CATEGORIES = [
   'COFFEE & TEA BASES',
@@ -148,19 +149,42 @@ export default function SupplierCatalogSection() {
 
   const handleSaveAll = async () => {
     if (dirtyCount === 0) return;
+
+    const payload = [];
+    for (const [ingredientId, change] of Object.entries(edits)) {
+      const original = items.find(i => (i.ingredient_id || i.ingredients?.id) === ingredientId);
+      const itemName = original?.ingredients?.name || 'item';
+
+      const finalUnit = String(
+        change.purchase_unit !== undefined ? change.purchase_unit : (original?.default_purchase_unit || '')
+      ).trim();
+      if (!finalUnit || finalUnit.length > 40) {
+        setError(`Purchase unit for ${itemName} must be between 1 and 40 characters.`);
+        return;
+      }
+
+      const rawPrice = change.price !== undefined ? change.price : original?.default_price;
+      const priceCheck = validateAmountInput(rawPrice, {
+        label: `Price for ${itemName}`,
+        min: 0,
+        max: INPUT_LIMITS.PURCHASE_COST_MAX
+      });
+      if (!priceCheck.valid) {
+        setError(priceCheck.error);
+        return;
+      }
+
+      payload.push({
+        ingredient_id: ingredientId,
+        default_price: priceCheck.numericValue,
+        default_purchase_unit: finalUnit
+      });
+    }
+
     try {
       setSaving(true);
       setError('');
       setSuccessMsg('');
-
-      const payload = Object.entries(edits).map(([ingredientId, change]) => {
-        const original = items.find(i => (i.ingredient_id || i.ingredients?.id) === ingredientId);
-        return {
-          ingredient_id: ingredientId,
-          default_price: change.price !== undefined ? parseFloat(change.price) : original?.default_price,
-          default_purchase_unit: change.purchase_unit !== undefined ? change.purchase_unit : original?.default_purchase_unit
-        };
-      });
 
       await updateSupplierOwnCatalog(payload);
       setSuccessMsg(`Successfully updated pricing for ${payload.length} item${payload.length > 1 ? 's' : ''}.`);
@@ -619,6 +643,7 @@ export default function SupplierCatalogSection() {
                         <div className="flex items-center gap-1.5">
                           <input
                             type="text"
+                            maxLength={40}
                             list={`units-${ingredientId}`}
                             value={currentUnit}
                             onChange={(e) => handleUnitChange(ingredientId, e.target.value)}
@@ -649,6 +674,7 @@ export default function SupplierCatalogSection() {
                             type="number"
                             step="0.01"
                             min="0"
+                            max="1000000"
                             value={currentPrice}
                             onChange={(e) => handlePriceChange(ingredientId, e.target.value)}
                             className={`w-full pl-6 pr-2.5 py-1.5 text-xs font-bold rounded-lg border focus:outline-none focus:ring-1 focus:ring-zinc-900 transition-colors ${

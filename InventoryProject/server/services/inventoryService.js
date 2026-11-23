@@ -1,5 +1,7 @@
 import { supabase } from "../config/supabaseClient.js";
 import { getArchiveTimestampsMap, getDaysSinceArchived, invalidateArchiveMap } from "../utils/archiveHelper.js";
+import { checkCompositeDuplicate } from "../utils/stringHelper.js";
+import { LIMITS, validateNumberBound, validateTextLength } from "../utils/validationHelper.js";
 import { invalidateCmsCache } from "./cmsService.js";
 
 export const getIngredients = async ({ includeArchived = false } = {}) => {
@@ -42,7 +44,120 @@ export const getIngredientById = async (id) => {
   return data;
 };
 
-import { findSimilarName } from "../utils/stringHelper.js";
+const validateIngredientInput = (payload, { isUpdate = false } = {}) => {
+  const name = validateTextLength(payload.name, {
+    label: 'Raw material name',
+    min: 1,
+    max: LIMITS.NAME_MAX_LEN,
+    required: true
+  });
+
+  let category;
+  if (payload.category !== undefined && payload.category !== null && String(payload.category).trim() !== '') {
+    category = validateTextLength(payload.category, {
+      label: 'Category',
+      min: 0,
+      max: LIMITS.CATEGORY_MAX_LEN,
+      required: false
+    });
+  } else if (payload.category === undefined && isUpdate) {
+    category = undefined;
+  } else {
+    category = null;
+  }
+
+  const hasLowStock = payload.low_stock_alert !== undefined && payload.low_stock_alert !== null && payload.low_stock_alert !== '';
+  const low_stock_alert = hasLowStock
+    ? validateNumberBound(payload.low_stock_alert, {
+        label: 'Low stock alert',
+        min: LIMITS.THRESHOLD_MIN,
+        max: LIMITS.THRESHOLD_MAX
+      })
+    : (isUpdate ? undefined : 10);
+
+  let stock_quantity = 0;
+  if (!isUpdate && payload.stock_quantity !== undefined && payload.stock_quantity !== null && payload.stock_quantity !== '') {
+    stock_quantity = validateNumberBound(payload.stock_quantity, {
+      label: 'Stock quantity',
+      min: LIMITS.STOCK_QTY_MIN,
+      max: LIMITS.STOCK_QTY_MAX
+    });
+  }
+
+  const hasConv = payload.conversion_factor !== undefined && payload.conversion_factor !== null && payload.conversion_factor !== '';
+  const conversion_factor = hasConv
+    ? validateNumberBound(payload.conversion_factor, {
+        label: 'Conversion factor',
+        min: LIMITS.CONVERSION_FACTOR_MIN,
+        max: LIMITS.CONVERSION_FACTOR_MAX,
+        allowZero: false
+      })
+    : (isUpdate ? undefined : 1);
+
+  const hasPurchaseCost = payload.cost_per_purchase_unit !== undefined && payload.cost_per_purchase_unit !== null && payload.cost_per_purchase_unit !== '';
+  const cost_per_purchase_unit = hasPurchaseCost
+    ? validateNumberBound(payload.cost_per_purchase_unit, {
+        label: 'Purchase cost',
+        min: LIMITS.PURCHASE_COST_MIN,
+        max: LIMITS.PURCHASE_COST_MAX
+      })
+    : (isUpdate ? undefined : 0);
+
+  const hasUnitCost = payload.unit_cost !== undefined && payload.unit_cost !== null && payload.unit_cost !== '';
+  const unit_cost = hasUnitCost
+    ? validateNumberBound(payload.unit_cost, {
+        label: 'Unit cost',
+        min: LIMITS.PURCHASE_COST_MIN,
+        max: LIMITS.PURCHASE_COST_MAX
+      })
+    : undefined;
+
+  return {
+    name,
+    category,
+    low_stock_alert,
+    stock_quantity,
+    conversion_factor,
+    cost_per_purchase_unit,
+    unit_cost
+  };
+};
+
+const assertNoIngredientDuplicate = async ({ name, category, excludeId = null, force = false }) => {
+  const { data: existingIngredients, error } = await supabase
+    .from("ingredients")
+    .select("id, name, category, is_archived");
+  if (error) throw error;
+
+  let effectiveCategory = category;
+  if (effectiveCategory === undefined && excludeId !== null && excludeId !== undefined) {
+    const current = (existingIngredients || []).find((i) => String(i.id) === String(excludeId));
+    effectiveCategory = current?.category ?? null;
+  }
+
+  const dup = checkCompositeDuplicate(name, effectiveCategory, existingIngredients || [], excludeId);
+  if (!dup) return;
+
+  if (dup.isHardDuplicate) {
+    const archivedNote = dup.isArchived ? ' (archived)' : '';
+    const err = new Error(
+      `Raw material "${dup.matchName}"${archivedNote} already exists under category "${dup.matchCategory}". Duplicate items in the same category are not allowed.`
+    );
+    err.status = 409;
+    err.is_hard_duplicate = true;
+    throw err;
+  }
+
+  if (dup.isDuplicateWarning && !force) {
+    const msg = dup.reason === 'SAME_NAME_DIFF_CATEGORY'
+      ? `An ingredient named "${dup.matchName}" already exists under category "${dup.matchCategory}".`
+      : `An ingredient with a similar name ("${dup.matchName}" in "${dup.matchCategory}") already exists.`;
+    const err = new Error(msg);
+    err.status = 409;
+    err.is_duplicate_warning = true;
+    throw err;
+  }
+};
 
 const computeUnitCost = ({ unit, unit_cost, cost_per_purchase_unit, conversion_factor }) => {
   const purchaseCost = parseFloat(cost_per_purchase_unit);
@@ -74,33 +189,39 @@ export const createIngredient = async ({
   unit_cost,
   force_create
 }) => {
-  // Check for duplicates
-  if (!force_create) {
-    const { data: existingIngredients } = await supabase.from("ingredients").select("name");
-    if (existingIngredients) {
-      const existingNames = existingIngredients.map(i => i.name);
-      const similar = findSimilarName(name, existingNames);
-      if (similar) {
-        throw { 
-          message: `An ingredient with a similar name ("${similar}") already exists.`,
-          is_duplicate_warning: true 
-        };
-      }
-    }
-  }
+  const validated = validateIngredientInput({
+    name,
+    category,
+    stock_quantity,
+    low_stock_alert,
+    conversion_factor,
+    cost_per_purchase_unit,
+    unit_cost
+  });
 
-  const computedUnitCost = computeUnitCost({ unit, unit_cost, cost_per_purchase_unit, conversion_factor });
+  await assertNoIngredientDuplicate({
+    name: validated.name,
+    category: validated.category,
+    force: Boolean(force_create)
+  });
+
+  const computedUnitCost = computeUnitCost({
+    unit,
+    unit_cost: validated.unit_cost,
+    cost_per_purchase_unit: validated.cost_per_purchase_unit,
+    conversion_factor: validated.conversion_factor
+  });
 
   const insertPayload = {
-    name,
+    name: validated.name,
     unit,
-    category: category || null,
+    category: validated.category,
     image_url,
-    stock_quantity: stock_quantity || 0,
-    low_stock_alert: low_stock_alert || 10,
+    stock_quantity: validated.stock_quantity,
+    low_stock_alert: validated.low_stock_alert,
     purchase_unit: purchase_unit || 'Unit',
-    conversion_factor: parseFloat(conversion_factor) || 1,
-    cost_per_purchase_unit: parseFloat(cost_per_purchase_unit) || 0,
+    conversion_factor: validated.conversion_factor,
+    cost_per_purchase_unit: validated.cost_per_purchase_unit,
     unit_cost: computedUnitCost,
     is_archived: false
   };
@@ -111,24 +232,50 @@ export const createIngredient = async ({
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    if (error.code === '23505') {
+      const err = new Error('An ingredient with this name and category already exists.');
+      err.status = 409;
+      err.is_hard_duplicate = true;
+      throw err;
+    }
+    throw error;
+  }
   return data;
 };
 
 // FIX #2: stock_quantity is intentionally excluded — stock must only be changed
 // through receiveStock() (add) or the POS/wastage flow (subtract).
-export const updateIngredient = async (id, { name, unit, category, low_stock_alert, image_url, purchase_unit, conversion_factor, cost_per_purchase_unit, unit_cost }) => {
-  const updatePayload = { name, unit, low_stock_alert, image_url };
-  if (category !== undefined) updatePayload.category = category || null;
-  
+export const updateIngredient = async (id, { name, unit, category, low_stock_alert, image_url, purchase_unit, conversion_factor, cost_per_purchase_unit, unit_cost, force_update }) => {
+  const validated = validateIngredientInput(
+    { name, category, low_stock_alert, conversion_factor, cost_per_purchase_unit, unit_cost },
+    { isUpdate: true }
+  );
+
+  await assertNoIngredientDuplicate({
+    name: validated.name,
+    category: validated.category,
+    excludeId: id,
+    force: Boolean(force_update)
+  });
+
+  const updatePayload = { name: validated.name, unit, image_url };
+  if (validated.low_stock_alert !== undefined) updatePayload.low_stock_alert = validated.low_stock_alert;
+  if (validated.category !== undefined) updatePayload.category = validated.category;
+
   // Include PO defaults if provided and keep unit_cost synced
   if (purchase_unit !== undefined) updatePayload.purchase_unit = purchase_unit;
-  if (conversion_factor !== undefined) updatePayload.conversion_factor = conversion_factor;
-  if (cost_per_purchase_unit !== undefined) updatePayload.cost_per_purchase_unit = cost_per_purchase_unit;
-  if (cost_per_purchase_unit !== undefined || conversion_factor !== undefined || unit_cost !== undefined) {
-    updatePayload.unit_cost = computeUnitCost({ unit, unit_cost, cost_per_purchase_unit, conversion_factor });
+  if (validated.conversion_factor !== undefined) updatePayload.conversion_factor = validated.conversion_factor;
+  if (validated.cost_per_purchase_unit !== undefined) updatePayload.cost_per_purchase_unit = validated.cost_per_purchase_unit;
+  if (validated.cost_per_purchase_unit !== undefined || validated.conversion_factor !== undefined || validated.unit_cost !== undefined) {
+    updatePayload.unit_cost = computeUnitCost({
+      unit,
+      unit_cost: validated.unit_cost,
+      cost_per_purchase_unit: validated.cost_per_purchase_unit,
+      conversion_factor: validated.conversion_factor
+    });
   }
-  
+
   const { data, error } = await supabase
     .from("ingredients")
     .update(updatePayload)
@@ -136,12 +283,20 @@ export const updateIngredient = async (id, { name, unit, category, low_stock_ale
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    if (error.code === '23505') {
+      const err = new Error('An ingredient with this name and category already exists.');
+      err.status = 409;
+      err.is_hard_duplicate = true;
+      throw err;
+    }
+    throw error;
+  }
   return data;
 };
 
 // FIX #4: Added floor guard — will throw if the result would go below 0.
-export const updateStock = async (id, quantity, operation = "add") => {
+export const updateStock = async (id, quantity, operation = "add", { maxLimit = null } = {}) => {
   const ingredient = await getIngredientById(id);
   const newStock = operation === "add"
     ? parseFloat(ingredient.stock_quantity) + quantity
@@ -152,6 +307,12 @@ export const updateStock = async (id, quantity, operation = "add") => {
       `Insufficient stock for "${ingredient.name}". ` +
       `Has: ${ingredient.stock_quantity}, Requires: ${quantity}`
     );
+  }
+
+  if (maxLimit !== null && operation === "add" && newStock > maxLimit) {
+    const err = new Error(`Resulting stock quantity cannot exceed ${maxLimit.toLocaleString()}.`);
+    err.status = 400;
+    throw err;
   }
 
   const { data, error } = await supabase
@@ -189,12 +350,15 @@ export const getLowStockAlerts = async () => {
   });
 };
 
-// FIX #12: Validates that quantity is a positive number before adding to stock.
+// FIX #12: Validates that quantity is within allowed bounds before adding to stock.
 export const receiveStock = async (id, quantity) => {
-  if (!quantity || quantity <= 0 || isNaN(quantity)) {
-    throw new Error("Quantity received must be a positive number.");
-  }
-  return updateStock(id, quantity, "add");
+  const parsedQty = validateNumberBound(quantity, {
+    label: 'Quantity received',
+    min: LIMITS.RECEIVE_QTY_MIN,
+    max: LIMITS.RECEIVE_QTY_MAX,
+    allowZero: false
+  });
+  return updateStock(id, parsedQty, "add", { maxLimit: LIMITS.STOCK_QTY_MAX });
 };
 
 export const deleteIngredient = async (id) => {

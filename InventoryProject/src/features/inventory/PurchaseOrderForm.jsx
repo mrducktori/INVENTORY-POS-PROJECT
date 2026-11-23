@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getSuppliers, createPurchaseOrder } from '../../api/purchasingApi';
 import { getIngredients } from '../../api/inventoryApi';
 import { formatDisplayDate } from '../../utils/dateUtils';
+import { INPUT_LIMITS, validateAmountInput } from '../../utils/validationUtils';
 
 const PurchaseOrderForm = ({ onClose, onSuccess }) => {
   const [suppliers, setSuppliers] = useState([]);
@@ -146,8 +147,29 @@ const PurchaseOrderForm = ({ onClose, onSuccess }) => {
       });
 
     if (selectedItems.length === 0) return setError('Please check at least one ingredient.');
-    if (selectedItems.some(i => i.quantity <= 0)) return setError('Quantity must be greater than 0.');
-    if (selectedItems.some(i => !i.purchase_unit || i.conversion_factor <= 0)) return setError('Please provide valid purchase units and conversion factors.');
+    for (const item of selectedItems) {
+      const qtyCheck = validateAmountInput(item.quantity, {
+        label: `PO quantity for ${item.name}`,
+        min: INPUT_LIMITS.PO_QTY_MIN,
+        max: INPUT_LIMITS.PO_QTY_MAX
+      });
+      if (!qtyCheck.valid) return setError(qtyCheck.error);
+      if (!item.purchase_unit || String(item.purchase_unit).trim().length > 40) {
+        return setError(`Purchase unit for ${item.name} must be 1 to 40 characters.`);
+      }
+      const factorCheck = validateAmountInput(item.conversion_factor, {
+        label: `Conversion factor for ${item.name}`,
+        min: INPUT_LIMITS.CONVERSION_FACTOR_MIN,
+        max: INPUT_LIMITS.CONVERSION_FACTOR_MAX
+      });
+      if (!factorCheck.valid) return setError(factorCheck.error);
+      const priceCheck = validateAmountInput(item.unit_price ?? 0, {
+        label: `Unit price for ${item.name}`,
+        min: 0,
+        max: INPUT_LIMITS.PURCHASE_COST_MAX
+      });
+      if (!priceCheck.valid) return setError(priceCheck.error);
+    }
 
     setReviewAcknowledged(false);
     setReviewData({
@@ -237,16 +259,28 @@ const PurchaseOrderForm = ({ onClose, onSuccess }) => {
             <input 
               type="number" 
               min="1" 
+              max="100000"
               step="1" 
               className="w-full px-2.5 py-2 border border-gray-300 rounded-lg text-sm font-bold bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-xs"
               value={formData.items[ing.id]?.quantity ?? ''} 
               onChange={e => {
-                const val = e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value) || 1);
+                const raw = e.target.value;
+                if (raw === '') {
+                  handleItemChange(ing.id, 'quantity', '');
+                  return;
+                }
+                const parsed = parseInt(raw, 10);
+                const val = Number.isNaN(parsed)
+                  ? INPUT_LIMITS.PO_QTY_MIN
+                  : Math.min(100000, Math.max(1, parsed));
                 handleItemChange(ing.id, 'quantity', val);
               }}
               onBlur={() => {
-                if (!formData.items[ing.id]?.quantity || formData.items[ing.id]?.quantity < 1) {
+                const q = Number(formData.items[ing.id]?.quantity);
+                if (!q || q < 1) {
                   handleItemChange(ing.id, 'quantity', 1);
+                } else if (q > 100000) {
+                  handleItemChange(ing.id, 'quantity', 100000);
                 }
               }}
               required={isSelected}

@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Phase 1: Composite Duplicate Prevention, Global Input Bounds & Modal UX Cleanup - 2026-11-23]
+- **Backend Validation & Composite Duplicate Guard (`server/utils/validationHelper.js`, `server/utils/stringHelper.js`, `server/routes/products.js`, `server/services/inventoryService.js`, `server/controllers/inventoryController.js`, `server/services/recipesService.js`, `server/routes/recipes.js`, `server/services/wastageService.js`, `server/routes/wastage.js`, `server/services/purchasingService.js`, `server/controllers/purchasingController.js`)**:
+  - Added `LIMITS`, `validateNumberBound`, and `validateTextLength` (throwing `.status = 400`) and enforced aligned numeric/text bounds across products, raw materials, recipes, stock receiving, purchase orders, supplier catalog mappings, and wastage.
+  - Added `normalizeCategory` and 3-pass `checkCompositeDuplicate` enforcing `name + category` hard-blocks (`409`, `is_hard_duplicate: true`, unbypassable even with `force_create`/`force_update`) while keeping soft `409` warnings (`is_duplicate_warning: true`) for same-name different-category and fuzzy-similar items.
+  - Mapped PostgreSQL `23505` unique constraint errors to `409` hard-duplicate responses and propagated `err.status` cleanly across controllers and routes.
+- **Database Reference Migration (`docs/database/phase1_duplicate_and_bounds.sql`)**:
+  - Added an idempotent PostgreSQL reference script defining active-row partial unique indexes on `(LOWER(TRIM(name)), COALESCE(LOWER(TRIM(category)), 'general')) WHERE is_archived = false` (`products`, `ingredients`) and `CHECK` constraints matching `LIMITS`.
+- **Frontend Validation, Duplicate UX & Modal Cleanup (`src/utils/validationUtils.js`, `src/utils/productUtils.js`, `useManageProducts.js`, `useManageRawMaterials.js`, `ManageProducts.jsx`, `AddProductFormSection.jsx`, `ModifyProductModal.jsx`, `ManageRawMaterials.jsx`, `StockReceived.jsx`, `PurchaseOrderForm.jsx`, `SupplierFormModal.jsx`, `SupplierCatalogSection.jsx`, `ReportWastage.jsx`)**:
+  - Added `INPUT_LIMITS`, `validateAmountInput`, and `clampNumberInput` matching backend limits, plus HTML `min`/`max`/`maxLength` attributes and pre-submit validation across inventory, PO, supplier, and wastage forms.
+  - Removed redundant blocking `ConfirmModal` prompts on normal product and raw material Add/Update actions (keeping confirmations for soft duplicate warnings, archive/restore/delete, stock receipt, and recipe removal).
+  - Updated `checkDuplicateOrSimilar` to hard-block exact same-category duplicates (`isHardDuplicate`) while permitting soft confirmation for different categories or similar names, passed `category` and `force_update` in `useManageRawMaterials.js`, and surfaced inline modal error banners inside `ModifyProductModal.jsx` and `ManageRawMaterials.jsx`.
+
 ## [Notifications/UI: One-Time 10-Minute Admin Notification Pop-Up - 2026-11-21]
 - **`src/features/dashboard/components/AdminNotificationPopup.jsx`**: Added a one-time floating notification pop-up for `Admin` and `Owner` sessions that triggers 10 minutes after dashboard load (if unread notifications exist), displays up to 3 unread alerts for a 15-second duration (pauses on hover with a live countdown bar), and never repeats in the same session.
 - **`src/features/dashboard/Dashboard.jsx`**: Mounted `AdminNotificationPopup` once at the dashboard layout root across all tabs.

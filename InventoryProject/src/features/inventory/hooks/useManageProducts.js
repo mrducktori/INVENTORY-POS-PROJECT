@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../../../config/supabaseClient';
 import { getAllProducts, createProduct, updateProduct, archiveProduct, restoreProduct, deleteProduct, receiveProductStock } from '../../../api/productsApi';
 import { checkDuplicateOrSimilar } from '../../../utils/productUtils';
+import { INPUT_LIMITS, validateAmountInput } from '../../../utils/validationUtils';
 import { getRecipesByProduct, createRecipe, updateRecipe, deleteRecipe } from '../../../api/recipesApi';
 import { getIngredients } from '../../../api/inventoryApi';
 import { getCategorySettings, extractCategoryNames } from '../../../api/categorySettingsApi';
@@ -143,15 +144,24 @@ export const useManageProducts = () => {
   };
 
   const handleReceiveProductStock = async (productId, qty) => {
-    if (!qty || parseFloat(qty) <= 0) return;
-    
+    const qtyCheck = validateAmountInput(qty, {
+      label: 'Receive quantity',
+      min: INPUT_LIMITS.RECEIVE_QTY_MIN,
+      max: INPUT_LIMITS.RECEIVE_QTY_MAX
+    });
+    if (!qtyCheck.valid) {
+      setMessage('Error: ' + qtyCheck.error);
+      setTimeout(() => setMessage(''), 4000);
+      return;
+    }
+
     setConfirmConfig({
       isOpen: true,
       title: 'Confirm Stock Receipt',
-      message: `Are you sure you want to add ${qty} units to the stock?`,
+      message: `Are you sure you want to add ${qtyCheck.numericValue} units to the stock?`,
       onConfirm: async () => {
         try {
-          await receiveProductStock(productId, parseFloat(qty));
+          await receiveProductStock(productId, qtyCheck.numericValue);
           setMessage('Stock received successfully!');
           fetchProducts();
           setConfirmConfig(prev => ({ ...prev, isOpen: false }));
@@ -164,33 +174,65 @@ export const useManageProducts = () => {
     });
   };
 
-  const handleAddProduct = async (e, forceCreate = false, skipConfirm = false) => {
+  const handleAddProduct = async (e, forceCreate = false) => {
     if (e) e.preventDefault();
-    const newName = formData.name.trim().toUpperCase();
+    const newName = String(formData.name || '').trim().toUpperCase();
+    const trimmedCategory = String(formData.category || '').trim();
 
-    if (!skipConfirm) {
-      setConfirmConfig({
-        isOpen: true,
-        title: 'Confirm Add',
-        message: `Are you sure you want to add "${newName}" as a new product?`,
-        onConfirm: () => {
-          setConfirmConfig(prev => ({ ...prev, isOpen: false }));
-          handleAddProduct(null, forceCreate, true);
-        }
-      });
+    if (!newName) {
+      setMessage('Error: Product name is required.');
+      return;
+    }
+    if (newName.length > INPUT_LIMITS.NAME_MAX_LEN) {
+      setMessage(`Error: Product name must be ${INPUT_LIMITS.NAME_MAX_LEN} characters or less.`);
+      return;
+    }
+    if (!trimmedCategory) {
+      setMessage('Error: Please select a category.');
+      return;
+    }
+    if (trimmedCategory.length > INPUT_LIMITS.CATEGORY_MAX_LEN) {
+      setMessage(`Error: Category must be ${INPUT_LIMITS.CATEGORY_MAX_LEN} characters or less.`);
       return;
     }
 
-    // Frontend strict match check
+    const priceCheck = validateAmountInput(formData.price, {
+      label: 'Product price',
+      min: INPUT_LIMITS.PRODUCT_PRICE_MIN,
+      max: INPUT_LIMITS.PRODUCT_PRICE_MAX
+    });
+    if (!priceCheck.valid) {
+      setMessage('Error: ' + priceCheck.error);
+      return;
+    }
+
+    const thresholdInput = formData.track_stock
+      ? formData.low_stock_threshold
+      : (formData.low_stock_threshold === '' || formData.low_stock_threshold === null || formData.low_stock_threshold === undefined ? 0 : formData.low_stock_threshold);
+    const thresholdCheck = validateAmountInput(thresholdInput, {
+      label: 'Low stock threshold',
+      min: 0,
+      max: INPUT_LIMITS.THRESHOLD_MAX
+    });
+    if (!thresholdCheck.valid) {
+      setMessage('Error: ' + thresholdCheck.error);
+      return;
+    }
+
+    // Frontend composite duplicate check
     if (!forceCreate) {
-      const similarityMatch = checkDuplicateOrSimilar(formData.name, products);
+      const similarityMatch = checkDuplicateOrSimilar(formData.name, products, null, trimmedCategory);
+      if (similarityMatch?.isHardDuplicate) {
+        setMessage(`Error: "${similarityMatch.matchName}" already exists under category "${similarityMatch.matchCategory}". Duplicate items in the same category are not allowed.`);
+        return;
+      }
       if (similarityMatch) {
         setConfirmConfig({
           isOpen: true,
-          title: similarityMatch.isExactMatch ? 'Duplicate Detected' : 'Similar Product Detected',
-          message: similarityMatch.isExactMatch 
-            ? `WARNING: A product with the exact name "${similarityMatch.matchName}" already exists. Do you still want to add it?`
-            : `WARNING: The product "${similarityMatch.matchName}" sounds very similar to what you're adding. Are you sure you want to proceed?`,
+          title: similarityMatch.isDifferentCategory ? 'Same Name in Different Category' : 'Similar Product Detected',
+          message: similarityMatch.isDifferentCategory
+            ? `WARNING: "${similarityMatch.matchName}" already exists in category "${similarityMatch.matchCategory}". Are you sure you want to add it under "${trimmedCategory}"?`
+            : `WARNING: The product "${similarityMatch.matchName}" (${similarityMatch.matchCategory}) sounds very similar to what you're adding. Are you sure you want to proceed?`,
           onConfirm: () => {
             setConfirmConfig(prev => ({ ...prev, isOpen: false }));
             handleAddProduct(null, true);
@@ -203,12 +245,12 @@ export const useManageProducts = () => {
     try {
       await createProduct({
         name: newName,
-        category: formData.category,
-        price: parseFloat(formData.price),
+        category: trimmedCategory,
+        price: priceCheck.numericValue,
         image_url: formData.image_url,
         track_stock: formData.track_stock,
         stock_quantity: 0,
-        low_stock_threshold: parseFloat(formData.low_stock_threshold) || 0,
+        low_stock_threshold: thresholdCheck.numericValue,
         force_create: forceCreate
       });
       setMessage('Product created successfully!');
@@ -223,10 +265,12 @@ export const useManageProducts = () => {
       fetchProducts();
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
-      if (err.payload?.is_duplicate_warning) {
+      if (err.payload?.is_hard_duplicate) {
+        setMessage(err.message?.startsWith('Error:') ? err.message : 'Error: ' + err.message);
+      } else if (err.payload?.is_duplicate_warning) {
         setConfirmConfig({
           isOpen: true,
-          title: 'Duplicate Detected',
+          title: 'Duplicate Warning',
           message: err.message + '\n\nDo you still want to proceed?',
           onConfirm: () => {
             setConfirmConfig(prev => ({ ...prev, isOpen: false }));
@@ -313,6 +357,7 @@ export const useManageProducts = () => {
   };
 
   const handleSetRecipe = async (product) => {
+    setMessage('');
     setSelectedProduct(product);
     setEditPrice(product.price);
     setEditName(product.name);
@@ -331,64 +376,110 @@ export const useManageProducts = () => {
     }
   };
 
-  const handleUpdateProduct = async (e) => {
+  const handleUpdateProduct = async (e, forceUpdate = false) => {
     if (e) e.preventDefault();
-    
-    setConfirmConfig({
-      isOpen: true,
-      title: 'Confirm Update',
-      message: `Are you sure you want to save changes to "${selectedProduct.name}"?`,
-      onConfirm: async () => {
-        const updatedName = editName.trim().toUpperCase();
-        const proceedWithUpdate = async () => {
-          try {
-            await updateProduct(selectedProduct.id, {
-              name: updatedName,
-              category: editCategory,
-              price: parseFloat(editPrice),
-              image_url: editImageUrl,
-              track_stock: editTrackStock,
-              stock_quantity: parseFloat(editStockQty),
-              low_stock_threshold: parseFloat(editThreshold),
-              sizes: editSizes,
-              add_ons: editAddOns
-            });
-            setMessage('Product details updated successfully!');
-            fetchProducts();
-            setViewMode('ADD');
-            setSelectedProduct(null);
-            setConfirmConfig(prev => ({ ...prev, isOpen: false }));
-            setTimeout(() => setMessage(''), 3000);
-          } catch (err) {
-            if (err.message.includes('already exists')) {
-              setMessage('WARNING: ' + err.message);
-              setTimeout(() => setMessage(''), 3000);
-            } else {
-              setMessage('Error updating product: ' + err.message);
-              setTimeout(() => setMessage(''), 3000);
-            }
-            setConfirmConfig(prev => ({ ...prev, isOpen: false }));
-          }
-        };
+    if (!selectedProduct) return;
 
-        const similarityMatch = checkDuplicateOrSimilar(editName, products, selectedProduct.id);
-        if (similarityMatch) {
-          const message = similarityMatch.isExactMatch 
-            ? `WARNING: A product with the name "${similarityMatch.matchName}" already exists. Do you still want to update to this name?`
-            : `WARNING: The name sounds very similar to an existing product "${similarityMatch.matchName}". Do you still want to update?`;
-          
-          setConfirmConfig({
-            isOpen: true,
-            title: similarityMatch.isExactMatch ? 'Duplicate Detected' : 'Similar Product Detected',
-            message: message,
-            onConfirm: proceedWithUpdate
-          });
-          return;
-        }
+    const updatedName = String(editName || '').trim().toUpperCase();
+    const trimmedCategory = String(editCategory || '').trim();
 
-        proceedWithUpdate();
-      }
+    if (!updatedName) {
+      setMessage('Error: Product name is required.');
+      return;
+    }
+    if (updatedName.length > INPUT_LIMITS.NAME_MAX_LEN) {
+      setMessage(`Error: Product name must be ${INPUT_LIMITS.NAME_MAX_LEN} characters or less.`);
+      return;
+    }
+    if (!trimmedCategory) {
+      setMessage('Error: Please select a category.');
+      return;
+    }
+    if (trimmedCategory.length > INPUT_LIMITS.CATEGORY_MAX_LEN) {
+      setMessage(`Error: Category must be ${INPUT_LIMITS.CATEGORY_MAX_LEN} characters or less.`);
+      return;
+    }
+
+    const priceCheck = validateAmountInput(editPrice, {
+      label: 'Product price',
+      min: INPUT_LIMITS.PRODUCT_PRICE_MIN,
+      max: INPUT_LIMITS.PRODUCT_PRICE_MAX
     });
+    if (!priceCheck.valid) {
+      setMessage('Error: ' + priceCheck.error);
+      return;
+    }
+
+    const thresholdInput = editTrackStock
+      ? editThreshold
+      : (editThreshold === '' || editThreshold === null || editThreshold === undefined ? 0 : editThreshold);
+    const thresholdCheck = validateAmountInput(thresholdInput, {
+      label: 'Low stock threshold',
+      min: 0,
+      max: INPUT_LIMITS.THRESHOLD_MAX
+    });
+    if (!thresholdCheck.valid) {
+      setMessage('Error: ' + thresholdCheck.error);
+      return;
+    }
+
+    if (!forceUpdate) {
+      const similarityMatch = checkDuplicateOrSimilar(editName, products, selectedProduct.id, trimmedCategory);
+      if (similarityMatch?.isHardDuplicate) {
+        setMessage(`Error: "${similarityMatch.matchName}" already exists under category "${similarityMatch.matchCategory}". Duplicate items in the same category are not allowed.`);
+        return;
+      }
+      if (similarityMatch) {
+        setConfirmConfig({
+          isOpen: true,
+          title: similarityMatch.isDifferentCategory ? 'Same Name in Different Category' : 'Similar Product Detected',
+          message: similarityMatch.isDifferentCategory
+            ? `WARNING: "${similarityMatch.matchName}" already exists in category "${similarityMatch.matchCategory}". Do you still want to update this product under "${trimmedCategory}"?`
+            : `WARNING: The name sounds very similar to an existing product "${similarityMatch.matchName}" (${similarityMatch.matchCategory}). Do you still want to update?`,
+          onConfirm: () => {
+            setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+            handleUpdateProduct(null, true);
+          }
+        });
+        return;
+      }
+    }
+
+    try {
+      await updateProduct(selectedProduct.id, {
+        name: updatedName,
+        category: trimmedCategory,
+        price: priceCheck.numericValue,
+        image_url: editImageUrl,
+        track_stock: editTrackStock,
+        stock_quantity: parseFloat(editStockQty) || 0,
+        low_stock_threshold: thresholdCheck.numericValue,
+        sizes: editSizes,
+        add_ons: editAddOns,
+        force_update: forceUpdate
+      });
+      setMessage('Product details updated successfully!');
+      fetchProducts();
+      setViewMode('ADD');
+      setSelectedProduct(null);
+      setTimeout(() => setMessage(''), 3000);
+    } catch (err) {
+      if (err.payload?.is_hard_duplicate) {
+        setMessage(err.message?.startsWith('Error:') ? err.message : 'Error: ' + err.message);
+      } else if (err.payload?.is_duplicate_warning) {
+        setConfirmConfig({
+          isOpen: true,
+          title: 'Duplicate Warning',
+          message: err.message + '\n\nDo you still want to proceed?',
+          onConfirm: () => {
+            setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+            handleUpdateProduct(null, true);
+          }
+        });
+      } else {
+        setMessage('Error updating product: ' + err.message);
+      }
+    }
   };
 
   const handleDeleteRecipeItem = async (recipeId) => {
@@ -414,7 +505,17 @@ export const useManageProducts = () => {
   const handleAddSize = (e) => {
     if (e) e.preventDefault();
     if (!newSize.name) return;
-    setEditSizes(prev => [...prev, { ...newSize, price_add: parseFloat(newSize.price_add) || 0 }]);
+    const priceAdd = newSize.price_add === '' ? 0 : newSize.price_add;
+    const priceCheck = validateAmountInput(priceAdd, {
+      label: 'Size add-on price',
+      min: 0,
+      max: INPUT_LIMITS.ADDON_PRICE_MAX
+    });
+    if (!priceCheck.valid) {
+      setMessage('Error: ' + priceCheck.error);
+      return;
+    }
+    setEditSizes(prev => [...prev, { ...newSize, price_add: priceCheck.numericValue }]);
     setNewSize({ name: '', price_add: '', ingredient_id: '' });
   };
 
@@ -425,10 +526,28 @@ export const useManageProducts = () => {
   const handleAddAddOn = (e) => {
     if (e) e.preventDefault();
     if (!newAddOn.name) return;
+    const priceCheck = validateAmountInput(newAddOn.price === '' ? 0 : newAddOn.price, {
+      label: 'Add-on price',
+      min: 0,
+      max: INPUT_LIMITS.ADDON_PRICE_MAX
+    });
+    if (!priceCheck.valid) {
+      setMessage('Error: ' + priceCheck.error);
+      return;
+    }
+    const qtyCheck = validateAmountInput(newAddOn.quantity === '' ? 0 : newAddOn.quantity, {
+      label: 'Add-on quantity',
+      min: 0,
+      max: INPUT_LIMITS.RECIPE_QTY_MAX
+    });
+    if (!qtyCheck.valid) {
+      setMessage('Error: ' + qtyCheck.error);
+      return;
+    }
     setEditAddOns(prev => [...prev, { 
       ...newAddOn, 
-      price: parseFloat(newAddOn.price) || 0,
-      quantity: parseFloat(newAddOn.quantity) || 0
+      price: priceCheck.numericValue,
+      quantity: qtyCheck.numericValue
     }]);
     setNewAddOn({ name: '', price: '', ingredient_id: '', quantity: '', unit: '' });
   };
@@ -439,19 +558,25 @@ export const useManageProducts = () => {
 
   const handleAddRecipeItem = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
-    
-    const qty = parseFloat(newRecipeItem.quantity);
+
     if (!newRecipeItem.ingredient_id) {
-      setMessage('Please select an ingredient.');
-      setTimeout(() => setMessage(''), 3000);
-      return;
-    }
-    if (isNaN(qty) || qty <= 0) {
-      setMessage('Please enter a valid quantity greater than 0.');
+      setMessage('Error: Please select an ingredient.');
       setTimeout(() => setMessage(''), 3000);
       return;
     }
 
+    const qtyCheck = validateAmountInput(newRecipeItem.quantity, {
+      label: 'Recipe quantity',
+      min: INPUT_LIMITS.RECIPE_QTY_MIN,
+      max: INPUT_LIMITS.RECIPE_QTY_MAX
+    });
+    if (!qtyCheck.valid) {
+      setMessage('Error: ' + qtyCheck.error);
+      setTimeout(() => setMessage(''), 3500);
+      return;
+    }
+
+    const qty = qtyCheck.numericValue;
     const ingredient = allIngredients.find(i => i.id === newRecipeItem.ingredient_id);
     const unit = (newRecipeItem.input_unit || ingredient?.unit || '').toUpperCase();
 
@@ -478,19 +603,32 @@ export const useManageProducts = () => {
   };
 
   const handleUpdateRecipeItem = async (recipeId, quantityUsed, recipeUnit) => {
+    const qtyCheck = validateAmountInput(quantityUsed, {
+      label: 'Recipe quantity',
+      min: INPUT_LIMITS.RECIPE_QTY_MIN,
+      max: INPUT_LIMITS.RECIPE_QTY_MAX
+    });
+    if (!qtyCheck.valid) {
+      setMessage('Error: ' + qtyCheck.error);
+      setTimeout(() => setMessage(''), 3500);
+      return false;
+    }
+
     try {
       setIsProcessing(true);
       await updateRecipe(recipeId, {
-        quantity_used: parseFloat(quantityUsed),
+        quantity_used: qtyCheck.numericValue,
         recipe_unit: recipeUnit
       });
       setMessage('Recipe ingredient updated successfully');
       const data = await getRecipesByProduct(selectedProduct.id);
       setRecipe(data || []);
       setTimeout(() => setMessage(''), 2000);
+      return true;
     } catch (err) {
       setMessage('Error updating recipe ingredient: ' + err.message);
       setTimeout(() => setMessage(''), 3500);
+      return false;
     } finally {
       setIsProcessing(false);
     }

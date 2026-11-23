@@ -53,7 +53,7 @@ router.post("/", requireRecipeWriteAccess, async (req, res) => {
     });
     res.status(201).json(recipe);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
@@ -71,7 +71,7 @@ router.put("/:id", requireRecipeWriteAccess, async (req, res) => {
     });
     res.json(recipe);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 

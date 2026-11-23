@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { getIngredients, receiveStock } from '../../api/inventoryApi';
 import { getAllProducts, receiveProductStock } from '../../api/productsApi';
 import { formatQuantity } from '../../utils/productUtils';
+import { INPUT_LIMITS, validateAmountInput } from '../../utils/validationUtils';
 import SearchableIngredientSelect from '../../components/shared/SearchableIngredientSelect';
 import Pagination from '../../components/shared/Pagination';
 
@@ -75,19 +76,37 @@ const StockReceived = () => {
 
   const handleReceiveStock = async (e) => {
     e.preventDefault();
-    if (!selectedId || !quantity) {
+    if (!selectedId || !quantity || !selectedItem) {
       setMessage('Please select an item and enter a quantity.');
       return;
     }
+
+    const qtyCheck = validateAmountInput(quantity, {
+      label: 'Receive quantity',
+      min: INPUT_LIMITS.RECEIVE_QTY_MIN,
+      max: INPUT_LIMITS.RECEIVE_QTY_MAX
+    });
+    if (!qtyCheck.valid || qtyCheck.numericValue > INPUT_LIMITS.RECEIVE_QTY_MAX) {
+      setMessage('Error: ' + qtyCheck.error);
+      return;
+    }
+
+    const qty = qtyCheck.numericValue;
+    const currentStock = parseFloat(selectedItem.stock_quantity) || 0;
+    if (currentStock + qty > INPUT_LIMITS.STOCK_QTY_MAX) {
+      setMessage(`Error: Resulting stock cannot exceed ${INPUT_LIMITS.STOCK_QTY_MAX.toLocaleString()}.`);
+      return;
+    }
+
     try {
       setSubmitting(true);
       if (selectedItem.itemType === 'ingredient') {
-        await receiveStock(selectedId, parseFloat(quantity));
+        await receiveStock(selectedId, qty);
       } else {
-        await receiveProductStock(selectedId, parseFloat(quantity));
+        await receiveProductStock(selectedId, qty);
       }
       
-      setMessage(`Successfully added ${parseFloat(quantity)} ${selectedItem.unit || ''} to ${selectedItem.name}!`);
+      setMessage(`Successfully added ${qty} ${selectedItem.unit || ''} to ${selectedItem.name}!`);
       setSelectedId('');
       setQuantity('');
       setTimeout(() => setMessage(''), 4000);
@@ -158,6 +177,7 @@ const StockReceived = () => {
                 type="number"
                 step="0.01"
                 min="0.01"
+                max="1000000"
                 placeholder="Enter quantity received"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
                 value={quantity}

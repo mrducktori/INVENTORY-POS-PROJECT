@@ -23,7 +23,7 @@ const AddProductFormSection = ({
         <form onSubmit={onSubmit} className="flex flex-col gap-5">
           <div className="flex flex-col gap-1.5">
             <label className="text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider">Product Name</label>
-            <input type="text" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-sm md:text-base font-semibold focus:outline-none focus:bg-white focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors" name="name" value={formData.name} onChange={onInputChange} required />
+            <input type="text" maxLength={100} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-sm md:text-base font-semibold focus:outline-none focus:bg-white focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors" name="name" value={formData.name} onChange={onInputChange} required />
           </div>
 
           <div className="flex flex-col sm:flex-row gap-5">
@@ -38,7 +38,7 @@ const AddProductFormSection = ({
             </div>
             <div className="flex flex-col gap-1.5 flex-1">
               <label className="text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider">Price (₱)</label>
-              <input type="number" step="any" min="0" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-sm md:text-base font-semibold focus:outline-none focus:bg-white focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors" name="price" value={formData.price} onChange={onInputChange} required />
+              <input type="number" step="0.01" min="0.01" max="100000" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-sm md:text-base font-semibold focus:outline-none focus:bg-white focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors" name="price" value={formData.price} onChange={onInputChange} required />
             </div>
           </div>
 
@@ -80,7 +80,7 @@ const AddProductFormSection = ({
               </div>
               <div className="flex flex-col gap-1.5 flex-1">
                 <label className="text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider">Low Stock Alert at</label>
-                <input type="number" className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm md:text-base font-semibold focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-colors" name="low_stock_threshold" value={formData.low_stock_threshold} onChange={onInputChange} min="0" required />
+                <input type="number" className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm md:text-base font-semibold focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-colors" name="low_stock_threshold" value={formData.low_stock_threshold} onChange={onInputChange} min="0" max="1000000" required />
               </div>
             </div>
           )}

@@ -1,5 +1,6 @@
 import { supabase } from "../config/supabaseClient.js";
 import { convertToBaseUnit } from "../utils/unitUtils.js";
+import { LIMITS, validateNumberBound } from "../utils/validationHelper.js";
 
 export const recalculateProductEstimatedCost = async (productId) => {
   if (!productId) return null;
@@ -81,6 +82,13 @@ export const getRecipesByProduct = async (product_id) => {
 };
 
 export const createRecipe = async ({ product_id, ingredient_id, quantity_used, recipe_unit }) => {
+  const validatedQty = validateNumberBound(quantity_used, {
+    label: 'Recipe quantity',
+    min: LIMITS.RECIPE_QTY_MIN,
+    max: LIMITS.RECIPE_QTY_MAX,
+    allowZero: false
+  });
+
   // Check if recipe already exists
   const { data: existing } = await supabase
     .from("recipes")
@@ -98,7 +106,7 @@ export const createRecipe = async ({ product_id, ingredient_id, quantity_used, r
     .insert([{
       product_id,
       ingredient_id,
-      quantity_used,
+      quantity_used: validatedQty,
       recipe_unit: (recipe_unit || '').toUpperCase() || null
     }])
     .select()
@@ -110,10 +118,17 @@ export const createRecipe = async ({ product_id, ingredient_id, quantity_used, r
 };
 
 export const updateRecipe = async (id, { quantity_used, recipe_unit }) => {
+  const validatedQty = validateNumberBound(quantity_used, {
+    label: 'Recipe quantity',
+    min: LIMITS.RECIPE_QTY_MIN,
+    max: LIMITS.RECIPE_QTY_MAX,
+    allowZero: false
+  });
+
   const { data, error } = await supabase
     .from("recipes")
-    .update({ 
-      quantity_used,
+    .update({
+      quantity_used: validatedQty,
       recipe_unit: recipe_unit ? recipe_unit.toUpperCase() : null
     })
     .eq("id", id)

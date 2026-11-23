@@ -9,6 +9,7 @@ import {
   getRawMaterialCategories
 } from '../../../api/inventoryApi';
 import { checkDuplicateOrSimilar } from '../../../utils/productUtils';
+import { INPUT_LIMITS, validateAmountInput } from '../../../utils/validationUtils';
 
 export const RAW_MATERIAL_CATEGORIES = [
   'COFFEE & TEA BASES',
@@ -98,38 +99,53 @@ export const useManageRawMaterials = () => {
     setFormData({ ...formData, [name]: value });
   };
 
-  const handleAddIngredient = async (e, forceCreate = false, skipConfirm = false) => {
+  const handleAddIngredient = async (e, forceCreate = false) => {
     if (e) e.preventDefault();
-    const newName = formData.name.trim().toUpperCase();
-    const newUnit = formData.unit.trim().toUpperCase();
+    const newName = String(formData.name || '').trim().toUpperCase();
+    const newUnit = String(formData.unit || '').trim().toUpperCase();
+    const trimmedCategory = formData.category ? String(formData.category).trim() : null;
+
+    if (!newName) {
+      setMessage('Error: Ingredient name is required.');
+      return;
+    }
+    if (newName.length > INPUT_LIMITS.NAME_MAX_LEN) {
+      setMessage(`Error: Ingredient name must be ${INPUT_LIMITS.NAME_MAX_LEN} characters or less.`);
+      return;
+    }
+    if (trimmedCategory && trimmedCategory.length > INPUT_LIMITS.CATEGORY_MAX_LEN) {
+      setMessage(`Error: Category must be ${INPUT_LIMITS.CATEGORY_MAX_LEN} characters or less.`);
+      return;
+    }
 
     if (!UNIT_CHOICES.includes(newUnit)) {
       setMessage(`Error: Invalid unit. Must be one of: ${UNIT_CHOICES.join(', ')}`);
       return;
     }
 
-    if (!skipConfirm) {
-      setConfirmConfig({
-        isOpen: true,
-        title: 'Confirm Add',
-        message: `Are you sure you want to add "${newName}" as a new raw material?`,
-        onConfirm: () => {
-          setConfirmConfig(prev => ({ ...prev, isOpen: false }));
-          handleAddIngredient(null, forceCreate, true);
-        }
-      });
+    const alertCheck = validateAmountInput(formData.low_stock_alert, {
+      label: 'Low stock alert',
+      min: 0,
+      max: INPUT_LIMITS.THRESHOLD_MAX
+    });
+    if (!alertCheck.valid) {
+      setMessage('Error: ' + alertCheck.error);
       return;
     }
 
     if (!forceCreate) {
-      const similarityMatch = checkDuplicateOrSimilar(formData.name, ingredients);
+      const similarityMatch = checkDuplicateOrSimilar(formData.name, ingredients, null, trimmedCategory);
+      if (similarityMatch?.isHardDuplicate) {
+        setMessage(`Error: "${similarityMatch.matchName}" already exists under category "${similarityMatch.matchCategory}". Duplicate items in the same category are not allowed.`);
+        return;
+      }
       if (similarityMatch) {
         setConfirmConfig({
           isOpen: true,
-          title: similarityMatch.isExactMatch ? 'Duplicate Detected' : 'Similar Ingredient Detected',
-          message: similarityMatch.isExactMatch 
-            ? `WARNING: An ingredient with the exact name "${similarityMatch.matchName}" already exists. Do you still want to add it?`
-            : `WARNING: The ingredient "${similarityMatch.matchName}" sounds very similar to what you're adding. Are you sure you want to proceed?`,
+          title: similarityMatch.isDifferentCategory ? 'Same Name in Different Category' : 'Similar Ingredient Detected',
+          message: similarityMatch.isDifferentCategory
+            ? `WARNING: "${similarityMatch.matchName}" already exists in category "${similarityMatch.matchCategory}". Are you sure you want to add it under "${trimmedCategory || 'GENERAL'}"?`
+            : `WARNING: The ingredient "${similarityMatch.matchName}" (${similarityMatch.matchCategory}) sounds very similar to what you're adding. Are you sure you want to proceed?`,
           onConfirm: () => {
             setConfirmConfig(prev => ({ ...prev, isOpen: false }));
             handleAddIngredient(null, true);
@@ -143,8 +159,8 @@ export const useManageRawMaterials = () => {
       await createIngredient({
         name: newName,
         unit: newUnit,
-        category: formData.category ? formData.category.trim() : null,
-        low_stock_alert: parseFloat(formData.low_stock_alert) || 0,
+        category: trimmedCategory,
+        low_stock_alert: alertCheck.numericValue,
         stock_quantity: 0,
         force_create: forceCreate
       });
@@ -153,10 +169,12 @@ export const useManageRawMaterials = () => {
       fetchIngredients();
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
-      if (err.payload?.is_duplicate_warning) {
+      if (err.payload?.is_hard_duplicate) {
+        setMessage(err.message?.startsWith('Error:') ? err.message : 'Error: ' + err.message);
+      } else if (err.payload?.is_duplicate_warning) {
         setConfirmConfig({
           isOpen: true,
-          title: 'Duplicate Detected',
+          title: 'Duplicate Warning',
           message: err.message + '\n\nDo you still want to proceed?',
           onConfirm: () => {
             setConfirmConfig(prev => ({ ...prev, isOpen: false }));
@@ -242,74 +260,127 @@ export const useManageRawMaterials = () => {
     });
   };
 
-  const handleUpdateIngredient = async (e) => {
+  const handleUpdateIngredient = async (e, forceUpdate = false) => {
     if (e) e.preventDefault();
-    
-    setConfirmConfig({
-      isOpen: true,
-      title: 'Confirm Update',
-      message: `Are you sure you want to save changes to "${selectedIngredient.name}"?`,
-      onConfirm: async () => {
-        const updatedName = editName.trim().toUpperCase();
-        const updatedUnit = editUnit.trim().toUpperCase();
+    if (!selectedIngredient) return;
 
-        if (!UNIT_CHOICES.includes(updatedUnit)) {
-          setMessage(`Error: Invalid unit. Must be one of: ${UNIT_CHOICES.join(', ')}`);
-          setConfirmConfig(prev => ({ ...prev, isOpen: false }));
-          setTimeout(() => setMessage(''), 3000);
-          return;
-        }
+    const updatedName = String(editName || '').trim().toUpperCase();
+    const updatedUnit = String(editUnit || '').trim().toUpperCase();
+    const trimmedCategory = editCategory ? String(editCategory).trim() : null;
+    const trimmedPurchaseUnit = String(editPurchaseUnit || 'Unit').trim();
 
-        const proceedWithUpdate = async () => {
-          try {
-            await updateIngredient(selectedIngredient.id, {
-              name: updatedName,
-              unit: updatedUnit,
-              low_stock_alert: parseFloat(editAlert) || 0,
-              stock_quantity: parseFloat(editQuantity) || 0,
-              purchase_unit: editPurchaseUnit || 'Unit',
-              conversion_factor: parseFloat(editConversionFactor) || 1,
-              cost_per_purchase_unit: parseFloat(editCost) || 0
-            });
-            setMessage('Ingredient details updated successfully!');
-            fetchIngredients();
-            setViewMode('ADD');
-            setSelectedIngredient(null);
-            setConfirmConfig(prev => ({ ...prev, isOpen: false }));
-            setTimeout(() => setMessage(''), 3000);
-          } catch (err) {
-            if (err.message.includes('already exists')) {
-              setMessage('WARNING: ' + err.message);
-              setTimeout(() => setMessage(''), 3000);
-            } else {
-              setMessage('Error updating ingredient: ' + err.message);
-              setTimeout(() => setMessage(''), 3000);
-            }
-            setConfirmConfig(prev => ({ ...prev, isOpen: false }));
-          }
-        };
+    if (!updatedName) {
+      setMessage('Error: Ingredient name is required.');
+      return;
+    }
+    if (updatedName.length > INPUT_LIMITS.NAME_MAX_LEN) {
+      setMessage(`Error: Ingredient name must be ${INPUT_LIMITS.NAME_MAX_LEN} characters or less.`);
+      return;
+    }
+    if (trimmedCategory && trimmedCategory.length > INPUT_LIMITS.CATEGORY_MAX_LEN) {
+      setMessage(`Error: Category must be ${INPUT_LIMITS.CATEGORY_MAX_LEN} characters or less.`);
+      return;
+    }
+    if (!UNIT_CHOICES.includes(updatedUnit)) {
+      setMessage(`Error: Invalid unit. Must be one of: ${UNIT_CHOICES.join(', ')}`);
+      return;
+    }
+    if (trimmedPurchaseUnit.length > 40) {
+      setMessage('Error: Purchase unit must be 40 characters or less.');
+      return;
+    }
 
-        const similarityMatch = checkDuplicateOrSimilar(editName, ingredients, selectedIngredient.id);
-        if (similarityMatch) {
-          const message = similarityMatch.isExactMatch 
-            ? `WARNING: An ingredient with the name "${similarityMatch.matchName}" already exists. Do you still want to update to this name?`
-            : `WARNING: The name sounds very similar to an existing ingredient "${similarityMatch.matchName}". Do you still want to update?`;
-          
-          setConfirmConfig({
-            isOpen: true,
-            title: similarityMatch.isExactMatch ? 'Duplicate Detected' : 'Similar Ingredient Detected',
-            message: message,
-            onConfirm: proceedWithUpdate
-          });
-          return;
-        }
-
-        proceedWithUpdate();
-      }
+    const alertCheck = validateAmountInput(editAlert, {
+      label: 'Low stock alert',
+      min: 0,
+      max: INPUT_LIMITS.THRESHOLD_MAX
     });
+    if (!alertCheck.valid) {
+      setMessage('Error: ' + alertCheck.error);
+      return;
+    }
+
+    const factorCheck = validateAmountInput(editConversionFactor, {
+      label: 'Conversion factor',
+      min: INPUT_LIMITS.CONVERSION_FACTOR_MIN,
+      max: INPUT_LIMITS.CONVERSION_FACTOR_MAX
+    });
+    if (!factorCheck.valid) {
+      setMessage('Error: ' + factorCheck.error);
+      return;
+    }
+
+    const costInput = editCost === '' || editCost === null || editCost === undefined ? 0 : editCost;
+    const costCheck = validateAmountInput(costInput, {
+      label: 'Purchase cost',
+      min: 0,
+      max: INPUT_LIMITS.PURCHASE_COST_MAX
+    });
+    if (!costCheck.valid) {
+      setMessage('Error: ' + costCheck.error);
+      return;
+    }
+
+    if (!forceUpdate) {
+      const similarityMatch = checkDuplicateOrSimilar(editName, ingredients, selectedIngredient.id, trimmedCategory);
+      if (similarityMatch?.isHardDuplicate) {
+        setMessage(`Error: "${similarityMatch.matchName}" already exists under category "${similarityMatch.matchCategory}". Duplicate items in the same category are not allowed.`);
+        return;
+      }
+      if (similarityMatch) {
+        setConfirmConfig({
+          isOpen: true,
+          title: similarityMatch.isDifferentCategory ? 'Same Name in Different Category' : 'Similar Ingredient Detected',
+          message: similarityMatch.isDifferentCategory
+            ? `WARNING: "${similarityMatch.matchName}" already exists in category "${similarityMatch.matchCategory}". Do you still want to update this material under "${trimmedCategory || 'GENERAL'}"?`
+            : `WARNING: The name sounds very similar to an existing ingredient "${similarityMatch.matchName}" (${similarityMatch.matchCategory}). Do you still want to update?`,
+          onConfirm: () => {
+            setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+            handleUpdateIngredient(null, true);
+          }
+        });
+        return;
+      }
+    }
+
+    try {
+      await updateIngredient(selectedIngredient.id, {
+        name: updatedName,
+        unit: updatedUnit,
+        category: trimmedCategory,
+        low_stock_alert: alertCheck.numericValue,
+        stock_quantity: parseFloat(editQuantity) || 0,
+        purchase_unit: trimmedPurchaseUnit || 'Unit',
+        conversion_factor: factorCheck.numericValue,
+        cost_per_purchase_unit: costCheck.numericValue,
+        force_update: forceUpdate
+      });
+      setMessage('Ingredient details updated successfully!');
+      fetchIngredients();
+      setViewMode('ADD');
+      setSelectedIngredient(null);
+      setTimeout(() => setMessage(''), 3000);
+    } catch (err) {
+      if (err.payload?.is_hard_duplicate) {
+        setMessage(err.message?.startsWith('Error:') ? err.message : 'Error: ' + err.message);
+      } else if (err.payload?.is_duplicate_warning) {
+        setConfirmConfig({
+          isOpen: true,
+          title: 'Duplicate Warning',
+          message: err.message + '\n\nDo you still want to proceed?',
+          onConfirm: () => {
+            setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+            handleUpdateIngredient(null, true);
+          }
+        });
+      } else {
+        setMessage('Error updating ingredient: ' + err.message);
+      }
+    }
   };
 
   const handleSetModify = (ingredient) => {
+    setMessage('');
     setSelectedIngredient(ingredient);
     setEditName(ingredient.name);
     setEditCategory(ingredient.category || '');

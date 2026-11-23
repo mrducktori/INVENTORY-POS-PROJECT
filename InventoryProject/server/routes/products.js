@@ -1,7 +1,8 @@
 import express from 'express';
 import { supabase } from "../config/supabaseClient.js";
 import { logAudit } from "../utils/auditHelper.js";
-import { findSimilarName } from "../utils/stringHelper.js";
+import { checkCompositeDuplicate } from "../utils/stringHelper.js";
+import { LIMITS, validateNumberBound, validateTextLength } from "../utils/validationHelper.js";
 import { recalculateProductEstimatedCost } from "../services/recipesService.js";
 import { invalidateAnalyticsCache } from "./analytics.js";
 import { requireRole } from "../middleware/authMiddleware.js";
@@ -9,6 +10,165 @@ import { getArchiveTimestampsMap, getDaysSinceArchived, invalidateArchiveMap } f
 
 const router = express.Router();
 router.use(requireRole('Owner', 'Admin', 'Staff', 'Custom'));
+
+const validateProductInput = (body, { isUpdate = false } = {}) => {
+  const name = validateTextLength(body.name, {
+    label: 'Product name',
+    min: 1,
+    max: LIMITS.NAME_MAX_LEN,
+    required: true
+  });
+  const category = validateTextLength(body.category, {
+    label: 'Category',
+    min: 1,
+    max: LIMITS.CATEGORY_MAX_LEN,
+    required: true
+  });
+
+  let description = body.description;
+  if (body.description !== undefined && body.description !== null) {
+    description = validateTextLength(body.description, {
+      label: 'Description',
+      min: 0,
+      max: LIMITS.DESC_MAX_LEN,
+      required: false
+    });
+  } else if (!isUpdate) {
+    description = null;
+  }
+
+  const price = validateNumberBound(body.price, {
+    label: 'Product price',
+    min: LIMITS.PRODUCT_PRICE_MIN,
+    max: LIMITS.PRODUCT_PRICE_MAX,
+    allowZero: false
+  });
+
+  const hasThreshold = body.low_stock_threshold !== undefined && body.low_stock_threshold !== null && body.low_stock_threshold !== '';
+  const low_stock_threshold = hasThreshold
+    ? validateNumberBound(body.low_stock_threshold, {
+        label: 'Low stock threshold',
+        min: LIMITS.THRESHOLD_MIN,
+        max: LIMITS.THRESHOLD_MAX
+      })
+    : (isUpdate ? undefined : 0);
+
+  let stock_quantity = 0;
+  if (!isUpdate && body.stock_quantity !== undefined && body.stock_quantity !== null && body.stock_quantity !== '') {
+    stock_quantity = validateNumberBound(body.stock_quantity, {
+      label: 'Stock quantity',
+      min: LIMITS.STOCK_QTY_MIN,
+      max: LIMITS.STOCK_QTY_MAX
+    });
+  }
+
+  let sizes = body.sizes;
+  if (sizes !== undefined && sizes !== null) {
+    if (!Array.isArray(sizes)) {
+      const err = new Error('Sizes must be an array.');
+      err.status = 400;
+      throw err;
+    }
+    sizes = sizes.map((s) => {
+      if (!s || typeof s !== 'object' || Array.isArray(s)) {
+        const err = new Error('Each size entry must be an object.');
+        err.status = 400;
+        throw err;
+      }
+      const cleanSizeName = s.name !== undefined && s.name !== null
+        ? validateTextLength(s.name, { label: 'Size name', min: 1, max: LIMITS.NAME_MAX_LEN, required: false })
+        : s.name;
+      const rawPriceAdd = s.price_add !== undefined && s.price_add !== null && s.price_add !== '' ? s.price_add : 0;
+      const price_add = validateNumberBound(rawPriceAdd, {
+        label: 'Size price adjustment',
+        min: LIMITS.ADDON_PRICE_MIN,
+        max: LIMITS.ADDON_PRICE_MAX
+      });
+      return { ...s, ...(cleanSizeName !== undefined ? { name: cleanSizeName } : {}), price_add };
+    });
+  } else {
+    sizes = [];
+  }
+
+  let add_ons = body.add_ons;
+  if (add_ons !== undefined && add_ons !== null) {
+    if (!Array.isArray(add_ons)) {
+      const err = new Error('Add-ons must be an array.');
+      err.status = 400;
+      throw err;
+    }
+    add_ons = add_ons.map((a) => {
+      if (!a || typeof a !== 'object' || Array.isArray(a)) {
+        const err = new Error('Each add-on entry must be an object.');
+        err.status = 400;
+        throw err;
+      }
+      const cleanAddonName = a.name !== undefined && a.name !== null
+        ? validateTextLength(a.name, { label: 'Add-on name', min: 1, max: LIMITS.NAME_MAX_LEN, required: false })
+        : a.name;
+      const rawAddonPrice = a.price !== undefined && a.price !== null && a.price !== '' ? a.price : 0;
+      const addonPrice = validateNumberBound(rawAddonPrice, {
+        label: 'Add-on price',
+        min: LIMITS.ADDON_PRICE_MIN,
+        max: LIMITS.ADDON_PRICE_MAX
+      });
+      const hasAddonQty = a.quantity !== undefined && a.quantity !== null && a.quantity !== '';
+      const addonQty = hasAddonQty
+        ? validateNumberBound(a.quantity, {
+            label: 'Add-on quantity',
+            min: 0,
+            max: LIMITS.RECIPE_QTY_MAX
+          })
+        : a.quantity;
+      return {
+        ...a,
+        ...(cleanAddonName !== undefined ? { name: cleanAddonName } : {}),
+        price: addonPrice,
+        ...(hasAddonQty ? { quantity: addonQty } : {})
+      };
+    });
+  } else {
+    add_ons = [];
+  }
+
+  return { name, category, description, price, low_stock_threshold, stock_quantity, sizes, add_ons };
+};
+
+const findProductDuplicateConflict = async ({ name, category, excludeId = null, force = false }) => {
+  const { data: existingProducts, error } = await supabase
+    .from("products")
+    .select("id, name, category, is_archived");
+  if (error) throw error;
+
+  const dup = checkCompositeDuplicate(name, category, existingProducts || [], excludeId);
+  if (!dup) return null;
+
+  if (dup.isHardDuplicate) {
+    const archivedNote = dup.isArchived ? ' (archived)' : '';
+    return {
+      status: 409,
+      body: {
+        error: `Product "${dup.matchName}"${archivedNote} already exists under category "${dup.matchCategory}". Duplicate items in the same category are not allowed.`,
+        is_hard_duplicate: true
+      }
+    };
+  }
+
+  if (dup.isDuplicateWarning && !force) {
+    const errorMsg = dup.reason === 'SAME_NAME_DIFF_CATEGORY'
+      ? `A product named "${dup.matchName}" already exists under category "${dup.matchCategory}".`
+      : `A product with a similar name ("${dup.matchName}" in "${dup.matchCategory}") already exists.`;
+    return {
+      status: 409,
+      body: {
+        error: errorMsg,
+        is_duplicate_warning: true
+      }
+    };
+  }
+
+  return null;
+};
 
 // Get all products (active and archived)
 router.get('/', async (req, res) => {
@@ -39,43 +199,35 @@ router.get('/', async (req, res) => {
 // Create new product
 router.post('/', async (req, res) => {
   try {
-    const { name, category, price, description, track_stock, stock_quantity, low_stock_threshold, sizes, add_ons, image_url, force_create } = req.body;
-    if (!name || !category || !price) {
-      return res.status(400).json({ error: 'Name, category, and price are required' });
+    const { track_stock, image_url, force_create } = req.body;
+    const validated = validateProductInput(req.body);
+
+    const conflict = await findProductDuplicateConflict({
+      name: validated.name,
+      category: validated.category,
+      force: Boolean(force_create)
+    });
+    if (conflict) {
+      return res.status(conflict.status).json(conflict.body);
     }
 
-    // Check for duplicates
-    if (!force_create) {
-      const { data: existingProducts } = await supabase.from("products").select("name");
-      if (existingProducts) {
-        const existingNames = existingProducts.map(p => p.name);
-        const similar = findSimilarName(name, existingNames);
-        if (similar) {
-          return res.status(409).json({ 
-            error: `A product with a similar name ("${similar}") already exists.`,
-            is_duplicate_warning: true 
-          });
-        }
-      }
-    }
-
-    const estimated_cost = Math.round((parseFloat(price) || 0) * 0.38 * 100) / 100;
+    const estimated_cost = Math.round(validated.price * 0.38 * 100) / 100;
 
     const { data, error } = await supabase
       .from('products')
       .insert([{
-        name,
-        category,
-        price,
+        name: validated.name,
+        category: validated.category,
+        price: validated.price,
         estimated_cost,
-        description,
+        description: validated.description,
         image_url,
         is_archived: false,
         track_stock: track_stock || false,
-        stock_quantity: stock_quantity || 0,
-        low_stock_threshold: low_stock_threshold || 0,
-        sizes: sizes || [],
-        add_ons: add_ons || []
+        stock_quantity: validated.stock_quantity,
+        low_stock_threshold: validated.low_stock_threshold,
+        sizes: validated.sizes,
+        add_ons: validated.add_ons
       }])
       .select()
       .single();
@@ -92,7 +244,13 @@ router.post('/', async (req, res) => {
 
     res.status(201).json(data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    if (err?.code === '23505') {
+      return res.status(409).json({
+        error: 'A product with this name and category already exists.',
+        is_hard_duplicate: true
+      });
+    }
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
@@ -101,21 +259,34 @@ router.post('/', async (req, res) => {
 // Stock can only be changed through POST /:id/receive (add) or the POS/wastage flow (subtract).
 router.put('/:id', async (req, res) => {
   try {
-    const { name, category, price, description, track_stock, low_stock_threshold, sizes, add_ons, image_url } = req.body;
-    
+    const { track_stock, image_url, force_update } = req.body;
+    const validated = validateProductInput(req.body, { isUpdate: true });
+
+    const conflict = await findProductDuplicateConflict({
+      name: validated.name,
+      category: validated.category,
+      excludeId: req.params.id,
+      force: Boolean(force_update)
+    });
+    if (conflict) {
+      return res.status(conflict.status).json(conflict.body);
+    }
+
+    const updatePayload = {
+      name: validated.name,
+      category: validated.category,
+      price: validated.price,
+      image_url,
+      track_stock,
+      sizes: validated.sizes,
+      add_ons: validated.add_ons,
+      ...(validated.description !== undefined ? { description: validated.description } : {}),
+      ...(validated.low_stock_threshold !== undefined ? { low_stock_threshold: validated.low_stock_threshold } : {})
+    };
+
     const { data, error } = await supabase
       .from('products')
-      .update({
-        name,
-        category,
-        price,
-        description,
-        image_url,
-        track_stock,
-        low_stock_threshold,
-        sizes: sizes || [],
-        add_ons: add_ons || []
-      })
+      .update(updatePayload)
       .eq('id', req.params.id)
       .select()
       .single();
@@ -126,14 +297,20 @@ router.put('/:id', async (req, res) => {
 
     await logAudit('PRODUCT_UPDATED', req.user.id, {
       product_id: req.params.id,
-      name,
-      category,
-      price
+      name: validated.name,
+      category: validated.category,
+      price: validated.price
     });
 
     res.json(data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    if (err?.code === '23505') {
+      return res.status(409).json({
+        error: 'A product with this name and category already exists.',
+        is_hard_duplicate: true
+      });
+    }
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
@@ -257,16 +434,18 @@ router.delete('/:id', requireRole('Owner', 'Admin'), async (req, res) => {
 });
 
 // Receive stock for product (Direct Stock Tracking)
-// FIX #11: Validates that quantity is a positive number before adding to stock.
+// FIX #11: Validates that quantity is a positive number within bounds before adding to stock.
 router.post('/:id/receive', async (req, res) => {
   try {
     const { quantity } = req.body;
     const productId = req.params.id;
 
-    const parsedQty = parseFloat(quantity);
-    if (!parsedQty || parsedQty <= 0 || isNaN(parsedQty)) {
-      return res.status(400).json({ error: 'Quantity received must be a positive number.' });
-    }
+    const parsedQty = validateNumberBound(quantity, {
+      label: 'Quantity received',
+      min: LIMITS.RECEIVE_QTY_MIN,
+      max: LIMITS.RECEIVE_QTY_MAX,
+      allowZero: false
+    });
 
     const { data: product, error: fetchError } = await supabase
       .from('products')
@@ -276,6 +455,11 @@ router.post('/:id/receive', async (req, res) => {
     if (fetchError) throw fetchError;
 
     const newStock = (parseFloat(product.stock_quantity) || 0) + parsedQty;
+    validateNumberBound(newStock, {
+      label: 'Resulting stock quantity',
+      min: LIMITS.STOCK_QTY_MIN,
+      max: LIMITS.STOCK_QTY_MAX
+    });
 
     const { data, error: updateError } = await supabase
       .from('products')
@@ -296,7 +480,7 @@ router.post('/:id/receive', async (req, res) => {
 
     res.json(data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 

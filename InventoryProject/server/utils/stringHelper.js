@@ -82,3 +82,86 @@ export const findSimilarName = (newName, existingNames) => {
   
   return null;
 };
+
+/**
+ * Normalizes a category label for case- and whitespace-insensitive comparison.
+ */
+export const normalizeCategory = (cat) => {
+  const cleaned = String(cat ?? '').trim().replace(/\s+/g, ' ');
+  return (cleaned || 'GENERAL').toUpperCase();
+};
+
+const cleanLowerName = (name) => String(name || '').trim().replace(/\s+/g, ' ').toLowerCase();
+
+const isSameNormalizedName = (a, b) => {
+  const lowerA = cleanLowerName(a);
+  const lowerB = cleanLowerName(b);
+  if (!lowerA || !lowerB) return false;
+  if (lowerA === lowerB) return true;
+  const alphaA = normalizeName(a);
+  const alphaB = normalizeName(b);
+  return Boolean(alphaA && alphaB && alphaA === alphaB);
+};
+
+/**
+ * Checks for composite (name + category) duplicates across existing items.
+ * Pass 1: Same normalized name + same normalized category -> hard block.
+ * Pass 2: Same normalized name in a different category -> soft warning.
+ * Pass 3: Fuzzy-similar name -> soft warning.
+ */
+export const checkCompositeDuplicate = (newName, newCategory, existingItems, excludeId = null) => {
+  const candidates = (existingItems || []).filter(
+    (item) => item && (excludeId === null || excludeId === undefined || String(item.id) !== String(excludeId))
+  );
+  // Prefer active items over archived items if both happen to exist
+  const ordered = [
+    ...candidates.filter((item) => !item.is_archived),
+    ...candidates.filter((item) => item.is_archived)
+  ];
+
+  const targetCat = normalizeCategory(newCategory);
+
+  for (const item of ordered) {
+    if (isSameNormalizedName(item.name, newName) && normalizeCategory(item.category) === targetCat) {
+      return {
+        isHardDuplicate: true,
+        isDuplicateWarning: false,
+        matchName: item.name,
+        matchCategory: item.category || 'GENERAL',
+        isArchived: Boolean(item.is_archived)
+      };
+    }
+  }
+
+  for (const item of ordered) {
+    if (isSameNormalizedName(item.name, newName)) {
+      return {
+        isHardDuplicate: false,
+        isDuplicateWarning: true,
+        reason: 'SAME_NAME_DIFF_CATEGORY',
+        matchName: item.name,
+        matchCategory: item.category || 'GENERAL',
+        isArchived: Boolean(item.is_archived)
+      };
+    }
+  }
+
+  const normAlphaNew = normalizeName(newName);
+  if (normAlphaNew) {
+    for (const item of ordered) {
+      if (!normalizeName(item.name)) continue;
+      if (findSimilarName(newName, [item.name])) {
+        return {
+          isHardDuplicate: false,
+          isDuplicateWarning: true,
+          reason: 'SIMILAR_NAME',
+          matchName: item.name,
+          matchCategory: item.category || 'GENERAL',
+          isArchived: Boolean(item.is_archived)
+        };
+      }
+    }
+  }
+
+  return null;
+};

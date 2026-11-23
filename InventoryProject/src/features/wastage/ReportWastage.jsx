@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { getIngredients } from '../../api/inventoryApi';
 import { reportWastage, getWastageHistory } from '../../api/wastageApi';
 import { formatQuantity } from '../../utils/productUtils';
+import { INPUT_LIMITS, validateAmountInput } from '../../utils/validationUtils';
 import { getCurrentUser } from '../../api/authApi';
 import { TableSkeleton } from '../../components/shared/SkeletonLoader';
 import SearchableIngredientSelect from '../../components/shared/SearchableIngredientSelect';
@@ -64,11 +65,17 @@ const ReportWastage = () => {
       return;
     }
 
-    const qty = parseFloat(formData.quantity);
-    if (isNaN(qty) || qty <= 0) {
-      setFeedback({ type: 'error', text: 'Wastage quantity must be greater than zero.' });
+    const qtyCheck = validateAmountInput(formData.quantity, {
+      label: 'Wastage quantity',
+      min: INPUT_LIMITS.WASTAGE_QTY_MIN,
+      max: INPUT_LIMITS.WASTAGE_QTY_MAX
+    });
+    if (!qtyCheck.valid || qtyCheck.numericValue > INPUT_LIMITS.WASTAGE_QTY_MAX) {
+      setFeedback({ type: 'error', text: qtyCheck.error });
       return;
     }
+
+    const qty = qtyCheck.numericValue;
 
     if (selectedIngredient && qty > parseFloat(selectedIngredient.stock_quantity || 0)) {
       setFeedback({
@@ -283,6 +290,7 @@ const ReportWastage = () => {
                   type="number"
                   step="any"
                   min="0.01"
+                  max={selectedIngredient ? Math.min(1000000, parseFloat(selectedIngredient.stock_quantity) || 1000000) : 1000000}
                   name="quantity"
                   placeholder="e.g. 250"
                   value={formData.quantity}

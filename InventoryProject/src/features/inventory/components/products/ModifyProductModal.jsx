@@ -27,7 +27,9 @@ const ModifyProductModal = ({
   setNewRecipeItem,
   onAddRecipeItem,
   onUpdateRecipeItem,
-  onDeleteRecipeItem
+  onDeleteRecipeItem,
+  message = '',
+  onClearMessage = null
 }) => {
   const [editingRecipeId, setEditingRecipeId] = useState(null);
   const [editRecipeQty, setEditRecipeQty] = useState('');
@@ -54,11 +56,29 @@ const ModifyProductModal = ({
         </div>
 
         <div className="p-6 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200">
+          {message && (
+            <div className={`p-3 mb-5 rounded-xl text-xs md:text-sm font-bold flex items-center justify-between shadow-xs ${
+              message.includes('success') || message.includes('updated') || message.includes('Added')
+                ? 'bg-green-50 text-green-700 border border-green-200'
+                : 'bg-red-50 text-red-700 border border-red-200'
+            }`}>
+              <span>{message}</span>
+              {onClearMessage && (
+                <button
+                  type="button"
+                  onClick={onClearMessage}
+                  className="text-xs font-bold uppercase opacity-75 hover:opacity-100 cursor-pointer ml-3"
+                >
+                  Dismiss
+                </button>
+              )}
+            </div>
+          )}
           <form id="modify-product-form" onSubmit={onUpdateProduct} className="flex flex-col gap-5">
             <div className="flex flex-col sm:flex-row gap-5">
               <div className="flex flex-col gap-1.5 flex-1">
                 <label className="text md:text-sm font-bold text-gray-700 uppercase tracking-wider">Product Name</label>
-                <input type="text" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm md:text-base font-semibold focus:outline-none focus:bg-white focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors" value={editName} onChange={e => setEditName(e.target.value)} required />
+                <input type="text" maxLength={100} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm md:text-base font-semibold focus:outline-none focus:bg-white focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors" value={editName} onChange={e => setEditName(e.target.value)} required />
               </div>
               <div className="flex flex-col gap-1.5 flex-1">
                 <label className="text md:text-sm font-bold text-gray-700 uppercase tracking-wider">Category</label>
@@ -75,8 +95,9 @@ const ModifyProductModal = ({
                 </label>
                 <input
                   type="number"
-                  step="any"
-                  min="0"
+                  step="0.01"
+                  min="0.01"
+                  max="100000"
                   className={`w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm md:text-base font-semibold focus:outline-none focus:bg-white focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors ${!selectedProduct.is_archived ? 'opacity-60 cursor-not-allowed' : ''}`}
                   value={editPrice}
                   onChange={e => setEditPrice(e.target.value)}
@@ -132,7 +153,7 @@ const ModifyProductModal = ({
                 </div>
                 <div className="flex flex-col gap-1.5 flex-1">
                   <label className="text font-semibold text-gray-600 uppercase tracking-wider">Low Stock Alert at</label>
-                  <input type="number" className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-colors" value={editThreshold} onChange={e => setEditThreshold(e.target.value)} min="0" required />
+                  <input type="number" className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-colors" value={editThreshold} onChange={e => setEditThreshold(e.target.value)} min="0" max="1000000" required />
                 </div>
               </div>
             )}
@@ -183,14 +204,14 @@ const ModifyProductModal = ({
                                   type="number"
                                   step="any"
                                   min="0.001"
+                                  max="100000"
                                   value={editRecipeQty}
                                   onChange={(e) => setEditRecipeQty(e.target.value)}
-                                  onKeyDown={(e) => {
+                                  onKeyDown={async (e) => {
                                     if (e.key === 'Enter') {
                                       e.preventDefault();
-                                      const qty = parseFloat(editRecipeQty);
-                                      if (!isNaN(qty) && qty > 0) {
-                                        onUpdateRecipeItem(r.id, qty, editRecipeUnit);
+                                      const ok = await onUpdateRecipeItem(r.id, editRecipeQty, editRecipeUnit);
+                                      if (ok !== false) {
                                         setEditingRecipeId(null);
                                       }
                                     } else if (e.key === 'Escape') {
@@ -205,10 +226,9 @@ const ModifyProductModal = ({
                                 </span>
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    const qty = parseFloat(editRecipeQty);
-                                    if (!isNaN(qty) && qty > 0) {
-                                      onUpdateRecipeItem(r.id, qty, editRecipeUnit);
+                                  onClick={async () => {
+                                    const ok = await onUpdateRecipeItem(r.id, editRecipeQty, editRecipeUnit);
+                                    if (ok !== false) {
                                       setEditingRecipeId(null);
                                     }
                                   }}
@@ -362,6 +382,7 @@ const ModifyProductModal = ({
                       type="number"
                       step="any"
                       min="0.001"
+                      max="100000"
                       placeholder="Qty"
                       className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm md:text-base font-semibold focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors"
                       value={newRecipeItem.quantity}

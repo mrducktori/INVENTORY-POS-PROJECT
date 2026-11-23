@@ -3,6 +3,7 @@ import { getIngredientById, updateStock } from "./inventoryService.js";
 import { logAudit } from "../utils/auditHelper.js";
 import { toManilaStartOfDay, toManilaEndOfDay } from "../utils/dateUtils.js";
 import { invalidateAnalyticsCache } from "../routes/analytics.js";
+import { LIMITS, validateNumberBound, validateTextLength } from "../utils/validationHelper.js";
 
 const computeWastageEntryCost = (entry) => {
   if (entry.estimated_cost !== undefined && entry.estimated_cost !== null && Number(entry.estimated_cost) > 0) {
@@ -32,10 +33,18 @@ const computeWastageEntryCost = (entry) => {
 // This prevents the audit log from being created if the deduction would fail,
 // keeping the wastage log and actual inventory perfectly in sync.
 export const reportWastage = async ({ ingredient_id, quantity, reason, reported_by }) => {
-  const qty = parseFloat(quantity);
-  if (!qty || qty <= 0 || isNaN(qty)) {
-    throw new Error("Wastage quantity must be a positive number.");
-  }
+  const qty = validateNumberBound(quantity, {
+    label: 'Wastage quantity',
+    min: LIMITS.WASTAGE_QTY_MIN,
+    max: LIMITS.WASTAGE_QTY_MAX,
+    allowZero: false
+  });
+  const cleanReason = validateTextLength(reason, {
+    label: 'Wastage reason',
+    min: 1,
+    max: LIMITS.DESC_MAX_LEN,
+    required: true
+  });
 
   // Check current stock BEFORE logging or deducting
   const ingredient = await getIngredientById(ingredient_id);
@@ -66,7 +75,7 @@ export const reportWastage = async ({ ingredient_id, quantity, reason, reported_
       .insert([{
         ingredient_id,
         quantity: qty,
-        reason,
+        reason: cleanReason,
         reported_by,
         estimated_cost
       }])
@@ -92,7 +101,7 @@ export const reportWastage = async ({ ingredient_id, quantity, reason, reported_
     ingredient_name: ingredient.name,
     quantity: qty,
     estimated_cost,
-    reason
+    reason: cleanReason
   });
 
   return data;

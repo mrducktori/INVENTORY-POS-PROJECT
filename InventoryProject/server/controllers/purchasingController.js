@@ -1,6 +1,7 @@
 import * as purchasingService from "../services/purchasingService.js";
 import { logAudit } from "../utils/auditHelper.js";
 import { invalidateAnalyticsCache } from "../routes/analytics.js";
+import { LIMITS, validateNumberBound } from "../utils/validationHelper.js";
 
 // === Suppliers ===
 export const getSuppliers = async (req, res) => {
@@ -25,7 +26,7 @@ export const createSupplier = async (req, res) => {
 
     res.status(201).json(data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 };
 
@@ -42,7 +43,7 @@ export const updateSupplier = async (req, res) => {
 
     res.json(data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 };
 
@@ -117,7 +118,7 @@ export const createPurchaseOrder = async (req, res) => {
 
     res.status(201).json(data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 };
 
@@ -449,12 +450,12 @@ export const updateSupplierOwnCatalog = async (req, res) => {
       }
 
       const rawPrice = item.default_price ?? item.price ?? existing.default_price ?? 0;
-      const newPrice = Number(rawPrice);
+      const newPrice = validateNumberBound(rawPrice, {
+        label: 'Catalog item price',
+        min: LIMITS.PURCHASE_COST_MIN,
+        max: LIMITS.PURCHASE_COST_MAX
+      });
       const convFactor = Number(existing.default_conversion_factor) || 1;
-
-      if (!Number.isFinite(newPrice) || newPrice < 0) {
-        return res.status(400).json({ error: 'Item price must be a valid non-negative number.' });
-      }
 
       validatedItems.push({ item, existing, newPrice, convFactor });
     }
@@ -515,7 +516,7 @@ export const updateSupplierOwnCatalog = async (req, res) => {
 
     res.json({ success: true, count: validatedItems.length, price_changes: priceChanges });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 };
 
