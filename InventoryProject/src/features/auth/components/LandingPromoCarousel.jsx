@@ -50,7 +50,7 @@ function PromoLightbox({ promo, promos = [], currentIndex = 0, onSelectIndex, on
 
   const modalContent = (
     <div
-      className="fixed inset-0 z-[9999] bg-black/92 backdrop-blur-md overflow-y-auto flex flex-col items-center p-3 sm:p-6 animate-fade-in select-none"
+      className="fixed inset-0 z-[9999] bg-black/92 backdrop-blur-md overflow-y-auto flex flex-col items-center p-3 sm:p-6 fade-in select-none"
       style={{ WebkitOverflowScrolling: 'touch' }}
       onClick={onClose}
     >

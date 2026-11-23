@@ -100,7 +100,7 @@ function LandingMenuBoard({
               if (catProducts.length === 0) return null;
 
               return (
-                <div key={cat} className="animate-fade-in">
+                <div key={cat} className="fade-in">
                   <h3 className="text-base sm:text-lg md:text-xl font-black tracking-widest uppercase text-white/90 border-b border-white/10 pb-1.5 mb-3 sm:mb-4 drop-shadow-md">
                     {cat}
                   </h3>
