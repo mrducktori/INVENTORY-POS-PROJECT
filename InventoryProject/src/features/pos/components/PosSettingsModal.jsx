@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { supabase } from '../../../config/supabaseClient';
 import { getPosSettings, updatePosSettings } from '../../../api/posApi';
 import SearchableIngredientSelect from '../../../components/shared/SearchableIngredientSelect';
+import InfoTip from '../../../components/shared/InfoTip';
 
 const PROVIDERS = [
   { id: 'GCASH', label: 'GCash' },
@@ -92,6 +93,7 @@ const PosSettingsModal = ({ allIngredients = [], initialSettings = null, onSaved
   const [saving, setSaving] = useState(false);
   const [uploadingProvider, setUploadingProvider] = useState(null);
   const [notice, setNotice] = useState({ type: '', text: '' });
+  const [showPromoGuide, setShowPromoGuide] = useState(false);
 
   const [newPromo, setNewPromo] = useState({
     code: '',
@@ -390,9 +392,15 @@ const PosSettingsModal = ({ allIngredients = [], initialSettings = null, onSaved
                 <div className="space-y-6">
                   <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
                     <div>
-                      <h3 className="m-0 text-sm font-extrabold text-gray-900 uppercase tracking-wider">
-                        Itemized Discount Types ({settings.discount_types.length})
-                      </h3>
+                      <div className="flex items-center gap-1.5">
+                        <h3 className="m-0 text-sm font-extrabold text-gray-900 uppercase tracking-wider">
+                          Itemized Discount Types ({settings.discount_types.length})
+                        </h3>
+                        <InfoTip
+                          position="bottom"
+                          text="Configure built-in and custom statutory or store discount rules. Active items appear as selectable discount buttons at POS checkout."
+                        />
+                      </div>
                       <p className="m-0 text-xs text-gray-500 mt-0.5">
                         Configure percentages, ID verification, and VAT-exempt status for statutory and store discounts. Changes apply immediately at POS checkout if laws or store policies change.
                       </p>
@@ -479,45 +487,57 @@ const PosSettingsModal = ({ allIngredients = [], initialSettings = null, onSaved
                       })}
                     </div>
 
-                    <form onSubmit={handleAddDiscountType} className="pt-2 grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-center">
-                      <input
-                        type="text"
-                        maxLength={60}
-                        placeholder="New Discount Name (e.g. Solo Parent, VIP)"
-                        value={newDiscount.label}
-                        onChange={(e) => setNewDiscount({ ...newDiscount, label: e.target.value })}
-                        className="sm:col-span-4 px-3 py-2 border border-gray-300 rounded-lg text-xs font-semibold bg-white"
-                      />
-                      <div className="sm:col-span-2 flex items-center gap-1">
+                    <form onSubmit={handleAddDiscountType} className="pt-3 border-t border-gray-200/80 grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end">
+                      <div className="sm:col-span-4 flex flex-col gap-1">
+                        <label className="text-[11px] font-bold text-gray-600 uppercase tracking-wider">
+                          Discount Name *
+                        </label>
                         <input
-                          type="number"
-                          min="0.1"
-                          max="100"
-                          step="0.5"
-                          placeholder="Rate %"
-                          value={newDiscount.rate_percent}
-                          onChange={(e) => setNewDiscount({ ...newDiscount, rate_percent: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-bold font-mono bg-white"
+                          type="text"
+                          maxLength={60}
+                          placeholder="e.g. Solo Parent, VIP"
+                          value={newDiscount.label}
+                          onChange={(e) => setNewDiscount({ ...newDiscount, label: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-semibold bg-white"
                         />
-                        <span className="text-xs font-bold text-gray-600">%</span>
                       </div>
-                      <label className="sm:col-span-2 inline-flex items-center gap-1.5 text-xs font-semibold text-gray-700 cursor-pointer">
+                      <div className="sm:col-span-2 flex flex-col gap-1">
+                        <label className="text-[11px] font-bold text-gray-600 uppercase tracking-wider">
+                          Rate (%) *
+                        </label>
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            min="0.1"
+                            max="100"
+                            step="0.5"
+                            placeholder="10"
+                            value={newDiscount.rate_percent}
+                            onChange={(e) => setNewDiscount({ ...newDiscount, rate_percent: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-bold font-mono bg-white"
+                          />
+                          <span className="text-xs font-bold text-gray-600">%</span>
+                        </div>
+                      </div>
+                      <label className="sm:col-span-2 inline-flex items-center gap-1.5 text-xs font-semibold text-gray-700 cursor-pointer pb-2">
                         <input
                           type="checkbox"
                           checked={newDiscount.requires_id}
                           onChange={(e) => setNewDiscount({ ...newDiscount, requires_id: e.target.checked })}
                           className="w-3.5 h-3.5 accent-gray-900"
                         />
-                        Requires ID
+                        <span>Requires ID</span>
+                        <InfoTip text="Prompts cashier for Customer Full Name and ID Number at POS checkout." />
                       </label>
-                      <label className="sm:col-span-2 inline-flex items-center gap-1.5 text-xs font-semibold text-gray-700 cursor-pointer">
+                      <label className="sm:col-span-2 inline-flex items-center gap-1.5 text-xs font-semibold text-gray-700 cursor-pointer pb-2">
                         <input
                           type="checkbox"
                           checked={newDiscount.vat_exempt}
                           onChange={(e) => setNewDiscount({ ...newDiscount, vat_exempt: e.target.checked })}
                           className="w-3.5 h-3.5 accent-gray-900"
                         />
-                        VAT-Exempt
+                        <span>VAT-Exempt</span>
+                        <InfoTip text="Applies 12% VAT-exempt breakdown math on receipt (e.g. Senior Citizen / PWD)." />
                       </label>
                       <button
                         type="submit"
@@ -592,68 +612,140 @@ const PosSettingsModal = ({ allIngredients = [], initialSettings = null, onSaved
                       </div>
                     )}
 
-                    <form onSubmit={handleAddPromo} className="p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-3">
-                      <span className="block text-xs font-extrabold text-gray-800 uppercase tracking-wider">
-                        Add Promo Code
-                      </span>
-                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
-                        <input
-                          type="text"
-                          maxLength={30}
-                          placeholder="Code (e.g. SUMMER15)"
-                          value={newPromo.code}
-                          onChange={(e) => setNewPromo({ ...newPromo, code: e.target.value.toUpperCase() })}
-                          className="px-3 py-2 border border-gray-300 rounded-lg text-xs font-bold uppercase bg-white"
-                        />
-                        <select
-                          value={newPromo.type}
-                          onChange={(e) => setNewPromo({ ...newPromo, type: e.target.value })}
-                          className="px-3 py-2 border border-gray-300 rounded-lg text-xs font-bold bg-white cursor-pointer"
+                    <form onSubmit={handleAddPromo} className="p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-3.5">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-extrabold text-gray-800 uppercase tracking-wider">
+                            Add Promo Code
+                          </span>
+                          <InfoTip
+                            position="bottom"
+                            text="Create promo codes or Buy 1 Take 1 deals that cashiers can select during payment."
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowPromoGuide((v) => !v)}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer ${
+                            showPromoGuide
+                              ? 'bg-gray-900 text-white border-gray-900'
+                              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
+                          }`}
                         >
-                          <option value="PERCENT">Percent (% Off)</option>
-                          <option value="FIXED">Fixed Amount (₱ Off)</option>
-                          <option value="B1T1">Buy 1 Take 1 (Cheapest Free)</option>
-                        </select>
-                        <input
-                          type="number"
-                          step="any"
-                          min="0"
-                          max={newPromo.type === 'PERCENT' ? 100 : 100000}
-                          disabled={newPromo.type === 'B1T1'}
-                          placeholder={
-                            newPromo.type === 'B1T1'
-                              ? 'Auto (Cheapest Item)'
-                              : newPromo.type === 'PERCENT'
-                              ? 'Percent (1-100)'
-                              : 'Amount (₱)'
-                          }
-                          value={newPromo.type === 'B1T1' ? '' : newPromo.value}
-                          onChange={(e) => setNewPromo({ ...newPromo, value: e.target.value })}
-                          className="px-3 py-2 border border-gray-300 rounded-lg text-xs font-semibold bg-white disabled:bg-gray-100"
-                        />
-                        <input
-                          type="number"
-                          step="any"
-                          min="0"
-                          max="100000"
-                          placeholder="Min Subtotal (₱)"
-                          value={newPromo.min_subtotal}
-                          onChange={(e) => setNewPromo({ ...newPromo, min_subtotal: e.target.value })}
-                          className="px-3 py-2 border border-gray-300 rounded-lg text-xs font-semibold bg-white"
-                        />
+                          <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="12" y1="16" x2="12" y2="12" />
+                            <line x1="12" y1="8" x2="12.01" y2="8" />
+                          </svg>
+                          {showPromoGuide ? 'Hide Guide' : 'Field Guide'}
+                        </button>
                       </div>
-                      <div className="flex flex-col sm:flex-row gap-2.5">
-                        <input
-                          type="text"
-                          maxLength={120}
-                          placeholder="Short description shown to cashiers (optional)"
-                          value={newPromo.description}
-                          onChange={(e) => setNewPromo({ ...newPromo, description: e.target.value })}
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-xs bg-white"
-                        />
+
+                      {showPromoGuide && (
+                        <div className="p-3.5 bg-white border border-gray-200 rounded-xl text-xs text-gray-600 space-y-2">
+                          <div className="font-bold text-gray-900">How Promo Code Fields Work</div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 leading-relaxed">
+                            <div>
+                              <strong className="text-gray-800">1. Promo Code:</strong> 2–30 uppercase letters or numbers (e.g. <code className="font-mono text-gray-900">SUMMER15</code>, <code className="font-mono text-gray-900">WELCOME50</code>). Shown as a quick-select button in Payment.
+                            </div>
+                            <div>
+                              <strong className="text-gray-800">2. Discount Type:</strong> Choose <strong>Percent (% Off)</strong>, <strong>Fixed Amount (₱ Off)</strong>, or <strong>Buy 1 Take 1</strong> (automatically deducts the lowest-priced item when 2+ items are ordered).
+                            </div>
+                            <div>
+                              <strong className="text-gray-800">3. Discount Value:</strong> Enter <code className="font-mono text-gray-900">1–100</code> for Percent or <code className="font-mono text-gray-900">₱1–₱100,000</code> for Fixed Amount. Leave blank for Buy 1 Take 1.
+                            </div>
+                            <div>
+                              <strong className="text-gray-800">4. Min. Order Subtotal (₱):</strong> Minimum cart total needed before the promo applies. Keep <code className="font-mono text-gray-900">0</code> for no minimum purchase.
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[11px] font-bold text-gray-600 uppercase tracking-wider flex items-center gap-1">
+                            <span>Promo Code *</span>
+                          </label>
+                          <input
+                            type="text"
+                            maxLength={30}
+                            placeholder="e.g. SUMMER15"
+                            value={newPromo.code}
+                            onChange={(e) => setNewPromo({ ...newPromo, code: e.target.value.toUpperCase() })}
+                            className="px-3 py-2 border border-gray-300 rounded-lg text-xs font-bold uppercase bg-white"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[11px] font-bold text-gray-600 uppercase tracking-wider flex items-center gap-1">
+                            <span>Discount Type *</span>
+                          </label>
+                          <select
+                            value={newPromo.type}
+                            onChange={(e) => setNewPromo({ ...newPromo, type: e.target.value })}
+                            className="px-3 py-2 border border-gray-300 rounded-lg text-xs font-bold bg-white cursor-pointer"
+                          >
+                            <option value="PERCENT">Percent (% Off)</option>
+                            <option value="FIXED">Fixed Amount (₱ Off)</option>
+                            <option value="B1T1">Buy 1 Take 1 (Cheapest Free)</option>
+                          </select>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[11px] font-bold text-gray-600 uppercase tracking-wider flex items-center gap-1">
+                            <span>{newPromo.type === 'PERCENT' ? 'Percent Off (%)' : newPromo.type === 'FIXED' ? 'Amount Off (₱)' : 'Value (Auto)'}</span>
+                            <InfoTip text={newPromo.type === 'B1T1' ? 'Automatically deducts the cheapest item when 2+ items are ordered.' : 'Enter percentage (1-100) or peso amount off the order subtotal.'} />
+                          </label>
+                          <input
+                            type="number"
+                            step="any"
+                            min="0"
+                            max={newPromo.type === 'PERCENT' ? 100 : 100000}
+                            disabled={newPromo.type === 'B1T1'}
+                            placeholder={
+                              newPromo.type === 'B1T1'
+                                ? 'Auto (Cheapest Item)'
+                                : newPromo.type === 'PERCENT'
+                                ? 'e.g. 15'
+                                : 'e.g. 50'
+                            }
+                            value={newPromo.type === 'B1T1' ? '' : newPromo.value}
+                            onChange={(e) => setNewPromo({ ...newPromo, value: e.target.value })}
+                            className="px-3 py-2 border border-gray-300 rounded-lg text-xs font-semibold bg-white disabled:bg-gray-100"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[11px] font-bold text-gray-600 uppercase tracking-wider flex items-center gap-1">
+                            <span>Min. Subtotal (₱)</span>
+                            <InfoTip text="Minimum cart subtotal required before this promo can be used. Leave at 0 for no minimum spend." />
+                          </label>
+                          <input
+                            type="number"
+                            step="any"
+                            min="0"
+                            max="100000"
+                            placeholder="0 (No minimum)"
+                            value={newPromo.min_subtotal}
+                            onChange={(e) => setNewPromo({ ...newPromo, min_subtotal: e.target.value })}
+                            className="px-3 py-2 border border-gray-300 rounded-lg text-xs font-semibold bg-white"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-end">
+                        <div className="flex-1 flex flex-col gap-1">
+                          <label className="text-[11px] font-bold text-gray-600 uppercase tracking-wider">
+                            Cashier Description (Optional)
+                          </label>
+                          <input
+                            type="text"
+                            maxLength={120}
+                            placeholder="Short hint shown next to promo code button (auto-filled if blank)"
+                            value={newPromo.description}
+                            onChange={(e) => setNewPromo({ ...newPromo, description: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs bg-white"
+                          />
+                        </div>
                         <button
                           type="submit"
-                          className="px-4 py-2 bg-gray-900 hover:bg-black text-white rounded-lg text-xs font-bold uppercase tracking-wider cursor-pointer border-none"
+                          className="px-4 py-2 bg-gray-900 hover:bg-black text-white rounded-lg text-xs font-bold uppercase tracking-wider cursor-pointer border-none shrink-0"
                         >
                           + Add Promo Code
                         </button>

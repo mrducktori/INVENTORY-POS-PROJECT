@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
+- **POS Promo & Discount Field Guide (`src/features/pos/components/PosSettingsModal.jsx`)**:
+  - Added explicit field labels, `<InfoTip />` tooltips (`Requires ID`, `VAT-Exempt`, `Discount Value`, `Min. Subtotal (₱)`), and a toggleable **Field Guide** inside **Add Promo Code** explaining Percent (% Off), Fixed Amount (₱ Off), Buy 1 Take 1 (Cheapest Free), and Minimum Order Subtotal rules.
+
 ## [Itemized Configurable Discounts & Human-Readable Logs - 2026-11-23]
 - **Itemized Statutory & Store Discount Types (`server/services/posOperationsService.js`, `src/features/pos/components/PosSettingsModal.jsx`, `PaymentModal.jsx`, `usePOS.js`)**:
   - Added `DEFAULT_DISCOUNT_TYPES` and full `discount_types` validation/normalization inside `posOperationsService.js` (`label`, `rate_percent` `0.1–100`, `requires_id`, `vat_exempt`, `active`) synced with legacy `discount_presets`, and generalized `validateAndComputeDiscount()` so any active discount type (`SENIOR`, `PWD`, `STUDENT`, `STAFF`, or client-added types like `SOLO_PARENT` / `VIP`) computes rates, optional customer/ID checks, and optional VAT-exemption dynamically.
