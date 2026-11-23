@@ -50,9 +50,10 @@ export async function apiCall(endpoint, options = {}) {
   const url = `${API_BASE_URL}${endpoint}`;
 
   // Endpoints that run outside a session — skip the auth header & session check
-  const PUBLIC_ENDPOINTS = ["/auth/login", "/pos/products"];
+  const PUBLIC_ENDPOINTS = ["/auth/login"];
+  const isGet = !options.method || options.method === "GET";
   const isPublic = PUBLIC_ENDPOINTS.some(p => endpoint.startsWith(p)) || 
-    (endpoint.startsWith("/cms") && (!options.method || options.method === "GET"));
+    ((endpoint.startsWith("/cms") || endpoint.startsWith("/pos/products")) && isGet);
 
   // If this is a protected request and the session timed out (2h inactivity)
   if (!isPublic && endpoint !== "/auth/logout" && isSessionExpired()) {
@@ -83,7 +84,7 @@ export async function apiCall(endpoint, options = {}) {
       response = await fetch(url, { ...defaultOptions, signal: options.signal ?? AbortSignal.timeout(20000) });
     } catch (netErr) {
       if (netErr?.name === "AbortError" || netErr?.name === "TimeoutError" || netErr instanceof TypeError) {
-        throw new Error("Network problem. Check the connection and tap Pay again — the same receipt will be used.", { cause: netErr });
+        throw new Error("Network problem. Check the connection and try again.", { cause: netErr });
       }
       throw netErr;
     }

@@ -1,5 +1,5 @@
 import { supabase } from "../config/supabaseClient.js";
-import { convertToBaseUnit } from "../utils/unitUtils.js";
+import { convertToBaseUnit, canConvertUnit } from "../utils/unitUtils.js";
 import { LIMITS, validateNumberBound, validateTextLength } from "../utils/validationHelper.js";
 import { resolveUnitCost, fetchAllRows } from "../utils/costUtils.js";
 
@@ -249,6 +249,18 @@ export const getRecipesByProduct = async (product_id) => {
   return attachSizeOverrides(data || [], overridesMap);
 };
 
+// A unit with no conversion path would deduct the raw number (30 ML from a KG item = 30 KG).
+export const assertRecipeUnitCompatible = async (ingredient_id, recipe_unit) => {
+  if (!recipe_unit) return;
+  const { data: ing, error } = await supabase.from("ingredients").select("name, unit").eq("id", ingredient_id).maybeSingle();
+  if (error) throw error;
+  if (ing && !canConvertUnit(recipe_unit, ing.unit)) {
+    const err = new Error(`Recipe unit ${String(recipe_unit).toUpperCase()} cannot be converted to ${ing.name}'s stock unit ${ing.unit}.`);
+    err.status = 400;
+    throw err;
+  }
+};
+
 export const createRecipe = async ({ product_id, ingredient_id, quantity_used, recipe_unit, size_name, size_quantities }) => {
   const validatedQty = validateNumberBound(quantity_used, {
     label: 'Recipe quantity',
@@ -257,6 +269,7 @@ export const createRecipe = async ({ product_id, ingredient_id, quantity_used, r
     allowZero: false
   });
   const validatedOverrides = validateSizeOverridesInput({ size_name, size_quantities });
+  await assertRecipeUnitCompatible(ingredient_id, recipe_unit);
 
   // Check if recipe already exists
   const { data: existing } = await supabase
@@ -264,7 +277,8 @@ export const createRecipe = async ({ product_id, ingredient_id, quantity_used, r
     .select("id")
     .eq("product_id", product_id)
     .eq("ingredient_id", ingredient_id)
-    .single();
+    .limit(1)
+    .maybeSingle();
 
   if (existing) {
     throw new Error("Recipe for this product-ingredient combination already exists");
@@ -326,6 +340,11 @@ export const updateRecipe = async (id, { quantity_used, recipe_unit, size_name, 
   const validatedOverrides = hasOverridePayload
     ? validateSizeOverridesInput({ size_name, size_quantities })
     : null;
+  if (recipe_unit) {
+    const { data: current, error: curErr } = await supabase.from("recipes").select("ingredient_id").eq("id", id).maybeSingle();
+    if (curErr) throw curErr;
+    if (current) await assertRecipeUnitCompatible(current.ingredient_id, recipe_unit);
+  }
 
   const baseUpdate = {
     quantity_used: validatedQty,

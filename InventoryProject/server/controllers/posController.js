@@ -1,5 +1,9 @@
 import * as posService from "../services/posService.js";
 import * as posOperationsService from "../services/posOperationsService.js";
+import * as forecastService from "../services/forecastService.js";
+
+// End-of-day totals feed the forecast; a failed refresh must never fail the sale/shift action.
+const refreshInBackground = (promise) => promise.catch((err) => console.warn("[forecast] daily refresh failed:", err.message));
 
 export const getProducts = async (req, res) => {
   try {
@@ -33,6 +37,7 @@ export const createSale = async (req, res) => {
       promo_code,
       custom_discount_mode,
       custom_discount_value,
+      manager_pin,
       payment_method,
       amount_received,
       transaction_reference,
@@ -116,6 +121,13 @@ export const createSale = async (req, res) => {
       async () => {
         const posSettings = await posOperationsService.getPosSettings();
         const { subtotal, itemPrices } = await posOperationsService.computeAuthoritativeSubtotal(cart);
+        // Same gate as void/refund: custom discounts need a manager PIN from any cashier.
+        if (String(discount_type || "").trim().toUpperCase() === "CUSTOM") {
+          if (!String(manager_pin ?? "").trim()) {
+            throw Object.assign(new Error("Manager PIN is required for custom discounts."), { status: 403 });
+          }
+          await posOperationsService.verifyManagerPin(manager_pin, req.user.id);
+        }
         const discountResult = posOperationsService.validateAndComputeDiscount({
           subtotal,
           cart,
@@ -203,7 +215,8 @@ export const createSale = async (req, res) => {
           payments: paymentResult.payments,
           kds_ticket_id: kdsTicket?.id || null
         };
-      }
+      },
+      posOperationsService.hashCheckoutPayload(req.body)
     );
 
     res.json({
@@ -238,6 +251,7 @@ export const voidOrRefundSale = async (req, res) => {
       manager_pin: req.body?.manager_pin,
       requested_by_user: req.user
     });
+    refreshInBackground(forecastService.refreshDailySummaryForSale(req.params.id));
     res.json(record);
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
@@ -299,6 +313,7 @@ export const closeShiftZReading = async (req, res) => {
       notes: req.body?.notes || "",
       user: req.user
     });
+    refreshInBackground(forecastService.refreshDailySummaryForDate());
     res.json(shift);
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });

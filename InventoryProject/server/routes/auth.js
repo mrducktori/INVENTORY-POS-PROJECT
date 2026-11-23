@@ -12,6 +12,7 @@ import {
   getUserServerActivity,
   clearUserServerActivity,
   reapInactiveUserSessions,
+  requireAuth,
   SESSION_INACTIVITY_TIMEOUT_MS
 } from "../middleware/authMiddleware.js";
 
@@ -191,20 +192,10 @@ router.post("/login", authLimiter, async (req, res) => {
 });
 
 // ACTIVITY — Lightweight heartbeat that updates the user's server-side last-active timestamp.
-router.post("/activity", async (req, res) => {
-  try {
-    const authHeader = req.headers.authorization || "";
-    const token = authHeader.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
-    if (!token) return res.status(401).json({ error: "No token" });
-
-    const decoded = jwt.verify(token, getJwtSecret());
-    if (decoded?.userId) {
-      touchUserServerActivity(decoded.userId);
-    }
-    res.json({ ok: true });
-  } catch {
-    res.status(401).json({ error: "Invalid token" });
-  }
+// requireAuth validates session id/status so a replaced or deactivated session cannot stay "active".
+router.post("/activity", requireAuth, (req, res) => {
+  touchUserServerActivity(req.user.id);
+  res.json({ ok: true });
 });
 
 // LOGOUT — identity comes from the token, never from the request body.

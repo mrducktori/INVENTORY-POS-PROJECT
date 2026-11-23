@@ -1,6 +1,6 @@
 import { supabase } from "../config/supabaseClient.js";
 import { convertToBaseUnit } from "../utils/unitUtils.js";
-import { logAuditBatch } from "../utils/auditHelper.js";
+import { logAudit, logAuditBatch } from "../utils/auditHelper.js";
 import { invalidateAnalyticsCache } from "../routes/analytics.js";
 import { getManilaDateString } from "../utils/dateUtils.js";
 import * as batchService from "./batchService.js";
@@ -447,7 +447,6 @@ export const createSale = async ({
 
   const requiredProducts = {};    // { id: { name, qty } }
   const requiredIngredients = {}; // { id: { name, qty } }
-  const untrackedDirectChecks = {}; // { id: { name, qty } }
   const insufficient = [];
 
   for (const item of cart) {
@@ -463,11 +462,13 @@ export const createSale = async ({
       requiredProducts[item.id].qty += item.qty;
     } else {
       const recipes = recipesByProduct.get(item.id) || [];
+      // No recipe → stock lives on the product itself (same rule as computeProductAvailability),
+      // so it must be deducted, not just checked.
       if (recipes.length === 0) {
-        if (!untrackedDirectChecks[item.id]) {
-          untrackedDirectChecks[item.id] = { name: product.name, qty: 0 };
+        if (!requiredProducts[item.id]) {
+          requiredProducts[item.id] = { name: product.name, qty: 0 };
         }
-        untrackedDirectChecks[item.id].qty += item.qty;
+        requiredProducts[item.id].qty += item.qty;
       }
 
       for (const recipe of recipes) {
@@ -565,15 +566,6 @@ export const createSale = async ({
       insufficient.push(`${requiredProducts[pid].name} (Requires ${req}, Has ${currentStock})`);
     } else {
       requiredProducts[pid].newStock = roundStock(currentStock - req);
-    }
-  }
-
-  for (const pid of Object.keys(untrackedDirectChecks)) {
-    const prod = productMap.get(pid);
-    const currentStock = parseFloat(prod?.stock_quantity || 0);
-    const req = untrackedDirectChecks[pid].qty;
-    if (currentStock + STOCK_EPSILON < req) {
-      insufficient.push(`${untrackedDirectChecks[pid].name} (Requires ${req}, Has ${currentStock})`);
     }
   }
 
@@ -744,18 +736,37 @@ export const createSale = async ({
       await supabase.from("sale_items").delete().eq("sale_id", createdSaleId);
     }
 
-    const rollbackResults = await Promise.allSettled([
-      ...appliedProductDeductions.map((item) => adjustProductStock(item.pid, item.qty)),
-      ...appliedIngredientDeductions.map((item) =>
-        batchService.restoreDeductedBatches(item.iid, item.deductedBatches)
-      ),
+    const rollbackSteps = [
+      ...appliedProductDeductions.map((item) => ({
+        name: "restore_product_stock", product_id: item.pid,
+        run: () => adjustProductStock(item.pid, item.qty)
+      })),
+      ...appliedIngredientDeductions.map((item) => ({
+        name: "restore_ingredient_batches", ingredient_id: item.iid,
+        run: () => batchService.restoreDeductedBatches(item.iid, item.deductedBatches)
+      })),
       ...(createdSaleId
-        ? [supabase.from("sales").delete().eq("id", createdSaleId)]
+        ? [{ name: "delete_sale", run: () => supabase.from("sales").delete().eq("id", createdSaleId) }]
         : [])
-    ]);
-    rollbackResults
-      .filter((r) => r.status === "rejected")
-      .forEach((r) => console.error("[POS Transaction Rollback] Compensation step failed:", r.reason));
+    ];
+    const rollbackResults = await Promise.allSettled(rollbackSteps.map((s) => s.run()));
+    const failedSteps = [];
+    rollbackResults.forEach((r, i) => {
+      if (r.status !== "rejected") return;
+      console.error("[POS Transaction Rollback] Compensation step failed:", r.reason);
+      // eslint-disable-next-line no-unused-vars
+      const { run, ...info } = rollbackSteps[i];
+      failedSteps.push({ ...info, error: r.reason?.message || String(r.reason) });
+    });
+    if (failedSteps.length > 0) {
+      await logAudit("CHECKOUT_ROLLBACK_FAILED", staff_id, {
+        sale_id: createdSaleId || null,
+        original_error: atomicError?.message,
+        failed_steps: failedSteps,
+        product_ids: failedSteps.map((s) => s.product_id).filter(Boolean),
+        ingredient_ids: failedSteps.map((s) => s.ingredient_id).filter(Boolean)
+      });
+    }
 
     const abortErr = new Error(`Transaction aborted: ${atomicError.message}`, { cause: atomicError });
     if (atomicError?.status) abortErr.status = atomicError.status;
@@ -797,9 +808,8 @@ export const createSale = async ({
     }
   ];
 
-  void logAuditBatch(auditEntries).catch((err) => {
-    console.error('[AUDIT] Async batch log failed:', err.message);
-  });
+  // Awaited (it never throws): a void restores stock into these exact lots, so the record must exist first.
+  await logAuditBatch(auditEntries);
 
   invalidateAnalyticsCache();
 

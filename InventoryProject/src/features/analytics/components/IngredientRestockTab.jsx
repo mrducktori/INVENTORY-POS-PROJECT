@@ -2,8 +2,7 @@ import React from 'react';
 import { TableSkeleton } from '../../../components/shared/SkeletonLoader';
 import { InfoTip } from '../../../components/shared/InfoTip';
 import { getManilaDateOnly } from '../../../utils/dateUtils';
-import { formatCurrency } from '../utils/forecastUtils';
-import { SortIcon, IngredientStatusBadge } from './ForecastBadges';
+import { SortIcon, IngredientAlertBadge } from './ForecastBadges';
 
 const getDaysUntilDate = (dateStr, todayStr) => {
   if (!dateStr) return null;
@@ -55,35 +54,20 @@ const IngredientRestockTab = ({
 
   return (
     <div className="space-y-5">
-      {/* 4 Minimalist Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white border border-zinc-200/80 rounded-xl p-4 sm:p-5 shadow-2xs">
-          <span className="text-xs font-medium text-zinc-500">Immediate Reorder (≤ 3d)</span>
-          <div className="text-2xl sm:text-3xl font-bold text-red-600 mt-1 tabular-nums">
-            {loadingIngredients ? '—' : ingredientData.summary.criticalCount}
+        {[
+          ['Order now', ingredientData.summary.criticalCount, 'text-red-600'],
+          ['Running low (manual limit)', ingredientData.summary.lowStockCount, 'text-amber-600'],
+          ['Enough stock', ingredientData.summary.healthyCount, 'text-zinc-900'],
+          ['May expire before use', ingredientData.summary.expiringCount, 'text-amber-700'],
+        ].map(([label, val, color]) => (
+          <div key={label} className="bg-white border border-zinc-200/80 rounded-xl p-4 sm:p-5 shadow-2xs">
+            <span className="text-xs font-medium text-zinc-500">{label}</span>
+            <div className={`text-2xl sm:text-3xl font-bold mt-1 tabular-nums ${color}`}>
+              {loadingIngredients ? '—' : val}
+            </div>
           </div>
-        </div>
-
-        <div className="bg-white border border-zinc-200/80 rounded-xl p-4 sm:p-5 shadow-2xs">
-          <span className="text-xs font-medium text-zinc-500">Low Supply (4–7d)</span>
-          <div className="text-2xl sm:text-3xl font-bold text-amber-600 mt-1 tabular-nums">
-            {loadingIngredients ? '—' : ingredientData.summary.lowStockCount}
-          </div>
-        </div>
-
-        <div className="bg-white border border-zinc-200/80 rounded-xl p-4 sm:p-5 shadow-2xs">
-          <span className="text-xs font-medium text-zinc-500">Healthy Stock (&gt; 7d)</span>
-          <div className="text-2xl sm:text-3xl font-bold text-zinc-900 mt-1 tabular-nums">
-            {loadingIngredients ? '—' : ingredientData.summary.healthyCount}
-          </div>
-        </div>
-
-        <div className="bg-white border border-zinc-200/80 rounded-xl p-4 sm:p-5 shadow-2xs">
-          <span className="text-xs font-medium text-zinc-500">Est. Restock Budget</span>
-          <div className="text-2xl sm:text-3xl font-bold text-zinc-900 mt-1 font-mono tabular-nums">
-            {loadingIngredients ? '—' : formatCurrency(ingredientData.summary.totalRestockCapitalRequired)}
-          </div>
-        </div>
+        ))}
       </div>
 
       {/* Main Table Card */}
@@ -105,7 +89,7 @@ const IngredientRestockTab = ({
               </svg>
               <input
                 type="text"
-                placeholder="Search material or supplier..."
+                placeholder="Search ingredient..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-9 pr-7 py-1.5 bg-zinc-50/70 border border-zinc-200 rounded-lg text-xs sm:text-sm text-zinc-800 placeholder-zinc-400 focus:outline-none focus:bg-white focus:border-zinc-400 transition-colors"
@@ -156,7 +140,7 @@ const IngredientRestockTab = ({
                     onClick={onOrderAllCritical}
                     className="px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors cursor-pointer shadow-2xs"
                   >
-                    Reorder All Critical ({ingredientData.summary.criticalCount})
+                    Order everything that is low ({ingredientData.summary.criticalCount})
                   </button>
                 )
               )}
@@ -171,7 +155,7 @@ const IngredientRestockTab = ({
                   <line x1="12" y1="16" x2="12" y2="12" />
                   <line x1="12" y1="8" x2="12.01" y2="8" />
                 </svg>
-                <span>Restock Guide</span>
+                <span>How this works</span>
               </button>
 
               <button
@@ -179,7 +163,7 @@ const IngredientRestockTab = ({
                 onClick={onRefresh}
                 disabled={loadingIngredients}
                 className="p-1.5 border border-zinc-200 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 rounded-lg transition-colors disabled:opacity-40 cursor-pointer"
-                title="Refresh ingredient forecast"
+                title="Reload"
               >
                 <svg className={`w-4 h-4 ${loadingIngredients ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -224,9 +208,9 @@ const IngredientRestockTab = ({
             <div className="inline-flex items-center bg-zinc-100 p-0.5 rounded-lg border border-zinc-200/70">
               {[
                 { id: 'ALL', label: 'All', count: ingredientData.ingredients.length },
-                { id: 'CRITICAL', label: 'Critical', count: ingredientData.summary.criticalCount },
-                { id: 'LOW_STOCK', label: 'Low', count: ingredientData.summary.lowStockCount },
-                { id: 'HEALTHY', label: 'Healthy', count: ingredientData.summary.healthyCount },
+                { id: 'ORDER', label: 'Order now', count: ingredientData.summary.criticalCount },
+                { id: 'WATCH', label: 'Running low', count: ingredientData.summary.lowStockCount },
+                { id: 'OK', label: 'Enough stock', count: ingredientData.summary.healthyCount },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -291,63 +275,69 @@ const IngredientRestockTab = ({
                       </button>
                     </th>
                     <th className="py-3 px-4 text-right">
-                      <button
-                        type="button"
-                        onClick={() => onIngSort('stock_quantity')}
-                        className="group inline-flex items-center justify-end gap-1.5 font-semibold text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer bg-transparent border-none p-0 text-xs sm:text-sm ml-auto"
-                      >
-                        <span>On Hand</span>
-                        <SortIcon active={ingSortField === 'stock_quantity'} direction={ingSortDirection} />
-                      </button>
+                      <div className="inline-flex items-center justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => onIngSort('usable_stock')}
+                          className="group inline-flex items-center gap-1.5 font-semibold text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer bg-transparent border-none p-0 text-xs sm:text-sm"
+                        >
+                          <span>Usable stock</span>
+                          <SortIcon active={ingSortField === 'usable_stock'} direction={ingSortDirection} />
+                        </button>
+                        <InfoTip position="bottom" text="Stock that has not expired." />
+                      </div>
                     </th>
                     <th className="py-3 px-4 text-right">
                       <div className="inline-flex items-center justify-end gap-1.5">
                         <button
                           type="button"
-                          onClick={() => onIngSort('avg_daily_burn_rate')}
+                          onClick={() => onIngSort('daily_usage')}
                           className="group inline-flex items-center gap-1.5 font-semibold text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer bg-transparent border-none p-0 text-xs sm:text-sm"
                         >
-                          <span>Daily Usage</span>
-                          <SortIcon active={ingSortField === 'avg_daily_burn_rate'} direction={ingSortDirection} />
+                          <span>Daily usage</span>
+                          <SortIcon active={ingSortField === 'daily_usage'} direction={ingSortDirection} />
                         </button>
-                        <InfoTip position="bottom" text="Average daily consumption based on recipes sold over the last 90 days (3 months), weighted toward recent 14-day and 30-day velocity." />
+                        <InfoTip position="bottom" text="Expected use per day, taken from the sales forecast and your recipes." />
                       </div>
                     </th>
-                    <th className="py-3 px-4 text-center">
-                      <div className="inline-flex items-center justify-center gap-1.5">
+                    <th className="py-3 px-4 text-right">
+                      <div className="inline-flex items-center justify-end gap-1.5">
                         <button
                           type="button"
-                          onClick={() => onIngSort('days_remaining')}
+                          onClick={() => onIngSort('days_of_cover')}
                           className="group inline-flex items-center gap-1.5 font-semibold text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer bg-transparent border-none p-0 text-xs sm:text-sm"
                         >
-                          <span>Est. Time Left</span>
-                          <SortIcon active={ingSortField === 'days_remaining'} direction={ingSortDirection} />
+                          <span>Days of cover</span>
+                          <SortIcon active={ingSortField === 'days_of_cover'} direction={ingSortDirection} />
                         </button>
-                        <InfoTip position="bottom" text="Estimated days until current stock runs out at your current daily usage rate." />
+                        <InfoTip position="bottom" text="How many days the usable stock will last at the expected daily usage." />
                       </div>
                     </th>
-                    <th className="py-3 px-4">
-                      <div className="inline-flex items-center gap-1.5">
+                    <th className="py-3 px-4 text-right">
+                      <div className="inline-flex items-center justify-end gap-1.5">
                         <button
                           type="button"
-                          onClick={() => onIngSort('suggested_purchase_qty')}
+                          onClick={() => onIngSort('reorder_point')}
                           className="group inline-flex items-center gap-1.5 font-semibold text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer bg-transparent border-none p-0 text-xs sm:text-sm"
                         >
-                          <span>Suggested Order</span>
-                          <SortIcon active={ingSortField === 'suggested_purchase_qty'} direction={ingSortDirection} />
+                          <span>Reorder point</span>
+                          <SortIcon active={ingSortField === 'reorder_point'} direction={ingSortDirection} />
                         </button>
-                        <InfoTip position="bottom" text="Recommended purchase quantity in supplier units to maintain a 14-day supply buffer." />
+                        <InfoTip position="bottom" text="= daily usage × (supplier lead time + 2 safety days). When usable stock falls to this level, it is time to order." />
                       </div>
                     </th>
-                    <th className="py-3 px-4">
-                      <button
-                        type="button"
-                        onClick={() => onIngSort('supplier_name')}
-                        className="group inline-flex items-center gap-1.5 font-semibold text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer bg-transparent border-none p-0 text-xs sm:text-sm"
-                      >
-                        <span>Supplier</span>
-                        <SortIcon active={ingSortField === 'supplier_name'} direction={ingSortDirection} />
-                      </button>
+                    <th className="py-3 px-4 ">
+                      <div className="inline-flex items-center  gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => onIngSort('suggested_order_qty')}
+                          className="group inline-flex items-center gap-1.5 font-semibold text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer bg-transparent border-none p-0 text-xs sm:text-sm"
+                        >
+                          <span>Suggested order</span>
+                          <SortIcon active={ingSortField === 'suggested_order_qty'} direction={ingSortDirection} />
+                        </button>
+                        <InfoTip position="bottom" text="Enough to cover the lead time, the safety days and a restocking cycle, minus what you have." />
+                      </div>
                     </th>
                     <th className="py-3 px-4 text-right">Action</th>
                   </tr>
@@ -361,31 +351,18 @@ const IngredientRestockTab = ({
                       doesItemMatchSupplier &&
                       !doesItemMatchSupplier(item, lockedSupplier.id)
                     );
-                    const needsOrder =
-                      item.urgency_status === 'CRITICAL' ||
-                      item.urgency_status === 'OUT_OF_STOCK' ||
-                      item.urgency_status === 'LOW_STOCK';
-                    const totalStock = Number(item.stock_quantity || 0);
-                    const usableStock =
-                      item.usable_stock !== undefined && item.usable_stock !== null
-                        ? Number(item.usable_stock)
-                        : totalStock;
-                    const expiredStock = Number(item.expired_stock || 0);
-                    const expiringSoonStock = Number(item.expiring_soon_stock || 0);
-                    const projectedSpoilageQty = Number(item.projected_spoilage_qty || 0);
+                    const needsOrder = item.alert === 'OUT_OF_STOCK' || item.alert === 'REORDER_NOW';
+                    const usable = Number(item.usable_stock) || 0;
+                    const expired = Number(item.expired_stock) || 0;
+                    const expiringQty = Number(item.expiring_before_use_qty) || 0;
                     const nearestDays = getDaysUntilDate(item.nearest_expiry_date, todayManila);
-                    const showNearestExpiry =
-                      nearestDays !== null && nearestDays >= 0 && nearestDays <= 14;
+                    const usage = Number(item.daily_usage) || 0;
 
                     return (
                       <tr
                         key={item.id}
                         className={`transition-colors group ${
-                          isSelected
-                            ? 'bg-zinc-50'
-                            : isSupplierLockedOut
-                              ? 'opacity-50'
-                              : 'hover:bg-zinc-50/60'
+                          isSelected ? 'bg-zinc-50' : isSupplierLockedOut ? 'opacity-50' : 'hover:bg-zinc-50/60'
                         }`}
                       >
                         <td className="py-3.5 px-4 text-center">
@@ -403,122 +380,76 @@ const IngredientRestockTab = ({
                           />
                         </td>
 
-                        {/* Ingredient Name & Category */}
                         <td className="py-3.5 px-4 sticky left-0 z-10 bg-white group-hover:bg-zinc-50 transition-colors shadow-[1px_0_0_0_#f4f4f5] whitespace-nowrap">
                           <div className="font-semibold text-zinc-900">{item.name}</div>
                           <div className="text-xs text-zinc-400">{item.category}</div>
                         </td>
 
-                        {/* On Hand */}
                         <td className="py-3.5 px-4 text-right font-mono whitespace-nowrap">
-                          <div>
-                            <span className="font-semibold text-zinc-900">
-                              {usableStock.toLocaleString()}
-                            </span>{' '}
-                            <span className="text-zinc-500 text-xs">{item.unit}</span>
-                          </div>
-                          {Math.abs(totalStock - usableStock) > 0.001 && (
-                            <div className="text-[10px] text-zinc-400">
-                              Total: {totalStock.toLocaleString()} {item.unit}
-                            </div>
-                          )}
-                          {(expiredStock > 0 || expiringSoonStock > 0 || showNearestExpiry) && (
-                            <div className="flex flex-wrap justify-end gap-1 mt-1">
-                              {expiredStock > 0 && (
-                                <span className="inline-flex px-1.5 py-0.5 rounded bg-red-50 border border-red-200 text-[10px] font-bold text-red-700">
-                                  Expired: {expiredStock.toLocaleString()}
-                                </span>
-                              )}
-                              {expiringSoonStock > 0 && (
-                                <span className="inline-flex px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-[10px] font-bold text-amber-800">
-                                  Expiring &lt;=7d: {expiringSoonStock.toLocaleString()}
-                                </span>
-                              )}
-                              {showNearestExpiry && (
-                                <span className="inline-flex px-1.5 py-0.5 rounded bg-zinc-100 border border-zinc-200 text-[10px] font-semibold text-zinc-700">
-                                  {nearestDays === 0 ? 'Exp Today' : `Exp ${nearestDays}d`}
-                                </span>
-                              )}
+                          <span className="font-semibold text-zinc-900">{usable.toLocaleString()}</span>{' '}
+                          <span className="text-zinc-500 text-xs">{item.unit}</span>
+                          {expired > 0 && (
+                            <div className="text-[10px] font-bold text-red-700">
+                              + {expired.toLocaleString()} {item.unit} expired (not counted)
                             </div>
                           )}
                         </td>
 
-                        {/* Daily Usage */}
                         <td className="py-3.5 px-4 text-right font-mono whitespace-nowrap text-zinc-700">
-                          {item.avg_daily_burn_rate > 0 ? (
+                          {usage > 0 ? (
                             <>
-                              <span className="font-medium text-zinc-900">{item.avg_daily_burn_rate}</span>{' '}
-                              <span className="text-xs text-zinc-400">{item.unit}/d</span>
+                              <span className="font-medium text-zinc-900">{usage}</span>{' '}
+                              <span className="text-xs text-zinc-400">{item.unit}/day</span>
+                            </>
+                          ) : (
+                            <span className="text-zinc-400 text-xs">No recent use</span>
+                          )}
+                        </td>
+
+                        <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                          <div className="font-mono text-zinc-900">
+                            {item.days_of_cover == null ? '—' : `${item.days_of_cover} days`}
+                          </div>
+                          <IngredientAlertBadge alert={item.alert} daysOfCover={item.days_of_cover} />
+                        </td>
+
+                        <td className="py-3.5 px-4 text-right font-mono whitespace-nowrap text-zinc-700">
+                          {usage > 0 ? (
+                            <>
+                              {Number(item.reorder_point).toLocaleString()} <span className="text-xs text-zinc-400">{item.unit}</span>
+                              <div className="font-sans text-[10px] text-zinc-400">
+                                {item.lead_time_days}d supplier lead time + {item.safety_days}d safety
+                              </div>
                             </>
                           ) : (
                             <span className="text-zinc-400">—</span>
                           )}
                         </td>
 
-                        {/* Est. Time Left */}
-                        <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                          <IngredientStatusBadge days={item.days_remaining} urgency={item.urgency_status} />
-                        </td>
-
-                        {/* Suggested Order */}
                         <td className="py-3.5 px-4 whitespace-nowrap">
-                          {item.suggested_purchase_qty > 0 ? (
-                            <div>
-                              <div>
-                                <span className="font-semibold text-zinc-900">
-                                  {item.suggested_purchase_qty} {item.purchase_unit}
-                                </span>
-                                {item.estimated_restock_cost > 0 && (
-                                  <span className="text-xs text-zinc-500 font-mono ml-1.5">
-                                    ({formatCurrency(item.estimated_restock_cost)})
-                                  </span>
-                                )}
-                              </div>
-                              {(item.shelf_life_capped || projectedSpoilageQty > 0) && (
-                                <div className="flex flex-wrap gap-1 mt-1">
-                                  {item.shelf_life_capped && (
-                                    <span className="inline-flex px-1.5 py-0.5 rounded bg-zinc-100 border border-zinc-200 text-[10px] font-bold text-zinc-700">
-                                      Shelf-Life Cap ({item.recommended_horizon_days || 14}d)
-                                    </span>
-                                  )}
-                                  {projectedSpoilageQty > 0 && (
-                                    <span className="inline-flex px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-[10px] font-bold text-amber-800">
-                                      Spoilage Risk: {projectedSpoilageQty.toLocaleString()} {item.unit}
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                            </div>
+                          {Number(item.suggested_order_qty) > 0 ? (
+                            <span className="font-semibold text-zinc-900">
+                              {Number(item.suggested_order_qty).toLocaleString()} {item.unit}
+                            </span>
                           ) : (
-                            <div className="space-y-1">
-                              <span className="text-xs text-zinc-400">Sufficient</span>
-                              {projectedSpoilageQty > 0 && (
-                                <div>
-                                  <span className="inline-flex px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-[10px] font-bold text-amber-800">
-                                    Spoilage Risk: {projectedSpoilageQty.toLocaleString()} {item.unit}
-                                  </span>
-                                </div>
-                              )}
+                            <span className="text-xs text-zinc-400">Not needed</span>
+                          )}
+                          {expiringQty > 0 && (
+                            <div className="mt-1">
+                              <span className="inline-flex px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-[10px] font-bold text-amber-800">
+                                {expiringQty.toLocaleString()} {item.unit} expires before use
+                                {nearestDays !== null && nearestDays >= 0 ? ` (in ${nearestDays}d)` : ''}
+                              </span>
                             </div>
                           )}
                         </td>
 
-                        {/* Supplier */}
-                        <td className="py-3.5 px-4 whitespace-nowrap">
-                          <span className="text-zinc-700 font-medium">
-                            {item.supplier_name || 'Unassigned'}
-                          </span>
-                        </td>
-
-                        {/* Action */}
                         <td className="py-3.5 px-4 text-right whitespace-nowrap">
                           <button
                             type="button"
                             onClick={() => onOpenSingleItemPO(item)}
                             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                              needsOrder
-                                ? 'bg-zinc-900 hover:bg-black text-white'
-                                : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700'
+                              needsOrder ? 'bg-zinc-900 hover:bg-black text-white' : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700'
                             }`}
                           >
                             Order

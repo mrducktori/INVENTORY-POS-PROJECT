@@ -1,13 +1,13 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import {
-  getDemandForecast,
-  getIngredientDepletionForecast,
-  getAIForecast,
-} from '../../../api/analyticsApi';
+import { getForecast, refreshForecast } from '../../../api/analyticsApi';
+import { getReorderPlan } from '../../../api/inventoryApi';
 import { getSuppliers, createPurchaseOrder } from '../../../api/purchasingApi';
+import { getCurrentUser } from '../../../utils/authUtils';
 
 export const ING_PAGE_SIZE = 15;
 export const PROD_PAGE_SIZE = 15;
+
+export const NEEDS_ORDER_ALERTS = ['OUT_OF_STOCK', 'REORDER_NOW'];
 
 export const doesItemMatchSupplier = (item, supplierId) => {
   if (!supplierId || !item) return false;
@@ -41,24 +41,31 @@ const getInitialTab = () => {
   return 'ingredients';
 };
 
+const compareBy = (field, dir, getVal) => (a, b) => {
+  const av = getVal(a, field);
+  const bv = getVal(b, field);
+  if (typeof av === 'string' || typeof bv === 'string') {
+    const r = String(av ?? '').localeCompare(String(bv ?? ''));
+    return dir === 'asc' ? r : -r;
+  }
+  // Missing numbers (null) always sort last.
+  if (av == null && bv == null) return 0;
+  if (av == null) return 1;
+  if (bv == null) return -1;
+  return dir === 'asc' ? av - bv : bv - av;
+};
+
+const getSortVal = (r, f) => (f === 'name' ? r.name : r[f] == null ? null : Number(r[f]));
+
 /**
- * Custom hook encapsulating state, data fetching, filtering, sorting,
- * pagination, selection, and PO / projection modal handlers for DemandForecasting.
+ * State, data fetching, filtering, sorting, pagination, selection and PO / detail
+ * modal handlers for DemandForecasting.
  */
 export const useDemandForecasting = () => {
   const [activeTab, setActiveTab] = useState(getInitialTab); // 'ingredients' | 'products'
+  const canRefresh = ['Owner', 'Admin'].includes(getCurrentUser()?.role);
 
-  const handleTabChange = (tab) => {
-    setActiveTab(tab);
-    try {
-      localStorage.setItem('coftea_forecasting_tab', tab);
-      if (typeof window !== 'undefined') {
-        window.history.replaceState(null, '', `#Forecasting/${tab}`);
-      }
-    } catch {
-      /* ignore storage/history errors */
-    }
-  };
+  const handleTabSwitch = (tab) => setActiveTab(tab);
 
   useEffect(() => {
     try {
@@ -72,40 +79,26 @@ export const useDemandForecasting = () => {
   }, [activeTab]);
 
   const [infoModalOpen, setInfoModalOpen] = useState(false);
-  const [infoGuideTab, setInfoGuideTab] = useState(activeTab); // 'ingredients' | 'products'
 
-  const openInfoGuide = (tabKey) => {
-    setInfoGuideTab(tabKey || activeTab);
-    setInfoModalOpen(true);
-  };
-
-  // Ingredient Depletion State
-  const [ingredientData, setIngredientData] = useState({
-    summary: {
-      totalIngredients: 0,
-      criticalCount: 0,
-      lowStockCount: 0,
-      healthyCount: 0,
-      totalRestockCapitalRequired: 0,
-    },
-    ingredients: [],
-  });
+  // Ingredient reorder plan
+  const [reorderPlan, setReorderPlan] = useState([]);
   const [loadingIngredients, setLoadingIngredients] = useState(true);
-  const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL' | 'CRITICAL' | 'LOW_STOCK' | 'HEALTHY'
+  const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL' | 'ORDER' | 'WATCH' | 'OK'
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [selectedIngredientIds, setSelectedIngredientIds] = useState([]);
   const [ingPage, setIngPage] = useState(1);
-  const [ingSortField, setIngSortField] = useState('days_remaining');
-  const [ingSortDirection, setIngSortDirection] = useState('asc'); // critical runouts first
+  const [ingSortField, setIngSortField] = useState('days_of_cover');
+  const [ingSortDirection, setIngSortDirection] = useState('asc'); // lowest cover first
 
-  // Product Demand State
-  const [productForecasts, setProductForecasts] = useState([]);
+  // Product forecast
+  const [forecast, setForecast] = useState(null); // full /analytics/forecast response
   const [loadingProducts, setLoadingProducts] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [productSearch, setProductSearch] = useState('');
   const [productCategory, setProductCategory] = useState('ALL');
   const [prodPage, setProdPage] = useState(1);
-  const [prodSortField, setProdSortField] = useState('predictedNext7Days');
+  const [prodSortField, setProdSortField] = useState('next7');
   const [prodSortDirection, setProdSortDirection] = useState('desc'); // highest demand first
 
   const handleIngSort = (field) => {
@@ -113,11 +106,7 @@ export const useDemandForecasting = () => {
       setIngSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
     } else {
       setIngSortField(field);
-      if (field === 'days_remaining' || field === 'name' || field === 'supplier_name') {
-        setIngSortDirection('asc');
-      } else {
-        setIngSortDirection('desc');
-      }
+      setIngSortDirection(field === 'days_of_cover' || field === 'name' ? 'asc' : 'desc');
     }
   };
 
@@ -126,21 +115,12 @@ export const useDemandForecasting = () => {
       setProdSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
     } else {
       setProdSortField(field);
-      if (field === 'name' || field === 'category') {
-        setProdSortDirection('asc');
-      } else {
-        setProdSortDirection('desc');
-      }
+      setProdSortDirection(field === 'name' ? 'asc' : 'desc');
     }
   };
 
-  // Monthly Projection Modal State
-  const [aiModalOpen, setAiModalOpen] = useState(false);
-  const [aiSelectedProduct, setAiSelectedProduct] = useState(null);
-  const [aiTargetYear, setAiTargetYear] = useState(() => new Date().getFullYear());
-  const [aiTargetMonth, setAiTargetMonth] = useState(() => new Date().getMonth() + 1);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiResult, setAiResult] = useState(null);
+  // Product detail modal
+  const [detailProduct, setDetailProduct] = useState(null);
 
   // Suppliers & PO Modal State
   const [suppliers, setSuppliers] = useState([]);
@@ -167,23 +147,18 @@ export const useDemandForecasting = () => {
     }, 4000);
   }, []);
 
-  const fetchIngredientForecast = useCallback(
-    async (refresh = false) => {
-      try {
-        setLoadingIngredients(true);
-        const res = await getIngredientDepletionForecast(refresh);
-        if (res && res.ingredients) {
-          setIngredientData(res);
-        }
-      } catch (err) {
-        console.error('Failed to fetch ingredient forecast:', err);
-        showToast('error', 'Failed to load ingredient forecast.');
-      } finally {
-        setLoadingIngredients(false);
-      }
-    },
-    [showToast]
-  );
+  const fetchIngredientForecast = useCallback(async () => {
+    try {
+      setLoadingIngredients(true);
+      const res = await getReorderPlan();
+      setReorderPlan(Array.isArray(res) ? res : []);
+    } catch (err) {
+      console.error('Failed to fetch reorder plan:', err);
+      showToast('error', 'Failed to load ingredient restock plan.');
+    } finally {
+      setLoadingIngredients(false);
+    }
+  }, [showToast]);
 
   const fetchSuppliersList = useCallback(async () => {
     try {
@@ -194,21 +169,30 @@ export const useDemandForecasting = () => {
     }
   }, []);
 
-  const fetchProductForecasts = useCallback(
-    async (refresh = false) => {
-      try {
-        setLoadingProducts(true);
-        const data = await getDemandForecast(refresh);
-        setProductForecasts(data || []);
-      } catch (err) {
-        console.error('Failed to fetch product forecasts:', err);
-        showToast('error', 'Failed to load product demand forecast.');
-      } finally {
-        setLoadingProducts(false);
-      }
-    },
-    [showToast]
-  );
+  const fetchProductForecasts = useCallback(async () => {
+    try {
+      setLoadingProducts(true);
+      setForecast(await getForecast(14));
+    } catch (err) {
+      console.error('Failed to fetch product forecasts:', err);
+      showToast('error', 'Failed to load product demand forecast.');
+    } finally {
+      setLoadingProducts(false);
+    }
+  }, [showToast]);
+
+  const handleRefreshForecast = async () => {
+    try {
+      setRefreshing(true);
+      await refreshForecast();
+      await Promise.all([fetchProductForecasts(), fetchIngredientForecast()]);
+      showToast('success', 'Forecast updated.');
+    } catch (err) {
+      showToast('error', err.message || 'Could not refresh the forecast.');
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const hasFetchedProductsRef = useRef(false);
 
@@ -224,150 +208,61 @@ export const useDemandForecasting = () => {
     }
   }, [activeTab, fetchProductForecasts]);
 
-  const handleTabSwitch = (tab) => {
-    handleTabChange(tab);
-  };
+  // Ingredient summary + categories + filtering
+  const ingredientData = useMemo(() => {
+    const count = (fn) => reorderPlan.filter(fn).length;
+    return {
+      ingredients: reorderPlan,
+      summary: {
+        criticalCount: count((i) => NEEDS_ORDER_ALERTS.includes(i.alert)),
+        lowStockCount: count((i) => i.alert === 'BELOW_MANUAL_THRESHOLD'),
+        healthyCount: count((i) => !i.alert),
+        expiringCount: count((i) => Number(i.expiring_before_use_qty) > 0),
+      },
+    };
+  }, [reorderPlan]);
 
-  const monthlyReqSeqRef = useRef(0);
-
-  const runMonthlyForecast = async (productId, year, month) => {
-    const reqId = ++monthlyReqSeqRef.current;
-    try {
-      setAiLoading(true);
-      const res = await getAIForecast({
-        productId,
-        year: parseInt(year, 10),
-        month: parseInt(month, 10),
-      });
-      if (reqId !== monthlyReqSeqRef.current) return;
-      setAiResult(res);
-    } catch (err) {
-      if (reqId !== monthlyReqSeqRef.current) return;
-      console.error('Failed to run monthly forecast:', err);
-      showToast('error', err.message || 'Could not load monthly projection.');
-    } finally {
-      if (reqId === monthlyReqSeqRef.current) {
-        setAiLoading(false);
-      }
-    }
-  };
-
-  const handleOpenMonthlyModal = (product) => {
-    const now = new Date();
-    const currYear = now.getFullYear();
-    const currMonth = now.getMonth() + 1;
-    setAiTargetYear(currYear);
-    setAiTargetMonth(currMonth);
-    setAiSelectedProduct(product);
-    setAiResult(null);
-    setAiModalOpen(true);
-    runMonthlyForecast(product.id, currYear, currMonth);
-  };
-
-  const handleSelectAiYear = (yr) => {
-    setAiTargetYear(yr);
-    runMonthlyForecast(aiSelectedProduct?.id, yr, aiTargetMonth);
-  };
-
-  const handleSelectAiMonth = (mNum) => {
-    setAiTargetMonth(mNum);
-    runMonthlyForecast(aiSelectedProduct?.id, aiTargetYear, mNum);
-  };
-
-  // Ingredient Categories
   const categories = useMemo(() => {
     const set = new Set();
-    ingredientData.ingredients.forEach((item) => {
+    reorderPlan.forEach((item) => {
       if (item.category) set.add(item.category);
     });
     return Array.from(set).sort();
-  }, [ingredientData.ingredients]);
+  }, [reorderPlan]);
 
-  // Filtered Ingredients
   const filteredIngredients = useMemo(() => {
-    return ingredientData.ingredients.filter((item) => {
-      if (
-        statusFilter === 'CRITICAL' &&
-        item.urgency_status !== 'CRITICAL' &&
-        item.urgency_status !== 'OUT_OF_STOCK'
-      ) {
-        return false;
-      }
-      if (statusFilter === 'LOW_STOCK' && item.urgency_status !== 'LOW_STOCK') {
-        return false;
-      }
-      if (statusFilter === 'HEALTHY' && item.urgency_status !== 'HEALTHY') {
-        return false;
-      }
-      if (selectedCategory !== 'ALL' && item.category !== selectedCategory) {
-        return false;
-      }
+    return reorderPlan.filter((item) => {
+      if (statusFilter === 'ORDER' && !NEEDS_ORDER_ALERTS.includes(item.alert)) return false;
+      if (statusFilter === 'WATCH' && item.alert !== 'BELOW_MANUAL_THRESHOLD') return false;
+      if (statusFilter === 'OK' && item.alert) return false;
+      if (selectedCategory !== 'ALL' && item.category !== selectedCategory) return false;
       if (searchTerm.trim()) {
         const q = searchTerm.toLowerCase();
-        const matchName = item.name?.toLowerCase().includes(q);
-        const matchCat = item.category?.toLowerCase().includes(q);
-        const matchSup = item.supplier_name?.toLowerCase().includes(q);
-        if (!matchName && !matchCat && !matchSup) return false;
+        if (!item.name?.toLowerCase().includes(q) && !item.category?.toLowerCase().includes(q)) {
+          return false;
+        }
       }
       return true;
     });
-  }, [ingredientData.ingredients, statusFilter, selectedCategory, searchTerm]);
+  }, [reorderPlan, statusFilter, selectedCategory, searchTerm]);
 
-  // Reset ingredient pagination when filter or sort changes
   useEffect(() => {
     setIngPage(1);
   }, [statusFilter, selectedCategory, searchTerm, ingSortField, ingSortDirection]);
 
-  // Sorted Ingredients
-  const sortedIngredients = useMemo(() => {
-    const list = [...filteredIngredients];
-    list.sort((a, b) => {
-      const aVal = a[ingSortField];
-      const bVal = b[ingSortField];
-
-      if (ingSortField === 'days_remaining') {
-        const aDays = aVal === null || aVal === undefined ? 999999 : Number(aVal);
-        const bDays = bVal === null || bVal === undefined ? 999999 : Number(bVal);
-        return ingSortDirection === 'asc' ? aDays - bDays : bDays - aDays;
-      }
-
-      if (ingSortField === 'suggested_purchase_qty') {
-        const aQty = Number(a.suggested_purchase_qty) || 0;
-        const bQty = Number(b.suggested_purchase_qty) || 0;
-        return ingSortDirection === 'asc' ? aQty - bQty : bQty - aQty;
-      }
-
-      if (ingSortField === 'avg_daily_burn_rate') {
-        const aBurn = Number(a.avg_daily_burn_rate) || 0;
-        const bBurn = Number(b.avg_daily_burn_rate) || 0;
-        return ingSortDirection === 'asc' ? aBurn - bBurn : bBurn - aBurn;
-      }
-
-      if (ingSortField === 'stock_quantity') {
-        const aStock = Number(a.stock_quantity) || 0;
-        const bStock = Number(b.stock_quantity) || 0;
-        return ingSortDirection === 'asc' ? aStock - bStock : bStock - aStock;
-      }
-
-      if (typeof aVal === 'string' && typeof bVal === 'string' && isNaN(Number(aVal))) {
-        return ingSortDirection === 'asc'
-          ? aVal.localeCompare(bVal)
-          : bVal.localeCompare(aVal);
-      }
-
-      const numA = Number(aVal) || 0;
-      const numB = Number(bVal) || 0;
-      return ingSortDirection === 'asc' ? numA - numB : numB - numA;
-    });
-    return list;
-  }, [filteredIngredients, ingSortField, ingSortDirection]);
+  const sortedIngredients = useMemo(
+    () => [...filteredIngredients].sort(compareBy(ingSortField, ingSortDirection, getSortVal)),
+    [filteredIngredients, ingSortField, ingSortDirection]
+  );
 
   const paginatedIngredients = useMemo(() => {
     const start = (ingPage - 1) * ING_PAGE_SIZE;
     return sortedIngredients.slice(start, start + ING_PAGE_SIZE);
   }, [sortedIngredients, ingPage]);
 
-  // Product Categories & Filtering
+  // Product categories & filtering
+  const productForecasts = useMemo(() => forecast?.products || [], [forecast]);
+
   const productCategories = useMemo(() => {
     const set = new Set();
     productForecasts.forEach((p) => {
@@ -393,74 +288,23 @@ export const useDemandForecasting = () => {
     setProdPage(1);
   }, [productCategory, productSearch, prodSortField, prodSortDirection]);
 
-  // Sorted Products
-  const sortedProducts = useMemo(() => {
-    const list = [...filteredProducts];
-    list.sort((a, b) => {
-      if (prodSortField === 'predictedNext30Days') {
-        const a30 = a.predictedNext30Days || Math.round((Number(a.predictedNext7Days) || 0) * 4.3);
-        const b30 = b.predictedNext30Days || Math.round((Number(b.predictedNext7Days) || 0) * 4.3);
-        return prodSortDirection === 'asc' ? a30 - b30 : b30 - a30;
-      }
-
-      if (prodSortField === 'growthRate') {
-        const rateA = parseFloat(a.growthRate) || 0;
-        const rateB = parseFloat(b.growthRate) || 0;
-        return prodSortDirection === 'asc' ? rateA - rateB : rateB - rateA;
-      }
-
-      if (prodSortField === 'seasonalIndex') {
-        const sA = parseFloat(a.seasonalIndex) || 1.0;
-        const sB = parseFloat(b.seasonalIndex) || 1.0;
-        return prodSortDirection === 'asc' ? sA - sB : sB - sA;
-      }
-
-      if (prodSortField === 'avgDailySales') {
-        const aDaily = Number(a.avgDailySales) || 0;
-        const bDaily = Number(b.avgDailySales) || 0;
-        return prodSortDirection === 'asc' ? aDaily - bDaily : bDaily - aDaily;
-      }
-
-      if (prodSortField === 'predictedNext7Days') {
-        const a7 = Number(a.predictedNext7Days) || 0;
-        const b7 = Number(b.predictedNext7Days) || 0;
-        return prodSortDirection === 'asc' ? a7 - b7 : b7 - a7;
-      }
-
-      const aVal = a[prodSortField];
-      const bVal = b[prodSortField];
-
-      if (typeof aVal === 'string' && typeof bVal === 'string' && isNaN(Number(aVal))) {
-        return prodSortDirection === 'asc'
-          ? aVal.localeCompare(bVal)
-          : bVal.localeCompare(aVal);
-      }
-
-      const numA = Number(aVal) || 0;
-      const numB = Number(bVal) || 0;
-      return prodSortDirection === 'asc' ? numA - numB : numB - numA;
-    });
-    return list;
-  }, [filteredProducts, prodSortField, prodSortDirection]);
+  const sortedProducts = useMemo(
+    () => [...filteredProducts].sort(compareBy(prodSortField, prodSortDirection, getSortVal)),
+    [filteredProducts, prodSortField, prodSortDirection]
+  );
 
   const paginatedProducts = useMemo(() => {
     const start = (prodPage - 1) * PROD_PAGE_SIZE;
     return sortedProducts.slice(start, start + PROD_PAGE_SIZE);
   }, [sortedProducts, prodPage]);
 
-  // Product Summary Metrics
   const productSummary = useMemo(() => {
-    const total7DayUnits = productForecasts.reduce(
-      (sum, p) => sum + (Number(p.predictedNext7Days) || 0),
-      0
+    const total7DayUnits = productForecasts.reduce((sum, p) => sum + (Number(p.next7) || 0), 0);
+    const topProduct = productForecasts.reduce(
+      (best, p) => (!best || (Number(p.next7) || 0) > (Number(best.next7) || 0) ? p : best),
+      null
     );
-    const topProduct =
-      productForecasts.length > 0
-        ? [...productForecasts].sort(
-            (a, b) => (Number(b.predictedNext7Days) || 0) - (Number(a.predictedNext7Days) || 0)
-          )[0]
-        : null;
-    const trendingUpCount = productForecasts.filter((p) => parseFloat(p.growthRate) > 5).length;
+    const trendingUpCount = productForecasts.filter((p) => p.trendPct > 5).length;
     return { total7DayUnits, topProduct, trendingUpCount };
   }, [productForecasts]);
 
@@ -547,13 +391,15 @@ export const useDemandForecasting = () => {
   };
 
   const mapToPoItem = (item) => {
-    const unitPrice = item.unit_price > 0 ? item.unit_price : 0;
+    const unitPrice = Number(item.cost_per_purchase_unit) > 0 ? Number(item.cost_per_purchase_unit) : 0;
     const purchaseUnit = item.purchase_unit || item.unit;
-    const conversionFactor = item.conversion_factor || 1;
+    const conversionFactor = Number(item.conversion_factor) > 0 ? Number(item.conversion_factor) : 1;
+    // suggested_order_qty is in the stock unit; the PO is counted in purchase units.
+    const suggestedPurchaseQty = Math.ceil((Number(item.suggested_order_qty) || 0) / conversionFactor);
     return {
       ingredient_id: item.id,
       name: item.name,
-      quantity: item.suggested_purchase_qty > 0 ? item.suggested_purchase_qty : 1,
+      quantity: suggestedPurchaseQty > 0 ? suggestedPurchaseQty : 1,
       unit_price: unitPrice,
       purchase_unit: purchaseUnit,
       conversion_factor: conversionFactor,
@@ -623,7 +469,7 @@ export const useDemandForecasting = () => {
 
   const handleOrderAllCritical = () => {
     const criticalItems = ingredientData.ingredients.filter(
-      (item) => item.urgency_status === 'CRITICAL' || item.urgency_status === 'OUT_OF_STOCK'
+      (item) => NEEDS_ORDER_ALERTS.includes(item.alert)
     );
     if (criticalItems.length === 0) return;
 
@@ -661,7 +507,7 @@ export const useDemandForecasting = () => {
     setPoPoolItems(pool);
     setPoTargetSupplierId(targetId);
     setPoItems(applySupplierToItems(pool, targetId));
-    setPoNotes(`Reorder for ${item.name} (Current stock: ${item.stock_quantity} ${item.unit}).`);
+    setPoNotes(`Reorder for ${item.name} (Usable stock: ${item.usable_stock} ${item.unit}).`);
     setPoModalOpen(true);
   };
 
@@ -782,9 +628,10 @@ export const useDemandForecasting = () => {
     handleTabSwitch,
     infoModalOpen,
     setInfoModalOpen,
-    infoGuideTab,
-    setInfoGuideTab,
-    openInfoGuide,
+    canRefresh,
+    refreshing,
+    handleRefreshForecast,
+    forecast,
     ingredientData,
     loadingIngredients,
     statusFilter,
@@ -828,16 +675,8 @@ export const useDemandForecasting = () => {
     paginatedProducts,
     productSummary,
     fetchProductForecasts,
-    aiModalOpen,
-    setAiModalOpen,
-    aiSelectedProduct,
-    aiTargetYear,
-    aiTargetMonth,
-    aiLoading,
-    aiResult,
-    handleOpenMonthlyModal,
-    handleSelectAiYear,
-    handleSelectAiMonth,
+    detailProduct,
+    setDetailProduct,
     suppliers,
     poModalOpen,
     setPoModalOpen,

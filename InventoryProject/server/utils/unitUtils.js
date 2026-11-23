@@ -16,21 +16,26 @@
  * @param {string} stockUnit  - Unit the ingredient stock is stored in     (e.g. "L")
  * @returns {number}          - Equivalent quantity in stockUnit
  */
+const FACTORS = { 'ML>L': 1 / 1000, 'L>ML': 1000, 'G>KG': 1 / 1000, 'KG>G': 1000 };
+const norm = (u) => (u || '').toUpperCase().trim();
+
+/** True when a recipe in `recipeUnit` can be deducted from stock kept in `stockUnit`. */
+export const canConvertUnit = (recipeUnit, stockUnit) => {
+  const from = norm(recipeUnit);
+  const to = norm(stockUnit);
+  return !from || !to || from === to || `${from}>${to}` in FACTORS;
+};
+
 export const convertToBaseUnit = (quantity, recipeUnit, stockUnit) => {
-  const from = (recipeUnit || '').toUpperCase().trim();
-  const to   = (stockUnit  || '').toUpperCase().trim();
-  const qty  = parseFloat(quantity) || 0;
+  const from = norm(recipeUnit);
+  const to = norm(stockUnit);
+  const qty = parseFloat(quantity) || 0;
 
-  if (from === to) return qty;
+  if (!from || !to || from === to) return qty;
+  const factor = FACTORS[`${from}>${to}`];
+  if (factor !== undefined) return qty * factor;
 
-  // Volume
-  if (from === 'ML' && to === 'L')  return qty / 1000;
-  if (from === 'L'  && to === 'ML') return qty * 1000;
-
-  // Weight
-  if (from === 'G'  && to === 'KG') return qty / 1000;
-  if (from === 'KG' && to === 'G')  return qty * 1000;
-
+  // Recipes are validated on save (canConvertUnit); this only catches legacy rows.
   console.warn(`[unitUtils] No conversion path from "${from}" → "${to}". Using raw value.`);
   return qty;
 };

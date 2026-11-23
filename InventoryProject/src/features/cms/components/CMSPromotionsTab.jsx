@@ -146,7 +146,7 @@ export default function CMSPromotionsTab({
                   </div>
 
                   <div className="flex flex-col sm:flex-row gap-3.5 items-start">
-                    {isValidImageUrl(promo.image_url) && !promo.image_url.trim().startsWith('//') ? (
+                    {isValidImageUrl(promo.image_url) ? (
                       <div className="shrink-0 w-28 h-28 sm:w-32 sm:h-32 bg-zinc-100 border border-zinc-200 rounded-xl overflow-hidden flex items-center justify-center relative group/img">
                         <img
                           src={promo.image_url.trim()}

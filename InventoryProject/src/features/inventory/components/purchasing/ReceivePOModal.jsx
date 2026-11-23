@@ -10,8 +10,8 @@ const ReceivePOModal = ({ po, onClose, onSubmit }) => {
     return (po.purchase_order_items || []).map(item => {
       const rawPerishable = item.ingredients?.is_perishable;
       const isPerishable = rawPerishable === false || rawPerishable === 'false' ? false : true;
-      const shelfDays = Number(item.ingredients?.default_shelf_life_days) || 30;
-      const defaultExpiry = isPerishable ? addDaysManila(todayManila, shelfDays) : '';
+      const shelfDays = Number(item.ingredients?.default_shelf_life_days) || 0;
+      const defaultExpiry = isPerishable && shelfDays > 0 ? addDaysManila(todayManila, shelfDays) : '';
       return {
         ...item,
         received_now: Math.max(1, (item.quantity || 1) - (item.quantity_received || 0)),
@@ -108,21 +108,31 @@ const ReceivePOModal = ({ po, onClose, onSubmit }) => {
   };
 
   // Determine items to receive
+  const todayManila = getManilaDateOnly();
+  const isPerishableItem = (item) => !(item.ingredients?.is_perishable === false || item.ingredients?.is_perishable === 'false');
   const itemsToSubmit = items
     .filter(item => item.received_now > 0)
     .map(item => ({
       ...item,
       quantity_received_now: item.received_now,
-      expiry_date: item.expiry_date || null,
+      expiry_date: isPerishableItem(item) ? item.expiry_date || null : null,
       batch_code: item.batch_code?.trim() || null
     }));
 
   const isComplete = items.every(item => item.is_received || ((item.quantity_received || 0) + (item.received_now || 0)) >= item.quantity);
   const newStatus = isComplete ? 'Received' : 'Partial';
 
+  const expiryError = (item) => {
+    if (!isPerishableItem(item)) return '';
+    if (!item.expiry_date) return 'Expiration date is required for perishable items.';
+    if (item.expiry_date < todayManila) return 'Expiration date cannot be in the past.';
+    return '';
+  };
+  const hasExpiryErrors = itemsToSubmit.some(expiryError);
+
   const handleProceedToReview = (e) => {
     e.preventDefault();
-    if (itemsToSubmit.length === 0) return;
+    if (itemsToSubmit.length === 0 || hasExpiryErrors) return;
     setIsReviewStep(true);
   };
 
@@ -237,7 +247,7 @@ const ReceivePOModal = ({ po, onClose, onSubmit }) => {
                           <div className="flex flex-col gap-1">
                             <div className="flex items-center justify-between">
                               <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Expiration Date</label>
-                              {item.expiry_date && (
+                              {item.expiry_date && !isPerishableItem(item) && (
                                 <button
                                   type="button"
                                   onClick={() => handleExpiryChange(item.id, '')}
@@ -249,10 +259,22 @@ const ReceivePOModal = ({ po, onClose, onSubmit }) => {
                             </div>
                             <input
                               type="date"
+                              min={todayManila}
+                              required={isPerishableItem(item) && item.received_now > 0}
+                              disabled={!isPerishableItem(item)}
                               value={item.expiry_date || ''}
                               onChange={(e) => handleExpiryChange(item.id, e.target.value)}
-                              className="px-3 py-1.5 border border-zinc-300 rounded-lg text-xs font-semibold text-zinc-900 bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                              className="px-3 py-1.5 border border-zinc-300 rounded-lg text-xs font-semibold text-zinc-900 bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900 disabled:bg-zinc-100 disabled:text-zinc-400"
                             />
+                            {!isPerishableItem(item) ? (
+                              <span className="text-[11px] text-zinc-500 font-medium">Does not expire</span>
+                            ) : item.received_now > 0 && expiryError(item) ? (
+                              <span className="text-[11px] text-red-600 font-semibold">{expiryError(item)}</span>
+                            ) : item.ingredients?.default_shelf_life_days > 0 ? (
+                              <span className="text-[11px] text-zinc-500 font-medium">
+                                {{ ITEM: 'Item setting', CATEGORY: 'Default from category' }[item.ingredients?.shelf_life_source] || 'Default shelf life'}: {item.ingredients.default_shelf_life_days} days
+                              </span>
+                            ) : null}
                           </div>
                           <div className="flex flex-col gap-1">
                             <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Batch / Lot Code</label>
@@ -277,9 +299,9 @@ const ReceivePOModal = ({ po, onClose, onSubmit }) => {
               <button type="button" className="px-5 py-2.5 bg-white border border-zinc-300 text-zinc-700 rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-zinc-100 transition-colors cursor-pointer" onClick={onClose} disabled={saving}>Cancel</button>
               <button 
                 type="submit" 
-                disabled={itemsToSubmit.length === 0}
+                disabled={itemsToSubmit.length === 0 || hasExpiryErrors}
                 className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-xs ${
-                  itemsToSubmit.length > 0 
+                  itemsToSubmit.length > 0 && !hasExpiryErrors
                     ? 'bg-zinc-900 hover:bg-black text-white cursor-pointer' 
                     : 'bg-zinc-200 text-zinc-400 cursor-not-allowed border border-zinc-300'
                 }`}

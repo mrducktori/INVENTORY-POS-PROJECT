@@ -13,6 +13,18 @@ const router = express.Router();
 
 // Allowed roles in the system
 const ALLOWED_ROLES = ['Admin', 'Owner', 'Staff', 'Supplier', 'Custom'];
+const PRIVILEGED_ROLES = ['Admin', 'Owner'];
+
+// Only the Owner may create or change Admin/Owner accounts (an Admin may still edit their own profile).
+// Without this an Admin could reset another Admin's password and log in as them.
+export function blocksPrivilegedChange(actor, targetId, targetRole, nextRole) {
+  if (actor.role === 'Owner') return false;
+  const isSelf = Boolean(targetId) && targetId === actor.id;
+  if (PRIVILEGED_ROLES.includes(targetRole) && !isSelf) return true;
+  if (PRIVILEGED_ROLES.includes(nextRole) && !(isSelf && nextRole === targetRole)) return true;
+  return false;
+}
+const PRIVILEGED_ERROR = 'Only the Owner can create or modify Admin/Owner accounts.';
 
 // Get all users — requires internal café role
 router.get('/', requireAuth, requireRole('Owner', 'Admin', 'Staff', 'Custom'), async (req, res) => {
@@ -76,10 +88,8 @@ router.post('/', requireAuth, requireRole('Admin', 'Owner'), userManagementLimit
       return res.status(400).json({ error: access.error });
     }
 
-    if (role === 'Owner') {
-      if (req.user.role !== 'Owner') {
-        return res.status(403).json({ error: 'Only the current Owner can assign the Owner role.' });
-      }
+    if (blocksPrivilegedChange(req.user, null, null, role)) {
+      return res.status(403).json({ error: PRIVILEGED_ERROR });
     }
 
     const saltRounds = 10;
@@ -146,11 +156,10 @@ router.put('/:id/status', requireAuth, requireRole('Admin', 'Owner'), userManage
       return res.status(400).json({ error: 'You cannot deactivate your own account.' });
     }
 
-    // Admins cannot deactivate the Owner
     if (req.user.role !== 'Owner') {
-      const { data: targetUser } = await supabase.from('users').select('role').eq('id', req.params.id).single();
-      if (targetUser && targetUser.role === 'Owner') {
-        return res.status(403).json({ error: 'Admins cannot modify the Owner account status.' });
+      const { data: targetUser } = await supabase.from('users').select('role').eq('id', req.params.id).maybeSingle();
+      if (blocksPrivilegedChange(req.user, req.params.id, targetUser?.role, null)) {
+        return res.status(403).json({ error: PRIVILEGED_ERROR });
       }
     }
 
@@ -208,6 +217,9 @@ router.delete('/:id', requireAuth, requireRole('Admin', 'Owner'), userManagement
     // Owner is the only role that is fully protected from deletion
     if (targetUser.role === 'Owner') {
       return res.status(403).json({ error: 'The Owner account is fully protected and cannot be deleted.' });
+    }
+    if (blocksPrivilegedChange(req.user, id, targetUser.role, null)) {
+      return res.status(403).json({ error: PRIVILEGED_ERROR });
     }
 
     // Account must be archived (INACTIVE)
@@ -295,16 +307,11 @@ router.put('/:id', requireAuth, requireRole('Admin', 'Owner'), userManagementLim
       .eq('id', req.params.id)
       .single();
 
-    // Admins cannot modify the Owner
-    if (req.user.role !== 'Owner' && existingTarget?.role === 'Owner') {
-      return res.status(403).json({ error: 'Admins cannot modify the Owner account.' });
+    if (blocksPrivilegedChange(req.user, req.params.id, existingTarget?.role, role)) {
+      return res.status(403).json({ error: PRIVILEGED_ERROR });
     }
 
-    if (role === 'Owner') {
-      if (req.user.role !== 'Owner') {
-        return res.status(403).json({ error: 'Only the current Owner can assign the Owner role.' });
-      }
-    } else if (existingTarget?.role === 'Owner') {
+    if (role !== 'Owner' && existingTarget?.role === 'Owner') {
       // Prevent demoting the ONLY owner directly
       return res.status(400).json({ error: 'Cannot demote the Owner. Transfer ownership to another user instead.' });
     }

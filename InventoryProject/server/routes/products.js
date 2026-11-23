@@ -3,7 +3,7 @@ import { supabase } from "../config/supabaseClient.js";
 import { logAudit } from "../utils/auditHelper.js";
 import { checkCompositeDuplicate } from "../utils/stringHelper.js";
 import { LIMITS, validateNumberBound, validateTextLength } from "../utils/validationHelper.js";
-import { recalculateProductEstimatedCost, createRecipe, validateSizeOverridesInput } from "../services/recipesService.js";
+import { recalculateProductEstimatedCost, createRecipe, validateSizeOverridesInput, assertRecipeUnitCompatible } from "../services/recipesService.js";
 import { invalidateAnalyticsCache } from "./analytics.js";
 import { requireRole } from "../middleware/authMiddleware.js";
 import { requirePermission } from "../middleware/permissionMiddleware.js";
@@ -266,6 +266,22 @@ router.post('/', requirePermission('ManageProducts'), async (req, res) => {
 
     const estimated_cost = Math.round(validated.price * 0.38 * 100) / 100;
 
+    // Validate everything that can fail BEFORE inserting, so we rarely leave a half-made product.
+    const recipeIds = validated.initial_recipes.map((r) => r.ingredient_id);
+    if (new Set(recipeIds).size !== recipeIds.length) {
+      return res.status(400).json({ error: 'Duplicate ingredient in initial recipes.' });
+    }
+    if (recipeIds.length > 0) {
+      const { data: found, error: ingErr } = await supabase.from('ingredients').select('id').in('id', recipeIds);
+      if (ingErr) throw ingErr;
+      if ((found || []).length !== recipeIds.length) {
+        return res.status(400).json({ error: 'One or more recipe ingredients do not exist.' });
+      }
+      for (const r of validated.initial_recipes) {
+        await assertRecipeUnitCompatible(r.ingredient_id, r.recipe_unit);
+      }
+    }
+
     const { data, error } = await supabase
       .from('products')
       .insert([{
@@ -287,19 +303,26 @@ router.post('/', requirePermission('ManageProducts'), async (req, res) => {
     if (error) throw error;
 
     if (validated.initial_recipes.length > 0) {
-      for (const r of validated.initial_recipes) {
-        await createRecipe({
-          product_id: data.id,
-          ingredient_id: r.ingredient_id,
-          quantity_used: r.quantity_used,
-          recipe_unit: r.recipe_unit,
-          size_name: r.size_name,
-          size_quantities: r.size_quantities
-        });
-      }
-      const updatedCost = await recalculateProductEstimatedCost(data.id);
-      if (updatedCost !== null) {
-        data.estimated_cost = updatedCost;
+      try {
+        for (const r of validated.initial_recipes) {
+          await createRecipe({
+            product_id: data.id,
+            ingredient_id: r.ingredient_id,
+            quantity_used: r.quantity_used,
+            recipe_unit: r.recipe_unit,
+            size_name: r.size_name,
+            size_quantities: r.size_quantities
+          });
+        }
+        const updatedCost = await recalculateProductEstimatedCost(data.id);
+        if (updatedCost !== null) {
+          data.estimated_cost = updatedCost;
+        }
+      } catch (recipeErr) {
+        // Compensate: recipes.product_id is ON DELETE CASCADE, so this removes partial recipe rows too.
+        const { error: rollbackErr } = await supabase.from('products').delete().eq('id', data.id);
+        if (rollbackErr) console.error('Product rollback failed for', data.id, rollbackErr.message);
+        throw recipeErr;
       }
     }
 

@@ -2,7 +2,9 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   createRawMaterialCategory,
   renameRawMaterialCategory,
-  deleteRawMaterialCategory
+  deleteRawMaterialCategory,
+  getCategoryShelfLife,
+  updateCategoryShelfLife
 } from '../../../api/inventoryApi';
 
 const normalizeCategory = (val) =>
@@ -25,6 +27,17 @@ const RawMaterialCategoriesModal = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notice, setNotice] = useState({ type: '', text: '' });
   const noticeTimerRef = useRef(null);
+  const [shelfMap, setShelfMap] = useState({});
+  const [shelfDraft, setShelfDraft] = useState(null); // { category, perishable, days }
+
+  const loadShelfLife = useCallback(async () => {
+    try {
+      const rows = await getCategoryShelfLife();
+      setShelfMap(Object.fromEntries((rows || []).map((r) => [r.category, r])));
+    } catch { /* editor falls back to defaults */ }
+  }, []);
+
+  useEffect(() => { loadShelfLife(); }, [loadShelfLife]);
 
   const showNotice = useCallback((type, text) => {
     if (noticeTimerRef.current) {
@@ -55,6 +68,39 @@ const RawMaterialCategoriesModal = ({
     categoryObjects.find((item) => item.category === effectiveSelectedCategory) ||
     null;
   const selectedCount = activeCategoryObj?.ingredient_count ?? 0;
+
+  const savedShelf = shelfMap[effectiveSelectedCategory];
+  const shelf =
+    shelfDraft?.category === effectiveSelectedCategory
+      ? shelfDraft
+      : {
+          category: effectiveSelectedCategory,
+          perishable: savedShelf ? savedShelf.is_perishable !== false : true,
+          days: savedShelf?.default_shelf_life_days ?? ''
+        };
+
+  const handleSaveShelfLife = async () => {
+    const days = Math.round(Number(shelf.days));
+    if (shelf.perishable && !(days >= 1 && days <= 3650)) {
+      showNotice('error', 'Shelf life must be between 1 and 3650 days.');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      await updateCategoryShelfLife(effectiveSelectedCategory, {
+        is_perishable: shelf.perishable,
+        default_shelf_life_days: shelf.perishable ? days : null
+      });
+      setShelfDraft(null);
+      await loadShelfLife();
+      if (onCategoriesChanged) await onCategoriesChanged();
+      showNotice('success', 'Category shelf life saved.');
+    } catch (err) {
+      showNotice('error', err.message || 'Failed to save shelf life.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const renameValue =
     renameDraft && renameDraft.category === effectiveSelectedCategory
@@ -397,6 +443,43 @@ const RawMaterialCategoriesModal = ({
                         </div>
                       </div>
                     )}
+                  </div>
+
+                  <div className="p-3.5 bg-gray-50 border border-gray-200 rounded-xl flex flex-col gap-3 mb-4">
+                    <label className="flex items-center justify-between gap-3 cursor-pointer select-none">
+                      <div>
+                        <span className="block text-xs font-bold text-gray-800 uppercase tracking-wider">Perishable Category</span>
+                        <span className="block text-[11px] text-gray-500">Default for materials that do not set their own shelf life</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={shelf.perishable}
+                        onChange={(e) => setShelfDraft({ ...shelf, perishable: e.target.checked })}
+                        className="w-4 h-4 accent-gray-900 rounded cursor-pointer"
+                      />
+                    </label>
+                    {shelf.perishable && (
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider">Default Shelf Life (Days)</label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="3650"
+                          step="1"
+                          value={shelf.days}
+                          onChange={(e) => setShelfDraft({ ...shelf, days: e.target.value })}
+                          className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-semibold focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
+                        />
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleSaveShelfLife}
+                      disabled={isSubmitting || shelfDraft?.category !== effectiveSelectedCategory}
+                      className="self-start px-4 py-2 bg-white border border-gray-300 text-gray-800 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-gray-100 transition-colors disabled:text-gray-400 disabled:bg-gray-100 disabled:cursor-not-allowed cursor-pointer"
+                    >
+                      Save Shelf Life
+                    </button>
                   </div>
 
                   <p className="text-xs md:text-sm text-gray-600 mb-4 font-medium">

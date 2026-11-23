@@ -28,6 +28,7 @@ const ManageRawMaterials = () => {
     refreshCategories,
     editCategory, setEditCategory,
     editIsPerishable, setEditIsPerishable,
+    categoryShelfLife,
     editShelfLifeDays, setEditShelfLifeDays,
     UNIT_CHOICES,
     handleAddIngredient,
@@ -37,6 +38,12 @@ const ManageRawMaterials = () => {
     handleSetModify,
     fetchIngredients
   } = useManageRawMaterials();
+
+  const categoryDefaultLabel = (cat) => {
+    const c = categoryShelfLife[cat];
+    const text = !c ? 'not set' : c.is_perishable === false ? 'does not expire' : c.default_shelf_life_days ? `${c.default_shelf_life_days} days` : 'perishable, no default';
+    return `Use category default (currently: ${text})`;
+  };
 
   // Pagination for Materials List Table
   const [currentPage, setCurrentPage] = useState(1);
@@ -249,32 +256,31 @@ const ManageRawMaterials = () => {
 
                 {/* Perishability Configuration */}
                 <div className="p-3.5 bg-gray-50 border border-gray-200 rounded-xl flex flex-col gap-3">
-                  <label className="flex items-center justify-between gap-3 cursor-pointer select-none">
-                    <div>
-                      <span className="block text-xs font-bold text-gray-800 uppercase tracking-wider">Perishable Item</span>
-                      <span className="block text-[11px] text-gray-500">Auto-assign expiration dates on stock receipt</span>
-                    </div>
-                    <input
-                      type="checkbox"
-                      name="is_perishable"
-                      checked={formData.is_perishable !== false}
-                      onChange={handleInputChange}
-                      className="w-4 h-4 accent-gray-900 rounded cursor-pointer"
-                    />
-                  </label>
-                  {formData.is_perishable !== false && (
+                  <div>
+                    <span className="block text-xs font-bold text-gray-800 uppercase tracking-wider">Shelf Life</span>
+                    <span className="block text-[11px] text-gray-500">Perishable items require an expiry date on receipt</span>
+                  </div>
+                  <select
+                    value={formData.is_perishable === null || formData.is_perishable === undefined ? 'default' : formData.is_perishable ? 'yes' : 'no'}
+                    onChange={(e) => handleInputChange({ target: { name: 'is_perishable', value: e.target.value === 'default' ? null : e.target.value === 'yes' } })}
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-semibold focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
+                  >
+                    <option value="default">{categoryDefaultLabel(formData.category)}</option>
+                    <option value="yes">Perishable{formData.default_shelf_life_days ? ` – ${formData.default_shelf_life_days} days` : ''}</option>
+                    <option value="no">Does not expire</option>
+                  </select>
+                  {formData.is_perishable === true && (
                     <div className="flex flex-col gap-1">
                       <label className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider">
-                        Default Shelf Life (Days) <span className="text-red-500">*</span>
+                        Shelf Life (Days) <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="number"
-                        name="default_shelf_life_days"
                         min="1"
                         max="3650"
                         step="1"
                         value={formData.default_shelf_life_days}
-                        onChange={handleInputChange}
+                        onChange={(e) => handleInputChange({ target: { name: 'default_shelf_life_days', value: e.target.value } })}
                         className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-semibold focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
                         required
                       />
@@ -354,7 +360,7 @@ const ManageRawMaterials = () => {
                               <strong className="text-sm font-bold text-gray-900 block">{i.name}</strong>
                               <span className="text-[11px] font-medium text-gray-500">
                                 {i.is_perishable !== false
-                                  ? `Perishable • ${i.default_shelf_life_days || 180}d shelf life`
+                                  ? `Perishable • ${i.default_shelf_life_days ? `${i.default_shelf_life_days}d shelf life` : 'no default shelf life'}`
                                   : 'Non-Perishable'}
                               </span>
                             </td>
@@ -720,28 +726,25 @@ const ManageRawMaterials = () => {
                 </div>
 
                 {/* Perishability Metadata Section */}
-                <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <label className="flex items-center gap-3 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(editIsPerishable)}
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        setEditIsPerishable(checked);
-                        if (checked && !editShelfLifeDays) {
-                          setEditShelfLifeDays(30);
-                        }
-                      }}
-                      className="w-4 h-4 accent-gray-900 rounded cursor-pointer"
-                    />
-                    <div>
-                      <span className="block text-xs md:text-sm font-bold text-gray-800 uppercase tracking-wider">Perishable Item</span>
-                      <span className="block text-xs text-gray-500">Enables batch expiry tracking and FEFO</span>
-                    </div>
-                  </label>
-                  {editIsPerishable && (
-                    <div className="flex flex-col gap-1 sm:w-44">
-                      <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">Default Shelf Life (Days)</label>
+                <div className="p-3.5 bg-gray-50 border border-gray-200 rounded-xl flex flex-col gap-3">
+                  <div>
+                    <span className="block text-xs font-bold text-gray-800 uppercase tracking-wider">Shelf Life</span>
+                    <span className="block text-[11px] text-gray-500">Perishable items require an expiry date on receipt</span>
+                  </div>
+                  <select
+                    value={editIsPerishable === null || editIsPerishable === undefined ? 'default' : editIsPerishable ? 'yes' : 'no'}
+                    onChange={(e) => { setEditIsPerishable(e.target.value === 'default' ? null : e.target.value === 'yes'); }}
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-semibold focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
+                  >
+                    <option value="default">{categoryDefaultLabel(editCategory)}</option>
+                    <option value="yes">Perishable{editShelfLifeDays ? ` – ${editShelfLifeDays} days` : ''}</option>
+                    <option value="no">Does not expire</option>
+                  </select>
+                  {editIsPerishable === true && (
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider">
+                        Shelf Life (Days) <span className="text-red-500">*</span>
+                      </label>
                       <input
                         type="number"
                         min="1"
@@ -749,7 +752,7 @@ const ManageRawMaterials = () => {
                         step="1"
                         value={editShelfLifeDays}
                         onChange={(e) => setEditShelfLifeDays(e.target.value)}
-                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-semibold focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
+                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-semibold focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
                         required
                       />
                     </div>

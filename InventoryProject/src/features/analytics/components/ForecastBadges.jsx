@@ -50,77 +50,38 @@ export const SortIcon = ({ active, direction, className = '' }) => {
   );
 };
 
-/**
- * Renders runout urgency badge for an ingredient row.
- */
-export const IngredientStatusBadge = ({ days, urgency }) => {
-  if (urgency === 'OUT_OF_STOCK' || days === 0) {
-    return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
-        <span className="w-1.5 h-1.5 rounded-full bg-red-600" />
-        Out of stock
-      </span>
-    );
-  }
-  if (days === null || days === undefined) {
-    return (
-      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600">
-        Stable
-      </span>
-    );
-  }
-  if (days <= 3) {
-    return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
-        <span className="w-1.5 h-1.5 rounded-full bg-red-600" />
-        {days} {days === 1 ? 'day' : 'days'} left
-      </span>
-    );
-  }
-  if (days <= 7) {
-    return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
-        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-        {days} days left
-      </span>
-    );
-  }
+/** Small marker shown only when the AI nudged a forecast (aiFactor !== 1). */
+const aiPctText = (f) => `${f > 1 ? '+' : '-'}${Math.abs(Math.round((f - 1) * 100))}%`;
+
+export const AiAdjustBadge = ({ factor, reason }) => {
+  if (factor == null || factor === 1) return null;
   return (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-      {Math.round(days)} days left
+    <span
+      title={`AI adjustment ${aiPctText(factor)}${reason ? `: ${reason}` : ''}`}
+      className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold border bg-violet-50 text-violet-700 border-violet-200 align-middle"
+    >
+      AI {aiPctText(factor)}
     </span>
   );
 };
 
 /**
- * Renders sales growth trend badge for a menu product row.
+ * Stock status for an ingredient row, from the server's reorder-plan alert.
  */
-export const ProductTrendBadge = ({ growthRate }) => {
-  const rate = parseFloat(growthRate) || 0;
-  if (rate > 5) {
-    return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-        <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
-        </svg>
-        +{rate.toFixed(0)}% Up
-      </span>
-    );
+export const IngredientAlertBadge = ({ alert, daysOfCover }) => {
+  const base = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border';
+  if (alert === 'OUT_OF_STOCK') {
+    return <span className={`${base} bg-red-50 text-red-700 border-red-200`}>Out of stock</span>;
   }
-  if (rate < -5) {
-    return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
-        <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-        </svg>
-        {rate.toFixed(0)}% Down
-      </span>
-    );
+  if (alert === 'REORDER_NOW') {
+    return <span className={`${base} bg-red-50 text-red-700 border-red-200`}>Order now</span>;
+  }
+  if (alert === 'BELOW_MANUAL_THRESHOLD') {
+    return <span className={`${base} bg-amber-50 text-amber-800 border-amber-200`}>Running low</span>;
   }
   return (
-    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600">
-      Steady
+    <span className={`${base} bg-emerald-50 text-emerald-700 border-emerald-200`}>
+      {daysOfCover == null ? 'OK' : 'Enough stock'}
     </span>
   );
 };

@@ -1,7 +1,6 @@
 import express from 'express';
 import { supabase } from '../config/supabaseClient.js';
 import { toManilaStartOfDay, toManilaEndOfDay } from '../utils/dateUtils.js';
-import { logAudit } from '../utils/auditHelper.js';
 import { requireRole } from '../middleware/authMiddleware.js';
 import { requirePermission } from '../middleware/permissionMiddleware.js';
 
@@ -45,22 +44,6 @@ router.get('/', requireRole('Owner', 'Admin', 'Staff', 'Custom'), requirePermiss
   }
 });
 
-// Create audit log entry
-router.post('/', requireRole('Admin', 'Owner'), async (req, res) => {
-  try {
-    const { action, details, entity_type, entity_id } = req.body;
-    const authUserId = req.user.id;
-    await logAudit({
-      action: action || 'CUSTOM_AUDIT',
-      user_id: authUserId,
-      details: details || {},
-      entity_type,
-      entity_id
-    });
-    res.status(201).json({ success: true, action, user_id: authUserId });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// No POST route on purpose: audit entries are written only by the server, so clients cannot forge them.
 
 export default router;

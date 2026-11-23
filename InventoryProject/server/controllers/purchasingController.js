@@ -2,6 +2,7 @@ import * as purchasingService from "../services/purchasingService.js";
 import { logAudit } from "../utils/auditHelper.js";
 import { invalidateAnalyticsCache } from "../routes/analytics.js";
 import { LIMITS, validateNumberBound } from "../utils/validationHelper.js";
+import { getManilaDateOnly } from "../utils/dateUtils.js";
 
 // === Suppliers ===
 export const getSuppliers = async (req, res) => {
@@ -203,7 +204,10 @@ export const updatePurchaseOrderStatus = async (req, res) => {
 };
 
 // === Supplier Portal ===
-const SUPPLIER_ALLOWED_STATUSES = ['Accepted', 'Declined', 'To Be Delivered', 'Delivering', 'Postponed'];
+const PO_STATUS_CANON = Object.fromEntries(
+  Object.keys(purchasingService.SUPPLIER_TRANSITIONS).map((s) => [s.toLowerCase(), s])
+);
+const SUPPLIER_ALLOWED_STATUSES =['Accepted', 'Declined', 'To Be Delivered', 'Delivering', 'Postponed'];
 
 export const getSupplierOwnOrders = async (req, res) => {
   try {
@@ -287,6 +291,24 @@ export const updateSupplierOrderStatus = async (req, res) => {
       });
     }
 
+    const currentStatus = PO_STATUS_CANON[String(po.status || '').toLowerCase()] || po.status;
+    if (!purchasingService.isSupplierTransitionAllowed(currentStatus, matchedStatus)) {
+      return res.status(409).json({
+        error: `Cannot change purchase order from ${po.status} to ${matchedStatus}.`
+      });
+    }
+
+    if (expected_date !== undefined && expected_date !== null && expected_date !== '') {
+      const validShape = typeof expected_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(expected_date)
+        && !Number.isNaN(Date.parse(expected_date));
+      if (!validShape) {
+        return res.status(400).json({ error: 'expected_date must be a valid YYYY-MM-DD date.' });
+      }
+      if (expected_date < getManilaDateOnly()) {
+        return res.status(400).json({ error: 'expected_date cannot be in the past.' });
+      }
+    }
+
     const data = await purchasingService.updatePurchaseOrderStatus(id, matchedStatus, [], expected_date, declineReason);
 
     await logAudit(matchedStatus.toLowerCase() === 'declined' ? 'SUPPLIER_PO_DECLINED' : 'SUPPLIER_PO_STATUS_UPDATED', req.user.id, {
@@ -357,7 +379,7 @@ export const respondToSupplierProposal = async (req, res) => {
     );
     res.json(data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 };
 

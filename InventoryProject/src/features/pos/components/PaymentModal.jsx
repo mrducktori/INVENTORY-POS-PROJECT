@@ -113,6 +113,8 @@ const PaymentModal = ({ order, posSettings = null, onConfirm, onClose }) => {
   });
   const [customMode, setCustomMode] = useState(order?.customDiscountMode || 'PERCENT');
   const [customValue, setCustomValue] = useState(order?.customDiscountValue ?? '');
+  const [managerPin, setManagerPin] = useState('');
+  const attemptRef = useRef(null);
   const [customerName, setCustomerName] = useState('');
   const [discountIdNumber, setDiscountIdNumber] = useState('');
   const [promoCode, setPromoCode] = useState('');
@@ -294,6 +296,11 @@ const PaymentModal = ({ order, posSettings = null, onConfirm, onClose }) => {
       return;
     }
 
+    if (discountType === 'CUSTOM' && !/^\d{4,8}$/.test(managerPin)) {
+      setError('Enter a valid 4-8 digit Manager PIN to apply a custom discount.');
+      return;
+    }
+
     if (selectedDiscountOption?.requires_id) {
       if (customerName.trim().length < 2) {
         setError(`Customer full name is required for ${selectedDiscountOption.label} discounts.`);
@@ -366,6 +373,14 @@ const PaymentModal = ({ order, posSettings = null, onConfirm, onClose }) => {
       payloadReference = cleanRef;
     }
 
+    // A retry of the same payload reuses the key; any change to discount/payment gets a fresh one.
+    const attemptSig = JSON.stringify([
+      discountType, promoCode, customMode, customValue, discountIdNumber,
+      method, payloadAmountReceived, payloadReference, payloadPayments
+    ]);
+    if (!attemptRef.current) attemptRef.current = { sig: attemptSig, key: idempotencyKey };
+    else if (attemptRef.current.sig !== attemptSig) attemptRef.current = { sig: attemptSig, key: generateIdempotencyKey() };
+
     busyRef.current = true;
     setSubmitting(true);
     try {
@@ -384,7 +399,8 @@ const PaymentModal = ({ order, posSettings = null, onConfirm, onClose }) => {
         promoCode: discountType === 'PROMO_CODE' ? promoCode.trim().toUpperCase() : '',
         customDiscountMode: discountType === 'CUSTOM' ? customMode : null,
         customDiscountValue: discountType === 'CUSTOM' ? parseFloat(customValue) || 0 : null,
-        idempotencyKey
+        managerPin: discountType === 'CUSTOM' ? managerPin : '',
+        idempotencyKey: attemptRef.current.key
       });
     } catch (err) {
       setSubmitting(false);
@@ -590,6 +606,16 @@ const PaymentModal = ({ order, posSettings = null, onConfirm, onClose }) => {
                       className="flex-1 px-3 py-1.5 text-sm font-semibold bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-gray-900"
                     />
                   </div>
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    maxLength={8}
+                    placeholder="Manager PIN (4-8 digits) *"
+                    value={managerPin}
+                    onChange={(e) => setManagerPin(e.target.value.replace(/\D/g, ''))}
+                    className="w-full px-3 py-1.5 text-sm font-semibold bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-gray-900"
+                  />
                   {discountError && (
                     <div className="text-[11px] font-semibold text-rose-600">{discountError}</div>
                   )}

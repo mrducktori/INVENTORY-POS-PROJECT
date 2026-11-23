@@ -823,23 +823,55 @@ export const generateQrPaymentIntent = ({ provider, amount }) => {
   };
 };
 
-export const checkIdempotencyKey = async (key, userId) => {
+// Stable sha256 of the checkout fields that decide what is sold and paid, so a reused key can't replay a changed cart.
+export const hashCheckoutPayload = (body = {}) => {
+  const canon = {
+    cart: (Array.isArray(body.cart) ? body.cart : []).map((i) => ({
+      id: i?.id,
+      qty: i?.qty,
+      size: i?.cup_size || i?.cup_size_obj?.name || null,
+      add_ons: (Array.isArray(i?.add_ons) ? i.add_ons : [])
+        .map((a) => [a?.id ?? a?.name ?? null, Number(a?.customer_qty ?? a?.quantity ?? 1)])
+        .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)))
+    })),
+    discount: [
+      body.discount_type ?? null,
+      body.promo_code || null,
+      body.custom_discount_mode || null,
+      Number(body.custom_discount_value) || null,
+      body.discount_id_number || null
+    ],
+    payment: [
+      body.payment_method ?? null,
+      Number(body.amount_received) || 0,
+      Array.isArray(body.payments)
+        ? body.payments.map((p) => [p?.method, Number(p?.amount) || 0, p?.reference_number || null])
+        : null
+    ]
+  };
+  return crypto.createHash("sha256").update(JSON.stringify(canon)).digest("hex");
+};
+
+const idempotencyMismatch = () => createHttpError(409, "This checkout changed; please submit again.");
+
+const findIdempotencyEntry = async (key, userId) => {
   if (!key || typeof key !== "string" || !key.trim()) return null;
   const compositeKey = `${userId || "anon"}:${key.trim()}`;
   const store = await readCmsStore(IDEMPOTENCY_STORE_KEY, { entries: [] });
   const entries = Array.isArray(store.entries) ? store.entries : [];
-  const found = entries.find((e) => e.key === compositeKey);
-  return found ? found.sale : null;
+  return entries.find((e) => e.key === compositeKey) || null;
 };
 
-export const recordIdempotencyKey = async (key, userId, sale) => {
+export const checkIdempotencyKey = async (key, userId) => (await findIdempotencyEntry(key, userId))?.sale ?? null;
+
+export const recordIdempotencyKey = async (key, userId, sale, payloadHash = null) => {
   if (!key || typeof key !== "string" || !key.trim() || !sale) return;
   const compositeKey = `${userId || "anon"}:${key.trim()}`;
   await withStoreLock(IDEMPOTENCY_STORE_KEY, async () => {
     const store = await readCmsStore(IDEMPOTENCY_STORE_KEY, { entries: [] });
     const entries = Array.isArray(store.entries) ? store.entries : [];
     const filtered = entries.filter((e) => e.key !== compositeKey);
-    const updated = [{ key: compositeKey, sale, created_at: getManilaISOString() }, ...filtered].slice(
+    const updated = [{ key: compositeKey, sale, hash: payloadHash, created_at: getManilaISOString() }, ...filtered].slice(
       0,
       MAX_IDEMPOTENCY_KEYS
     );
@@ -847,29 +879,38 @@ export const recordIdempotencyKey = async (key, userId, sale) => {
   });
 };
 
-export const runWithIdempotency = async (key, userId, executor) => {
+export const runWithIdempotency = async (key, userId, executor, payloadHash = null) => {
   const cleanKey = typeof key === "string" ? key.trim() : "";
   if (!cleanKey) {
     return { sale: await executor(), deduplicated: false };
   }
 
-  const existing = await checkIdempotencyKey(cleanKey, userId);
+  // Entries stored before hashing existed have no hash and are treated as matching.
+  const sameHash = (stored) => !payloadHash || !stored || stored === payloadHash;
+
+  const existing = await findIdempotencyEntry(cleanKey, userId);
   if (existing) {
-    return { sale: existing, deduplicated: true };
+    if (!sameHash(existing.hash)) throw idempotencyMismatch();
+    return { sale: existing.sale, deduplicated: true };
   }
 
   const compositeKey = `${userId || "anon"}:${cleanKey}`;
   if (inFlightIdempotency.has(compositeKey)) {
-    const sale = await inFlightIdempotency.get(compositeKey);
+    const inflight = inFlightIdempotency.get(compositeKey);
+    const sale = await inflight;
+    if (!sameHash(inflight.payloadHash)) throw idempotencyMismatch();
     return { sale, deduplicated: true };
   }
 
   const pendingPromise = (async () => {
-    const again = await checkIdempotencyKey(cleanKey, userId);
-    if (again) return again;
+    const again = await findIdempotencyEntry(cleanKey, userId);
+    if (again) {
+      if (!sameHash(again.hash)) throw idempotencyMismatch();
+      return again.sale;
+    }
     const sale = await executor();
     try {
-      await recordIdempotencyKey(cleanKey, userId, sale);
+      await recordIdempotencyKey(cleanKey, userId, sale, payloadHash);
     } catch (recErr) {
       // The sale is committed; returning success stops the client retrying. shortcut: a retry after this
       // failure is not deduplicated, upgrade by storing the key on the sales row once a column exists.
@@ -878,6 +919,7 @@ export const runWithIdempotency = async (key, userId, executor) => {
     return sale;
   })();
 
+  pendingPromise.payloadHash = payloadHash;
   inFlightIdempotency.set(compositeKey, pendingPromise);
   try {
     const sale = await pendingPromise;
@@ -1220,6 +1262,11 @@ export const voidOrRefundSale = async ({
       }
     }
 
+    // Mirrors createSale: a product without a recipe had its own stock deducted.
+    if ((recipesByProd.get(prod.id) || []).length === 0) {
+      productRestocks[prod.id] = (productRestocks[prod.id] || 0) + itemQty;
+    }
+
     const modifiers = parseModifiersFromItem(si);
     for (const recipe of recipesByProd.get(prod.id) || []) {
       const ing = recipe.ingredients;
@@ -1283,14 +1330,33 @@ export const voidOrRefundSale = async ({
       appliedProductRestocks.push({ pid, qty: round6(next - prev) });
     }
 
+    // Prefer returning stock to the exact lots checkout drew from (audit written at checkout).
+    const { data: deductAudits, error: auditErr } = await supabase
+      .from("audit_logs")
+      .select("new_value")
+      .eq("action", "INGREDIENT_DEDUCTED")
+      .eq("new_value->>sale_id", String(sale.id));
+    if (auditErr) console.error("[POS Void] Audit lookup failed, using new-lot fallback:", auditErr.message);
+    const restoredIids = new Set();
+    for (const row of deductAudits || []) {
+      const d = row.new_value || {};
+      const lots = Array.isArray(d.deducted_batches) ? d.deducted_batches : [];
+      if (!d.ingredient_id || lots.length === 0 || restoredIids.has(d.ingredient_id)) continue;
+      await batchService.restoreDeductedBatches(d.ingredient_id, lots);
+      restoredIids.add(d.ingredient_id);
+      for (const l of lots) {
+        appliedRestockBatches.push({ iid: d.ingredient_id, batch_id: l.batch_id, qty: l.quantity_deducted });
+      }
+    }
+
     for (const [iid, entry] of Object.entries(resolvedIngredients)) {
-      // Stock raise + batch insert run together under the batch lock with a fresh stock read.
+      if (restoredIids.has(iid)) continue;
+      // One insert; the inventory_batches trigger raises the ingredient total.
       const batch = await batchService.createBatch({
         ingredient_id: iid,
         source: "VOID_RESTOCK",
         initial_quantity: entry.qty,
-        notes: `${actionType} of ${sale.receipt_number || sale.id}: ${cleanReason}`,
-        stock_increment: entry.qty
+        notes: `${actionType} of ${sale.receipt_number || sale.id}: ${cleanReason}`
       });
       appliedRestockBatches.push({ iid, batch_id: batch.id, qty: entry.qty });
     }

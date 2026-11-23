@@ -12,8 +12,14 @@ const CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes
  */
 export function isValidImageUrl(url) {
   if (!url || typeof url !== "string") return false;
-  const trimmed = url.trim().toLowerCase();
-  return trimmed.startsWith("https://") || trimmed.startsWith("http://") || trimmed.startsWith("/");
+  const trimmed = url.trim();
+  // Same-origin paths only: "//host" and "/\host" are protocol-relative
+  if (trimmed.startsWith("/")) return !/^\/[/\\]/.test(trimmed);
+  try {
+    return ["http:", "https:"].includes(new URL(trimmed).protocol);
+  } catch {
+    return false;
+  }
 }
 
 /**

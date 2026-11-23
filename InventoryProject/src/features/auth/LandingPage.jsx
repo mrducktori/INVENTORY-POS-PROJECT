@@ -68,7 +68,7 @@ function LandingPage() {
   };
 
   return (
-    <div className="w-full min-h-[100dvh] h-screen bg-cover bg-center bg-fixed font-sans" style={{ backgroundImage: `url(${cmsData.hero_image})` }}>
+    <div className="w-full min-h-[100dvh] h-screen bg-cover bg-center bg-fixed font-sans" style={{ backgroundImage: `url("${cmsData.hero_image}")` }}>
       <div className="w-full h-full bg-black/60 backdrop-blur-[2px] flex flex-col">
         {/* Header - Brand with prominent, large logo */}
         <header className="flex justify-between items-center px-4 sm:px-8 md:px-12 py-3 sm:py-4 min-h-[4.75rem] sm:min-h-[5.75rem] bg-black/50 border-b border-white/15 backdrop-blur-md shrink-0">

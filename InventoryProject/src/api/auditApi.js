@@ -11,10 +11,3 @@ export const getAuditLogs = async (filters = {}) => {
   if (filters.offset) params.append('offset', filters.offset);
   return apiCall(`/audit?${params.toString()}`);
 };
-
-export const createAuditLog = async (log) => {
-  return apiCall('/audit', {
-    method: 'POST',
-    body: JSON.stringify(log)
-  });
-};

@@ -27,10 +27,17 @@ export async function getPosCatalog() {
  * @returns {Promise<Object>} Sale confirmation object
  */
 export async function createSale(saleData) {
-  return apiCall("/pos/sale", {
-    method: "POST",
-    body: JSON.stringify(saleData)
-  });
+  try {
+    return await apiCall("/pos/sale", {
+      method: "POST",
+      body: JSON.stringify(saleData)
+    });
+  } catch (err) {
+    if (err?.message?.startsWith("Network problem.")) {
+      throw new Error("Network problem. Check the connection and tap Pay again — the same receipt will be used.", { cause: err });
+    }
+    throw err;
+  }
 }
 
 export async function createPaymentIntent({ provider, amount }) {

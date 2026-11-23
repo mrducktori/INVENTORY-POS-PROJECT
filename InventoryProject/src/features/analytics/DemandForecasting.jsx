@@ -7,13 +7,14 @@ import {
 import IngredientRestockTab from './components/IngredientRestockTab';
 import MenuDemandTab from './components/MenuDemandTab';
 import ForecastCreatePOModal from './components/ForecastCreatePOModal';
-import MonthlyProjectionModal from './components/MonthlyProjectionModal';
+import ProductForecastModal from './components/ProductForecastModal';
 import ForecastGuideModal from './components/ForecastGuideModal';
+import SpecialDatesPanel from './components/SpecialDatesPanel';
 
 const DemandForecasting = () => {
   const {
     activeTab, handleTabSwitch,
-    infoModalOpen, setInfoModalOpen, infoGuideTab, setInfoGuideTab, openInfoGuide,
+    infoModalOpen, setInfoModalOpen, canRefresh, refreshing, handleRefreshForecast, forecast,
     ingredientData, loadingIngredients,
     statusFilter, setStatusFilter, searchTerm, setSearchTerm,
     selectedCategory, setSelectedCategory, selectedIngredientIds,
@@ -26,9 +27,7 @@ const DemandForecasting = () => {
     productCategory, setProductCategory, prodPage, setProdPage,
     prodSortField, prodSortDirection, handleProdSort,
     productCategories, filteredProducts, paginatedProducts, productSummary, fetchProductForecasts,
-    aiModalOpen, setAiModalOpen, aiSelectedProduct,
-    aiTargetYear, aiTargetMonth, aiLoading, aiResult,
-    handleOpenMonthlyModal, handleSelectAiYear, handleSelectAiMonth,
+    detailProduct, setDetailProduct,
     suppliers, poModalOpen, setPoModalOpen,
     poTargetSupplierId, handleSelectPoSupplier, poPoolItems, poItems,
     poExpectedDate, setPoExpectedDate, poNotes, setPoNotes, submittingPO,
@@ -70,7 +69,7 @@ const DemandForecasting = () => {
             </h1>
             <button
               type="button"
-              onClick={() => openInfoGuide(activeTab)}
+              onClick={() => setInfoModalOpen(true)}
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-100 hover:bg-zinc-200/80 text-zinc-700 hover:text-zinc-900 text-xs font-semibold border border-zinc-200/80 transition-colors cursor-pointer"
               title="Learn how forecasting is calculated"
             >
@@ -79,11 +78,11 @@ const DemandForecasting = () => {
                 <line x1="12" y1="16" x2="12" y2="12" />
                 <line x1="12" y1="8" x2="12.01" y2="8" />
               </svg>
-              <span>How it works</span>
+              <span>How this works</span>
             </button>
           </div>
           <p className="text-sm text-zinc-500 mt-1 mb-0">
-            Monitor raw material runout estimates and upcoming 7-day menu demand.
+            See what to buy for your ingredients and how much of each menu item you will probably sell.
           </p>
         </div>
 
@@ -114,7 +113,7 @@ const DemandForecasting = () => {
                 : 'text-zinc-600 hover:text-zinc-900'
             }`}
           >
-            <span>Menu Demand (7-Day)</span>
+            <span>Menu Sales Forecast</span>
           </button>
         </div>
       </div>
@@ -149,8 +148,8 @@ const DemandForecasting = () => {
           onOpenBatchPO={handleOpenBatchPO}
           onOrderAllCritical={handleOrderAllCritical}
           onOpenSingleItemPO={handleOpenSingleItemPO}
-          onOpenGuide={() => openInfoGuide('ingredients')}
-          onRefresh={() => fetchIngredientForecast(true)}
+          onOpenGuide={() => setInfoModalOpen(true)}
+          onRefresh={fetchIngredientForecast}
         />
       )}
 
@@ -158,6 +157,7 @@ const DemandForecasting = () => {
       {activeTab === 'products' && (
         <MenuDemandTab
           loadingProducts={loadingProducts}
+          forecast={forecast}
           productSummary={productSummary}
           productSearch={productSearch}
           setProductSearch={setProductSearch}
@@ -172,11 +172,16 @@ const DemandForecasting = () => {
           prodSortField={prodSortField}
           prodSortDirection={prodSortDirection}
           onProdSort={handleProdSort}
-          onOpenMonthlyModal={handleOpenMonthlyModal}
-          onOpenGuide={() => openInfoGuide('products')}
-          onRefresh={() => fetchProductForecasts(true)}
+          onOpenDetail={setDetailProduct}
+          onOpenGuide={() => setInfoModalOpen(true)}
+          onRefresh={fetchProductForecasts}
+          canRefresh={canRefresh}
+          refreshing={refreshing}
+          onRefreshForecast={handleRefreshForecast}
         />
       )}
+
+      <SpecialDatesPanel />
 
       {/* PURCHASE ORDER GENERATION MODAL */}
       <ForecastCreatePOModal
@@ -198,25 +203,17 @@ const DemandForecasting = () => {
         onConfirmSubmit={handleConfirmSubmitPO}
       />
 
-      {/* MONTHLY PRODUCT PROJECTION MODAL */}
-      <MonthlyProjectionModal
-        isOpen={aiModalOpen}
-        onClose={() => setAiModalOpen(false)}
-        selectedProduct={aiSelectedProduct}
-        targetYear={aiTargetYear}
-        targetMonth={aiTargetMonth}
-        loading={aiLoading}
-        result={aiResult}
-        onSelectYear={handleSelectAiYear}
-        onSelectMonth={handleSelectAiMonth}
+      <ProductForecastModal
+        isOpen={Boolean(detailProduct)}
+        onClose={() => setDetailProduct(null)}
+        product={detailProduct}
+        forecast={forecast}
       />
 
-      {/* HOW FORECASTING WORKS MODAL */}
       <ForecastGuideModal
         isOpen={infoModalOpen}
         onClose={() => setInfoModalOpen(false)}
-        guideTab={infoGuideTab}
-        setGuideTab={setInfoGuideTab}
+        method={forecast?.method}
       />
     </div>
   );

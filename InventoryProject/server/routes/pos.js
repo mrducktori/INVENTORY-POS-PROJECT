@@ -1,9 +1,11 @@
 import express from "express";
 import * as posController from "../controllers/posController.js";
 import { requireAuth, requireRole } from "../middleware/authMiddleware.js";
+import { requirePermission } from "../middleware/permissionMiddleware.js";
 
 const router = express.Router();
-const requireCafeRole = requireRole("Owner", "Admin", "Staff", "Custom");
+// Role alone is not enough: a Custom user must also hold the POS page permission.
+const requireCafeRole = [requireRole("Owner", "Admin", "Staff", "Custom"), requirePermission("POS")];
 
 // Public route for the landing page visual menu
 router.get("/products", posController.getProducts);

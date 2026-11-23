@@ -37,6 +37,7 @@ import categorySettingsRoutes from './routes/categorySettings.js';
 import purchasingRoutes from './routes/purchasing.js';
 import cmsRoutes from './routes/cms.js';
 import { requireAuth } from './middleware/authMiddleware.js';
+import { startEndOfDayJob } from './services/forecastService.js';
 import { generalLimiter, looseLimiter, createLimiter } from './middleware/rateLimiter.js';
 
 if (!process.env.JWT_SECRET) {
@@ -81,16 +82,6 @@ const corsOptions = {
 
     // Allow explicitly configured origins
     if (allowedOrigins.includes(origin)) return callback(null, true);
-
-    // Allow any Vercel deployment preview / production URL (*.vercel.app)
-    try {
-      const hostname = new URL(origin).hostname;
-      if (hostname.endsWith('.vercel.app')) {
-        return callback(null, true);
-      }
-    } catch {
-      // In case URL parsing fails
-    }
 
     // In local development or if CORS_ALLOW_ALL is set, allow all
     if (process.env.NODE_ENV === 'development' || process.env.CORS_ALLOW_ALL === 'true') {
@@ -233,6 +224,7 @@ if (fs.existsSync(indexPath)) {
 
 const server = app.listen(PORT, () => {
   console.log(`[Server] Running on port ${PORT}`);
+  startEndOfDayJob();
 });
 
 server.on('error', (err) => {

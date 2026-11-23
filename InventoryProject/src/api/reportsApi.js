@@ -32,13 +32,6 @@ export const getSalesForPeriod = async (filters = {}) => {
 };
 
 /**
- * Top products by sales volume — uses analytics endpoint
- */
-export const getTopProductsReport = async () => {
-  return apiCall('/analytics/demand-forecast', { method: 'GET' });
-};
-
-/**
  * Inventory Status Report — all ingredients with stock details
  */
 export const getInventoryStatusReport = async () => {

@@ -1,25 +1,22 @@
+// Raw-material batches (lots). The `inventory_batches` table is the single source of truth:
+// a database trigger keeps ingredients.stock_quantity equal to the sum of quantity_remaining,
+// and every deduction/restore runs inside a Postgres function that locks the ingredient row.
+// See docs/database/phase5_batches_source_of_truth.sql.
 import crypto from "node:crypto";
 import { supabase } from "../config/supabaseClient.js";
 import { getManilaDateOnly, getManilaISOString } from "../utils/dateUtils.js";
 import { logAudit } from "../utils/auditHelper.js";
 import { LIMITS, validateNumberBound, validateTextLength } from "../utils/validationHelper.js";
 
-const BATCHES_STORE_KEY = "inventory_batches_store";
-const PERISHABILITY_META_KEY = "ingredient_perishability_meta";
 const STOCKTAKE_HISTORY_KEY = "stocktake_history_store";
-
 const EPSILON = 1e-4;
-const STOCK_EPSILON = 1e-6;
 const MAX_STOCKTAKE_HISTORY = 100;
+export const EXPIRING_SOON_DAYS = 7;
 
-let hasNativeBatchesTable = null;
-let hasNativePerishabilityCols = null;
 let hasNativeStocktakeTables = null;
 
-// Per-store promise mutexes prevent concurrent read-modify-write lost updates
-// (e.g., Promise.all ingredient deductions during POS checkout).
+// Only the stocktake history still lives in a JSON store; this serializes its read-modify-write.
 const storeLocks = new Map();
-
 const withStoreLock = async (key, fn) => {
   const prev = storeLocks.get(key) || Promise.resolve();
   let release;
@@ -32,9 +29,7 @@ const withStoreLock = async (key, fn) => {
     return await fn();
   } finally {
     release();
-    if (storeLocks.get(key) === current) {
-      storeLocks.delete(key);
-    }
+    if (storeLocks.get(key) === current) storeLocks.delete(key);
   }
 };
 
@@ -46,10 +41,12 @@ const isMissingTableError = (err) => {
   return err.code === "42P01" || err.code === "PGRST205" || /relation .* does not exist/i.test(msg) || /could not find the table/i.test(msg);
 };
 
-const isMissingColumnError = (err) => {
-  if (!err) return false;
-  const msg = String(err.message || "");
-  return err.code === "42703" || err.code === "PGRST204" || /column .* does not exist/i.test(msg) || /could not find the .* column/i.test(msg);
+// Postgres functions raise SQLSTATE 'PT4xx'; turn that into an Error with an HTTP status.
+const rpcError = (error) => {
+  const match = /^PT(\d{3})$/.exec(String(error?.code || ""));
+  const err = new Error(error?.message || "Inventory database error.");
+  err.status = match ? Number(match[1]) : 500;
+  return err;
 };
 
 export const addDaysManila = (dateStr, days) => {
@@ -67,25 +64,30 @@ export const addDaysManila = (dateStr, days) => {
 const diffDaysManila = (fromDateStr, toDateStr) => {
   const [fy, fm, fd] = fromDateStr.split("-").map(Number);
   const [ty, tm, td] = toDateStr.split("-").map(Number);
-  const fromUtc = Date.UTC(fy, fm - 1, fd);
-  const toUtc = Date.UTC(ty, tm - 1, td);
-  return Math.round((toUtc - fromUtc) / 86400000);
+  return Math.round((Date.UTC(ty, tm - 1, td) - Date.UTC(fy, fm - 1, fd)) / 86400000);
 };
 
-export const validateOptionalExpiryDate = (rawExpiry) => {
+/** Exact YYYY-MM-DD (or a full ISO timestamp); `rejectPast` blocks receiving already-expired stock. */
+export const validateOptionalExpiryDate = (rawExpiry, { rejectPast = false } = {}) => {
   if (rawExpiry === undefined || rawExpiry === null || String(rawExpiry).trim() === "") {
     return null;
   }
-  const str = String(rawExpiry).trim().slice(0, 10);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+  const raw = String(rawExpiry).trim();
+  if (!/^\d{4}-\d{2}-\d{2}(T[\d:.]+(Z|[+-]\d{2}:?\d{2})?)?$/.test(raw)) {
     const err = new Error("Expiry date must be in YYYY-MM-DD format.");
     err.status = 400;
     throw err;
   }
+  const str = raw.slice(0, 10);
   const [y, m, d] = str.split("-").map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d));
   if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) {
     const err = new Error("Expiry date is not a valid calendar date.");
+    err.status = 400;
+    throw err;
+  }
+  if (rejectPast && str < getManilaDateOnly()) {
+    const err = new Error(`Expiry date ${str} is already past; do not receive expired stock.`);
     err.status = 400;
     throw err;
   }
@@ -104,238 +106,129 @@ export const validateOptionalBatchCode = (rawCode) => {
   });
 };
 
-const readCmsJsonStore = async (sectionKey, fallback) => {
+// ---------------------------------------------------------------------------
+// Shelf life: ingredient override → raw-material category default → perishable, no default.
+// ---------------------------------------------------------------------------
+
+/** Map of UPPERCASE category → { is_perishable, default_shelf_life_days }. */
+export const getPerishabilityMetaMap = async () => {
   const { data, error } = await supabase
-    .from("cms_content")
-    .select("description")
-    .eq("section_key", sectionKey)
-    .maybeSingle();
-
+    .from("raw_material_category_shelf_life")
+    .select("category, is_perishable, default_shelf_life_days");
   if (error) throw error;
-  if (!data?.description) return fallback;
-  try {
-    const parsed = JSON.parse(data.description);
-    return parsed && typeof parsed === "object" ? parsed : fallback;
-  } catch {
-    return fallback;
-  }
+  return Object.fromEntries((data || []).map((r) => [String(r.category).trim().toUpperCase(), r]));
 };
 
-const writeCmsJsonStore = async (sectionKey, title, payload) => {
+export const getIngredientPerishability = (ing, categoryMap = {}) => {
+  const cat = categoryMap[String(ing?.category || "").trim().toUpperCase()] || null;
+  const isPerishable = typeof ing?.is_perishable === "boolean"
+    ? ing.is_perishable
+    : (typeof cat?.is_perishable === "boolean" ? cat.is_perishable : true);
+  if (!isPerishable) {
+    return { is_perishable: false, default_shelf_life_days: null, source: ing?.is_perishable === false ? "ITEM" : "CATEGORY" };
+  }
+  const itemDays = Number(ing?.default_shelf_life_days);
+  if (Number.isFinite(itemDays) && itemDays >= LIMITS.SHELF_LIFE_DAYS_MIN) {
+    return { is_perishable: true, default_shelf_life_days: itemDays, source: "ITEM" };
+  }
+  const catDays = Number(cat?.default_shelf_life_days);
+  if (Number.isFinite(catDays) && catDays >= LIMITS.SHELF_LIFE_DAYS_MIN) {
+    return { is_perishable: true, default_shelf_life_days: catDays, source: "CATEGORY" };
+  }
+  return { is_perishable: true, default_shelf_life_days: null, source: "NONE" };
+};
+
+/** Item-level override. `is_perishable: null` clears the override (falls back to the category). */
+export const setIngredientPerishability = async (ingredientId, { is_perishable = true, default_shelf_life_days = null } = {}) => {
+  let flag = is_perishable === null ? null : Boolean(is_perishable);
+  let days = null;
+  if (flag && default_shelf_life_days !== null && default_shelf_life_days !== undefined && default_shelf_life_days !== "") {
+    days = Math.round(validateNumberBound(default_shelf_life_days, {
+      label: "Default shelf life (days)",
+      min: LIMITS.SHELF_LIFE_DAYS_MIN,
+      max: LIMITS.SHELF_LIFE_DAYS_MAX,
+      allowZero: false
+    }));
+  }
   const { error } = await supabase
-    .from("cms_content")
-    .upsert(
-      {
-        section_key: sectionKey,
-        title,
-        description: JSON.stringify(payload)
-      },
-      { onConflict: "section_key" }
-    );
+    .from("ingredients")
+    .update({ is_perishable: flag, default_shelf_life_days: days })
+    .eq("id", ingredientId);
   if (error) throw error;
+  return { is_perishable: flag, default_shelf_life_days: days };
 };
 
-const loadBatches = async () => {
-  const store = await readCmsJsonStore(BATCHES_STORE_KEY, { batches: [] });
-  const cmsBatches = Array.isArray(store.batches) ? store.batches : [];
-  if (cmsBatches.length > 0 || hasNativeBatchesTable === false) {
-    return cmsBatches;
-  }
-  try {
-    const { data, error } = await supabase.from("inventory_batches").select("*");
-    if (error) {
-      if (isMissingTableError(error)) {
-        hasNativeBatchesTable = false;
-        return cmsBatches;
-      }
-      throw error;
-    }
-    hasNativeBatchesTable = true;
-    return Array.isArray(data) ? data : [];
-  } catch (err) {
-    if (isMissingTableError(err)) {
-      hasNativeBatchesTable = false;
-      return cmsBatches;
-    }
+export const getCategoryShelfLifeSettings = async () => {
+  const { data, error } = await supabase
+    .from("raw_material_category_shelf_life")
+    .select("category, is_perishable, default_shelf_life_days, updated_at")
+    .order("category");
+  if (error) throw error;
+  return data || [];
+};
+
+export const setCategoryShelfLife = async (category, { is_perishable = true, default_shelf_life_days = null } = {}) => {
+  const key = String(category || "").trim().toUpperCase();
+  if (!key) {
+    const err = new Error("Category is required.");
+    err.status = 400;
     throw err;
   }
+  const flag = Boolean(is_perishable);
+  const days = flag && default_shelf_life_days !== null && default_shelf_life_days !== undefined && default_shelf_life_days !== ""
+    ? Math.round(validateNumberBound(default_shelf_life_days, {
+      label: "Default shelf life (days)",
+      min: LIMITS.SHELF_LIFE_DAYS_MIN,
+      max: LIMITS.SHELF_LIFE_DAYS_MAX,
+      allowZero: false
+    }))
+    : null;
+  const { data, error } = await supabase
+    .from("raw_material_category_shelf_life")
+    .upsert({ category: key, is_perishable: flag, default_shelf_life_days: days, updated_at: new Date().toISOString() }, { onConflict: "category" })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
 };
 
-const saveBatches = async (batches) => {
-  await writeCmsJsonStore(BATCHES_STORE_KEY, "Inventory Batches Store", { batches });
+// ---------------------------------------------------------------------------
+// Reads
+// ---------------------------------------------------------------------------
+
+const loadBatches = async (ingredientIds = null) => {
+  const rows = [];
+  const pageSize = 1000;
+  for (let from = 0; ; from += pageSize) {
+    let q = supabase
+      .from("inventory_batches")
+      .select("*")
+      .gt("quantity_remaining", 0)
+      .order("id")
+      .range(from, from + pageSize - 1);
+    if (Array.isArray(ingredientIds)) q = q.in("ingredient_id", ingredientIds);
+    const { data, error } = await q;
+    if (error) throw error;
+    rows.push(...(data || []));
+    if (!data || data.length < pageSize) break;
+  }
+  return rows;
 };
 
-const syncNativeBatchUpsert = async (batchList) => {
-  if (hasNativeBatchesTable === false || !Array.isArray(batchList) || batchList.length === 0) return;
-  try {
-    const rows = batchList.map((b) => ({
-      id: b.id,
-      ingredient_id: b.ingredient_id,
-      batch_code: b.batch_code,
-      source: b.source || "DIRECT_RECEIVE",
-      initial_quantity: b.initial_quantity,
-      quantity_remaining: b.quantity_remaining,
-      received_at: b.received_at,
-      expiry_date: b.expiry_date || null,
-      po_id: b.po_id || null,
-      po_item_id: b.po_item_id || null,
-      purchase_unit: b.purchase_unit || null,
-      purchase_quantity: b.purchase_quantity ?? null,
-      conversion_factor: b.conversion_factor ?? null,
-      notes: b.notes || null
-    }));
-    const { error } = await supabase.from("inventory_batches").upsert(rows, { onConflict: "id" });
-    if (error) {
-      if (isMissingTableError(error)) {
-        hasNativeBatchesTable = false;
-        return;
-      }
-      // Do not break primary CMS-backed flow on optional native FK/constraint edge mismatch
-      console.warn("[batchService] Native inventory_batches upsert skipped:", error.message);
-    } else {
-      hasNativeBatchesTable = true;
-    }
-  } catch (err) {
-    if (isMissingTableError(err)) {
-      hasNativeBatchesTable = false;
-    }
-  }
-};
-
-const loadPerishabilityMetaMap = async () => {
-  const store = await readCmsJsonStore(PERISHABILITY_META_KEY, {});
-  return store && typeof store === "object" && !Array.isArray(store) ? store : {};
-};
-
-export const getPerishabilityMetaMap = loadPerishabilityMetaMap;
-
-/**
- * Resolves perishability metadata for an ingredient from explicit metadata or smart defaults.
- */
-export const getIngredientPerishability = (ing, explicitMeta = null) => {
-  const meta = explicitMeta && typeof explicitMeta === "object" && explicitMeta[ing?.id]
-    ? explicitMeta[ing.id]
-    : explicitMeta;
-
-  const hasMetaFlag = meta && typeof meta.is_perishable === "boolean";
-  const hasRowFlag = ing && typeof ing.is_perishable === "boolean";
-
-  const catUpper = String(ing?.category || "").trim().toUpperCase();
-  const name = String(ing?.name || "");
-
-  let defaultMeta;
-  if (
-    catUpper === "PACKAGING & SUPPLIES" ||
-    (/CUP|LID|STRAW|CARRIER|NAPKIN|HOLDER|BAG/i.test(name) && !/COFFEE|TEA|POWDER|MILK|CREAM|SYRUP/i.test(name))
-  ) {
-    defaultMeta = { is_perishable: false, default_shelf_life_days: null };
-  } else if (catUpper === "DAIRY & CREAMERS" || /MILK|CREAM|YAKULT|WHIP/i.test(name)) {
-    defaultMeta = { is_perishable: true, default_shelf_life_days: 14 };
-  } else if (catUpper === "SINKERS & TOPPINGS" || /PEARL|NATA|JELLY|PUDDING|OREO/i.test(name)) {
-    defaultMeta = { is_perishable: true, default_shelf_life_days: 30 };
-  } else {
-    defaultMeta = { is_perishable: true, default_shelf_life_days: 180 };
-  }
-
-  if (hasMetaFlag) {
-    if (!meta.is_perishable) {
-      return { is_perishable: false, default_shelf_life_days: null };
-    }
-    const days = Number(meta.default_shelf_life_days);
-    return {
-      is_perishable: true,
-      default_shelf_life_days: Number.isFinite(days) && days >= LIMITS.SHELF_LIFE_DAYS_MIN
-        ? days
-        : (defaultMeta.default_shelf_life_days || 180)
-    };
-  }
-
-  if (hasRowFlag) {
-    if (!ing.is_perishable) {
-      return { is_perishable: false, default_shelf_life_days: null };
-    }
-    const days = Number(ing.default_shelf_life_days);
-    return {
-      is_perishable: true,
-      default_shelf_life_days: Number.isFinite(days) && days >= LIMITS.SHELF_LIFE_DAYS_MIN
-        ? days
-        : (defaultMeta.default_shelf_life_days || 180)
-    };
-  }
-
-  return defaultMeta;
-};
-
-export const setIngredientPerishability = async (ingredientId, { is_perishable = true, default_shelf_life_days = null } = {}) => {
-  const perishableFlag = Boolean(is_perishable);
-  let resolvedDays = null;
-
-  if (perishableFlag) {
-    const rawDays = default_shelf_life_days ?? 180;
-    resolvedDays = Math.round(
-      validateNumberBound(rawDays, {
-        label: "Default shelf life (days)",
-        min: LIMITS.SHELF_LIFE_DAYS_MIN,
-        max: LIMITS.SHELF_LIFE_DAYS_MAX,
-        allowZero: false
-      })
-    );
-  }
-
-  await withStoreLock(PERISHABILITY_META_KEY, async () => {
-    const metaMap = await loadPerishabilityMetaMap();
-    metaMap[ingredientId] = {
-      is_perishable: perishableFlag,
-      default_shelf_life_days: resolvedDays
-    };
-    await writeCmsJsonStore(PERISHABILITY_META_KEY, "Ingredient Perishability Metadata", metaMap);
-  });
-
-  if (hasNativePerishabilityCols !== false) {
-    try {
-      const { error } = await supabase
-        .from("ingredients")
-        .update({
-          is_perishable: perishableFlag,
-          default_shelf_life_days: resolvedDays
-        })
-        .eq("id", ingredientId);
-      if (error) {
-        if (isMissingColumnError(error)) {
-          hasNativePerishabilityCols = false;
-        }
-      } else {
-        hasNativePerishabilityCols = true;
-      }
-    } catch (err) {
-      if (isMissingColumnError(err)) {
-        hasNativePerishabilityCols = false;
-      }
-    }
-  }
-
-  return { is_perishable: perishableFlag, default_shelf_life_days: resolvedDays };
-};
-
-const annotateAndSortBatchesFEFO = (batches = [], todayManila = getManilaDateOnly()) => {
+/** FEFO display order: usable with expiry (soonest first), usable without expiry, then expired. */
+export const annotateAndSortBatchesFEFO = (batches = [], todayManila = getManilaDateOnly()) => {
   const annotated = batches
     .filter((b) => Number(b?.quantity_remaining) > EPSILON)
     .map((b) => {
       const expiryDate = b.expiry_date ? String(b.expiry_date).slice(0, 10) : null;
       const daysUntilExpiry = expiryDate ? diffDaysManila(todayManila, expiryDate) : null;
       const isExpired = Boolean(expiryDate && expiryDate < todayManila);
-
       let expiryStatus = "NO_EXPIRY";
       if (expiryDate) {
-        if (isExpired) {
-          expiryStatus = "EXPIRED";
-        } else if (daysUntilExpiry <= 7) {
-          expiryStatus = "EXPIRING_SOON";
-        } else {
-          expiryStatus = "FRESH";
-        }
+        if (isExpired) expiryStatus = "EXPIRED";
+        else if (daysUntilExpiry <= EXPIRING_SOON_DAYS) expiryStatus = "EXPIRING_SOON";
+        else expiryStatus = "FRESH";
       }
-
       return {
         ...b,
         quantity_remaining: round6(b.quantity_remaining),
@@ -346,157 +239,64 @@ const annotateAndSortBatchesFEFO = (batches = [], todayManila = getManilaDateOnl
       };
     });
 
-  // FEFO order: (1) non-expired with expiry_date ASC, (2) non-expired without expiry_date by received_at ASC, (3) expired by expiry_date ASC
+  const groupOf = (item) => (!item.is_expired && item.expiry_date ? 0 : !item.is_expired ? 1 : 2);
+  // received_at is a timestamptz from Postgres; compare as instants, not strings.
+  const ts = (v) => (v ? new Date(v).getTime() || 0 : 0);
   return annotated.sort((a, b) => {
-    const groupOf = (item) => {
-      if (!item.is_expired && item.expiry_date) return 0;
-      if (!item.is_expired && !item.expiry_date) return 1;
-      return 2;
-    };
     const ga = groupOf(a);
     const gb = groupOf(b);
     if (ga !== gb) return ga - gb;
-
-    if (ga === 0 || ga === 2) {
-      if (a.expiry_date !== b.expiry_date) {
-        return a.expiry_date.localeCompare(b.expiry_date);
-      }
+    if ((ga === 0 || ga === 2) && a.expiry_date !== b.expiry_date) {
+      return a.expiry_date.localeCompare(b.expiry_date);
     }
-    return String(a.received_at || "").localeCompare(String(b.received_at || ""));
+    return ts(a.received_at) - ts(b.received_at);
   });
 };
 
-const reconcileIngredientBatchesInArray = (ing, allBatches, perishability, todayManila) => {
-  const nowIso = getManilaISOString();
-  const ingBatches = allBatches.filter((b) => String(b.ingredient_id) === String(ing.id));
-  const activeBatches = ingBatches.filter((b) => Number(b.quantity_remaining) > EPSILON);
-  const rawStock = Math.max(0, Number(ing.stock_quantity) || 0);
-  const touched = [];
-  let mutated = false;
-
-  if (rawStock > EPSILON && activeBatches.length === 0) {
-    const seedBatch = {
-      id: crypto.randomUUID(),
-      ingredient_id: ing.id,
-      batch_code: `BATCH-INIT-${String(ing.id).replace(/-/g, "").slice(0, 6).toUpperCase()}`,
-      source: "INITIAL_SEED",
-      initial_quantity: round6(rawStock),
-      quantity_remaining: round6(rawStock),
-      received_at: ing.created_at || nowIso,
-      expiry_date:
-        perishability.is_perishable && perishability.default_shelf_life_days
-          ? addDaysManila(todayManila, perishability.default_shelf_life_days)
-          : null,
-      notes: "Auto-seeded from existing stock"
-    };
-    allBatches.push(seedBatch);
-    touched.push(seedBatch);
-    mutated = true;
-  } else {
-    const batchSum = round6(activeBatches.reduce((sum, b) => sum + Number(b.quantity_remaining || 0), 0));
-    const diff = round6(rawStock) - batchSum;
-
-    if (diff > EPSILON) {
-      const nonExpiredNewestFirst = activeBatches
-        .filter((b) => !(b.expiry_date && String(b.expiry_date).slice(0, 10) < todayManila))
-        .sort((a, b) => String(b.received_at || "").localeCompare(String(a.received_at || "")));
-
-      if (nonExpiredNewestFirst.length > 0) {
-        const target = nonExpiredNewestFirst[0];
-        target.quantity_remaining = round6(Number(target.quantity_remaining) + diff);
-        target.initial_quantity = round6(Math.max(Number(target.initial_quantity || 0), target.quantity_remaining));
-        touched.push(target);
-      } else {
-        const syncBatch = {
-          id: crypto.randomUUID(),
-          ingredient_id: ing.id,
-          batch_code: `SYNC-${todayManila.replace(/-/g, "")}-${crypto.randomUUID().slice(0, 4).toUpperCase()}`,
-          source: "SYNC_ADJUSTMENT",
-          initial_quantity: round6(diff),
-          quantity_remaining: round6(diff),
-          received_at: nowIso,
-          expiry_date:
-            perishability.is_perishable && perishability.default_shelf_life_days
-              ? addDaysManila(todayManila, perishability.default_shelf_life_days)
-              : null,
-          notes: "Synchronized positive stock discrepancy"
-        };
-        allBatches.push(syncBatch);
-        touched.push(syncBatch);
-      }
-      mutated = true;
-    } else if (diff < -EPSILON) {
-      let toTrim = Math.abs(diff);
-      // FEFO trim: expired / earliest-expiry first, no-expiry last, then oldest received.
-      const trimOrder = [...activeBatches].sort((a, b) => {
-        const ea = a.expiry_date ? String(a.expiry_date).slice(0, 10) : "9999-12-31";
-        const eb = b.expiry_date ? String(b.expiry_date).slice(0, 10) : "9999-12-31";
-        if (ea !== eb) return ea.localeCompare(eb);
-        return String(a.received_at || "").localeCompare(String(b.received_at || ""));
-      });
-      for (const b of trimOrder) {
-        if (toTrim <= EPSILON) break;
-        const avail = Number(b.quantity_remaining || 0);
-        const take = Math.min(avail, toTrim);
-        b.quantity_remaining = round6(avail - take);
-        toTrim = round6(toTrim - take);
-        touched.push(b);
-      }
-      mutated = true;
-    }
-  }
-
-  return { mutated, touched };
-};
-
-const buildEnrichedIngredient = (ing, allBatches, perishability, todayManila) => {
-  const ingBatches = allBatches.filter((b) => String(b.ingredient_id) === String(ing.id));
+const buildEnrichedIngredient = (ing, ingBatches, perishability, todayManila) => {
   const sortedBatches = annotateAndSortBatchesFEFO(ingBatches, todayManila);
-
-  const usableStock = round6(
-    sortedBatches.filter((b) => !b.is_expired).reduce((s, b) => s + b.quantity_remaining, 0)
-  );
-  const expiredStock = round6(
-    sortedBatches.filter((b) => b.is_expired).reduce((s, b) => s + b.quantity_remaining, 0)
-  );
-  const expiringSoonStock = round6(
-    sortedBatches.filter((b) => b.expiry_status === "EXPIRING_SOON").reduce((s, b) => s + b.quantity_remaining, 0)
-  );
-
-  const firstNonExpiredWithDate = sortedBatches.find((b) => !b.is_expired && b.expiry_date);
-  const firstExpiredWithDate = sortedBatches.find((b) => b.is_expired && b.expiry_date);
-  const nearestExpiryDate = firstNonExpiredWithDate?.expiry_date ?? firstExpiredWithDate?.expiry_date ?? null;
+  const sum = (pred) => round6(sortedBatches.filter(pred).reduce((s, b) => s + b.quantity_remaining, 0));
+  const firstUsable = sortedBatches.find((b) => !b.is_expired && b.expiry_date);
+  const firstExpired = sortedBatches.find((b) => b.is_expired && b.expiry_date);
 
   return {
     ...ing,
     is_perishable: perishability.is_perishable,
     default_shelf_life_days: perishability.default_shelf_life_days,
+    shelf_life_source: perishability.source,
     batches: sortedBatches,
-    usable_stock: usableStock,
-    expired_stock: expiredStock,
-    expiring_soon_stock: expiringSoonStock,
-    nearest_expiry_date: nearestExpiryDate
+    usable_stock: sum((b) => !b.is_expired),
+    expired_stock: sum((b) => b.is_expired),
+    expiring_soon_stock: sum((b) => b.expiry_status === "EXPIRING_SOON"),
+    nearest_expiry_date: firstUsable?.expiry_date ?? firstExpired?.expiry_date ?? null
   };
 };
 
 export const enrichIngredientsWithBatches = async (ingredients = []) => {
   if (!Array.isArray(ingredients) || ingredients.length === 0) return [];
   const todayManila = getManilaDateOnly();
-
-  const [initialBatches, metaMap] = await Promise.all([loadBatches(), loadPerishabilityMetaMap()]);
-
-  // Read-only: reconcile on a clone for display only; write paths persist reconciliation under the lock.
-  const finalBatches = structuredClone(initialBatches);
-  for (const ing of ingredients) {
-    reconcileIngredientBatchesInArray(ing, finalBatches, getIngredientPerishability(ing, metaMap), todayManila);
+  const ids = ingredients.map((i) => i.id).filter(Boolean);
+  // Large lists (inventory page) load everything once instead of a huge IN (...) filter.
+  const [batches, categoryMap] = await Promise.all([
+    loadBatches(ids.length > 200 ? null : ids),
+    getPerishabilityMetaMap()
+  ]);
+  const byIngredient = new Map();
+  for (const b of batches) {
+    const key = String(b.ingredient_id);
+    if (!byIngredient.has(key)) byIngredient.set(key, []);
+    byIngredient.get(key).push(b);
   }
-
-  return ingredients.map((ing) => {
-    const perishability = getIngredientPerishability(ing, metaMap);
-    return buildEnrichedIngredient(ing, finalBatches, perishability, todayManila);
-  });
+  return ingredients.map((ing) =>
+    buildEnrichedIngredient(ing, byIngredient.get(String(ing.id)) || [], getIngredientPerishability(ing, categoryMap), todayManila)
+  );
 };
 
+// ---------------------------------------------------------------------------
+// Writes
+// ---------------------------------------------------------------------------
+
+/** Adds a new lot. The DB trigger raises ingredients.stock_quantity by the same amount. */
 export const createBatch = async ({
   ingredient_id,
   source = "DIRECT_RECEIVE",
@@ -510,9 +310,6 @@ export const createBatch = async ({
   purchase_quantity = null,
   conversion_factor = null,
   notes = null,
-  prior_stock = null,
-  // When set, stock is raised by this amount inside the same lock (fresh read), after the batch is persisted.
-  stock_increment = null,
   stock_max = LIMITS.STOCK_QTY_MAX
 }) => {
   const qty = validateNumberBound(initial_quantity, {
@@ -522,26 +319,40 @@ export const createBatch = async ({
     allowZero: false
   });
   const validatedCode = validateOptionalBatchCode(batch_code);
-  const validatedExpiry = validateOptionalExpiryDate(expiry_date);
+  const isReceipt = source === "DIRECT_RECEIVE" || source === "PURCHASE_ORDER" || source === "INITIAL_STOCK";
+  const validatedExpiry = validateOptionalExpiryDate(expiry_date, { rejectPast: isReceipt });
   const todayManila = getManilaDateOnly();
 
-  const [{ data: ing }, metaMap] = await Promise.all([
-    supabase.from("ingredients").select("id, name, category, created_at, is_perishable, default_shelf_life_days").eq("id", ingredient_id).maybeSingle(),
-    loadPerishabilityMetaMap()
+  const [{ data: ing, error: ingErr }, categoryMap] = await Promise.all([
+    supabase
+      .from("ingredients")
+      .select("id, name, category, stock_quantity, is_perishable, default_shelf_life_days")
+      .eq("id", ingredient_id)
+      .maybeSingle(),
+    getPerishabilityMetaMap()
   ]);
-
-  const perishability = getIngredientPerishability(ing || { id: ingredient_id }, metaMap);
-  let resolvedExpiry = validatedExpiry;
-  if (!resolvedExpiry && perishability.is_perishable && perishability.default_shelf_life_days) {
-    resolvedExpiry = addDaysManila(todayManila, perishability.default_shelf_life_days);
+  if (ingErr) throw ingErr;
+  if (!ing) {
+    const err = new Error("Raw material not found.");
+    err.status = 404;
+    throw err;
+  }
+  if (Number(ing.stock_quantity || 0) + qty > stock_max) {
+    const err = new Error(`Resulting stock quantity cannot exceed ${Number(stock_max).toLocaleString()}.`);
+    err.status = 400;
+    throw err;
   }
 
-  const finalCode = validatedCode || `LOT-${todayManila.replace(/-/g, "")}-${crypto.randomUUID().slice(0, 4).toUpperCase()}`;
+  const perishability = getIngredientPerishability(ing, categoryMap);
+  const resolvedExpiry = validatedExpiry
+    || (perishability.is_perishable && perishability.default_shelf_life_days
+      ? addDaysManila(todayManila, perishability.default_shelf_life_days)
+      : null);
 
-  const newBatch = {
+  const row = {
     id: crypto.randomUUID(),
     ingredient_id,
-    batch_code: finalCode,
+    batch_code: validatedCode || `LOT-${todayManila.replace(/-/g, "")}-${crypto.randomUUID().slice(0, 4).toUpperCase()}`,
     source,
     initial_quantity: round6(qty),
     quantity_remaining: round6(qty),
@@ -555,129 +366,13 @@ export const createBatch = async ({
     notes: notes ? String(notes).trim().slice(0, LIMITS.DESC_MAX_LEN) : null
   };
 
-  await withStoreLock(BATCHES_STORE_KEY, async () => {
-    const batches = await loadBatches();
-    const touched = [];
-    let freshStock = null;
-    if (stock_increment !== null) {
-      const { data: cur, error: curErr } = await supabase.from("ingredients").select("stock_quantity").eq("id", ingredient_id).single();
-      if (curErr) throw curErr;
-      freshStock = Number(cur?.stock_quantity || 0);
-      if (freshStock + Number(stock_increment) > stock_max) {
-        const err = new Error(`Resulting stock quantity cannot exceed ${Number(stock_max).toLocaleString()}.`);
-        err.status = 400;
-        throw err;
-      }
-      prior_stock = freshStock;
-    }
-    if (prior_stock !== null && prior_stock !== undefined && Number(prior_stock) > EPSILON) {
-      const seedRes = reconcileIngredientBatchesInArray(
-        { ...(ing || { id: ingredient_id }), stock_quantity: Number(prior_stock) },
-        batches,
-        perishability,
-        todayManila
-      );
-      if (seedRes.mutated) {
-        touched.push(...seedRes.touched);
-      }
-    }
-    batches.push(newBatch);
-    touched.push(newBatch);
-    await saveBatches(batches);
-    if (freshStock !== null) {
-      const { error: stockErr } = await supabase
-        .from("ingredients")
-        .update({ stock_quantity: round6(freshStock + Number(stock_increment)) })
-        .eq("id", ingredient_id);
-      if (stockErr) {
-        await saveBatches(batches.filter((b) => b.id !== newBatch.id));
-        throw stockErr;
-      }
-    }
-    await syncNativeBatchUpsert(touched);
-  });
-
-  const [annotated] = annotateAndSortBatchesFEFO([newBatch], todayManila);
-  return annotated || newBatch;
+  const { data, error } = await supabase.from("inventory_batches").insert([row]).select().single();
+  if (error) throw error;
+  const [annotated] = annotateAndSortBatchesFEFO([data], todayManila);
+  return annotated || data;
 };
 
-/**
- * Pure FEFO/batch deduction planner (also useful for unit testing without DB).
- */
-const planBatchDeduction = (
-  ingredientBatches,
-  quantityNeeded,
-  { allowExpired = false, preferExpired = false, targetBatchId = null, todayManila = getManilaDateOnly() } = {}
-) => {
-  const annotated = annotateAndSortBatchesFEFO(ingredientBatches, todayManila);
-  let pool = allowExpired ? [...annotated] : annotated.filter((b) => !b.is_expired);
-
-  if (preferExpired) {
-    pool.sort((a, b) => {
-      if (a.is_expired !== b.is_expired) return a.is_expired ? -1 : 1;
-      return 0;
-    });
-  }
-
-  if (targetBatchId) {
-    const idx = annotated.findIndex((b) => String(b.id) === String(targetBatchId));
-    if (idx === -1) {
-      const err = new Error("Selected batch was not found or has no remaining stock.");
-      err.status = 404;
-      throw err;
-    }
-    const target = annotated[idx];
-    if (!allowExpired && target.is_expired) {
-      const err = new Error(`Batch "${target.batch_code}" is expired and cannot be deducted.`);
-      err.status = 409;
-      throw err;
-    }
-    pool = [target, ...pool.filter((b) => String(b.id) !== String(targetBatchId))];
-  }
-
-  const eligibleStock = round6(pool.reduce((sum, b) => sum + b.quantity_remaining, 0));
-  if (eligibleStock + STOCK_EPSILON < quantityNeeded) {
-    const err = new Error(
-      `Insufficient usable stock. Available: ${eligibleStock}, Required: ${round6(quantityNeeded)}.`
-    );
-    err.status = 409;
-    throw err;
-  }
-
-  let remaining = quantityNeeded;
-  const deductedBatches = [];
-  const updates = new Map();
-
-  for (const batch of pool) {
-    if (remaining <= STOCK_EPSILON) break;
-    const take = Math.min(batch.quantity_remaining, remaining);
-    const nextQty = round6(batch.quantity_remaining - take);
-    updates.set(String(batch.id), nextQty);
-    deductedBatches.push({
-      batch_id: batch.id,
-      batch_code: batch.batch_code,
-      expiry_date: batch.expiry_date || null,
-      quantity_deducted: round6(take)
-    });
-    remaining = round6(remaining - take);
-  }
-
-  const updatedAll = annotated.map((b) =>
-    updates.has(String(b.id)) ? { ...b, quantity_remaining: updates.get(String(b.id)) } : b
-  );
-  const newTotalStock = round6(updatedAll.reduce((sum, b) => sum + b.quantity_remaining, 0));
-  const remainingUsableStock = round6(
-    updatedAll.filter((b) => !b.is_expired).reduce((sum, b) => sum + b.quantity_remaining, 0)
-  );
-
-  return {
-    deductedBatches,
-    updates,
-    newTotalStock,
-    remainingUsableStock
-  };
-};
-
+/** FEFO deduction, atomic in Postgres (row lock per ingredient). */
 export const deductStockFEFO = async (ingredientId, quantityNeeded, options = {}) => {
   const qty = Number(quantityNeeded);
   if (!Number.isFinite(qty) || qty <= 0) {
@@ -685,107 +380,45 @@ export const deductStockFEFO = async (ingredientId, quantityNeeded, options = {}
     err.status = 400;
     throw err;
   }
-
-  const todayManila = getManilaDateOnly();
-
-  return await withStoreLock(BATCHES_STORE_KEY, async () => {
-    const [{ data: ing, error: ingErr }, metaMap, allBatches] = await Promise.all([
-      supabase.from("ingredients").select("*").eq("id", ingredientId).single(),
-      loadPerishabilityMetaMap(),
-      loadBatches()
-    ]);
-
-    if (ingErr || !ing) {
-      const err = new Error("Raw material not found.");
-      err.status = 404;
-      throw err;
-    }
-
-    const perishability = getIngredientPerishability(ing, metaMap);
-    reconcileIngredientBatchesInArray(ing, allBatches, perishability, todayManila);
-
-    const ingBatches = allBatches.filter((b) => String(b.ingredient_id) === String(ingredientId));
-
-    let plan;
-    try {
-      plan = planBatchDeduction(ingBatches, qty, { ...options, todayManila });
-    } catch (err) {
-      if (err.status === 409 && !options.targetBatchId) {
-        const annotated = annotateAndSortBatchesFEFO(ingBatches, todayManila);
-        const usable = round6(annotated.filter((b) => !b.is_expired).reduce((s, b) => s + b.quantity_remaining, 0));
-        const expired = round6(annotated.filter((b) => b.is_expired).reduce((s, b) => s + b.quantity_remaining, 0));
-        const expiredHint = expired > 0 ? ` (${expired} ${ing.unit} expired excluded)` : "";
-        const detailedErr = new Error(
-          `Insufficient usable stock for "${ing.name}". Usable: ${usable} ${ing.unit}${expiredHint}, Required: ${round6(qty)} ${ing.unit}.`
-        );
-        detailedErr.status = 409;
-        throw detailedErr;
-      }
-      throw err;
-    }
-
-    const touched = [];
-    for (const batch of allBatches) {
-      if (plan.updates.has(String(batch.id))) {
-        batch.quantity_remaining = plan.updates.get(String(batch.id));
-        touched.push(batch);
-      }
-    }
-
-    const { error: stockUpdateErr } = await supabase
-      .from("ingredients")
-      .update({ stock_quantity: plan.newTotalStock })
-      .eq("id", ingredientId);
-    if (stockUpdateErr) throw stockUpdateErr;
-
-    await saveBatches(allBatches);
-    await syncNativeBatchUpsert(touched);
-
-    return {
-      deductedBatches: plan.deductedBatches,
-      newTotalStock: plan.newTotalStock,
-      remainingUsableStock: plan.remainingUsableStock
-    };
+  const { data, error } = await supabase.rpc("inv_deduct_fefo", {
+    p_ingredient_id: ingredientId,
+    p_qty: round6(qty),
+    p_allow_expired: Boolean(options.allowExpired),
+    p_prefer_expired: Boolean(options.preferExpired),
+    p_target_batch_id: options.targetBatchId || null,
+    p_today: getManilaDateOnly()
   });
+  if (error) throw rpcError(error);
+  return {
+    deductedBatches: data?.deductedBatches || [],
+    newTotalStock: Number(data?.newTotalStock || 0),
+    remainingUsableStock: Number(data?.remainingUsableStock || 0)
+  };
 };
 
-/**
- * Restores previously deducted batch quantities (e.g. during sale or wastage rollback).
- */
+/** Puts previously deducted quantities back into the same batches (rollback / void). */
 export const restoreDeductedBatches = async (ingredientId, deductedBatches = []) => {
   if (!ingredientId || !Array.isArray(deductedBatches) || deductedBatches.length === 0) return null;
-
-  return await withStoreLock(BATCHES_STORE_KEY, async () => {
-    const allBatches = await loadBatches();
-    const batchMap = new Map(allBatches.map((b) => [String(b.id), b]));
-    const touched = [];
-
-    for (const item of deductedBatches) {
-      const target = batchMap.get(String(item.batch_id));
-      const qty = Number(item.quantity_deducted) || 0;
-      if (target && qty > 0) {
-        target.quantity_remaining = round6(Number(target.quantity_remaining || 0) + qty);
-        touched.push(target);
-      }
-    }
-
-    const newTotalStock = round6(
-      allBatches
-        .filter((b) => String(b.ingredient_id) === String(ingredientId) && Number(b.quantity_remaining) > EPSILON)
-        .reduce((sum, b) => sum + Number(b.quantity_remaining || 0), 0)
-    );
-
-    await saveBatches(allBatches);
-    await syncNativeBatchUpsert(touched);
-
-    const { error } = await supabase
-      .from("ingredients")
-      .update({ stock_quantity: newTotalStock })
-      .eq("id", ingredientId);
-    if (error) throw error;
-
-    return { newTotalStock };
+  const { data, error } = await supabase.rpc("inv_restore_batches", {
+    p_ingredient_id: ingredientId,
+    p_items: deductedBatches
   });
+  if (error) throw rpcError(error);
+  return { newTotalStock: Number(data || 0) };
+};
+
+/** Receives one PO line atomically (batch + stock + quantity_received). Null when nothing was left. */
+export const receivePurchaseOrderItem = async ({ po_id, po_item_id, quantity, batch_code = null, expiry_date = null, purchase_unit = null }) => {
+  const { data, error } = await supabase.rpc("inv_receive_po_item", {
+    p_po_id: po_id,
+    p_po_item_id: po_item_id,
+    p_qty: quantity,
+    p_batch_code: validateOptionalBatchCode(batch_code),
+    p_expiry: validateOptionalExpiryDate(expiry_date, { rejectPast: true }),
+    p_purchase_unit: purchase_unit
+  });
+  if (error) throw rpcError(error);
+  return data || null;
 };
 
 export const getBatches = async ({ ingredientId = null } = {}) => {
@@ -800,12 +433,7 @@ export const getBatches = async ({ ingredientId = null } = {}) => {
   const batches = [];
   for (const ing of enriched) {
     for (const b of ing.batches || []) {
-      batches.push({
-        ...b,
-        ingredient_name: ing.name,
-        unit: ing.unit,
-        category: ing.category || null
-      });
+      batches.push({ ...b, ingredient_name: ing.name, unit: ing.unit, category: ing.category || null });
     }
   }
   return batches;
@@ -825,23 +453,15 @@ export const getExpiryAlerts = async () => {
   for (const ing of enriched) {
     for (const b of ing.batches || []) {
       if (b.quantity_remaining <= EPSILON) continue;
-      const entry = {
-        ...b,
-        ingredient_id: ing.id,
-        ingredient_name: ing.name,
-        unit: ing.unit,
-        category: ing.category || null
-      };
-      if (b.expiry_status === "EXPIRED") {
-        expiredBatches.push(entry);
-      } else if (b.expiry_status === "EXPIRING_SOON") {
-        expiringSoonBatches.push(entry);
-      }
+      const entry = { ...b, ingredient_id: ing.id, ingredient_name: ing.name, unit: ing.unit, category: ing.category || null };
+      if (b.expiry_status === "EXPIRED") expiredBatches.push(entry);
+      else if (b.expiry_status === "EXPIRING_SOON") expiringSoonBatches.push(entry);
     }
   }
 
-  expiredBatches.sort((a, b) => String(a.expiry_date || "").localeCompare(String(b.expiry_date || "")));
-  expiringSoonBatches.sort((a, b) => String(a.expiry_date || "").localeCompare(String(b.expiry_date || "")));
+  const byExpiry = (a, b) => String(a.expiry_date || "").localeCompare(String(b.expiry_date || ""));
+  expiredBatches.sort(byExpiry);
+  expiringSoonBatches.sort(byExpiry);
 
   return {
     expiredBatches,
@@ -849,6 +469,29 @@ export const getExpiryAlerts = async () => {
     expiredCount: expiredBatches.length,
     expiringSoonCount: expiringSoonBatches.length
   };
+};
+
+// ---------------------------------------------------------------------------
+// Stocktake (physical count)
+// ---------------------------------------------------------------------------
+
+const readCmsJsonStore = async (sectionKey, fallback) => {
+  const { data, error } = await supabase.from("cms_content").select("description").eq("section_key", sectionKey).maybeSingle();
+  if (error) throw error;
+  if (!data?.description) return fallback;
+  try {
+    const parsed = JSON.parse(data.description);
+    return parsed && typeof parsed === "object" ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const writeCmsJsonStore = async (sectionKey, title, payload) => {
+  const { error } = await supabase
+    .from("cms_content")
+    .upsert({ section_key: sectionKey, title, description: JSON.stringify(payload) }, { onConflict: "section_key" });
+  if (error) throw error;
 };
 
 export const getStocktakeHistory = async () => {
@@ -871,28 +514,22 @@ const syncNativeStocktake = async (session, adjustedItems) => {
       }
     ]);
     if (sessErr) {
-      if (isMissingTableError(sessErr)) {
-        hasNativeStocktakeTables = false;
-      }
+      if (isMissingTableError(sessErr)) hasNativeStocktakeTables = false;
       return;
     }
     hasNativeStocktakeTables = true;
-
     if (adjustedItems.length > 0) {
-      const itemRows = adjustedItems.map((it) => ({
+      await supabase.from("stocktake_items").insert(adjustedItems.map((it) => ({
         session_id: session.id,
         ingredient_id: it.ingredient_id,
         system_quantity: it.system_quantity,
         physical_count: it.physical_count,
         variance: it.variance,
         reason: it.reason || null
-      }));
-      await supabase.from("stocktake_items").insert(itemRows);
+      })));
     }
   } catch (err) {
-    if (isMissingTableError(err)) {
-      hasNativeStocktakeTables = false;
-    }
+    if (isMissingTableError(err)) hasNativeStocktakeTables = false;
   }
 };
 
@@ -903,12 +540,7 @@ export const performStocktake = async ({ counts, notes = "", user }) => {
     throw err;
   }
 
-  const cleanNotes = validateTextLength(notes, {
-    label: "Stocktake notes",
-    min: 0,
-    max: LIMITS.DESC_MAX_LEN,
-    required: false
-  });
+  const cleanNotes = validateTextLength(notes, { label: "Stocktake notes", min: 0, max: LIMITS.DESC_MAX_LEN, required: false });
 
   const rawValidated = counts.map((entry) => {
     if (!entry || !entry.ingredient_id) {
@@ -916,124 +548,61 @@ export const performStocktake = async ({ counts, notes = "", user }) => {
       err.status = 400;
       throw err;
     }
-    const physical_count = round6(
-      validateNumberBound(entry.physical_count, {
-        label: "Physical count",
-        min: LIMITS.STOCKTAKE_COUNT_MIN,
-        max: LIMITS.STOCKTAKE_COUNT_MAX
-      })
-    );
+    const physical_count = round6(validateNumberBound(entry.physical_count, {
+      label: "Physical count",
+      min: LIMITS.STOCKTAKE_COUNT_MIN,
+      max: LIMITS.STOCKTAKE_COUNT_MAX
+    }));
     const reason = validateTextLength(entry.reason ?? entry.note ?? "", {
       label: "Adjustment reason",
       min: 0,
       max: LIMITS.DESC_MAX_LEN,
       required: false
     });
-    return {
-      ingredient_id: entry.ingredient_id,
-      physical_count,
-      reason: reason || "Physical Count Correction"
-    };
+    return { ingredient_id: entry.ingredient_id, physical_count, reason: reason || "Physical Count Correction" };
   });
 
   // Duplicate ingredient_id entries: last one wins.
   const validatedCounts = [...new Map(rawValidated.map((c) => [String(c.ingredient_id), c])).values()];
-  const targetIds = validatedCounts.map((c) => c.ingredient_id);
-  const { data: ingRows, error: ingErr } = await supabase
-    .from("ingredients")
-    .select("*")
-    .in("id", targetIds);
-  if (ingErr) throw ingErr;
-
-  const ingMap = new Map((ingRows || []).map((i) => [String(i.id), i]));
-  const todayManila = getManilaDateOnly();
   const adjustedItems = [];
+  let stocktakeError = null;
 
   for (const item of validatedCounts) {
-    const ing = ingMap.get(String(item.ingredient_id));
+    const { data: ing, error: ingErr } = await supabase
+      .from("ingredients")
+      .select("id, name, unit, stock_quantity")
+      .eq("id", item.ingredient_id)
+      .maybeSingle();
+    if (ingErr) throw ingErr;
     if (!ing) {
       const err = new Error(`Raw material not found: ${item.ingredient_id}`);
       err.status = 404;
       throw err;
     }
 
-    let systemQty = 0;
-    let signedVariance = 0;
+    const systemQty = round6(Number(ing.stock_quantity || 0));
+    const variance = Math.round((item.physical_count - systemQty) * 1e6) / 1e6;
+    if (Math.abs(variance) <= EPSILON) continue;
 
-    // Variance is computed from a fresh read inside the lock. The deficit path deducts a relative amount
-    // after the lock is released (deductStockFEFO takes the same non-reentrant lock).
-    await withStoreLock(BATCHES_STORE_KEY, async () => {
-      const { data: freshIng, error: freshErr } = await supabase
-        .from("ingredients")
-        .select("*")
-        .eq("id", ing.id)
-        .single();
-      if (freshErr || !freshIng) {
-        const err = new Error(`Raw material not found: ${item.ingredient_id}`);
-        err.status = 404;
-        throw err;
+    try {
+      if (variance > 0) {
+        // Found more than the system had: record it as its own lot so it stays traceable.
+        await createBatch({
+          ingredient_id: ing.id,
+          source: "STOCKTAKE_ADJUSTMENT",
+          initial_quantity: variance,
+          batch_code: `STK-${getManilaDateOnly().replace(/-/g, "")}-${crypto.randomUUID().slice(0, 4).toUpperCase()}`,
+          notes: item.reason
+        });
+      } else {
+        // Missing stock is taken from expired lots first, then FEFO.
+        await deductStockFEFO(ing.id, Math.abs(variance), { allowExpired: true, preferExpired: true });
       }
-      systemQty = round6(Number(freshIng.stock_quantity || 0));
-      signedVariance = Math.round((item.physical_count - systemQty) * 1e6) / 1e6;
-
-      if (signedVariance <= EPSILON) return;
-      {
-        const [allBatches, metaMap] = await Promise.all([loadBatches(), loadPerishabilityMetaMap()]);
-        const perishability = getIngredientPerishability(freshIng, metaMap);
-        reconcileIngredientBatchesInArray(freshIng, allBatches, perishability, todayManila);
-
-        const activeNonExpired = allBatches
-          .filter(
-            (b) =>
-              String(b.ingredient_id) === String(ing.id) &&
-              Number(b.quantity_remaining) > EPSILON &&
-              !(b.expiry_date && String(b.expiry_date).slice(0, 10) < todayManila)
-          )
-          .sort((a, b) => String(b.received_at || "").localeCompare(String(a.received_at || "")));
-
-        const touched = [];
-        if (activeNonExpired.length > 0) {
-          const target = activeNonExpired[0];
-          target.quantity_remaining = round6(Number(target.quantity_remaining) + signedVariance);
-          target.initial_quantity = round6(Math.max(Number(target.initial_quantity || 0), target.quantity_remaining));
-          touched.push(target);
-        } else {
-          const adjBatch = {
-            id: crypto.randomUUID(),
-            ingredient_id: ing.id,
-            batch_code: `STK-${todayManila.replace(/-/g, "")}-${crypto.randomUUID().slice(0, 4).toUpperCase()}`,
-            source: "STOCKTAKE_ADJUSTMENT",
-            initial_quantity: round6(signedVariance),
-            quantity_remaining: round6(signedVariance),
-            received_at: getManilaISOString(),
-            expiry_date:
-              perishability.is_perishable && perishability.default_shelf_life_days
-                ? addDaysManila(todayManila, perishability.default_shelf_life_days)
-                : null,
-            notes: item.reason
-          };
-          allBatches.push(adjBatch);
-          touched.push(adjBatch);
-        }
-
-        const { error: upErr } = await supabase
-          .from("ingredients")
-          .update({ stock_quantity: item.physical_count })
-          .eq("id", ing.id);
-        if (upErr) throw upErr;
-
-        await saveBatches(allBatches);
-        await syncNativeBatchUpsert(touched);
-      }
-    });
-
-    if (Math.abs(signedVariance) <= EPSILON) continue;
-
-    if (signedVariance < 0) {
-      await deductStockFEFO(ing.id, Math.abs(signedVariance), {
-        allowExpired: true,
-        preferExpired: true
-      });
+    } catch (err) {
+      // Earlier items are already applied: keep their record, then report the failure below.
+      if (adjustedItems.length === 0) throw err;
+      stocktakeError = err;
+      break;
     }
 
     adjustedItems.push({
@@ -1042,7 +611,7 @@ export const performStocktake = async ({ counts, notes = "", user }) => {
       unit: ing.unit,
       system_quantity: systemQty,
       physical_count: item.physical_count,
-      variance: signedVariance,
+      variance,
       reason: item.reason
     });
   }
@@ -1061,10 +630,10 @@ export const performStocktake = async ({ counts, notes = "", user }) => {
   };
 
   await withStoreLock(STOCKTAKE_HISTORY_KEY, async () => {
-    const store = await readCmsJsonStore(STOCKTAKE_HISTORY_KEY, { sessions: [] });
-    const sessions = Array.isArray(store.sessions) ? store.sessions : [];
-    const updated = [session, ...sessions].slice(0, MAX_STOCKTAKE_HISTORY);
-    await writeCmsJsonStore(STOCKTAKE_HISTORY_KEY, "Stocktake History Store", { sessions: updated });
+    const sessions = await getStocktakeHistory();
+    await writeCmsJsonStore(STOCKTAKE_HISTORY_KEY, "Stocktake History Store", {
+      sessions: [session, ...sessions].slice(0, MAX_STOCKTAKE_HISTORY)
+    });
   });
 
   await syncNativeStocktake(session, adjustedItems);
@@ -1077,5 +646,9 @@ export const performStocktake = async ({ counts, notes = "", user }) => {
     adjustments: adjustedItems
   });
 
+  if (stocktakeError) {
+    stocktakeError.message = `${adjustedItems.length} item(s) were adjusted and saved; the rest were not: ${stocktakeError.message}`;
+    throw stocktakeError;
+  }
   return session;
 };

@@ -80,6 +80,15 @@ const StockReceived = () => {
     }
   };
 
+  const isPerishableIngredient = (item) => item?.itemType === 'ingredient' && item.is_perishable !== false;
+  const defaultExpiryFor = (item) => {
+    const days = Number(item?.default_shelf_life_days) || 0;
+    return isPerishableIngredient(item) && days > 0 ? addDaysManila(getManilaDateOnly(), days) : '';
+  };
+  const expiryError = !isPerishableIngredient(selectedItem) ? ''
+    : !expiryDate ? 'Expiration date is required for perishable items.'
+    : expiryDate < getManilaDateOnly() ? 'Expiration date cannot be in the past.' : '';
+
   const applyScannedRowToForm = (row, idx = 0) => {
     if (!row) return;
     setActiveScanIndex(idx);
@@ -90,14 +99,7 @@ const StockReceived = () => {
       Math.max(INPUT_LIMITS.RECEIVE_QTY_MIN, parseFloat(row.quantity) || 1)
     );
     setQuantity(String(qtyClamped));
-    if (row.expiry_date) {
-      setExpiryDate(row.expiry_date);
-    } else if (chosen && chosen.itemType === 'ingredient' && chosen.is_perishable !== false) {
-      const shelfDays = Number(chosen.default_shelf_life_days) || 30;
-      setExpiryDate(addDaysManila(getManilaDateOnly(), shelfDays));
-    } else {
-      setExpiryDate('');
-    }
+    setExpiryDate(row.expiry_date || defaultExpiryFor(chosen));
     setBatchCode((row.batch_code || '').slice(0, INPUT_LIMITS.BATCH_CODE_MAX_LEN));
   };
 
@@ -136,6 +138,11 @@ const StockReceived = () => {
       return;
     }
 
+    if (expiryError) {
+      setMessage('Error: ' + expiryError);
+      return;
+    }
+
     const trimmedBatch = batchCode.trim();
     if (trimmedBatch.length > INPUT_LIMITS.BATCH_CODE_MAX_LEN) {
       setMessage(`Error: Batch / lot code must be ${INPUT_LIMITS.BATCH_CODE_MAX_LEN} characters or less.`);
@@ -146,7 +153,7 @@ const StockReceived = () => {
       setSubmitting(true);
       if (selectedItem.itemType === 'ingredient') {
         await receiveStock(selectedId, qty, {
-          expiry_date: expiryDate || null,
+          expiry_date: isPerishableIngredient(selectedItem) ? expiryDate || null : null,
           batch_code: trimmedBatch || null
         });
       } else {
@@ -228,13 +235,7 @@ const StockReceived = () => {
                 value={selectedId}
                 onChange={(id) => {
                   setSelectedId(id);
-                  const chosen = allItems.find(i => String(i.id) === String(id));
-                  if (chosen && chosen.itemType === 'ingredient' && chosen.is_perishable !== false) {
-                    const shelfDays = Number(chosen.default_shelf_life_days) || 30;
-                    setExpiryDate(addDaysManila(getManilaDateOnly(), shelfDays));
-                  } else {
-                    setExpiryDate('');
-                  }
+                  setExpiryDate(defaultExpiryFor(allItems.find(i => String(i.id) === String(id))));
                   setBatchCode('');
                 }}
                 placeholder="Search or select ingredient or product..."
@@ -279,7 +280,7 @@ const StockReceived = () => {
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between">
                     <label className="text-sm font-bold text-gray-700">Expiration Date</label>
-                    {expiryDate && (
+                    {expiryDate && !isPerishableIngredient(selectedItem) && (
                       <button
                         type="button"
                         onClick={() => setExpiryDate('')}
@@ -291,10 +292,22 @@ const StockReceived = () => {
                   </div>
                   <input
                     type="date"
+                    min={getManilaDateOnly()}
+                    required={isPerishableIngredient(selectedItem)}
+                    disabled={!isPerishableIngredient(selectedItem)}
                     value={expiryDate}
                     onChange={(e) => setExpiryDate(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm disabled:bg-gray-100 disabled:text-gray-400"
                   />
+                  {!isPerishableIngredient(selectedItem) ? (
+                    <span className="text-xs text-gray-500 font-medium">Does not expire</span>
+                  ) : expiryDate && expiryError ? (
+                    <span className="text-xs text-red-600 font-semibold">{expiryError}</span>
+                  ) : selectedItem.default_shelf_life_days > 0 ? (
+                    <span className="text-xs text-gray-500 font-medium">
+                      {{ ITEM: 'Item setting', CATEGORY: 'Default from category' }[selectedItem.shelf_life_source] || 'Default shelf life'}: {selectedItem.default_shelf_life_days} days
+                    </span>
+                  ) : null}
                 </div>
                 <div className="flex flex-col gap-2">
                   <label className="text-sm font-bold text-gray-700">Batch / Lot Code (Optional)</label>

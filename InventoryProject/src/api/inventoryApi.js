@@ -108,9 +108,25 @@ export const deleteRawMaterialCategory = async (name) => {
   });
 };
 
+export const getCategoryShelfLife = async () => {
+  return apiCall('/inventory/categories/shelf-life', { method: 'GET' });
+};
+
+export const updateCategoryShelfLife = async (category, { is_perishable, default_shelf_life_days }) => {
+  return apiCall(`/inventory/categories/${encodeURIComponent(category)}/shelf-life`, {
+    method: 'PUT',
+    body: JSON.stringify({ is_perishable, default_shelf_life_days })
+  });
+};
+
 export const scanOcrDocument = async (payload) => {
   return apiCall('/inventory/ocr-scan', {
     method: 'POST',
     body: JSON.stringify(payload)
   });
+};
+
+/** Per-ingredient reorder plan: usable stock, daily usage, reorder point, suggested order, expiry risk. */
+export const getReorderPlan = async () => {
+  return apiCall('/inventory/reorder-plan', { method: 'GET' });
 };

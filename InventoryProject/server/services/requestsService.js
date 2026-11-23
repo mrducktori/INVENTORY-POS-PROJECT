@@ -169,6 +169,7 @@ export const updateRequestStatus = async (id, status, updatedBy = null) => {
     .from("audit_logs")
     .select(`*, users(id, name, username, role)`)
     .eq("id", id)
+    .eq("action", "STAFF_REQUEST") // never let this touch other audit rows
     .single();
   if (fetchErr) throw fetchErr;
 
@@ -189,6 +190,7 @@ export const updateRequestStatus = async (id, status, updatedBy = null) => {
       new_value: updatedPayload
     })
     .eq("id", id)
+    .eq("action", "STAFF_REQUEST")
     .select(`*, users(id, name, username, role)`)
     .single();
   if (upErr) throw upErr;

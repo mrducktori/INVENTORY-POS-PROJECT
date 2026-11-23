@@ -6,7 +6,8 @@ import {
   archiveIngredient,
   restoreIngredient,
   deleteIngredient,
-  getRawMaterialCategories
+  getRawMaterialCategories,
+  getCategoryShelfLife
 } from '../../../api/inventoryApi';
 import { checkDuplicateOrSimilar } from '../../../utils/productUtils';
 import { INPUT_LIMITS, validateAmountInput } from '../../../utils/validationUtils';
@@ -39,7 +40,7 @@ export const useManageRawMaterials = () => {
     unit: '',
     category: '',
     low_stock_alert: '',
-    is_perishable: true,
+    is_perishable: null,
     default_shelf_life_days: 30
   });
 
@@ -52,7 +53,9 @@ export const useManageRawMaterials = () => {
   const [editConversionFactor, setEditConversionFactor] = useState(1);
   const [editCost, setEditCost] = useState(0);
   const [editCategory, setEditCategory] = useState('');
-  const [editIsPerishable, setEditIsPerishable] = useState(true);
+  // null = use category default, true = perishable, false = does not expire
+  const [editIsPerishable, setEditIsPerishable] = useState(null);
+  const [categoryShelfLife, setCategoryShelfLife] = useState({});
   const [editShelfLifeDays, setEditShelfLifeDays] = useState(30);
 
   const [categoryObjects, setCategoryObjects] = useState(() =>
@@ -61,7 +64,14 @@ export const useManageRawMaterials = () => {
 
   const UNIT_CHOICES = ['KG', 'G', 'L', 'ML', 'PCS', 'PACK', 'BOTTLE', 'CAN'];
 
+  const loadShelfLife = useCallback(() => (
+    getCategoryShelfLife()
+      .then((rows) => setCategoryShelfLife(Object.fromEntries((rows || []).map((r) => [r.category, r]))))
+      .catch(() => {})
+  ), []);
+
   const refreshCategories = useCallback(async () => {
+    loadShelfLife();
     try {
       const data = await getRawMaterialCategories();
       if (Array.isArray(data)) {
@@ -72,7 +82,9 @@ export const useManageRawMaterials = () => {
       console.error('Failed to load raw material categories:', err);
     }
     return null;
-  }, []);
+  }, [loadShelfLife]);
+
+  useEffect(() => { loadShelfLife(); }, [loadShelfLife]);
 
   const categories = useMemo(() => {
     return categoryObjects
@@ -113,7 +125,7 @@ export const useManageRawMaterials = () => {
     const newName = String(formData.name || '').trim().toUpperCase();
     const newUnit = String(formData.unit || '').trim().toUpperCase();
     const trimmedCategory = formData.category ? String(formData.category).trim() : null;
-    const isPerishable = formData.is_perishable !== false;
+    const isPerishable = formData.is_perishable ?? null;
 
     if (!newName) {
       setMessage('Error: Ingredient name is required.');
@@ -144,7 +156,7 @@ export const useManageRawMaterials = () => {
     }
 
     let shelfLifeDays = null;
-    if (isPerishable) {
+    if (isPerishable === true) {
       const shelfCheck = validateAmountInput(formData.default_shelf_life_days, {
         label: 'Default shelf life (days)',
         min: INPUT_LIMITS.SHELF_LIFE_DAYS_MIN,
@@ -196,7 +208,7 @@ export const useManageRawMaterials = () => {
         unit: '',
         category: '',
         low_stock_alert: '',
-        is_perishable: true,
+        is_perishable: null,
         default_shelf_life_days: 30
       });
       fetchIngredients();
@@ -354,9 +366,9 @@ export const useManageRawMaterials = () => {
       return;
     }
 
-    const isPerishable = Boolean(editIsPerishable);
+    const isPerishable = editIsPerishable ?? null;
     let shelfLifeDays = null;
-    if (isPerishable) {
+    if (isPerishable === true) {
       const shelfCheck = validateAmountInput(editShelfLifeDays, {
         label: 'Default shelf life (days)',
         min: INPUT_LIMITS.SHELF_LIFE_DAYS_MIN,
@@ -440,9 +452,10 @@ export const useManageRawMaterials = () => {
     setEditPurchaseUnit(ingredient.purchase_unit || 'Unit');
     setEditConversionFactor(ingredient.conversion_factor || 1);
     setEditCost(ingredient.cost_per_purchase_unit || 0);
-    const isPerishable = ingredient.is_perishable !== false;
-    setEditIsPerishable(isPerishable);
-    setEditShelfLifeDays(isPerishable ? (ingredient.default_shelf_life_days ?? 30) : '');
+    // Only an item-level override is editable here; otherwise it follows the category default.
+    const override = ingredient.shelf_life_source === 'ITEM' ? ingredient.is_perishable !== false : null;
+    setEditIsPerishable(override);
+    setEditShelfLifeDays(override ? (ingredient.default_shelf_life_days ?? 30) : 30);
   };
 
   return {
@@ -468,6 +481,7 @@ export const useManageRawMaterials = () => {
     editCost, setEditCost,
     editCategory, setEditCategory,
     editIsPerishable, setEditIsPerishable,
+    categoryShelfLife,
     editShelfLifeDays, setEditShelfLifeDays,
     UNIT_CHOICES,
     handleAddIngredient,

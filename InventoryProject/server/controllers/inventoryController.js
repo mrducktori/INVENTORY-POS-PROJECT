@@ -292,3 +292,39 @@ export const scanOcrDocument = async (req, res) => {
     res.status(err.status || 500).json({ error: err.message });
   }
 };
+
+// Shelf-life defaults per raw-material category (used when receiving stock without an expiry date).
+export const getCategoryShelfLife = async (req, res) => {
+  try {
+    res.json(await batchService.getCategoryShelfLifeSettings());
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+};
+
+export const setCategoryShelfLife = async (req, res) => {
+  try {
+    const data = await batchService.setCategoryShelfLife(req.params.category, {
+      is_perishable: req.body?.is_perishable,
+      default_shelf_life_days: req.body?.default_shelf_life_days
+    });
+    await logAudit('RAW_MATERIAL_CATEGORY_SHELF_LIFE_SET', req.user.id, {
+      category: data.category,
+      is_perishable: data.is_perishable,
+      default_shelf_life_days: data.default_shelf_life_days,
+      changed_by: req.user.name
+    });
+    res.json(data);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+};
+
+// Per raw material: daily usage forecast, reorder point, days of cover, suggested order, expiry risk.
+export const getReorderPlan = async (req, res) => {
+  try {
+    res.json(await inventoryService.getIngredientReorderPlan());
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+};

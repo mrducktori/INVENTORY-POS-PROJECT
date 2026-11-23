@@ -1035,6 +1035,7 @@ export const usePOS = () => {
       promo_code: paymentData.promoCode || "",
       custom_discount_mode: paymentData.customDiscountMode || null,
       custom_discount_value: paymentData.customDiscountValue ?? null,
+      manager_pin: paymentData.managerPin || undefined,
       staff_id: user.id,
       order_type: resolvedOrderType,
       payment_method: paymentData.method,

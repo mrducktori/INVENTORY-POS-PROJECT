@@ -2,6 +2,7 @@ import express from 'express';
 import { supabase } from "../config/supabaseClient.js";
 import { logAudit } from "../utils/auditHelper.js";
 import { requireRole } from "../middleware/authMiddleware.js";
+import { requirePermission } from "../middleware/permissionMiddleware.js";
 import { invalidateAnalyticsCache } from "./analytics.js";
 
 const router = express.Router();
@@ -56,17 +57,8 @@ const writeCategoryStationsMap = async (map) => {
   if (error) throw error;
 };
 
-const requireCategoryWriteAccess = (req, res, next) => {
-  const role = String(req.user?.role || '').toLowerCase();
-  if (role === 'owner' || role === 'admin') return next();
-  if (role === 'custom' || role === 'staff') {
-    const perms = Array.isArray(req.user?.permissions) ? req.user.permissions : [];
-    if (perms.includes('Products') || perms.includes('ManageProducts')) {
-      return next();
-    }
-  }
-  return res.status(403).json({ error: 'You do not have permission to modify category settings.' });
-};
+// Writes need the edit permission; 'Products' only lets a user view the page.
+const requireCategoryWriteAccess = requirePermission('ManageProducts');
 
 const normalizeCategoryName = (raw) =>
   String(raw || '').trim().replace(/\s+/g, ' ').toUpperCase();

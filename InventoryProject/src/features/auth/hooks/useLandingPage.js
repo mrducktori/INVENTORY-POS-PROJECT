@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getProducts } from '../../../api/posApi';
-import { getCmsMap } from '../../../api/cmsApi';
+import { getCmsMap, isValidImageUrl } from '../../../api/cmsApi';
 
 export const DEFAULT_HERO_IMAGE = 'https://zngerymqycuxpxdmfftj.supabase.co/storage/v1/object/public/cms-images/public/landing_hero-0.8481000269201046.jpg';
 
 export const safeHref = (url) => (typeof url === 'string' && /^https?:\/\//i.test(url.trim()) ? url.trim() : '#');
+
+const safeImg = (url, fallback = '') => (isValidImageUrl(url) ? url.trim() : fallback);
 
 const parsePromos = (p) => {
   if (!p) return [];
@@ -13,7 +15,9 @@ const parsePromos = (p) => {
     try {
       const parsed = JSON.parse(p.description);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed.filter(item => item && (item.image_url || item.title || item.description));
+        return parsed
+          .filter(item => item && (item.image_url || item.title || item.description))
+          .map(item => ({ ...item, image_url: safeImg(item.image_url) }));
       }
     } catch {
       // legacy non-JSON
@@ -24,7 +28,7 @@ const parsePromos = (p) => {
       id: 'promo_default',
       title: p.title || 'Featured Promotion',
       description: p.description || '',
-      image_url: p.image_url || ''
+      image_url: safeImg(p.image_url)
     }];
   }
   return [];
@@ -129,15 +133,15 @@ export const useLandingPage = () => {
           const parsedPromosList = parsePromos(promo);
 
           setCmsData({
-            brand_logo: brand?.image_url || '',
+            brand_logo: safeImg(brand?.image_url),
             brand_title: brand?.title || 'CofTea Cafe',
             promos: parsedPromosList,
             promo_title: promo?.title || '',
             promo_description: promo?.description || '',
-            promo_image: parsedPromosList[0]?.image_url || promo?.image_url || '',
+            promo_image: parsedPromosList[0]?.image_url || safeImg(promo?.image_url),
             hero_title: hero?.title || 'COF/TEA CAFÉ | ELWOOD BRANCH',
             hero_description: hero?.description || '',
-            hero_image: hero?.image_url || DEFAULT_HERO_IMAGE,
+            hero_image: safeImg(hero?.image_url, DEFAULT_HERO_IMAGE),
             menu_title: menu?.title || 'Menu Board',
             menu_subtitle: menu?.description || 'Browse Our',
             location_title: location?.title || 'Location',

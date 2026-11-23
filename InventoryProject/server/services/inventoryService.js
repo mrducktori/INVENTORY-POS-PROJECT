@@ -4,6 +4,7 @@ import { checkCompositeDuplicate } from "../utils/stringHelper.js";
 import { LIMITS, validateNumberBound, validateTextLength } from "../utils/validationHelper.js";
 import { invalidateCmsCache } from "./cmsService.js";
 import * as batchService from "./batchService.js";
+import { getIngredientReorderPlan } from "./forecastService.js";
 import { resolveUnitCost } from "../utils/costUtils.js";
 
 export const getIngredients = async ({ includeArchived = false } = {}) => {
@@ -225,7 +226,8 @@ export const createIngredient = async ({
     unit,
     category: validated.category,
     image_url,
-    stock_quantity: validated.stock_quantity,
+    // Stock starts at 0; the opening amount is added below as a batch (the trigger keeps the total).
+    stock_quantity: 0,
     low_stock_alert: validated.low_stock_alert,
     purchase_unit: purchase_unit || 'Unit',
     conversion_factor: validated.conversion_factor,
@@ -252,13 +254,22 @@ export const createIngredient = async ({
 
   if (is_perishable !== undefined || (default_shelf_life_days !== undefined && default_shelf_life_days !== null && default_shelf_life_days !== '')) {
     await batchService.setIngredientPerishability(data.id, {
-      is_perishable: is_perishable !== undefined ? Boolean(is_perishable) : true,
+      is_perishable: is_perishable === undefined ? true : (is_perishable === null ? null : Boolean(is_perishable)), // null = use category default
       default_shelf_life_days
     });
   }
 
-  const [enriched] = await batchService.enrichIngredientsWithBatches([data]);
-  return enriched || data;
+  if (Number(validated.stock_quantity) > 0) {
+    await batchService.createBatch({
+      ingredient_id: data.id,
+      source: 'INITIAL_STOCK',
+      initial_quantity: validated.stock_quantity,
+      notes: 'Opening stock when the raw material was created'
+    });
+  }
+
+  const fresh = await getIngredientById(data.id);
+  return fresh || data;
 };
 
 // FIX #2: stock_quantity is intentionally excluded — stock must only be changed
@@ -335,7 +346,7 @@ export const updateIngredient = async (id, { name, unit, category, low_stock_ale
 
   if (is_perishable !== undefined || (default_shelf_life_days !== undefined && default_shelf_life_days !== null && default_shelf_life_days !== '')) {
     await batchService.setIngredientPerishability(id, {
-      is_perishable: is_perishable !== undefined ? Boolean(is_perishable) : true,
+      is_perishable: is_perishable === undefined ? true : (is_perishable === null ? null : Boolean(is_perishable)), // null = use category default
       default_shelf_life_days
     });
   }
@@ -344,31 +355,35 @@ export const updateIngredient = async (id, { name, unit, category, low_stock_ale
   return enriched || data;
 };
 
+// Low stock = usable (non-expired) stock at or below the reorder point, where
+// reorder point = forecast daily usage x (supplier lead time + safety days).
+// Items with no recipe usage fall back to their manual low_stock_alert threshold.
 export const getLowStockAlerts = async () => {
-  const { data, error } = await supabase
-    .from("ingredients")
-    .select("*")
-    .eq("is_archived", false);
-
-  if (error) throw error;
-
-  const enriched = await batchService.enrichIngredientsWithBatches(data || []);
-
-  // Configurable Thresholds: Flag items where usable_stock <= (max_stock * 0.5)
-  return enriched.filter(i => {
-    const usableStock = parseFloat(i.usable_stock ?? i.stock_quantity) || 0;
-    const maxStock = parseFloat(i.max_stock) || parseFloat(i.max_capacity) || (parseFloat(i.low_stock_alert || 10) * 2);
-    const threshold = maxStock * 0.5;
-    return usableStock <= threshold;
-  }).map(i => {
-    const maxStock = parseFloat(i.max_stock) || parseFloat(i.max_capacity) || (parseFloat(i.low_stock_alert || 10) * 2);
-    return {
+  let plan;
+  try {
+    plan = await getIngredientReorderPlan();
+  } catch (err) {
+    // If the forecast data is unavailable, alerts must still work: use the owner's manual thresholds.
+    console.warn("[low-stock] reorder plan unavailable, using manual thresholds:", err.message);
+    const { data, error } = await supabase.from("ingredients").select("*").neq("is_archived", true);
+    if (error) throw error;
+    plan = (await batchService.enrichIngredientsWithBatches(data || [])).map((i) => {
+      const floor = Number(i.low_stock_alert) || 0;
+      const usable = Number(i.usable_stock) || 0;
+      return { ...i, daily_usage: 0, reorder_point: 0, alert: usable <= 0 ? "OUT_OF_STOCK" : floor > 0 && usable <= floor ? "BELOW_MANUAL_THRESHOLD" : null };
+    });
+  }
+  return plan
+    .filter((i) => i.alert)
+    .map((i) => ({
       ...i,
-      max_stock: maxStock,
-      low_stock_threshold: maxStock * 0.5
-    };
-  });
+      // fields the existing alert UI reads
+      low_stock_threshold: Math.max(Number(i.reorder_point) || 0, Number(i.low_stock_alert) || 0),
+      max_stock: Number(i.max_stock) || null
+    }));
 };
+
+export { getIngredientReorderPlan };
 
 // FIX #12: Validates that quantity is within allowed bounds before adding to stock & recording batch.
 export const receiveStock = async (id, quantity, options = {}) => {
@@ -388,7 +403,6 @@ export const receiveStock = async (id, quantity, options = {}) => {
     expiry_date: validatedExpiry,
     batch_code: validatedBatchCode,
     notes: options.notes || null,
-    stock_increment: parsedQty,
     stock_max: LIMITS.STOCK_QTY_MAX
   });
 
@@ -708,6 +722,13 @@ export const renameRawMaterialCategory = async (rawOldName, rawNewName) => {
     c === oldName ? newName : c
   );
   await savePersistedCategories(updatedCategories);
+
+  // Keep the category's shelf-life rule attached to the renamed category.
+  const { error: shelfErr } = await supabase
+    .from("raw_material_category_shelf_life")
+    .update({ category: newName })
+    .eq("category", oldName);
+  if (shelfErr) throw shelfErr;
 
   return {
     old_name: oldName,

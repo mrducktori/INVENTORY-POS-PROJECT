@@ -43,6 +43,7 @@ const SupplierFormModal = ({
         contact_number: editingSupplier.contact_number || '',
         email: editingSupplier.email || '',
         address: editingSupplier.address || '',
+        lead_time_days: editingSupplier.lead_time_days ?? 3,
         items: itemsMap
       };
     }
@@ -53,6 +54,7 @@ const SupplierFormModal = ({
       contact_number: '',
       email: '',
       address: '',
+      lead_time_days: 3,
       items: {}
     };
   });
@@ -228,6 +230,7 @@ const SupplierFormModal = ({
       contact_number: formData.contact_number.trim(),
       email: trimmedEmail,
       address: trimmedAddress,
+      lead_time_days: formData.lead_time_days === '' ? undefined : Number(formData.lead_time_days),
       ingredient_items: ingredientItems,
       ingredient_ids: ingredientItems.map((i) => i.ingredient_id)
     });
@@ -311,6 +314,21 @@ const SupplierFormModal = ({
                     className="px-3.5 py-2 border border-zinc-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900"
                     value={formData.contact_person}
                     onChange={(e) => setFormData({ ...formData, contact_person: e.target.value })}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-bold text-zinc-700 uppercase tracking-wider">
+                    Delivery lead time (days)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={60}
+                    step={1}
+                    className="px-3.5 py-2 border border-zinc-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                    value={formData.lead_time_days}
+                    onChange={(e) => setFormData({ ...formData, lead_time_days: e.target.value })}
                   />
                 </div>
 

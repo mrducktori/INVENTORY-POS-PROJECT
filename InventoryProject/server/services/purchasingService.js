@@ -239,6 +239,18 @@ export const sanitizeSupplierDetails = (details = {}) => {
     });
   }
 
+  if (payload.lead_time_days !== undefined && payload.lead_time_days !== null && payload.lead_time_days !== '') {
+    const days = validateNumberBound(payload.lead_time_days, { label: 'Delivery lead time (days)', min: 0, max: 60 });
+    if (!Number.isInteger(days)) {
+      const err = new Error('Delivery lead time (days) must be a whole number between 0 and 60.');
+      err.status = 400;
+      throw err;
+    }
+    payload.lead_time_days = days;
+  } else {
+    delete payload.lead_time_days;
+  }
+
   if (!payload.contact_info && (payload.contact_person || payload.contact_number || payload.email)) {
     payload.contact_info = [payload.contact_person, payload.contact_number, payload.email].filter(Boolean).join(' | ');
   }
@@ -638,7 +650,7 @@ const getPoSelectColumns = () => `
     purchase_unit,
     conversion_factor,
     ${hasPoReceiptHistoryCol ? 'receipt_history,' : ''}
-    ingredients ( id, name, category, unit )
+    ingredients ( id, name, category, unit, is_perishable, default_shelf_life_days )
   )
 `;
 
@@ -653,7 +665,8 @@ const enrichPOsWithIngredientPerishability = (pos = [], metaMap = {}) =>
         ingredients: {
           ...item.ingredients,
           is_perishable: perishability.is_perishable,
-          default_shelf_life_days: perishability.default_shelf_life_days
+          default_shelf_life_days: perishability.default_shelf_life_days,
+          shelf_life_source: perishability.source
         }
       };
     })
@@ -709,6 +722,28 @@ export const createPurchaseOrder = async (poData) => {
     throw err;
   }
 
+  const badRequest = (message) => Object.assign(new Error(message), { status: 400 });
+
+  const { data: supplier, error: supplierErr } = await supabase
+    .from('suppliers').select('id').eq('id', poDetails.supplier_id ?? null).maybeSingle();
+  if (supplierErr) throw supplierErr;
+  if (!supplier) throw badRequest('Supplier not found.');
+
+  if (items.some((i) => !i?.ingredient_id)) throw badRequest('Every item needs an ingredient_id.');
+  const ingredientIds = [...new Set(items.map((i) => i.ingredient_id))];
+  const [ingRes, catalogRes] = await Promise.all([
+    supabase.from('ingredients').select('id').in('id', ingredientIds),
+    supabase.from('supplier_ingredients').select('ingredient_id, default_price')
+      .eq('supplier_id', supplier.id).in('ingredient_id', ingredientIds)
+  ]);
+  if (ingRes.error) throw ingRes.error;
+  if (catalogRes.error) throw catalogRes.error;
+  const knownIngredients = new Set((ingRes.data || []).map((r) => String(r.id)));
+  if (ingredientIds.some((id) => !knownIngredients.has(String(id)))) {
+    throw badRequest('One or more ingredients do not exist.');
+  }
+  const catalogPrice = new Map((catalogRes.data || []).map((r) => [String(r.ingredient_id), r.default_price]));
+
   const validatedItems = items.map((item) => {
     const quantity = validateNumberBound(item?.quantity, {
       label: 'Purchase order item quantity',
@@ -716,7 +751,9 @@ export const createPurchaseOrder = async (poData) => {
       max: LIMITS.PO_QTY_MAX,
       allowZero: false
     });
-    const unit_price = validateNumberBound(item?.unit_price, {
+    // Catalog price wins over the client value when the supplier lists this ingredient.
+    const catalog = catalogPrice.get(String(item.ingredient_id));
+    const unit_price = validateNumberBound(catalog ?? item?.unit_price, {
       label: 'Purchase order unit price',
       min: LIMITS.PURCHASE_COST_MIN,
       max: LIMITS.PURCHASE_COST_MAX
@@ -740,7 +777,8 @@ export const createPurchaseOrder = async (poData) => {
   });
 
   // Calculate total amount
-  const total_amount = validatedItems.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+  // Sum in integer centavos to avoid float drift.
+  const total_amount = validatedItems.reduce((sum, item) => sum + Math.round(item.quantity * item.unit_price * 100), 0) / 100;
   
   // Base PO payload with guaranteed existing columns
   const basePo = {
@@ -791,7 +829,7 @@ export const createPurchaseOrder = async (poData) => {
     ingredient_id: item.ingredient_id,
     quantity: item.quantity,
     unit_price: item.unit_price,
-    subtotal: item.quantity * item.unit_price,
+    subtotal: Math.round(item.quantity * item.unit_price * 100) / 100,
     purchase_unit: item.purchase_unit || 'Unit',
     conversion_factor: item.conversion_factor
   }));
@@ -800,7 +838,10 @@ export const createPurchaseOrder = async (poData) => {
     .from("purchase_order_items")
     .insert(itemsToInsert);
 
-  if (itemsError) throw itemsError;
+  if (itemsError) {
+    await supabase.from("purchase_orders").delete().eq("id", po.id); // no orphan PO
+    throw itemsError;
+  }
 
   return po;
 };
@@ -832,6 +873,28 @@ const PO_STATUSES = [
   'Delivering', 'Postponed', 'Partial', 'Received', 'Declined', 'Cancelled'
 ];
 const SUPPLIER_RESPONSE_STATUSES = ['Pending', 'Proposal Pending'];
+
+// Statuses a supplier may move a PO to, keyed by current status (anything else is a 409).
+// Proposal Pending/Partially Accepted can't be Accepted by the supplier: the shop resolves proposals.
+export const SUPPLIER_TRANSITIONS = {
+  Pending: ['Accepted', 'Declined', 'Postponed'],
+  'Proposal Pending': ['Declined'],
+  'Partially Accepted': ['Declined'],
+  Accepted: ['To Be Delivered', 'Delivering', 'Postponed', 'Declined'],
+  'To Be Delivered': ['Delivering', 'Postponed', 'Declined'],
+  Delivering: ['Postponed', 'Declined'],
+  Postponed: ['Accepted', 'To Be Delivered', 'Delivering', 'Declined'],
+  Partial: ['To Be Delivered', 'Delivering', 'Postponed']
+};
+export const isSupplierTransitionAllowed = (from, to) =>
+  (SUPPLIER_TRANSITIONS[from] || []).includes(to);
+
+/** 'Received' when every item is fully in, 'Partial' when some stock arrived, null when none did. */
+export const derivePoReceiptStatus = (items) => {
+  const list = items || [];
+  if (!list.some((i) => Number(i.quantity_received || 0) > 0)) return null;
+  return list.every((i) => Number(i.quantity_received || 0) >= Number(i.quantity || 0)) ? 'Received' : 'Partial';
+};
 
 export const updatePurchaseOrderStatus = (id, status = null, ...rest) => {
   let canonicalStatus = null;
@@ -875,18 +938,23 @@ const updatePurchaseOrderStatusUnlocked = async (id, status = null, items_receiv
         max: LIMITS.PO_QTY_MAX,
         allowZero: false
       });
-      batchService.validateOptionalExpiryDate(item?.expiry_date);
+      batchService.validateOptionalExpiryDate(item?.expiry_date, { rejectPast: true });
       batchService.validateOptionalBatchCode(item?.batch_code);
     }
   }
 
-  // Receipts are applied BEFORE the status write so a mid-loop failure never leaves a terminal
-  // 'Received' PO with missing stock; retries are safe because each item caps at its remaining qty.
-  // shortcut: no DB transaction, so a failure between createBatch and the item update can still
-  // add stock without bumping quantity_received; upgrade to a Postgres RPC when migrations are allowed.
+  // Each line is received by one Postgres function (batch + stock + quantity_received in one
+  // transaction, capped at the remaining quantity), so a retried click can never double-count stock.
   const appliedReceipts = [];
+  let receiveError = null;
+  if (items_received && items_received.length > 0 && ['pending', 'proposal pending', 'partially accepted'].includes(currentStatusLower)) {
+    const err = new Error(`This order is still "${existingPO.status}"; the supplier must accept it before stock can be received.`);
+    err.status = 409;
+    throw err;
+  }
   if (items_received && items_received.length > 0 && !isTerminalStatus) {
     for (const item of items_received) {
+      try {
       const rawQtyNow = validateNumberBound(item.quantity_received_now, {
         label: 'Quantity received',
         min: LIMITS.PO_QTY_MIN,
@@ -894,100 +962,47 @@ const updatePurchaseOrderStatusUnlocked = async (id, status = null, items_receiv
         allowZero: false
       });
 
-      // Fetch current item to properly add quantities and prefer authoritative conversion factor
-      let currentItem;
-      let hasReceiptHistory = true;
+      const received = await batchService.receivePurchaseOrderItem({
+        po_id: id,
+        po_item_id: item.id,
+        quantity: rawQtyNow,
+        batch_code: item.batch_code || null,
+        expiry_date: item.expiry_date || null,
+        purchase_unit: item.purchase_unit || 'Unit'
+      });
+      if (!received) continue; // not on this PO, or nothing left to receive
 
-      const { data: itemWithHistory, error: historyErr } = await supabase
-        .from("purchase_order_items")
-        .select("id, quantity_received, quantity, conversion_factor, ingredient_id, purchase_order_id, receipt_history")
-        .eq("id", item.id)
-        .single();
-
-      if (historyErr && (historyErr.code === '42703' || historyErr.message?.includes('receipt_history'))) {
-        hasReceiptHistory = false;
-        const { data: itemWithoutHistory } = await supabase
-          .from("purchase_order_items")
-          .select("id, quantity_received, quantity, conversion_factor, ingredient_id, purchase_order_id")
-          .eq("id", item.id)
-          .single();
-        currentItem = itemWithoutHistory;
-      } else {
-        currentItem = itemWithHistory;
+      appliedReceipts.push({
+        ingredient_id: received.ingredient_id,
+        quantity_received_now: Number(received.quantity_received_now),
+        conversion_factor: Number(received.conversion_factor),
+        purchase_unit: item.purchase_unit || 'Unit',
+        batch_code: received.batch?.batch_code || null,
+        expiry_date: received.batch?.expiry_date || null
+      });
+      } catch (err) {
+        // Earlier lines are already in stock; stop here, record them, then report the failure.
+        if (appliedReceipts.length === 0) throw err;
+        receiveError = err;
+        break;
       }
-        
-      if (!currentItem || String(currentItem.purchase_order_id) !== String(id)) continue;
+    }
+    if (receiveError && !status) status = 'Partial';
+  }
 
-      const remainingQty = Math.max(0, Number(currentItem.quantity) - Number(currentItem.quantity_received || 0));
-      const qtyToReceive = Math.min(rawQtyNow, remainingQty);
-      if (qtyToReceive <= 0) continue;
-
-      const newQtyReceived = Number(currentItem.quantity_received || 0) + qtyToReceive;
-      const isFullyReceived = newQtyReceived >= Number(currentItem.quantity);
-
-      // Update ingredient stock & create FEFO batch first so receipt_history records resolved batch_code/expiry_date
-      const targetIngredientId = currentItem.ingredient_id || item.ingredient_id;
-      const conversion = Number(currentItem.conversion_factor) || Number(item.conversion_factor) || 1;
-      let createdBatch = null;
-
-      if (targetIngredientId) {
-        const baseUnitsReceived = qtyToReceive * conversion;
-        // Stock raise + batch happen atomically under the batch lock; validation precedes the stock write.
-        createdBatch = await batchService.createBatch({
-          po_id: id,
-          po_item_id: currentItem.id,
-          ingredient_id: targetIngredientId,
-          source: 'PURCHASE_ORDER',
-          initial_quantity: baseUnitsReceived,
-          purchase_unit: item.purchase_unit || 'Unit',
-          purchase_quantity: qtyToReceive,
-          conversion_factor: conversion,
-          expiry_date: item.expiry_date || null,
-          batch_code: item.batch_code || null,
-          stock_increment: baseUnitsReceived
-        });
-
-        appliedReceipts.push({
-          ingredient_id: targetIngredientId,
-          quantity_received_now: qtyToReceive,
-          conversion_factor: conversion,
-          purchase_unit: item.purchase_unit || 'Unit',
-          batch_code: createdBatch?.batch_code || null,
-          expiry_date: createdBatch?.expiry_date || null
-        });
-      }
-
-      const itemUpdate = {
-        quantity_received: newQtyReceived,
-        is_received: isFullyReceived
-      };
-
-      if (hasReceiptHistory) {
-        let currentHistory = [];
-        try {
-          if (typeof currentItem.receipt_history === 'string') {
-            currentHistory = JSON.parse(currentItem.receipt_history);
-          } else if (Array.isArray(currentItem.receipt_history)) {
-            currentHistory = currentItem.receipt_history;
-          }
-        } catch {
-          currentHistory = [];
-        }
-
-        const newHistoryEvent = {
-          date: new Date().toISOString(),
-          quantity: qtyToReceive,
-          ...(createdBatch?.batch_code ? { batch_code: createdBatch.batch_code } : {}),
-          ...(createdBatch?.expiry_date ? { expiry_date: createdBatch.expiry_date } : {})
-        };
-        itemUpdate.receipt_history = [...currentHistory, newHistoryEvent];
-      }
-
-      const { error: itemUpdateErr } = await supabase
-        .from("purchase_order_items")
-        .update(itemUpdate)
-        .eq("id", item.id);
-      if (itemUpdateErr) throw itemUpdateErr;
+  // Received/Partial must reflect what was actually received, not what the caller claims;
+  // otherwise a bare status call could close the PO without adding any stock.
+  if (status === 'Received' || status === 'Partial') {
+    const { data: poItems, error: poItemsErr } = await supabase
+      .from("purchase_order_items")
+      .select("quantity, quantity_received")
+      .eq("purchase_order_id", id);
+    if (poItemsErr) throw poItemsErr;
+    status = derivePoReceiptStatus(poItems);
+    if (!status) {
+      const err = new Error("Record the received quantities before marking this order Received.");
+      err.status = 400;
+      throw err;
     }
   }
 
@@ -1050,6 +1065,10 @@ const updatePurchaseOrderStatusUnlocked = async (id, status = null, items_receiv
     throw result.error;
   }
   data = data || result.data;
+  if (receiveError) {
+    receiveError.message = `${appliedReceipts.length} line(s) were received and saved; the rest failed: ${receiveError.message}`;
+    throw receiveError;
+  }
 
   if (data && typeof data === 'object') {
     Object.defineProperty(data, '_appliedReceipts', {
@@ -1105,13 +1124,20 @@ export const submitSupplierItemResponses = async (poId, items, supplierUserId) =
 
 // Shop accepts or declines proposed delivery date for an unavailable item
 export const respondToSupplierProposal = async (poId, itemId, decision, splitIntoBackorder, userId) => {
-  // Log audit event for shop decision
-  await logAudit('SHOP_PO_PROPOSAL_RESPONSE', userId, {
-    po_id: poId,
-    item_id: itemId,
-    decision,
-    split_into_backorder: splitIntoBackorder
-  });
+  if (!['ACCEPTED', 'DECLINED'].includes(decision)) {
+    throw Object.assign(new Error("decision must be 'ACCEPTED' or 'DECLINED'."), { status: 400 });
+  }
+
+  const { data: statusPO, error: statusErr } = await supabase
+    .from('purchase_orders')
+    .select('status')
+    .eq('id', poId)
+    .maybeSingle();
+  if (statusErr) throw statusErr;
+  if (!statusPO) throw Object.assign(new Error('Purchase order not found.'), { status: 404 });
+  if (statusPO.status !== 'Proposal Pending') {
+    throw Object.assign(new Error(`Purchase order has no pending proposals (status: ${statusPO.status}).`), { status: 409 });
+  }
 
   let backorderPO = null;
 
@@ -1126,18 +1152,20 @@ export const respondToSupplierProposal = async (poId, itemId, decision, splitInt
     const targetItem = origPO?.purchase_order_items?.find(i => i.id === itemId);
 
     // Retrieve proposed date from audit log
+    // shortcut: bounded to the newest 500 proposal logs (no DB-side JSON filter), raise if POs outlive that window
     const { data: recentLogs } = await supabase
       .from('audit_logs')
       .select('details')
       .eq('action', 'SUPPLIER_PO_ITEM_RESPONSE')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(500);
 
     let proposedDate = origPO?.expected_date;
     for (const log of (recentLogs || [])) {
       try {
         const d = typeof log.details === 'string' ? JSON.parse(log.details) : log.details;
-        if (d?.po_id === poId && Array.isArray(d.items)) {
-          const match = d.items.find(it => it.item_id === itemId);
+        if (String(d?.po_id) === String(poId) && Array.isArray(d.items)) {
+          const match = d.items.find(it => String(it.item_id) === String(itemId));
           if (match?.proposed_date) {
             proposedDate = match.proposed_date;
             break;
@@ -1210,6 +1238,14 @@ export const respondToSupplierProposal = async (poId, itemId, decision, splitInt
       }
     }
   }
+
+  // Audit only after the action succeeded
+  await logAudit('SHOP_PO_PROPOSAL_RESPONSE', userId, {
+    po_id: poId,
+    item_id: itemId,
+    decision,
+    split_into_backorder: splitIntoBackorder
+  });
 
   // Check if all proposals for this PO are now resolved
   const { data: checkPO } = await supabase
