@@ -40,5 +40,7 @@ desktop.ini
 *.sw?
 *.local
 InventoryProject/docs/database/*
+!InventoryProject/docs/database/phase5_batches_source_of_truth.sql
+!InventoryProject/docs/database/phase6_daily_sales_forecasting.sql
 
 scratch/test_gemini.js
