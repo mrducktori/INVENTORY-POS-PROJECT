@@ -3,14 +3,18 @@ import { apiCall } from './client.js';
 
 /**
  * Sales Performance Report
- * period: 'daily' | 'weekly' | 'monthly'
+ * period: 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom'
  */
-export const getSalesPerformanceReport = async (period = 'daily', startDate = '', endDate = '') => {
-  let url = `/sales/summary/report?period=${period}`;
+export const getSalesPerformanceReport = async (period = 'daily', startDate = '', endDate = '', year = '') => {
+  const params = new URLSearchParams({ period });
   if (period === 'custom' && startDate && endDate) {
-    url += `&start_date=${startDate}&end_date=${endDate}`;
+    params.set('start_date', startDate);
+    params.set('end_date', endDate);
   }
-  return apiCall(url, { method: 'GET' });
+  if (period === 'yearly' && year) {
+    params.set('year', String(year));
+  }
+  return apiCall(`/sales/summary/report?${params.toString()}`, { method: 'GET' });
 };
 
 /**
@@ -20,6 +24,9 @@ export const getSalesForPeriod = async (filters = {}) => {
   const params = new URLSearchParams();
   if (filters.date) params.append('date', filters.date);
   if (filters.period) params.append('period', filters.period);
+  if (filters.year) params.append('year', String(filters.year));
+  if (filters.start_date) params.append('start_date', filters.start_date);
+  if (filters.end_date) params.append('end_date', filters.end_date);
   if (filters.staff_id) params.append('staff_id', filters.staff_id);
   return apiCall(`/sales?${params.toString()}`, { method: 'GET' });
 };

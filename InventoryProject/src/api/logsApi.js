@@ -12,8 +12,16 @@ export async function getDailySalesSummary(date) {
   });
 }
 
-export async function getSalesReportByPeriod(startDate, endDate, period = 'daily') {
-  return apiCall(`/sales/summary/report?period=${period}`, {
+export async function getSalesReportByPeriod(startDate, endDate, period = 'daily', year = null) {
+  const params = new URLSearchParams({ period });
+  if (period === 'custom' && startDate && endDate) {
+    params.set('start_date', startDate);
+    params.set('end_date', endDate);
+  }
+  if (period === 'yearly' && year) {
+    params.set('year', String(year));
+  }
+  return apiCall(`/sales/summary/report?${params.toString()}`, {
     method: "GET"
   });
 }

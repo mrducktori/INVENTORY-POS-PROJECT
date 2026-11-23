@@ -107,3 +107,10 @@ export const deleteRawMaterialCategory = async (name) => {
     method: 'DELETE'
   });
 };
+
+export const scanOcrDocument = async (payload) => {
+  return apiCall('/inventory/ocr-scan', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};

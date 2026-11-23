@@ -119,12 +119,25 @@ const ReceiptJournalTable = ({
                 const staffName = sale.users?.name || sale.users?.username || 'Staff';
                 const totalItemsQty = items.reduce((acc, it) => acc + (Number(it.quantity) || 1), 0);
                 const discountAmount = Number(sale.discount_amount || 0);
+                const discountDetails = sale.discount_details || null;
+                const splitPayments = Array.isArray(sale.payments) ? sale.payments : [];
+                const saleStatus = String(
+                  sale.void_info?.action_type === 'REFUND'
+                    ? 'REFUNDED'
+                    : sale.void_info
+                    ? 'VOIDED'
+                    : sale.status || 'COMPLETED'
+                ).toUpperCase();
+                const isVoidedOrRefunded =
+                  saleStatus === 'VOIDED' || saleStatus === 'REFUNDED' || saleStatus === 'RETURNED';
 
-                const discountLabel = typeof sale.notes === 'string' && sale.notes.startsWith('Discount:')
-                  ? sale.notes.replace(/^Discount:\s*/i, '').trim()
-                  : discountAmount > 0
-                  ? 'Applied'
-                  : null;
+                const notesDiscountMatch =
+                  typeof sale.notes === 'string' ? sale.notes.match(/Discount:\s*([^|\n]+)/i) : null;
+                const discountLabel =
+                  discountDetails?.discount_label ||
+                  discountDetails?.label ||
+                  (notesDiscountMatch?.[1] ? notesDiscountMatch[1].trim() : null) ||
+                  (discountAmount > 0 ? 'Applied' : null);
 
                 return (
                   <tr
@@ -184,36 +197,68 @@ const ReceiptJournalTable = ({
                     <td className="py-3.5 px-3 whitespace-nowrap">
                       <span
                         className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wider ${
-                          method === 'GCASH'
+                          method === 'GCASH' || method === 'MAYA' || method === 'QRPH'
                             ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                            : method === 'SPLIT'
+                            ? 'bg-amber-50 text-amber-800 border border-amber-200'
                             : 'bg-zinc-100 text-zinc-800 border border-zinc-200'
                         }`}
                       >
                         {method}
                       </span>
+                      {splitPayments.length > 0 && (
+                        <div className="text-[10px] text-zinc-500 mt-1 font-mono">
+                          {splitPayments
+                            .map((p) => `${String(p.method || '').toUpperCase()} ₱${Number(p.amount || 0).toFixed(0)}`)
+                            .join(' + ')}
+                        </div>
+                      )}
                     </td>
 
                     {/* Discount Badge */}
                     <td className="py-3.5 px-3 whitespace-nowrap">
                       {discountLabel ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                          {discountLabel} (-₱{discountAmount.toFixed(2)})
-                        </span>
+                        <div className="space-y-0.5">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                            {discountLabel} (-₱{discountAmount.toFixed(2)})
+                          </span>
+                          {(discountDetails?.discount_id_number || discountDetails?.promo_code) && (
+                            <div className="text-[10px] text-zinc-500 font-mono">
+                              {discountDetails.promo_code
+                                ? `Code: ${discountDetails.promo_code}`
+                                : `ID: ${discountDetails.discount_id_number}`}
+                            </div>
+                          )}
+                        </div>
                       ) : (
                         <span className="text-zinc-400 text-xs">—</span>
                       )}
                     </td>
 
                     {/* Total */}
-                    <td className="py-3.5 px-3 text-right font-mono font-bold text-zinc-950 whitespace-nowrap">
+                    <td className={`py-3.5 px-3 text-right font-mono font-bold whitespace-nowrap ${isVoidedOrRefunded ? 'text-zinc-400 line-through' : 'text-zinc-950'}`}>
                       {totalFormatted}
                     </td>
 
                     {/* Status */}
                     <td className="py-3.5 px-3 text-center whitespace-nowrap">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        Completed
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                          isVoidedOrRefunded
+                            ? 'bg-red-50 text-red-700 border-red-200'
+                            : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        }`}
+                      >
+                        {saleStatus === 'COMPLETED' ? 'Completed' : saleStatus}
                       </span>
+                      {isVoidedOrRefunded && sale.void_info?.reason && (
+                        <div
+                          className="text-[10px] text-red-600 mt-0.5 max-w-[140px] truncate mx-auto"
+                          title={sale.void_info.reason}
+                        >
+                          {sale.void_info.reason}
+                        </div>
+                      )}
                     </td>
 
                     {/* Action */}

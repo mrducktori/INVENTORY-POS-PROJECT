@@ -5,6 +5,7 @@ import { formatQuantity } from '../../utils/productUtils';
 import { INPUT_LIMITS, validateAmountInput } from '../../utils/validationUtils';
 import { getManilaDateOnly, addDaysManila } from '../../utils/dateUtils';
 import SearchableIngredientSelect from '../../components/shared/SearchableIngredientSelect';
+import OcrScannerPanel from '../../components/shared/OcrScannerPanel';
 import Pagination from '../../components/shared/Pagination';
 
 
@@ -17,6 +18,8 @@ const StockReceived = () => {
   const [quantity, setQuantity] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
   const [batchCode, setBatchCode] = useState('');
+  const [scannedQueue, setScannedQueue] = useState([]);
+  const [activeScanIndex, setActiveScanIndex] = useState(0);
   const [message, setMessage] = useState('');
   const [searchFilter, setSearchFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -75,6 +78,38 @@ const StockReceived = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const applyScannedRowToForm = (row, idx = 0) => {
+    if (!row) return;
+    setActiveScanIndex(idx);
+    const chosen = allItems.find((i) => String(i.id) === String(row.matched_ingredient_id));
+    setSelectedId(chosen ? chosen.id : row.matched_ingredient_id || '');
+    const qtyClamped = Math.min(
+      INPUT_LIMITS.RECEIVE_QTY_MAX,
+      Math.max(INPUT_LIMITS.RECEIVE_QTY_MIN, parseFloat(row.quantity) || 1)
+    );
+    setQuantity(String(qtyClamped));
+    if (row.expiry_date) {
+      setExpiryDate(row.expiry_date);
+    } else if (chosen && chosen.itemType === 'ingredient' && chosen.is_perishable !== false) {
+      const shelfDays = Number(chosen.default_shelf_life_days) || 30;
+      setExpiryDate(addDaysManila(getManilaDateOnly(), shelfDays));
+    } else {
+      setExpiryDate('');
+    }
+    setBatchCode((row.batch_code || '').slice(0, INPUT_LIMITS.BATCH_CODE_MAX_LEN));
+  };
+
+  const handleApplyOcrItems = (validatedItems = []) => {
+    if (!validatedItems.length) return;
+    setScannedQueue(validatedItems);
+    applyScannedRowToForm(validatedItems[0], 0);
+    setMessage(
+      validatedItems.length > 1
+        ? `Successfully loaded ${validatedItems.length} OCR items. Select any pill above the form to apply and log each line.`
+        : `Successfully applied OCR values for ${validatedItems[0].matched_ingredient_name}.`
+    );
   };
 
   const handleReceiveStock = async (e) => {
@@ -151,11 +186,40 @@ const StockReceived = () => {
         </div>
       )}
 
+      <OcrScannerPanel
+        ingredients={activeIngredients}
+        scanMode="STOCK_RECEIVE"
+        onApplyItems={handleApplyOcrItems}
+      />
+
       <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden w-full mb-8">
         <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50">
           <h2 className="m-0 text-lg font-bold text-gray-900 tracking-tight">Add Incoming Stock</h2>
         </div>
         <div className="p-6">
+          {scannedQueue.length > 1 && (
+            <div className="mb-5 p-3.5 bg-gray-50 border border-gray-200 rounded-xl space-y-2">
+              <div className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                Scanned Delivery Lines (Click to Populate Form)
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {scannedQueue.map((item, idx) => (
+                  <button
+                    key={`${item.matched_ingredient_id}-${idx}`}
+                    type="button"
+                    onClick={() => applyScannedRowToForm(item, idx)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                      activeScanIndex === idx
+                        ? 'bg-gray-900 text-white border-gray-900'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-gray-500'
+                    }`}
+                  >
+                    {idx + 1}. {item.matched_ingredient_name} ({item.quantity} {item.matched_unit || ''})
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <form onSubmit={handleReceiveStock} className="flex flex-col gap-6">
             <div className="flex flex-col gap-2">
               <label className="text-sm font-bold text-gray-700">Select Item (Ingredient or Product)</label>

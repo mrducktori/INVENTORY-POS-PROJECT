@@ -2,6 +2,48 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { supabase } from '../config/supabaseClient.js';
+import * as batchService from './batchService.js';
+import * as recipesService from './recipesService.js';
+import * as posOperationsService from './posOperationsService.js';
+
+export const computePerishabilityContext = (enrichedIngredients = []) => {
+  const ings = Array.isArray(enrichedIngredients) ? enrichedIngredients : [];
+  const perishableWithShelfLife = ings.filter(
+    (i) => i?.is_perishable !== false && Number(i?.default_shelf_life_days) > 0
+  );
+
+  let shortestShelfLifeDays = null;
+  let limitingIngredientName = null;
+
+  if (perishableWithShelfLife.length > 0) {
+    const sorted = [...perishableWithShelfLife].sort((a, b) => {
+      const sDiff = Number(a.default_shelf_life_days) - Number(b.default_shelf_life_days);
+      if (sDiff !== 0) return sDiff;
+      return (Number(a.usable_stock ?? a.stock_quantity) || 0) - (Number(b.usable_stock ?? b.stock_quantity) || 0);
+    });
+    shortestShelfLifeDays = Number(sorted[0].default_shelf_life_days);
+    limitingIngredientName = sorted[0].name || null;
+  } else if (ings.length > 0) {
+    const lowest = [...ings].sort(
+      (a, b) => (Number(a.usable_stock ?? a.stock_quantity) || 0) - (Number(b.usable_stock ?? b.stock_quantity) || 0)
+    )[0];
+    limitingIngredientName = lowest?.name || null;
+  }
+
+  const expiringIngredientsCount = ings.filter((i) => (Number(i?.expiring_soon_stock) || 0) > 0).length;
+  const expiredIngredientsCount = ings.filter((i) => (Number(i?.expired_stock) || 0) > 0).length;
+  const shelfLifeCapDays = shortestShelfLifeDays
+    ? Math.min(30, Math.max(3, Math.floor(shortestShelfLifeDays * 0.85)))
+    : null;
+
+  return {
+    shortestShelfLifeDays,
+    limitingIngredientName,
+    expiringIngredientsCount,
+    expiredIngredientsCount,
+    shelfLifeCapDays
+  };
+};
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MULTI_YEAR_SUMMARY_PATH = path.resolve(__dirname, '../data/multiYearSalesSummary.json');
@@ -124,16 +166,36 @@ export const isPhilippinePayday = isPeakSchoolDay;
  * @param {number} targetMonth 
  */
 export const extractProductForecastingFeatures = async (productId, targetYear, targetMonth) => {
-  // 1. Fetch product metadata & current stock
-  const { data: product, error: prodErr } = await supabase
-    .from('products')
-    .select('id, name, category, price, stock_quantity, track_stock')
-    .eq('id', productId)
-    .single();
+  // 1. Fetch product metadata & current stock, void/refund map, and product recipes in parallel
+  const [
+    { data: product, error: prodErr },
+    voidsMap,
+    productRecipes
+  ] = await Promise.all([
+    supabase
+      .from('products')
+      .select('id, name, category, price, stock_quantity, track_stock')
+      .eq('id', productId)
+      .single(),
+    posOperationsService.getVoidRefundMap().catch(() => ({})),
+    recipesService.getRecipesByProduct(productId).catch(() => [])
+  ]);
 
   if (prodErr || !product) {
     throw new Error(`Product with ID ${productId} not found.`);
   }
+
+  const uniqueIngredientsMap = new Map();
+  for (const r of productRecipes || []) {
+    if (r?.ingredients?.id && !uniqueIngredientsMap.has(r.ingredients.id)) {
+      uniqueIngredientsMap.set(r.ingredients.id, r.ingredients);
+    }
+  }
+  const uniqueRecipeIngredients = Array.from(uniqueIngredientsMap.values());
+  const enrichedRecipeIngredients = uniqueRecipeIngredients.length > 0
+    ? await batchService.enrichIngredientsWithBatches(uniqueRecipeIngredients).catch(() => uniqueRecipeIngredients)
+    : [];
+  const perishabilityContext = computePerishabilityContext(enrichedRecipeIngredients);
 
   const currentStock = parseFloat(product.stock_quantity) || 0;
   const productName = product.name || 'Unknown Product';
@@ -148,13 +210,23 @@ export const extractProductForecastingFeatures = async (productId, targetYear, t
   const PAGE_SIZE = 1000;
   let offset = 0;
   while (true) {
-    const { data: pageRows, error: recentErr } = await supabase
+    let pageRes = await supabase
       .from('sale_items')
-      .select('quantity, unit_price, sale_id, sales!inner(id, created_at, discount_amount)')
+      .select('quantity, unit_price, sale_id, sales!inner(id, status, created_at, discount_amount)')
       .eq('product_id', productId)
       .gte('sales.created_at', windowStartIso)
       .range(offset, offset + PAGE_SIZE - 1);
 
+    if (pageRes.error && (pageRes.error.code === '42703' || pageRes.error.code === 'PGRST204' || /status/i.test(pageRes.error.message || ''))) {
+      pageRes = await supabase
+        .from('sale_items')
+        .select('quantity, unit_price, sale_id, sales!inner(id, created_at, discount_amount)')
+        .eq('product_id', productId)
+        .gte('sales.created_at', windowStartIso)
+        .range(offset, offset + PAGE_SIZE - 1);
+    }
+
+    const { data: pageRows, error: recentErr } = pageRes;
     if (recentErr) throw recentErr;
     if (!pageRows || pageRows.length === 0) break;
     itemRows.push(...pageRows);
@@ -162,12 +234,17 @@ export const extractProductForecastingFeatures = async (productId, targetYear, t
     offset += PAGE_SIZE;
   }
 
-  // 3. Aggregate into daily sales buckets
+  // 3. Aggregate into daily sales buckets (excluding voided/refunded sales)
   const dailyMap = {};
 
   (itemRows || []).forEach(item => {
     if (!item.sales || !item.sales.created_at) return;
     const sale = item.sales;
+    const saleStatus = String(sale.status || '').trim().toUpperCase();
+    const saleId = sale.id ?? item.sale_id;
+    if (['VOIDED', 'REFUNDED', 'RETURNED'].includes(saleStatus) || (saleId && voidsMap && voidsMap[saleId])) {
+      return;
+    }
 
     // Parse Asia/Manila date string without UTC back-shift
     const localDateObj = new Date(new Date(sale.created_at).toLocaleString("en-US", { timeZone: "Asia/Manila" }));
@@ -416,6 +493,7 @@ export const extractProductForecastingFeatures = async (productId, targetYear, t
       month: targetMonth,
       daysInMonth: daysInTargetMonth
     },
+    perishabilityContext,
     multiYearMeta,
     recentSummary,
     dailySales,
@@ -581,9 +659,27 @@ export const runDeterministicEnsembleForecast = (forecastingData) => {
     ? Math.round(recordedEntry.unitsSold)
     : Math.round(predictedTotal);
   const trackStock = product.track_stock !== false;
-  const recommendedOrderQuantity = (isHistorical || !trackStock)
+  const perishabilityContext = forecastingData.perishabilityContext || {
+    shortestShelfLifeDays: null,
+    limitingIngredientName: null,
+    expiringIngredientsCount: 0,
+    expiredIngredientsCount: 0,
+    shelfLifeCapDays: null
+  };
+
+  let recommendedOrderQuantity = (isHistorical || !trackStock)
     ? 0
     : Math.max(0, predictedUnitsSold - currentStock);
+
+  if (
+    !isHistorical &&
+    trackStock &&
+    perishabilityContext.shelfLifeCapDays &&
+    perishabilityContext.shelfLifeCapDays < daysInMonth
+  ) {
+    const cappedUnits = Math.round((predictedUnitsSold / daysInMonth) * perishabilityContext.shelfLifeCapDays);
+    recommendedOrderQuantity = Math.max(0, cappedUnits - currentStock);
+  }
 
   const yearsAnalyzed = multiYearMeta?.yearsCovered?.length || 4;
   const totalMonthsAnalyzed = monthlySales.length || 47;
@@ -615,7 +711,8 @@ export const runDeterministicEnsembleForecast = (forecastingData) => {
       weekendDays: weekendCount,
       peakSchoolDays: peakSchoolCount,
       paydaySurgeDays: peakSchoolCount,
-      holidaySurgeDays: holidayCount
+      holidaySurgeDays: holidayCount,
+      perishabilityContext
     },
     price: product.price,
     recordedRevenue: recordedEntry ? Math.round(recordedEntry.revenue || 0) : null,
@@ -671,6 +768,7 @@ export const forecastStockUsingAI = async (dto) => {
       const promptPayload = {
         product: forecastingData.product,
         forecastTarget: forecastingData.forecastTarget,
+        perishabilityContext: forecastingData.perishabilityContext,
         recentSummary: forecastingData.recentSummary,
         seasonalIndices: forecastingData.multiYearMeta?.seasonalIndices,
         yoyGrowthPct: forecastingData.multiYearMeta?.yoyGrowthPct,
@@ -744,18 +842,19 @@ Forecast Target:
 - Days in Month: ${forecastingData.forecastTarget.daysInMonth}
 
 The dataset below provides pre-aggregated 7-day, 30-day, and 90-day recent sales metrics,
-trailing 12-month historical sales, multi-year seasonal indices, and YoY growth.
+trailing 12-month historical sales, multi-year seasonal indices, YoY growth, and ingredient perishability context.
 
 Use these drivers when making the forecast:
 - Recent 7-day, 30-day, and 90-day sales velocity and revenue trends
 - Trailing 12-month historical sales and multi-year seasonal indices / YoY growth
 - Peak school-week behavior (Monday & Friday surges), weekends, and Philippine holidays
 - Current inventory level (do not simply use current stock as predicted sales)
+- Ingredient shelf life and expiring batch risk from perishabilityContext (prefer smaller, fresher replenishment when shelf life is short)
 
 predictedUnitsSold is the expected total units sold during the ENTIRE target month,
 rounded to a whole number.
 
-recommendedOrderQuantity is max(0, predictedUnitsSold - currentStock),
+recommendedOrderQuantity should cover expected demand up to the effective shelf-life horizon minus current stock,
 rounded to a whole number.
 
 The reasoning must be at most 2 concise, plain sentences written for a cafe owner.

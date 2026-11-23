@@ -100,7 +100,7 @@ const ForecastGuideModal = ({ isOpen, onClose, guideTab, setGuideTab }) => {
                 </div>
                 <div className="pl-4 space-y-2 border-l-2 border-zinc-100">
                   <p className="m-0">
-                    <span className="font-semibold text-zinc-900">Est. Time Left:</span> Compares current on-hand stock against the daily usage rate to estimate how many operating days remain before stock runs out.
+                    <span className="font-semibold text-zinc-900">Usable Stock &amp; FEFO Spoilage:</span> Evaluates usable non-expired stock adjusted for near-expiry batches projected to spoil before consumption, so expired inventory never masks an upcoming shortage.
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
                     <div className="p-2.5 rounded-lg bg-red-50/70 border border-red-200/80">
@@ -129,10 +129,10 @@ const ForecastGuideModal = ({ isOpen, onClose, guideTab, setGuideTab }) => {
                 </div>
                 <div className="pl-4 space-y-1.5 border-l-2 border-zinc-100">
                   <p className="m-0">
-                    <span className="font-semibold text-zinc-900">14-Day Target Buffer:</span> When an ingredient needs restocking, the system calculates how much stock is needed to cover a full 14-day supply window.
+                    <span className="font-semibold text-zinc-900">Shelf-Life Restock Cap:</span> Targets a 14-day buffer for non-perishable stock and automatically caps perishable orders to a safe shelf-life window so ingredients are used before expiring.
                   </p>
                   <p className="m-0">
-                    <span className="font-semibold text-zinc-900">Purchase Units:</span> Raw gram/milliliter deficits are automatically rounded up into supplier ordering units (such as 1 kg bags, 750 ml syrup bottles, or 1 L milk cartons) for one-click Purchase Order creation.
+                    <span className="font-semibold text-zinc-900">Purchase Units:</span> Raw deficits convert cleanly into supplier ordering units (such as 1 kg bags, 750 ml syrup bottles, or 1 L cartons) for Purchase Order creation.
                   </p>
                 </div>
               </div>

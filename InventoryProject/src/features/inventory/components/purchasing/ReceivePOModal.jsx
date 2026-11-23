@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import InfoTip from '../../../../components/shared/InfoTip';
+import OcrScannerPanel from '../../../../components/shared/OcrScannerPanel';
 import { getManilaDateOnly, addDaysManila } from '../../../../utils/dateUtils';
 import { INPUT_LIMITS } from '../../../../utils/validationUtils';
 
 const ReceivePOModal = ({ po, onClose, onSubmit }) => {
   const [items, setItems] = useState(() => {
     const todayManila = getManilaDateOnly();
-    return po.purchase_order_items.map(item => {
-      const isPerishable = item.ingredients?.is_perishable !== false;
+    return (po.purchase_order_items || []).map(item => {
+      const rawPerishable = item.ingredients?.is_perishable;
+      const isPerishable = rawPerishable === false || rawPerishable === 'false' ? false : true;
       const shelfDays = Number(item.ingredients?.default_shelf_life_days) || 30;
       const defaultExpiry = isPerishable ? addDaysManila(todayManila, shelfDays) : '';
       return {
@@ -20,6 +22,68 @@ const ReceivePOModal = ({ po, onClose, onSubmit }) => {
   });
   const [saving, setSaving] = useState(false);
   const [isReviewStep, setIsReviewStep] = useState(false);
+  const [ocrFeedback, setOcrFeedback] = useState('');
+
+  const poIngredients = useMemo(() => {
+    const seen = new Set();
+    return (po.purchase_order_items || [])
+      .map((item) => ({
+        id: item.ingredient_id || item.ingredients?.id,
+        name: item.ingredients?.name || 'Ingredient',
+        unit: item.ingredients?.unit || item.purchase_unit || '',
+        purchase_unit: item.purchase_unit || item.ingredients?.purchase_unit || ''
+      }))
+      .filter((ing) => {
+        if (!ing.id || seen.has(String(ing.id))) return false;
+        seen.add(String(ing.id));
+        return true;
+      });
+  }, [po.purchase_order_items]);
+
+  const handleApplyOcrToPo = (validatedItems = []) => {
+    if (!validatedItems.length) return;
+    let updatedCount = 0;
+
+    setItems((prev) =>
+      prev.map((poItem) => {
+        const isFullyReceivedAlready = poItem.is_received || poItem.quantity_received >= poItem.quantity;
+        if (isFullyReceivedAlready) return poItem;
+
+        const maxRemaining = Math.max(0, (poItem.quantity || 0) - (poItem.quantity_received || 0));
+        const poIngId = String(poItem.ingredient_id || poItem.ingredients?.id || '');
+        const poIngName = String(poItem.ingredients?.name || '').trim().toLowerCase();
+
+        const match = validatedItems.find(
+          (v) =>
+            (poIngId && String(v.matched_ingredient_id) === poIngId) ||
+            (poIngName && String(v.matched_ingredient_name || '').trim().toLowerCase() === poIngName)
+        );
+        if (!match) return poItem;
+
+        updatedCount += 1;
+        const parsedQty = parseFloat(match.quantity);
+        const clampedQty =
+          Number.isFinite(parsedQty) && parsedQty > 0
+            ? Math.min(maxRemaining, parsedQty)
+            : poItem.received_now;
+
+        return {
+          ...poItem,
+          received_now: clampedQty,
+          expiry_date: match.expiry_date || poItem.expiry_date,
+          batch_code: match.batch_code
+            ? String(match.batch_code).slice(0, INPUT_LIMITS.BATCH_CODE_MAX_LEN)
+            : poItem.batch_code
+        };
+      })
+    );
+
+    setOcrFeedback(
+      updatedCount > 0
+        ? `Mapped OCR delivery data onto ${updatedCount} PO line item${updatedCount === 1 ? '' : 's'}.`
+        : 'No scanned rows matched pending items on this Purchase Order.'
+    );
+  };
 
   const handleQuantityChange = (id, val) => {
     const parsed = parseFloat(val);
@@ -103,6 +167,19 @@ const ReceivePOModal = ({ po, onClose, onSubmit }) => {
         {!isReviewStep ? (
           <form onSubmit={handleProceedToReview} className="flex flex-col overflow-hidden min-h-0 flex-1">
             <div className="p-6 overflow-y-auto flex-1 flex flex-col gap-4">
+              <OcrScannerPanel
+                compact
+                ingredients={poIngredients}
+                scanMode="PO_RECEIPT"
+                onApplyItems={handleApplyOcrToPo}
+              />
+
+              {ocrFeedback && (
+                <div className="px-3.5 py-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs font-bold text-emerald-800">
+                  {ocrFeedback}
+                </div>
+              )}
+
               <div className="flex flex-col gap-3">
                 {items.map(item => {
                   const maxRemaining = Math.max(0, item.quantity - (item.quantity_received || 0));

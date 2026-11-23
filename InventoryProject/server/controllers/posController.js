@@ -1,4 +1,5 @@
 import * as posService from "../services/posService.js";
+import * as posOperationsService from "../services/posOperationsService.js";
 
 export const getProducts = async (req, res) => {
   try {
@@ -23,7 +24,20 @@ const ALLOWED_SUGAR_LEVELS = new Set(["0%", "25%", "50%", "75%", "100%"]);
 
 export const createSale = async (req, res) => {
   try {
-    const { cart, total, amount_received, payment_method, order_type } = req.body;
+    const {
+      cart,
+      order_type,
+      discount_type,
+      discount_id_number,
+      customer_name,
+      promo_code,
+      custom_discount_mode,
+      custom_discount_value,
+      payment_method,
+      amount_received,
+      transaction_reference,
+      payments
+    } = req.body;
 
     let normalizedOrderType = "DINE_IN";
     if (order_type !== undefined && order_type !== null && String(order_type).trim() !== "") {
@@ -94,30 +108,200 @@ export const createSale = async (req, res) => {
       }
     }
 
-    const parsedTotal = parseFloat(total);
-    if (isNaN(parsedTotal) || parsedTotal < 0 || parsedTotal > 500000) {
-      return res.status(400).json({ error: "Invalid order total amount." });
-    }
+    const idempotencyKey = req.body.idempotency_key || req.headers["x-idempotency-key"] || "";
 
-    if (payment_method === 'CASH') {
-      const received = parseFloat(amount_received);
-      const maxCash = Math.min(100000, Math.max(parsedTotal + 5000, 50000));
-      if (isNaN(received) || received < parsedTotal) {
-        return res.status(400).json({ error: "Cash received must be greater than or equal to total." });
-      }
-      if (received > maxCash) {
-        return res.status(400).json({
-          error: `Cash received exceeds allowable maximum of ₱${maxCash.toLocaleString()}.`
+    const { sale, deduplicated } = await posOperationsService.runWithIdempotency(
+      idempotencyKey,
+      req.user.id,
+      async () => {
+        const { subtotal, itemPrices } = await posOperationsService.computeAuthoritativeSubtotal(cart);
+        const discountResult = posOperationsService.validateAndComputeDiscount({
+          subtotal,
+          cart,
+          itemPrices,
+          discount_type,
+          discount_id_number,
+          customer_name,
+          promo_code,
+          custom_discount_mode,
+          custom_discount_value
         });
-      }
-    }
+        const paymentResult = posOperationsService.validateAndNormalizePayments({
+          payment_method,
+          amount_received,
+          transaction_reference,
+          payments,
+          finalTotal: discountResult.final_total
+        });
 
-    const sale = await posService.createSale({
-      ...req.body,
-      order_type: normalizedOrderType,
-      staff_id: req.user.id,
+        const authoritativeCart = cart.map((item, idx) => ({
+          ...item,
+          price: itemPrices[idx]?.unit_price ?? item.price
+        }));
+
+        const createdSale = await posService.createSale({
+          ...req.body,
+          cart: authoritativeCart,
+          order_type: normalizedOrderType,
+          total: discountResult.final_total,
+          discount_amount: discountResult.discount_amount,
+          payment_method: paymentResult.payment_method,
+          amount_received: paymentResult.amount_received,
+          change_amount: paymentResult.change_amount,
+          transaction_reference: paymentResult.transaction_reference,
+          staff_id: req.user.id
+        });
+
+        await posOperationsService.saveSaleMetadata(createdSale.id, {
+          payments: paymentResult.payments,
+          discount_details: discountResult.discount_details,
+          order_type: normalizedOrderType
+        });
+
+        const kdsTicket = await posOperationsService.enqueueKdsOrder({
+          sale: createdSale,
+          cart: authoritativeCart,
+          order_type: normalizedOrderType
+        });
+
+        return {
+          ...createdSale,
+          subtotal_amount: discountResult.subtotal,
+          discount_details: discountResult.discount_details,
+          payments: paymentResult.payments,
+          kds_ticket_id: kdsTicket?.id || null
+        };
+      }
+    );
+
+    res.json({
+      message: deduplicated ? "Sale already processed" : "Sale completed",
+      sale,
+      deduplicated
     });
-    res.json({ message: "Sale completed", sale });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+};
+
+export const createPaymentIntent = async (req, res) => {
+  try {
+    const intent = posOperationsService.generateQrPaymentIntent({
+      provider: req.body?.provider,
+      amount: req.body?.amount
+    });
+    res.json(intent);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+};
+
+export const voidOrRefundSale = async (req, res) => {
+  try {
+    const record = await posOperationsService.voidOrRefundSale({
+      sale_id: req.params.id,
+      action_type: req.body?.action_type,
+      reason: req.body?.reason,
+      restock_policy: req.body?.restock_policy,
+      manager_pin: req.body?.manager_pin,
+      requested_by_user: req.user
+    });
+    res.json(record);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+};
+
+export const setManagerPin = async (req, res) => {
+  try {
+    const result = await posOperationsService.setManagerPin({
+      targetUserId: req.body?.target_user_id || req.body?.targetUserId || req.user.id,
+      pin: req.body?.pin,
+      actingUser: req.user
+    });
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+};
+
+export const getCurrentShift = async (req, res) => {
+  try {
+    const shift = await posOperationsService.getCurrentShift(req.user.id);
+    res.json(shift);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+};
+
+export const openShift = async (req, res) => {
+  try {
+    const shift = await posOperationsService.openShift({
+      opening_cash: req.body?.opening_cash ?? 0,
+      notes: req.body?.notes || "",
+      user: req.user
+    });
+    res.status(201).json(shift);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+};
+
+export const getXReading = async (req, res) => {
+  try {
+    const reading = await posOperationsService.computeXReading({
+      shift_id: req.query.shift_id || null,
+      user: req.user
+    });
+    res.json(reading);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+};
+
+export const closeShiftZReading = async (req, res) => {
+  try {
+    const shift = await posOperationsService.closeShiftZReading({
+      shift_id: req.body?.shift_id || null,
+      actual_cash_counted: req.body?.actual_cash_counted,
+      notes: req.body?.notes || "",
+      user: req.user
+    });
+    res.json(shift);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+};
+
+export const getShiftHistory = async (req, res) => {
+  try {
+    const history = await posOperationsService.getShiftHistory();
+    res.json(history);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+};
+
+export const getKdsQueue = async (req, res) => {
+  try {
+    const tickets = await posOperationsService.getKdsQueue({
+      station: req.query.station || "ALL",
+      includeServed: req.query.include_served === "true" || req.query.includeServed === "true"
+    });
+    res.json(tickets);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+};
+
+export const updateKdsTicketStatus = async (req, res) => {
+  try {
+    const ticket = await posOperationsService.updateKdsTicketStatus(
+      req.params.id,
+      req.body?.status,
+      req.user
+    );
+    res.json(ticket);
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
   }

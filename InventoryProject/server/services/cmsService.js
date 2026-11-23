@@ -16,7 +16,13 @@ export const INTERNAL_CMS_KEYS = new Set([
   "inventory_batches_store",
   "ingredient_perishability_meta",
   "stocktake_history_store",
-  "recipe_size_overrides_store"
+  "recipe_size_overrides_store",
+  "pos_idempotency_store",
+  "pos_shifts_store",
+  "pos_voids_refunds_store",
+  "pos_kds_queue_store",
+  "manager_pins_store",
+  "pos_sale_metadata_store"
 ]);
 
 const isPublicCmsKey = (sectionKey) =>

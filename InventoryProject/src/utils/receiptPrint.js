@@ -28,6 +28,8 @@ export const formatReceiptDateTime = (isoString) => {
 export const extractDiscountLabel = (receipt) => {
   if (!receipt) return '';
   if (receipt.discount_label) return receipt.discount_label;
+  if (receipt.discount_details?.discount_label) return receipt.discount_details.discount_label;
+  if (receipt.discount_details?.label) return receipt.discount_details.label;
   if (typeof receipt.notes === 'string') {
     const match = receipt.notes.match(/Discount:\s*([^|\n]+)/i);
     if (match?.[1]) return match[1].trim();
@@ -175,6 +177,28 @@ const buildReceiptMarkup = (
     })
     .join('');
 
+  const rawStatus = String(
+    receipt?.void_info?.action_type === 'REFUND'
+      ? 'REFUNDED'
+      : receipt?.void_info
+      ? 'VOIDED'
+      : receipt?.status || 'COMPLETED'
+  ).toUpperCase();
+  const isVoidedOrRefunded =
+    rawStatus === 'VOIDED' || rawStatus === 'REFUNDED' || rawStatus === 'RETURNED';
+  const discountDetails = receipt?.discount_details || null;
+  const splitPayments = Array.isArray(receipt?.payments) ? receipt.payments : [];
+
+  const voidBanner = isVoidedOrRefunded
+    ? `
+      <div style="border: 1px dashed #000; padding: 4px 6px; margin: 4px 0; text-align: center; font-size: 10px;">
+        <div style="font-weight: 800;">*** TRANSACTION ${escapeHtml(rawStatus)} ***</div>
+        ${receipt.void_info?.reason ? `<div>Reason: ${escapeHtml(receipt.void_info.reason)}</div>` : ''}
+        ${receipt.void_info?.approved_by_name ? `<div>Approved by: ${escapeHtml(receipt.void_info.approved_by_name)}</div>` : ''}
+      </div>
+    `
+    : '';
+
   const discountRow =
     discountAmount > 0
       ? `
@@ -182,7 +206,34 @@ const buildReceiptMarkup = (
           <span>Discount${discountLabel ? ` (${escapeHtml(discountLabel)})` : ''}</span>
           <span>-${formatCurrency(discountAmount)}</span>
         </div>
+        ${
+          discountDetails?.customer_name || discountDetails?.discount_id_number
+            ? `<div class="coftea-receipt-addons">${escapeHtml(
+                discountDetails.customer_name || 'Beneficiary'
+              )}${discountDetails.discount_id_number ? ` (ID: ${escapeHtml(discountDetails.discount_id_number)})` : ''}</div>`
+            : ''
+        }
+        ${
+          discountDetails?.promo_code
+            ? `<div class="coftea-receipt-addons">Promo: ${escapeHtml(discountDetails.promo_code)}</div>`
+            : ''
+        }
       `
+      : '';
+
+  const splitPaymentsRows =
+    splitPayments.length > 0
+      ? splitPayments
+          .map(
+            (leg) => `
+        <div class="coftea-receipt-addons" style="display:flex;justify-content:space-between;gap:6px;">
+          <span>${escapeHtml(String(leg.method || '').toUpperCase())}${
+              leg.reference_number ? ` (${escapeHtml(leg.reference_number)})` : ''
+            }</span>
+          <span>${formatCurrency(leg.amount)}</span>
+        </div>`
+          )
+          .join('')
       : '';
 
   const referenceRow = receipt.transaction_reference
@@ -200,6 +251,8 @@ const buildReceiptMarkup = (
         <h1 class="coftea-store-name">${escapeHtml(storeName)}</h1>
         <p class="coftea-branch-label">${escapeHtml(branchLabel)}</p>
       </div>
+
+      ${voidBanner}
 
       <div class="coftea-dashed-divider"></div>
 
@@ -253,6 +306,7 @@ const buildReceiptMarkup = (
         <span>Payment (${escapeHtml(receipt.payment_method || 'CASH')})</span>
         <span>${formatCurrency(receipt.amount_received ?? totalAmount)}</span>
       </div>
+      ${splitPaymentsRows}
       ${referenceRow}
       <div class="coftea-summary-row">
         <span>Change</span>
@@ -502,6 +556,109 @@ export const printThermalReceipt = (receipt, options = {}) => {
   window.addEventListener('afterprint', cleanup, { once: true });
 
   // Wait two animation frames so Chromium commits the updated @page dimensions before print preview opens
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      try {
+        window.print();
+      } finally {
+        setTimeout(cleanup, 60000);
+      }
+    });
+  });
+};
+
+/**
+ * Prints an 80mm/58mm X-Reading or Z-Reading cash drawer reconciliation slip.
+ */
+export const printShiftReading = (reading, shift = null, options = {}) => {
+  if (!reading || typeof document === 'undefined') return;
+  const title = options.title || 'X-READING REPORT';
+  const safeWidth = VALID_PAPER_WIDTHS.includes(options.paperWidth)
+    ? options.paperWidth
+    : getSavedPaperWidth();
+
+  cleanupExistingPrintElements();
+
+  const expectedCash = Number(
+    reading.expected_drawer_cash ??
+      (Number(shift?.opening_cash ?? reading.opening_cash ?? 0) + Number(reading.cash_sales || 0))
+  );
+
+  const markup = `
+    <div class="coftea-receipt-slip">
+      <div class="coftea-receipt-header">
+        <h1 class="coftea-store-name">COF/TEA CAFE</h1>
+        <p class="coftea-branch-label">${escapeHtml(title)}</p>
+      </div>
+      <div class="coftea-dashed-divider"></div>
+      <div class="coftea-meta-row">
+        <span>Printed:</span>
+        <span class="coftea-meta-val">${escapeHtml(formatReceiptDateTime(new Date().toISOString()))}</span>
+      </div>
+      ${
+        shift?.cashier_name || shift?.opened_by_name || reading?.cashier_name
+          ? `<div class="coftea-meta-row"><span>Cashier:</span><span class="coftea-meta-val">${escapeHtml(
+              shift?.cashier_name || shift?.opened_by_name || reading?.cashier_name
+            )}</span></div>`
+          : ''
+      }
+      ${
+        shift?.opened_at
+          ? `<div class="coftea-meta-row"><span>Opened:</span><span class="coftea-meta-val">${escapeHtml(formatReceiptDateTime(shift.opened_at))}</span></div>`
+          : ''
+      }
+      ${
+        shift?.closed_at
+          ? `<div class="coftea-meta-row"><span>Closed:</span><span class="coftea-meta-val">${escapeHtml(formatReceiptDateTime(shift.closed_at))}</span></div>`
+          : ''
+      }
+      <div class="coftea-dashed-divider"></div>
+      <div class="coftea-summary-row"><span>Opening Float</span><span>${formatCurrency(shift?.opening_cash ?? reading.opening_cash ?? 0)}</span></div>
+      <div class="coftea-summary-row"><span>Cash Sales</span><span>${formatCurrency(reading.cash_sales)}</span></div>
+      <div class="coftea-summary-row"><span>GCash Sales</span><span>${formatCurrency(reading.gcash_sales)}</span></div>
+      <div class="coftea-summary-row"><span>Maya Sales</span><span>${formatCurrency(reading.maya_sales)}</span></div>
+      <div class="coftea-summary-row"><span>Card Sales</span><span>${formatCurrency(reading.card_sales)}</span></div>
+      <div class="coftea-summary-row"><span>QRPH Sales</span><span>${formatCurrency(reading.qrph_sales)}</span></div>
+      <div class="coftea-summary-row"><span>Discounts</span><span>-${formatCurrency(reading.total_discounts)}</span></div>
+      <div class="coftea-summary-row"><span>Voided (${escapeHtml(reading.voided_count || 0)})</span><span>${formatCurrency(reading.voided_amount)}</span></div>
+      <div class="coftea-dashed-divider"></div>
+      <div class="coftea-total-row"><span>EXPECTED CASH</span><span>${formatCurrency(expectedCash)}</span></div>
+      ${
+        reading.actual_cash_counted !== undefined && reading.actual_cash_counted !== null
+          ? `
+            <div class="coftea-summary-row"><span>Actual Counted</span><span>${formatCurrency(reading.actual_cash_counted)}</span></div>
+            <div class="coftea-summary-row"><span>Short / Over</span><span>${formatCurrency(reading.short_over)}</span></div>
+          `
+          : ''
+      }
+      <div class="coftea-dashed-divider"></div>
+      <div class="coftea-receipt-footer"><div>End of Shift Report</div></div>
+    </div>
+  `;
+
+  const styleEl = document.createElement('style');
+  styleEl.id = PRINT_STYLE_ID;
+  styleEl.textContent = buildReceiptStyles(safeWidth);
+  document.head.appendChild(styleEl);
+
+  const rootEl = document.createElement('div');
+  rootEl.id = PRINT_ROOT_ID;
+  rootEl.setAttribute('aria-hidden', 'true');
+  rootEl.innerHTML = markup;
+  document.body.appendChild(rootEl);
+
+  const measuredPx = Math.max(rootEl.scrollHeight, rootEl.getBoundingClientRect().height);
+  const heightMm = Math.max(60, Math.ceil((measuredPx * 25.4) / 96) + 4);
+  styleEl.textContent = buildReceiptStyles(safeWidth, heightMm);
+
+  let cleaned = false;
+  const cleanup = () => {
+    if (cleaned) return;
+    cleaned = true;
+    cleanupExistingPrintElements();
+  };
+
+  window.addEventListener('afterprint', cleanup, { once: true });
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       try {

@@ -3,12 +3,30 @@ import * as posController from "../controllers/posController.js";
 import { requireAuth, requireRole } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
+const requireCafeRole = requireRole("Owner", "Admin", "Staff", "Custom");
 
 // Public route for the landing page visual menu
 router.get("/products", posController.getProducts);
 
 // Protected routes — only logged-in cafe staff/admins can access full POS catalog or process sales
-router.get("/catalog", requireAuth, requireRole("Owner", "Admin", "Staff", "Custom"), posController.getPosCatalog);
-router.post("/sale", requireAuth, requireRole("Owner", "Admin", "Staff", "Custom"), posController.createSale);
+router.get("/catalog", requireAuth, requireCafeRole, posController.getPosCatalog);
+router.post("/sale", requireAuth, requireCafeRole, posController.createSale);
+router.post("/payment-intent", requireAuth, requireCafeRole, posController.createPaymentIntent);
+
+// Void / Return / Refund & Manager PIN Management
+router.post("/sales/:id/void", requireAuth, requireCafeRole, posController.voidOrRefundSale);
+router.post("/pin", requireAuth, requireRole("Owner", "Admin"), posController.setManagerPin);
+
+// Shift Management (X-Reading & Z-Reading)
+router.get("/shifts/current", requireAuth, requireCafeRole, posController.getCurrentShift);
+router.post("/shifts/open", requireAuth, requireCafeRole, posController.openShift);
+router.get("/shifts/x-reading", requireAuth, requireCafeRole, posController.getXReading);
+router.post("/shifts/close-z", requireAuth, requireCafeRole, posController.closeShiftZReading);
+router.get("/shifts/history", requireAuth, requireCafeRole, posController.getShiftHistory);
+
+// Kitchen / Barista Display System (KDS)
+router.get("/kds", requireAuth, requireCafeRole, posController.getKdsQueue);
+router.put("/kds/:id/status", requireAuth, requireCafeRole, posController.updateKdsTicketStatus);
+router.patch("/kds/:id/status", requireAuth, requireCafeRole, posController.updateKdsTicketStatus);
 
 export default router;

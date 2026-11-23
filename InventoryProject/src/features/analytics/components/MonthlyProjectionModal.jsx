@@ -262,6 +262,38 @@ const MonthlyProjectionModal = ({
                       : ''}
                   </span>
                 </div>
+                {(() => {
+                  const perish = result.factors?.perishabilityContext;
+                  const hasShortest = Boolean(perish?.shortestShelfLifeDays);
+                  const expiringCount = Number(perish?.expiringIngredientsCount || 0);
+                  const expiredCount = Number(perish?.expiredIngredientsCount || 0);
+                  if (!perish || (!hasShortest && expiringCount <= 0 && expiredCount <= 0)) {
+                    return null;
+                  }
+                  return (
+                    <div className="flex justify-between items-start gap-3 text-zinc-600 pt-1 border-t border-zinc-100">
+                      <span className="inline-flex items-center gap-1.5">
+                        <span>Perishability &amp; Shelf-Life Window</span>
+                        <InfoTip text="Tracks the shortest perishable ingredient shelf life in this item's recipe and highlights any expiring or expired batches affecting restock limits." />
+                      </span>
+                      <span className="text-right font-mono font-semibold text-zinc-900">
+                        {hasShortest && (
+                          <span>
+                            {perish.shortestShelfLifeDays}d
+                            {perish.limitingIngredientName ? ` (${perish.limitingIngredientName})` : ''}
+                          </span>
+                        )}
+                        {(expiringCount > 0 || expiredCount > 0) && (
+                          <span className="block text-[11px] font-sans text-amber-700 mt-0.5">
+                            {expiredCount > 0 ? `${expiredCount} expired` : ''}
+                            {expiredCount > 0 && expiringCount > 0 ? ' • ' : ''}
+                            {expiringCount > 0 ? `${expiringCount} expiring` : ''}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  );
+                })()}
               </div>
 
               {Array.isArray(result.factors?.sameMonthHistory) &&

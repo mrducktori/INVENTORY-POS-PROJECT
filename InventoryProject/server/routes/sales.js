@@ -1,10 +1,259 @@
 import express from 'express';
 import { supabase } from "../config/supabaseClient.js";
-import { toManilaStartOfDay, toManilaEndOfDay } from "../utils/dateUtils.js";
+import { toManilaStartOfDay, toManilaEndOfDay, getManilaDateOnly, getManilaDateString } from "../utils/dateUtils.js";
 import { requireRole } from "../middleware/authMiddleware.js";
+import * as posOperationsService from "../services/posOperationsService.js";
 
 const router = express.Router();
 router.use(requireRole('Owner', 'Admin', 'Staff', 'Custom'));
+
+const pad2 = (n) => String(n).padStart(2, '0');
+const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+
+const shiftManilaDateStr = (dateStr, deltaDays) => {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + deltaDays));
+  return `${dt.getUTCFullYear()}-${pad2(dt.getUTCMonth() + 1)}-${pad2(dt.getUTCDate())}`;
+};
+
+const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+const formatDailyLabel = (dateStr) => {
+  const [, m, d] = dateStr.split('-').map(Number);
+  return `${MONTH_SHORT[(m || 1) - 1]} ${d}`;
+};
+
+export const resolveSalesDateWindow = ({ period, start_date, end_date, date, year, todayOverride = null } = {}) => {
+  const todayStr = todayOverride || getManilaDateOnly();
+  const [curY, curM] = todayStr.split('-').map(Number);
+  const normPeriod = String(period || '').trim().toLowerCase();
+
+  if (normPeriod === 'custom' || start_date || end_date) {
+    const startOnly = (start_date ? toManilaStartOfDay(start_date).slice(0, 10) : null) ||
+      (end_date ? toManilaStartOfDay(end_date).slice(0, 10) : todayStr);
+    const endOnly = (end_date ? toManilaEndOfDay(end_date).slice(0, 10) : null) || startOnly;
+    return {
+      period: 'custom',
+      startStr: `${startOnly}T00:00:00+08:00`,
+      endStr: `${endOnly}T23:59:59.999+08:00`,
+      startDateOnly: startOnly,
+      endDateOnly: endOnly,
+      bucketMode: 'daily',
+      targetYear: Number(startOnly.slice(0, 4))
+    };
+  }
+
+  if (normPeriod === 'year' || normPeriod === 'yearly' || normPeriod === 'annual') {
+    const targetYear = year !== undefined && year !== null && String(year).trim() !== ''
+      ? Number(year)
+      : curY;
+    if (!Number.isInteger(targetYear) || targetYear < 2000 || targetYear > 2100) {
+      const err = new Error('Invalid year parameter.');
+      err.status = 400;
+      throw err;
+    }
+    return {
+      period: 'yearly',
+      startStr: `${targetYear}-01-01T00:00:00+08:00`,
+      endStr: `${targetYear}-12-31T23:59:59.999+08:00`,
+      startDateOnly: `${targetYear}-01-01`,
+      endDateOnly: `${targetYear}-12-31`,
+      bucketMode: 'monthly',
+      targetYear
+    };
+  }
+
+  if (normPeriod === 'month' || normPeriod === 'monthly') {
+    const startOnly = `${curY}-${pad2(curM)}-01`;
+    return {
+      period: 'monthly',
+      startStr: `${startOnly}T00:00:00+08:00`,
+      endStr: `${todayStr}T23:59:59.999+08:00`,
+      startDateOnly: startOnly,
+      endDateOnly: todayStr,
+      bucketMode: 'daily',
+      targetYear: curY
+    };
+  }
+
+  if (normPeriod === 'week' || normPeriod === 'weekly') {
+    const startOnly = shiftManilaDateStr(todayStr, -6);
+    return {
+      period: 'weekly',
+      startStr: `${startOnly}T00:00:00+08:00`,
+      endStr: `${todayStr}T23:59:59.999+08:00`,
+      startDateOnly: startOnly,
+      endDateOnly: todayStr,
+      bucketMode: 'daily',
+      targetYear: curY
+    };
+  }
+
+  // Default: daily (or explicit date)
+  const targetDate = date ? toManilaStartOfDay(date).slice(0, 10) : todayStr;
+  return {
+    period: 'daily',
+    startStr: `${targetDate}T00:00:00+08:00`,
+    endStr: `${targetDate}T23:59:59.999+08:00`,
+    startDateOnly: targetDate,
+    endDateOnly: targetDate,
+    bucketMode: 'daily',
+    targetYear: Number(targetDate.slice(0, 4))
+  };
+};
+
+export const aggregateSalesSummaryReport = (sales = [], voidsMap = {}, windowInfo = {}) => {
+  const { bucketMode = 'daily', startDateOnly, endDateOnly, targetYear } = windowInfo;
+  const binMap = new Map();
+
+  if (bucketMode === 'monthly') {
+    const yr = targetYear || Number((startDateOnly || getManilaDateOnly()).slice(0, 4));
+    for (let m = 1; m <= 12; m++) {
+      const key = `${yr}-${pad2(m)}`;
+      binMap.set(key, {
+        date_key: key,
+        label: `${MONTH_SHORT[m - 1]} ${yr}`,
+        revenue: 0,
+        transactions: 0,
+        items_sold: 0
+      });
+    }
+  } else if (startDateOnly && endDateOnly) {
+    let cur = startDateOnly;
+    let safety = 0;
+    while (cur <= endDateOnly && safety < 400) {
+      binMap.set(cur, {
+        date_key: cur,
+        label: formatDailyLabel(cur),
+        revenue: 0,
+        transactions: 0,
+        items_sold: 0
+      });
+      cur = shiftManilaDateStr(cur, 1);
+      safety += 1;
+    }
+  }
+
+  let total_sales = 0;
+  let total_discounts = 0;
+  let gross_sales = 0;
+  let total_transactions = 0;
+  let total_items_sold = 0;
+  let voided_count = 0;
+  let voided_amount = 0;
+
+  const staffMap = {};
+  const productMap = {};
+
+  for (const sale of sales || []) {
+    const saleAmt = parseFloat(sale.total_amount) || 0;
+    const discAmt = parseFloat(sale.discount_amount) || 0;
+    const statusUpper = String(sale.status || '').toUpperCase();
+    const isVoided = Boolean(voidsMap[sale.id]) || ['VOIDED', 'REFUNDED', 'RETURNED'].includes(statusUpper);
+
+    if (isVoided) {
+      voided_count += 1;
+      voided_amount += saleAmt;
+      continue;
+    }
+
+    total_sales += saleAmt;
+    total_discounts += discAmt;
+    gross_sales += saleAmt + discAmt;
+    total_transactions += 1;
+
+    const staffId = sale.users?.id || 'unknown';
+    const staffName = sale.users?.name || 'Unknown';
+    if (!staffMap[staffId]) {
+      staffMap[staffId] = { id: staffId, name: staffName, total_sales: 0, transactions: 0 };
+    }
+    staffMap[staffId].total_sales = round2(staffMap[staffId].total_sales + saleAmt);
+    staffMap[staffId].transactions += 1;
+
+    let saleItemsCount = 0;
+    for (const item of sale.sale_items || []) {
+      const qty = Number(item.quantity) || 0;
+      saleItemsCount += qty;
+      total_items_sold += qty;
+
+      const prodId = item.products?.id;
+      const prodName = item.products?.name || 'Unknown Product';
+      const category = item.products?.category || 'Uncategorized';
+
+      if (prodId) {
+        if (!productMap[prodId]) {
+          productMap[prodId] = { id: prodId, name: prodName, category, qty_sold: 0, revenue: 0 };
+        }
+        productMap[prodId].qty_sold += qty;
+        productMap[prodId].revenue = round2(productMap[prodId].revenue + qty * (parseFloat(item.unit_price) || 0));
+      }
+    }
+
+    if (sale.created_at) {
+      const manilaDay = getManilaDateString(sale.created_at);
+      const binKey = bucketMode === 'monthly' ? manilaDay.slice(0, 7) : manilaDay;
+      if (!binMap.has(binKey)) {
+        binMap.set(binKey, {
+          date_key: binKey,
+          label: bucketMode === 'monthly'
+            ? `${MONTH_SHORT[(Number(binKey.slice(5, 7)) || 1) - 1]} ${binKey.slice(0, 4)}`
+            : formatDailyLabel(binKey),
+          revenue: 0,
+          transactions: 0,
+          items_sold: 0
+        });
+      }
+      const bin = binMap.get(binKey);
+      bin.revenue = round2(bin.revenue + saleAmt);
+      bin.transactions += 1;
+      bin.items_sold += saleItemsCount;
+    }
+  }
+
+  const period_breakdown = Array.from(binMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([, val]) => val);
+
+  const staff_data = Object.values(staffMap).sort((a, b) => b.total_sales - a.total_sales);
+  const product_data = Object.values(productMap).sort((a, b) => b.qty_sold - a.qty_sold).slice(0, 50);
+
+  return {
+    gross_sales: round2(gross_sales),
+    total_discounts: round2(total_discounts),
+    voided_count,
+    voided_amount: round2(voided_amount),
+    total_sales: round2(total_sales),
+    total_transactions,
+    total_items_sold,
+    period_breakdown,
+    staff_data,
+    product_data
+  };
+};
+
+const resolveOrderTypeFromNotes = (notes) => {
+  const s = String(notes || '');
+  if (/\[TAKE-OUT\]|\[TAKE_OUT\]/i.test(s)) return 'TAKE_OUT';
+  if (/\[DELIVERY\]/i.test(s)) return 'DELIVERY';
+  return 'DINE_IN';
+};
+
+const enrichSalesWithMetadata = (rows = [], voidsMap = {}, metaMap = {}) =>
+  (rows || []).map((sale) => {
+    const voidInfo = voidsMap[sale.id] || null;
+    const derivedStatus = voidInfo
+      ? (voidInfo.status || (voidInfo.action_type === 'VOID' ? 'VOIDED' : voidInfo.action_type === 'REFUND' ? 'REFUNDED' : 'RETURNED'))
+      : (sale.status || 'COMPLETED');
+    const meta = metaMap[sale.id] || null;
+    return {
+      ...sale,
+      status: derivedStatus,
+      void_info: voidInfo,
+      payments: meta?.payments || null,
+      discount_details: meta?.discount_details || null,
+      order_type: sale.order_type || meta?.order_type || resolveOrderTypeFromNotes(sale.notes)
+    };
+  });
 
 // Get all sales with filters
 router.get('/', async (req, res) => {
@@ -24,43 +273,18 @@ router.get('/', async (req, res) => {
     const needsInMemoryFilter = Boolean(searchParam || categoryParam);
 
     const applyFilters = (qb) => {
-      // Date range filtering (supports both snake_case and camelCase)
       const startDateParam = req.query.start_date || req.query.startDate;
       const endDateParam = req.query.end_date || req.query.endDate;
 
-      if (startDateParam && endDateParam) {
-        qb = qb
-          .gte('created_at', toManilaStartOfDay(startDateParam))
-          .lte('created_at', toManilaEndOfDay(endDateParam));
-      } else if (startDateParam) {
-        qb = qb.gte('created_at', toManilaStartOfDay(startDateParam));
-      } else if (endDateParam) {
-        qb = qb.lte('created_at', toManilaEndOfDay(endDateParam));
-      } else if (req.query.date) {
-        const d = req.query.date;
-        qb = qb.gte('created_at', toManilaStartOfDay(d)).lte('created_at', toManilaEndOfDay(d));
-      } else if (req.query.period) {
-        const period = req.query.period;
-        // Get current date in Manila timezone
-        const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }));
-        const y = now.getFullYear();
-        const m = String(now.getMonth() + 1).padStart(2, '0');
-        const d = String(now.getDate()).padStart(2, '0');
-        
-        let startStr;
-        if (period === 'day' || period === 'daily') {
-          startStr = `${y}-${m}-${d}T00:00:00+08:00`;
-        } else if (period === 'week' || period === 'weekly') {
-          const weekAgo = new Date(now);
-          weekAgo.setDate(weekAgo.getDate() - 7);
-          const wy = weekAgo.getFullYear();
-          const wm = String(weekAgo.getMonth() + 1).padStart(2, '0');
-          const wd = String(weekAgo.getDate()).padStart(2, '0');
-          startStr = `${wy}-${wm}-${wd}T00:00:00+08:00`;
-        } else {
-          startStr = `${y}-${m}-01T00:00:00+08:00`;
-        }
-        qb = qb.gte('created_at', startStr);
+      if (startDateParam || endDateParam || req.query.date || req.query.period) {
+        const win = resolveSalesDateWindow({
+          period: req.query.period,
+          start_date: startDateParam,
+          end_date: endDateParam,
+          date: req.query.date,
+          year: req.query.year
+        });
+        qb = qb.gte('created_at', win.startStr).lte('created_at', win.endStr);
       }
 
       if (req.query.staff_id) qb = qb.eq('staff_id', req.query.staff_id);
@@ -76,7 +300,7 @@ router.get('/', async (req, res) => {
     const salesSelect = `
       *,
       users(id, name, username),
-      sale_items(id, quantity, unit_price, cup_size, add_ons, products(id, name, category))
+      sale_items(id, quantity, unit_price, notes, cup_size, add_ons, products(id, name, category))
     `;
 
     let query = supabase
@@ -193,120 +417,120 @@ router.get('/', async (req, res) => {
       filteredData = filteredData.slice(offset, offset + limit);
     }
 
-    res.json({ data: filteredData, total, limit, offset });
+    const [voidsMap, metaMap] = await Promise.all([
+      posOperationsService.getVoidRefundMap(),
+      posOperationsService.getSaleMetadataMap()
+    ]);
+
+    res.json({
+      data: enrichSalesWithMetadata(filteredData, voidsMap, metaMap),
+      total,
+      limit,
+      offset
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
-// Sales summary by period (day/week/month)
-router.get('/summary/report', async (req, res) => {
-  try {
-    const period = req.query.period || 'day';
-    const customStart = req.query.start_date || req.query.startDate;
-    const customEnd = req.query.end_date || req.query.endDate;
-    
-    // Get current date in Manila timezone
-    const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }));
-    const y = now.getFullYear();
-    const m = String(now.getMonth() + 1).padStart(2, '0');
-    const d = String(now.getDate()).padStart(2, '0');
-    
-    let startStr;
-    let endStr = null;
+const fetchBoundedReportSales = async (startStr, endStr) => {
+  const PAGE_SIZE = 1000;
+  const rows = [];
+  let pageIdx = 0;
 
-    if ((period === 'custom' || customStart || customEnd) && (customStart || customEnd)) {
-      startStr = toManilaStartOfDay(customStart || customEnd);
-      endStr = toManilaEndOfDay(customEnd || customStart);
-    } else if (period === 'day' || period === 'daily') {
-      startStr = `${y}-${m}-${d}T00:00:00+08:00`;
-      endStr = `${y}-${m}-${d}T23:59:59.999+08:00`;
-    } else if (period === 'week' || period === 'weekly') {
-      const weekAgo = new Date(now);
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      const wy = weekAgo.getFullYear();
-      const wm = String(weekAgo.getMonth() + 1).padStart(2, '0');
-      const wd = String(weekAgo.getDate()).padStart(2, '0');
-      startStr = `${wy}-${wm}-${wd}T00:00:00+08:00`;
-      endStr = `${y}-${m}-${d}T23:59:59.999+08:00`;
-    } else {
-      startStr = `${y}-${m}-01T00:00:00+08:00`;
-      endStr = `${y}-${m}-${d}T23:59:59.999+08:00`;
-    }
-
-    let query = supabase
+  while (true) {
+    const { data, error } = await supabase
       .from('sales')
       .select(`
-        total_amount, created_at, users(id, name),
+        id, status, total_amount, discount_amount, created_at, users(id, name),
         sale_items(quantity, unit_price, products(id, name, category))
       `)
-      .gte('created_at', startStr);
-
-    if (endStr) {
-      query = query.lte('created_at', endStr);
-    }
-
-    const { data: sales, error } = await query;
+      .gte('created_at', startStr)
+      .lte('created_at', endStr)
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true })
+      .range(pageIdx * PAGE_SIZE, (pageIdx + 1) * PAGE_SIZE - 1);
 
     if (error) throw error;
+    if (!data || data.length === 0) break;
+    rows.push(...data);
+    if (data.length < PAGE_SIZE) break;
+    pageIdx += 1;
+  }
 
-    const total_sales = (sales || []).reduce((s, r) => s + parseFloat(r.total_amount), 0);
-    const total_transactions = (sales || []).length;
-    let total_items_sold = 0;
-    
-    const staffMap = {};
-    const productMap = {};
+  return rows;
+};
 
-    (sales || []).forEach(sale => {
-      const staffId = sale.users?.id;
-      const staffName = sale.users?.name || 'Unknown';
-      
-      if (!staffMap[staffId]) {
-         staffMap[staffId] = { id: staffId, name: staffName, total_sales: 0, transactions: 0 };
-      }
-      staffMap[staffId].total_sales += parseFloat(sale.total_amount);
-      staffMap[staffId].transactions += 1;
-
-      (sale.sale_items || []).forEach(item => {
-        total_items_sold += item.quantity;
-        
-        const prodId = item.products?.id;
-        const prodName = item.products?.name || 'Unknown Product';
-        const category = item.products?.category || 'Uncategorized';
-        
-        if (prodId) {
-          if (!productMap[prodId]) {
-            productMap[prodId] = { id: prodId, name: prodName, category, qty_sold: 0, revenue: 0 };
-          }
-          productMap[prodId].qty_sold += item.quantity;
-          productMap[prodId].revenue += (item.quantity * parseFloat(item.unit_price));
-        }
-      });
+// Sales summary by period (daily / weekly / monthly / yearly / custom)
+const handleSalesSummaryReport = async (req, res) => {
+  try {
+    const windowInfo = resolveSalesDateWindow({
+      period: req.query.period || 'day',
+      start_date: req.query.start_date || req.query.startDate,
+      end_date: req.query.end_date || req.query.endDate,
+      date: req.query.date,
+      year: req.query.year
     });
 
-    const staff_data = Object.values(staffMap).sort((a, b) => b.total_sales - a.total_sales);
-    const product_data = Object.values(productMap).sort((a, b) => b.qty_sold - a.qty_sold).slice(0, 10);
+    const [sales, voidsMap] = await Promise.all([
+      fetchBoundedReportSales(windowInfo.startStr, windowInfo.endStr),
+      posOperationsService.getVoidRefundMap()
+    ]);
 
-    res.json({ total_sales, total_transactions, total_items_sold, staff_data, product_data });
+    const summary = aggregateSalesSummaryReport(sales, voidsMap, windowInfo);
+
+    res.json({
+      ...summary,
+      period: windowInfo.period,
+      year: windowInfo.targetYear,
+      date_range: {
+        startDate: windowInfo.startStr,
+        endDate: windowInfo.endStr
+      }
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
+  }
+};
+
+router.get('/summary/report', handleSalesSummaryReport);
+router.get('/reports/summary', handleSalesSummaryReport);
+
+// Void / Return / Refund a sale
+router.post('/:id/void', async (req, res) => {
+  try {
+    const record = await posOperationsService.voidOrRefundSale({
+      sale_id: req.params.id,
+      action_type: req.body?.action_type,
+      reason: req.body?.reason,
+      restock_policy: req.body?.restock_policy,
+      manager_pin: req.body?.manager_pin,
+      requested_by_user: req.user
+    });
+    res.json(record);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
 // Get single sale detail (Receipt)
 router.get('/:id', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('sales')
-      .select(`
-        *,
-        users(id, name, username),
-        sale_items(id, quantity, unit_price, discount_percent, notes, cup_size, add_ons, products(id, name, category))
-      `)
-      .eq('id', req.params.id)
-      .single();
+    const [{ data, error }, voidsMap, metaMap] = await Promise.all([
+      supabase
+        .from('sales')
+        .select(`
+          *,
+          users(id, name, username),
+          sale_items(id, quantity, unit_price, discount_percent, notes, cup_size, add_ons, products(id, name, category))
+        `)
+        .eq('id', req.params.id)
+        .single(),
+      posOperationsService.getVoidRefundMap(),
+      posOperationsService.getSaleMetadataMap()
+    ]);
     if (error) throw error;
-    res.json(data);
+    res.json(enrichSalesWithMetadata([data], voidsMap, metaMap)[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

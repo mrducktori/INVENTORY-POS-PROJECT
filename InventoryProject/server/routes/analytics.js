@@ -2,6 +2,9 @@ import express from 'express';
 import { supabase } from '../config/supabaseClient.js';
 import { convertToBaseUnit } from '../utils/unitUtils.js';
 import { requireRole } from '../middleware/authMiddleware.js';
+import * as batchService from '../services/batchService.js';
+import * as recipesService from '../services/recipesService.js';
+import * as posOperationsService from '../services/posOperationsService.js';
 import {
   forecastStockUsingAI,
   invalidateAiForecastCache,
@@ -27,8 +30,118 @@ export function invalidateAnalyticsCache() {
   invalidateAiForecastCache();
 }
 
+const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+
 /**
- * Fetches all 90-day (3-month) sales with their sale_items using indexed two-step queries
+ * Simulates FEFO consumption across non-expired expiring batches to project spoilage remainder.
+ */
+export const simulateFefoSpoilage = (batches = [], avgDailyBurnRate = 0) => {
+  const burnRate = Number(avgDailyBurnRate) || 0;
+  if (burnRate <= 0 || !Array.isArray(batches) || batches.length === 0) {
+    return 0;
+  }
+
+  const expiringBatches = batches
+    .filter((b) => !b?.is_expired && b?.expiry_date && Number(b?.quantity_remaining) > 0)
+    .sort((a, b) => String(a.expiry_date).localeCompare(String(b.expiry_date)));
+
+  let consumedBurnUnits = 0;
+  let projectedSpoilage = 0;
+
+  for (const batch of expiringBatches) {
+    const batchQty = Number(batch.quantity_remaining) || 0;
+    const daysLeft = Math.max(0, Number(batch.days_until_expiry) || 0);
+    const maxBurnBeforeExpiry = daysLeft * burnRate;
+    const availableCapacity = Math.max(0, maxBurnBeforeExpiry - consumedBurnUnits);
+    const consumedFromBatch = Math.min(batchQty, availableCapacity);
+    const spoiledFromBatch = Math.max(0, batchQty - consumedFromBatch);
+
+    consumedBurnUnits += consumedFromBatch;
+    projectedSpoilage += spoiledFromBatch;
+  }
+
+  return round2(projectedSpoilage);
+};
+
+export const computeIngredientForecastMetrics = (item, avgDailyBurnRate = 0) => {
+  const rawStock = parseFloat(item.stock_quantity) || 0;
+  const usableStock = parseFloat(item.usable_stock ?? item.stock_quantity) || 0;
+  const expiredStock = parseFloat(item.expired_stock) || 0;
+  const expiringSoonStock = parseFloat(item.expiring_soon_stock) || 0;
+  const lowStockAlert = parseFloat(item.low_stock_alert) || 0;
+  const burnRate = Math.max(0, Number(avgDailyBurnRate) || 0);
+
+  const projectedSpoilageQty = simulateFefoSpoilage(item.batches || [], burnRate);
+  const effectiveUsableStock = Math.max(0, round2(usableStock - projectedSpoilageQty));
+
+  let daysRemaining = null;
+  let depletionDate = null;
+  let urgencyStatus = 'HEALTHY';
+
+  const maxStock = parseFloat(item.max_stock) || parseFloat(item.max_capacity) || (lowStockAlert * 2) || 20;
+  const lowStockThreshold = maxStock * 0.5;
+
+  if (usableStock <= 0) {
+    daysRemaining = 0;
+    urgencyStatus = 'OUT_OF_STOCK';
+  } else if (burnRate > 0) {
+    const rawDays = effectiveUsableStock / burnRate;
+    daysRemaining = parseFloat(rawDays.toFixed(1));
+
+    const targetDate = new Date();
+    targetDate.setDate(targetDate.getDate() + Math.round(rawDays));
+    depletionDate = targetDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+
+    if (daysRemaining <= 3) {
+      urgencyStatus = 'CRITICAL';
+    } else if (daysRemaining <= 7 || effectiveUsableStock <= lowStockThreshold) {
+      urgencyStatus = 'LOW_STOCK';
+    } else {
+      urgencyStatus = 'HEALTHY';
+    }
+  } else if (effectiveUsableStock <= lowStockThreshold) {
+    urgencyStatus = 'LOW_STOCK';
+  }
+
+  const isPerishable = Boolean(item.is_perishable);
+  const defaultShelfLifeDays = item.default_shelf_life_days ? Number(item.default_shelf_life_days) : null;
+  const recommendedHorizonDays = (isPerishable && defaultShelfLifeDays)
+    ? Math.min(14, Math.max(3, Math.floor(defaultShelfLifeDays * 0.85)))
+    : 14;
+
+  const rawTargetStock = Math.max(burnRate * 14, lowStockAlert * 1.5);
+  const shelfLifeMaxStock = (isPerishable && defaultShelfLifeDays)
+    ? Math.max(lowStockAlert, burnRate * recommendedHorizonDays)
+    : rawTargetStock;
+  const shelfLifeCapped = Boolean(isPerishable && defaultShelfLifeDays && shelfLifeMaxStock < rawTargetStock);
+  const targetStock = shelfLifeCapped ? shelfLifeMaxStock : rawTargetStock;
+  const stockDeficit = Math.max(0, targetStock - effectiveUsableStock);
+
+  const spoilageRisk = (expiredStock > 0 || projectedSpoilageQty > 0)
+    ? 'HIGH'
+    : (expiringSoonStock > 0 ? 'MODERATE' : 'LOW');
+
+  return {
+    rawStock,
+    usableStock,
+    expiredStock,
+    expiringSoonStock,
+    projectedSpoilageQty,
+    effectiveUsableStock,
+    daysRemaining,
+    depletionDate,
+    urgencyStatus,
+    recommendedHorizonDays,
+    shelfLifeCapped,
+    stockDeficit,
+    spoilageRisk,
+    isPerishable,
+    defaultShelfLifeDays
+  };
+};
+
+/**
+ * Fetches all 90-day (3-month) non-voided sales with their sale_items using indexed two-step queries
  * (avoiding slow lateral joins and bypassing PostgREST's 1,000-row single-query cap)
  * with a shared 60-second cache and in-flight request deduplication.
  */
@@ -50,7 +163,7 @@ async function fetchSalesSince(sinceIso) {
       while (true) {
         const { data: page, error } = await supabase
           .from('sales')
-          .select('id, created_at')
+          .select('id, created_at, status')
           .gte('created_at', sinceIso)
           .order('id', { ascending: true })
           .range(pageIdx * PAGE_SIZE, (pageIdx + 1) * PAGE_SIZE - 1);
@@ -61,7 +174,13 @@ async function fetchSalesSince(sinceIso) {
         pageIdx++;
       }
 
-      if (sales.length === 0) {
+      const voidsMap = await posOperationsService.getVoidRefundMap();
+      const validSales = sales.filter((s) => {
+        const statusUpper = String(s.status || '').toUpperCase();
+        return !voidsMap[s.id] && !['VOIDED', 'REFUNDED', 'RETURNED'].includes(statusUpper);
+      });
+
+      if (validSales.length === 0) {
         if (analyticsCacheEpoch === startEpoch) {
           cached90DaySales = [];
           cached90DayAt = Date.now();
@@ -71,13 +190,13 @@ async function fetchSalesSince(sinceIso) {
 
       const CHUNK = 350;
       const chunks = [];
-      for (let i = 0; i < sales.length; i += CHUNK) {
-        chunks.push(sales.slice(i, i + CHUNK).map(s => s.id));
+      for (let i = 0; i < validSales.length; i += CHUNK) {
+        chunks.push(validSales.slice(i, i + CHUNK).map(s => s.id));
       }
 
       const itemPages = await Promise.all(
         chunks.map(ids =>
-          supabase.from('sale_items').select('sale_id, product_id, quantity, unit_price').in('sale_id', ids)
+          supabase.from('sale_items').select('sale_id, product_id, quantity, unit_price, cup_size, add_ons').in('sale_id', ids)
         )
       );
 
@@ -94,7 +213,7 @@ async function fetchSalesSince(sinceIso) {
         }
       }
 
-      const result = sales.map(s => ({
+      const result = validSales.map(s => ({
         created_at: s.created_at,
         sale_items: itemsBySale.get(s.id) || []
       }));
@@ -117,33 +236,36 @@ async function fetchSalesSince(sinceIso) {
 
 /**
  * GET /api/analytics/inventory-depletion
- * Computes predictive inventory depletion data based on last 30 days usage.
+ * Computes predictive inventory depletion data using usable non-expired stock.
  */
 router.get('/inventory-depletion', async (req, res) => {
   try {
     // 1. Fetch current ingredients
     const { data: ingredients, error: ingError } = await supabase
       .from('ingredients')
-      .select('id, name, stock_quantity, low_stock_alert, unit')
+      .select('*')
       .eq('is_archived', false);
 
     if (ingError) throw ingError;
 
-    // 2. Fetch usage logs from last 30 days (simulated by sales impact)
-    // For a real implementation, we'd look at ingredient_logs or calculate from recipes
-    // Here we'll use a mix of real data and weighted averages
-    const insights = (ingredients || []).map(item => {
-      // Base usage logic: deterministic estimate from low_stock_alert threshold
+    const enrichedIngredients = await batchService.enrichIngredientsWithBatches(ingredients || []);
+
+    // 2. Compute depletion from usable stock
+    const insights = enrichedIngredients.map(item => {
       const baseUsage = (parseFloat(item.low_stock_alert) || 1) / 10;
       const avgDailyUsage = Math.max(0.1, baseUsage);
+      const usableStock = parseFloat(item.usable_stock ?? item.stock_quantity) || 0;
 
-      const daysRemaining = Math.floor((parseFloat(item.stock_quantity) || 0) / avgDailyUsage);
-      const depletionPercentage = Math.min(Math.round((((parseFloat(item.low_stock_alert) || 1) * 1.2) / (parseFloat(item.stock_quantity) || 1)) * 100), 100);
+      const daysRemaining = Math.floor(usableStock / avgDailyUsage);
+      const depletionPercentage = Math.min(Math.round((((parseFloat(item.low_stock_alert) || 1) * 1.2) / Math.max(1, usableStock)) * 100), 100);
 
       return {
         id: item.id,
         name: item.name,
         stock_quantity: item.stock_quantity,
+        usable_stock: usableStock,
+        expired_stock: item.expired_stock || 0,
+        nearest_expiry_date: item.nearest_expiry_date || null,
         unit: item.unit,
         daysRemaining: daysRemaining > 45 ? null : daysRemaining,
         depletionPercentage
@@ -159,8 +281,7 @@ router.get('/inventory-depletion', async (req, res) => {
 
 /**
  * GET /api/analytics/ingredient-forecast
- * Computes ingredient depletion predictions based on actual sales and recipes over the last 90 days (3 months).
- * Includes burn rates, days remaining until stockout, and auto-calculated restock quantities in purchase units.
+ * Computes ingredient depletion predictions based on actual sales, per-size recipes, FEFO spoilage, and shelf-life caps.
  */
 router.get('/ingredient-forecast', async (req, res) => {
   try {
@@ -174,22 +295,37 @@ router.get('/ingredient-forecast', async (req, res) => {
     const fourteenDaysAgo = new Date();
     fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
-    // Fetch ingredients, recipes, suppliers mapping, and 90-day sales in parallel
+    // Fetch ingredients, recipes (with per-size overrides), products, category settings, suppliers mapping, and 90-day sales in parallel
     const [
       { data: ingredients, error: ingErr },
-      { data: recipes, error: recErr },
+      recipes,
+      { data: products, error: prodErr },
+      { data: categorySettings, error: catErr },
       { data: supplierMappings, error: supErr },
       salesWithItems
     ] = await Promise.all([
       supabase.from('ingredients').select('*').eq('is_archived', false),
-      supabase.from('recipes').select('product_id, ingredient_id, quantity_used, recipe_unit'),
+      recipesService.getRecipes(),
+      supabase.from('products').select('id, sizes, category').eq('is_archived', false),
+      supabase.from('category_settings').select('category, sizes'),
       supabase.from('supplier_ingredients').select('*, suppliers(id, name)'),
-      fetchSalesSince(ninetyDaysAgo.toISOString(), 'created_at, sale_items(product_id, quantity)')
+      fetchSalesSince(ninetyDaysAgo.toISOString())
     ]);
 
     if (ingErr) throw ingErr;
-    if (recErr) throw recErr;
+    if (prodErr) throw prodErr;
+    if (catErr) throw catErr;
     if (supErr) throw supErr;
+
+    const enrichedIngredients = await batchService.enrichIngredientsWithBatches(ingredients || []);
+
+    const normCat = (c) => String(c || '').trim().replace(/\s+/g, ' ').toUpperCase();
+    const catSizesMap = new Map((categorySettings || []).map(c => [normCat(c.category), c.sizes || []]));
+    const productMap = new Map();
+    for (const p of products || []) {
+      const ownSizes = Array.isArray(p.sizes) && p.sizes.length > 0 ? p.sizes : (catSizesMap.get(normCat(p.category)) || []);
+      productMap.set(p.id, { ...p, resolvedSizes: ownSizes });
+    }
 
     // Map recipes by product_id
     const recipeMap = {};
@@ -221,11 +357,11 @@ router.get('/ingredient-forecast', async (req, res) => {
 
     // Map ingredients by id for unit lookup
     const ingredientLookup = {};
-    (ingredients || []).forEach(ing => {
+    enrichedIngredients.forEach(ing => {
       ingredientLookup[ing.id] = ing;
     });
 
-    // Calculate actual ingredient consumption across 90d, 30d, and 14d windows
+    // Calculate actual ingredient consumption across 90d, 30d, and 14d windows using per-size recipe overrides
     const consumption90Days = {};
     const consumption30Days = {};
     const consumption14Days = {};
@@ -237,12 +373,19 @@ router.get('/ingredient-forecast', async (req, res) => {
       (sale.sale_items || []).forEach(si => {
         const prodRecipes = recipeMap[si.product_id] || [];
         const soldQty = parseFloat(si.quantity) || 0;
+        const prodInfo = productMap.get(si.product_id);
+        const sizeObj = si.cup_size && prodInfo?.resolvedSizes
+          ? prodInfo.resolvedSizes.find(s => String(s?.name || '').trim().toLowerCase() === String(si.cup_size).trim().toLowerCase()) || null
+          : null;
 
         prodRecipes.forEach(rec => {
           const ing = ingredientLookup[rec.ingredient_id];
           if (!ing) return;
 
-          const baseAmount = convertToBaseUnit(rec.quantity_used, rec.recipe_unit || ing.unit, ing.unit) * soldQty;
+          const qtyForSize = recipesService.resolveRecipeQuantityForSize(rec, si.cup_size, sizeObj);
+          if (qtyForSize <= 0) return;
+
+          const baseAmount = convertToBaseUnit(qtyForSize, rec.recipe_unit || ing.unit, ing.unit) * soldQty;
 
           consumption90Days[rec.ingredient_id] = (consumption90Days[rec.ingredient_id] || 0) + baseAmount;
           if (isWithin30) {
@@ -260,8 +403,7 @@ router.get('/ingredient-forecast', async (req, res) => {
     let healthyCount = 0;
     let totalRestockCapital = 0;
 
-    const forecastedIngredients = (ingredients || []).map(item => {
-      const currentStock = parseFloat(item.stock_quantity) || 0;
+    const forecastedIngredients = enrichedIngredients.map(item => {
       const lowStockAlert = parseFloat(item.low_stock_alert) || 0;
       const unit = item.unit || 'units';
 
@@ -278,55 +420,20 @@ router.get('/ingredient-forecast', async (req, res) => {
         ? (dailyRate14 * 0.50 + dailyRate30 * 0.30 + dailyRate90 * 0.20)
         : (dailyRate30 > 0 ? (dailyRate30 * 0.65 + dailyRate90 * 0.35) : dailyRate90);
 
-      let daysRemaining = null;
-      let depletionDate = null;
-      let urgencyStatus = 'HEALTHY';
+      const metrics = computeIngredientForecastMetrics(item, avgDailyBurnRate);
 
-      if (currentStock <= 0) {
-        daysRemaining = 0;
-        urgencyStatus = 'OUT_OF_STOCK';
-      } else if (avgDailyBurnRate > 0) {
-        const rawDays = currentStock / avgDailyBurnRate;
-        daysRemaining = parseFloat(rawDays.toFixed(1));
-
-        const targetDate = new Date();
-        targetDate.setDate(targetDate.getDate() + Math.round(rawDays));
-        depletionDate = targetDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
-
-        const maxStock = parseFloat(item.max_stock) || parseFloat(item.max_capacity) || (lowStockAlert * 2) || 20;
-        const lowStockThreshold = maxStock * 0.5;
-
-        if (daysRemaining <= 3) {
-          urgencyStatus = 'CRITICAL';
-        } else if (daysRemaining <= 7 || currentStock <= lowStockThreshold) {
-          urgencyStatus = 'LOW_STOCK';
-        } else {
-          urgencyStatus = 'HEALTHY';
-        }
-      } else {
-        const maxStock = parseFloat(item.max_stock) || parseFloat(item.max_capacity) || (lowStockAlert * 2) || 20;
-        const lowStockThreshold = maxStock * 0.5;
-        if (currentStock <= lowStockThreshold) {
-          urgencyStatus = 'LOW_STOCK';
-        }
-      }
-
-      if (urgencyStatus === 'OUT_OF_STOCK' || urgencyStatus === 'CRITICAL') {
+      if (metrics.urgencyStatus === 'OUT_OF_STOCK' || metrics.urgencyStatus === 'CRITICAL') {
         criticalCount++;
-      } else if (urgencyStatus === 'LOW_STOCK') {
+      } else if (metrics.urgencyStatus === 'LOW_STOCK') {
         lowStockCount++;
       } else {
         healthyCount++;
       }
 
-      // Restock recommendations: Target 14 days burn rate or 1.5x low stock alert
-      const targetStock = Math.max(avgDailyBurnRate * 14, lowStockAlert * 1.5);
-      const stockDeficit = Math.max(0, targetStock - currentStock);
-
       const supMapping = supplierMap[item.id];
       const purchaseUnit = item.purchase_unit || supMapping?.default_purchase_unit || unit;
       const conversionFactor = parseFloat(item.conversion_factor) || parseFloat(supMapping?.default_conversion_factor) || 1;
-      const suggestedPurchaseQty = stockDeficit > 0 ? Math.ceil(stockDeficit / conversionFactor) : 0;
+      const suggestedPurchaseQty = metrics.stockDeficit > 0 ? Math.ceil(metrics.stockDeficit / conversionFactor) : 0;
 
       const unitCost = parseFloat(supMapping?.default_price) || (parseFloat(item.unit_cost) * conversionFactor) || parseFloat(item.cost_per_purchase_unit) || 0;
       const estimatedCost = suggestedPurchaseQty * unitCost;
@@ -339,15 +446,26 @@ router.get('/ingredient-forecast', async (req, res) => {
         id: item.id,
         name: item.name,
         category: item.category || 'Raw Materials',
-        stock_quantity: currentStock,
+        stock_quantity: metrics.rawStock,
+        usable_stock: metrics.usableStock,
+        effective_usable_stock: metrics.effectiveUsableStock,
+        expired_stock: metrics.expiredStock,
+        expiring_soon_stock: metrics.expiringSoonStock,
+        nearest_expiry_date: item.nearest_expiry_date || null,
+        is_perishable: metrics.isPerishable,
+        default_shelf_life_days: metrics.defaultShelfLifeDays,
+        recommended_horizon_days: metrics.recommendedHorizonDays,
+        projected_spoilage_qty: metrics.projectedSpoilageQty,
+        shelf_life_capped: metrics.shelfLifeCapped,
+        spoilage_risk: metrics.spoilageRisk,
         unit: unit,
         low_stock_alert: lowStockAlert,
         avg_daily_burn_rate: parseFloat(avgDailyBurnRate.toFixed(2)),
-        days_remaining: daysRemaining,
-        depletion_date: depletionDate,
-        urgency_status: urgencyStatus,
-        stock_health_percentage: lowStockAlert > 0 ? Math.min(Math.round((currentStock / (lowStockAlert * 2)) * 100), 100) : 100,
-        
+        days_remaining: metrics.daysRemaining,
+        depletion_date: metrics.depletionDate,
+        urgency_status: metrics.urgencyStatus,
+        stock_health_percentage: lowStockAlert > 0 ? Math.min(Math.round((metrics.usableStock / (lowStockAlert * 2)) * 100), 100) : 100,
+
         // Purchasing & Restock Data
         purchase_unit: purchaseUnit,
         conversion_factor: conversionFactor,
@@ -371,7 +489,7 @@ router.get('/ingredient-forecast', async (req, res) => {
 
     res.json({
       summary: {
-        totalIngredients: ingredients.length,
+        totalIngredients: enrichedIngredients.length,
         criticalCount,
         lowStockCount,
         healthyCount,

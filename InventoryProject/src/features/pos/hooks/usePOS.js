@@ -895,7 +895,6 @@ export const usePOS = () => {
       return;
     }
 
-    if (!(await requestConfirm("Are you sure you want to create this order?"))) return;
     try {
       const details = getCartDiscountDetails();
       const newOrder = {
@@ -1040,17 +1039,26 @@ export const usePOS = () => {
         : Math.max(0, subtotal - discountAmount);
     const discountLabel = paymentData.discountLabel || "";
     const resolvedOrderType = paymentOrder.order_type || orderType || "DINE_IN";
+    const resolvedDiscountType = paymentData.discountType || paymentOrder.discountType || "NONE";
 
     const saleData = {
       cart: paymentOrder.items,
       total: finalTotal,
       discount_amount: discountAmount,
+      discount_type: resolvedDiscountType,
+      discount_id_number: paymentData.discountIdNumber || "",
+      customer_name: paymentData.customerName || "",
+      promo_code: paymentData.promoCode || "",
+      custom_discount_mode: paymentData.customDiscountMode || null,
+      custom_discount_value: paymentData.customDiscountValue ?? null,
       staff_id: user.id,
       order_type: resolvedOrderType,
       payment_method: paymentData.method,
       amount_received: paymentData.amountReceived || 0,
       change_amount: paymentData.change || 0,
       transaction_reference: paymentData.reference || "",
+      payments: Array.isArray(paymentData.payments) ? paymentData.payments : null,
+      idempotency_key: paymentData.idempotencyKey || null,
       notes: discountLabel ? `Discount: ${discountLabel}` : ""
     };
 
@@ -1064,21 +1072,43 @@ export const usePOS = () => {
 
     void fetchCatalog({ silent: true });
     const createdSale = res?.sale || res || {};
+    const resolvedDiscountDetails =
+      createdSale.discount_details ||
+      (resolvedDiscountType && resolvedDiscountType !== "NONE"
+        ? {
+            discount_type: resolvedDiscountType,
+            discount_label: discountLabel,
+            label: discountLabel,
+            customer_name: paymentData.customerName || null,
+            discount_id_number: paymentData.discountIdNumber || null,
+            promo_code: paymentData.promoCode || null
+          }
+        : null);
 
     const immediateReceipt = {
       id: createdSale.id || `LOCAL-${Date.now()}`,
       receipt_number: createdSale.receipt_number || `RCP-${Date.now().toString().slice(-6)}`,
       created_at: createdSale.created_at || new Date().toISOString(),
       order_type: createdSale.order_type || resolvedOrderType,
-      subtotal_amount: subtotal,
-      discount_amount: discountAmount,
+      status: createdSale.status || "COMPLETED",
+      void_info: createdSale.void_info || null,
+      subtotal_amount: createdSale.subtotal_amount ?? subtotal,
+      discount_amount:
+        createdSale.discount_amount !== undefined ? Number(createdSale.discount_amount) : discountAmount,
       discount_label: discountLabel,
+      discount_details: resolvedDiscountDetails,
       tax_amount: createdSale.tax_amount || 0,
-      total_amount: finalTotal,
-      payment_method: paymentData.method,
-      amount_received: paymentData.amountReceived || finalTotal,
-      change_amount: paymentData.change || 0,
-      transaction_reference: paymentData.reference || "",
+      total_amount:
+        createdSale.total_amount !== undefined ? Number(createdSale.total_amount) : finalTotal,
+      payment_method: createdSale.payment_method || paymentData.method,
+      payments: createdSale.payments || paymentData.payments || null,
+      amount_received:
+        createdSale.amount_received !== undefined
+          ? Number(createdSale.amount_received)
+          : paymentData.amountReceived || finalTotal,
+      change_amount:
+        createdSale.change_amount !== undefined ? Number(createdSale.change_amount) : paymentData.change || 0,
+      transaction_reference: createdSale.transaction_reference || paymentData.reference || "",
       notes: createdSale.notes || saleData.notes,
       users: {
         name: user?.name || user?.username || "Staff"

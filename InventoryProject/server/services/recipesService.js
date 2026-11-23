@@ -247,7 +247,7 @@ export const getRecipesByProduct = async (product_id) => {
       .from("recipes")
       .select(`
         *,
-        ingredients(id, name, unit, stock_quantity)
+        ingredients(id, name, category, unit, stock_quantity)
       `)
       .eq("product_id", product_id),
     getRecipeSizeOverridesMap()

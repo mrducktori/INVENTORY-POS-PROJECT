@@ -207,6 +207,8 @@ const loadPerishabilityMetaMap = async () => {
   return store && typeof store === "object" && !Array.isArray(store) ? store : {};
 };
 
+export const getPerishabilityMetaMap = loadPerishabilityMetaMap;
+
 /**
  * Resolves perishability metadata for an ingredient from explicit metadata or smart defaults.
  */

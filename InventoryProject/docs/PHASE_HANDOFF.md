@@ -1,93 +1,57 @@
-# Phase Handoff & Blueprint
+# Final System Handoff Notes (Phases 1-6)
 
-> **Project:** CofTea Cafe Inventory & POS System (`InventoryProject/`)  
-> **Date:** 2026-11-23  
-> **Status:** Phase 1 & Phase 2 Verified & Built Cleanly
+## 1. Phase 6 Completed Changes
 
----
+### Backend (`server/`)
+- **`server/routes/analytics.js` (`simulateFefoSpoilage`, `computeIngredientForecastMetrics`, `/ingredient-forecast`, `/inventory-depletion`)**:
+  - Filtered voided/refunded/returned sales in `fetchSalesSince` via `sales.status` and `posOperationsService.getVoidRefundMap()`, and selected `cup_size` / `add_ons` on `sale_items` for `recipesService.resolveRecipeQuantityForSize` per-size ingredient burn.
+  - Added `simulateFefoSpoilage(batches, avgDailyBurnRate)` and `computeIngredientForecastMetrics(item, avgDailyBurnRate)` to project batch spoilage before expiry, calculate `effective_usable_stock`, cap perishable restock targets (`recommended_horizon_days = min(14, max(3, floor(default_shelf_life_days * 0.85)))`), and expose `usable_stock`, `expired_stock`, `expiring_soon_stock`, `nearest_expiry_date`, `projected_spoilage_qty`, `shelf_life_capped`, and `spoilage_risk`.
+  - Updated `/inventory-depletion` to evaluate non-expired `usable_stock` and return `expired_stock` and `nearest_expiry_date`.
+- **`server/services/aiForecastingService.js` & `server/services/recipesService.js`**:
+  - Added `category` selection in `getRecipesByProduct` and `computePerishabilityContext` in `aiForecastingService.js` (`shortestShelfLifeDays`, `limitingIngredientName`, `expiringIngredientsCount`, `expiredIngredientsCount`, `shelfLifeCapDays`).
+  - Excluded voided/refunded sales in `extractProductForecastingFeatures`, attached `perishabilityContext` to `factors` and `promptPayload`, and capped `recommendedOrderQuantity` in `runDeterministicEnsembleForecast` when `shelfLifeCapDays < daysInMonth`.
+- **`server/services/batchService.js` & `server/services/purchasingService.js`**:
+  - Exported `getPerishabilityMetaMap` and enriched `getPurchaseOrders` / `getPurchaseOrdersBySupplier` line items with `is_perishable` and `default_shelf_life_days`.
+  - Enforced `validateTextLength` bounds in `sanitizeSupplierDetails` (`name` 1–100 required, `contact_person` <=100, `email` <=120, `address` <=250).
 
-## 1. Phase 2 Completed Changes (Batches, FEFO, Expiry Alerts, Perishability & Stocktake)
+### Frontend (`src/`)
+- **`src/features/analytics/components/IngredientRestockTab.jsx`**: Shows non-expired `usable_stock` (alongside total stock if different), `Expired` / `Expiring <=7d` / `Exp` status pills in **On Hand**, and `Shelf-Life Cap (Xd)` / `Spoilage Risk` pills in **Suggested Order**.
+- **`src/features/analytics/components/MonthlyProjectionModal.jsx` & `ForecastGuideModal.jsx`**: Added **Perishability & Shelf-Life Window** factor details inside projection factors and updated restock guide copy for usable stock, FEFO spoilage, and shelf-life caps.
+- **`src/features/analytics/components/ForecastCreatePOModal.jsx` & `src/features/inventory/components/purchasing/ReceivePOModal.jsx`**: Clamped forecast PO order quantities to `INPUT_LIMITS.PO_QTY_MIN..PO_QTY_MAX` (`100000`) and notes to `INPUT_LIMITS.DESC_MAX_LEN` (`500`); updated `ReceivePOModal.jsx` so non-perishable PO items default to blank `expiry_date` (`''`) instead of `+30` days.
 
-### Backend Files Created & Updated
-| File | Change Summary |
-| :--- | :--- |
-| `server/services/batchService.js` *(new)* | Dual-layer persistence (`cms_content` keys + optional native `inventory_batches`, `ingredients` perishability cols, and `stocktake_sessions`/`stocktake_items` with capability caching and per-store async mutexes); Manila date arithmetic (`addDaysManila`); smart perishability defaults & overrides (`setIngredientPerishability`); auto-seeding/reconciliation (`enrichIngredientsWithBatches`); FEFO sorting (`annotateAndSortBatchesFEFO`); `createBatch`; `planBatchDeduction` / `deductStockFEFO` / `restoreDeductedBatches`; `getBatches`; `getExpiryAlerts`; `performStocktake` & `getStocktakeHistory` logging `STOCKTAKE_RECONCILED` with `req.user.id`. |
-| `server/services/cmsService.js` | Added `"inventory_batches_store"`, `"ingredient_perishability_meta"`, and `"stocktake_history_store"` to `INTERNAL_CMS_KEYS`. |
-| `server/utils/validationHelper.js` | Added `SHELF_LIFE_DAYS_MIN: 1`, `SHELF_LIFE_DAYS_MAX: 3650`, `BATCH_CODE_MAX_LEN: 60`, `STOCKTAKE_COUNT_MIN: 0`, and `STOCKTAKE_COUNT_MAX: 1000000` to `LIMITS`. |
-| `server/services/inventoryService.js` | Enriched `getIngredients` and `getIngredientById` with batch/perishability fields; validated & saved perishability metadata on `createIngredient` and `updateIngredient`; updated `receiveStock` to record `DIRECT_RECEIVE` batches; evaluated `getLowStockAlerts` against `usable_stock`. |
-| `server/routes/inventory.js` & `server/controllers/inventoryController.js` | Added `GET /batches`, `GET /expiry-alerts`, `GET /stocktake`, and `POST /stocktake` (`requireRole('Owner', 'Admin', 'Custom')`); passed `expiry_date`, `batch_code`, and `notes` on `receiveStock` and recorded batch info in `RAW_MATERIAL_STOCK_RECEIVED` audit logs. |
-| `server/services/purchasingService.js` & `server/controllers/purchasingController.js` | Updated `updatePurchaseOrderStatus` receiving flow to validate optional `expiry_date`/`batch_code`, create `PURCHASE_ORDER` batches via `batchService.createBatch`, and include `batch_code` / `expiry_date` in `receipt_history` and `RAW_MATERIAL_STOCK_RECEIVED` audit logs. |
-| `server/services/posService.js` | Included `category` and `created_at` in ingredient queries; enriched ingredients in `getProducts`, `getPosCatalog`, and `createSale`; computed availability and pre-flight `409` checks using `usable_stock` (excluding expired batches); deducted ingredients via `deductStockFEFO(..., { allowExpired: false })` with `restoreDeductedBatches` rollback and `deducted_batches` in `INGREDIENT_DEDUCTED` audit logs. |
-| `server/services/wastageService.js` | Updated `reportWastage` to deduct via `deductStockFEFO` (supporting explicit `batch_id` or `preferExpired` when reason matches expiry, `allowExpired: true`), restore batches on failure, and log `deducted_batches` in `WASTAGE` audit logs. |
-| `server/routes/dashboard.js` | Evaluated `lowStockIngredients` using `usable_stock` and attached `expiryAlerts` (`getExpiryAlerts()`) to `GET /api/dashboard/stats`. |
+## 2. Complete Phase 1-6 Master Checklist
+- **Phase 1 — Duplicate Prevention, Input Bounds & Modal Cleanup**: Composite `name + category` hard-block (`409`) with soft similarity warnings (`stringHelper.checkCompositeDuplicate`); unified backend/frontend `LIMITS` / `INPUT_LIMITS`; removed redundant blocking Add/Update `ConfirmModal`s; preserved ingredient `category` in `useManageRawMaterials.js`.
+- **Phase 2 — PO Overhaul, Batches, FEFO/FIFO & Stocktake**: `INCOMPLETE_DELIVERY` and `CANCELLED` PO workflows, supplier-scoped line items, batch-level `inventory_batches` tracking (`batchService.js`), FEFO/FIFO sale deduction (`batchDeductionService.js`), expiration alerts & manual expiry wastage (`InventoryBatchesSection.jsx`), perishability metadata, and physical Stocktake reconciliation (`stocktakeService.js`).
+- **Phase 3 — Sizes, Per-Size Recipes, Modifiers & Order Types**: Size matrix (`REGULAR`, `MEDIUM`, `LARGE`), per-size recipes and cup/lid/straw packaging rules (`recipesService.js`, `ManageRecipeModal.jsx`), add-ons / sugar / ice modifiers (`CustomizeOrderModal.jsx`, `ProductOptionsModal.jsx`), `DINE_IN` / `TAKE_OUT` / `DELIVERY` deduction rules (`posService.js`), and print receipt customization updates.
+- **Phase 4 — POS Checkout, Discounts, Split/QR Payments, Void/Refund, Shifts & KDS**: Server-authoritative cart pricing, `SENIOR`/`PWD`/`STUDENT`/`STAFF`/`PROMO_CODE`/`CUSTOM` discounts, `CASH`/`GCASH`/`MAYA`/`CARD`/`QRPH`/`SPLIT` tenders, QR payment intent adapter, checkout idempotency (`pos_idempotency_store`), bcrypt Manager PIN (`429` rate-limited) + Void/Return/Refund (`RESTOCK`/`WASTAGE`), X/Z-Reading shifts, and Barista/Kitchen KDS queue.
+- **Phase 5 — Daily/Weekly/Monthly/Yearly Reports, Inline Audit & OCR Scanner**: `daily`/`weekly`/`monthly`/`yearly`/`custom` reporting across `sales.js`, 1,000-row paginated aggregation, void exclusion + `period_breakdown`, non-blocking inline Staff Sales Audit (`SalesSummaryReport.jsx`), and `OcrScannerPanel.jsx` + `ocrService.js` (Gemini Vision + offline deterministic text parser) integrated in `StockReceived.jsx` and `ReceivePOModal.jsx`.
+- **Phase 6 — Perishability/FEFO Forecasting & Carryover Polish**: FEFO batch spoilage projection, shelf-life horizon caps on ingredient and AI product forecasts, non-voided 90-day burn metrics, supplier text bounds, forecast PO clamps, and non-perishable blank expiry defaults.
 
-### Frontend Files Created & Updated
-| File | Change Summary |
-| :--- | :--- |
-| `src/features/inventory/components/RawMaterialStocktakeSection.jsx` *(new)* | Non-blocking Physical Count / Stocktake workspace with search/category filtering, numeric bounds (`0–1,000,000`), live `Overage` / `Shortage` / `Matched` variance badges, reason presets datalist, inline status banner, `submitStocktake`, and **Recent Stocktake Reconciliations** audit table. |
-| `src/utils/validationUtils.js` & `src/utils/dateUtils.js` | Added Phase 2 `INPUT_LIMITS` (`SHELF_LIFE_DAYS_MIN/MAX`, `BATCH_CODE_MAX_LEN`, `STOCKTAKE_COUNT_MIN/MAX`) and Manila-safe `addDaysManila`. |
-| `src/api/inventoryApi.js` | Extended `receiveStock` with `{ expiry_date, batch_code, notes }`; added `getInventoryBatches`, `getExpiryAlerts`, `getStocktakeHistory`, and `submitStocktake` via `apiCall`. |
-| `src/features/inventory/hooks/useManageRawMaterials.js` & `ManageRawMaterials.jsx` | Added `is_perishable` toggle and `default_shelf_life_days` (`1–3650`) to Add & Edit Raw Material forms; displayed perishability subtext and `Expired: X` badge in the materials table. |
-| `src/features/inventory/components/purchasing/ReceivePOModal.jsx` & `StockReceived.jsx` | Added editable/clearable `Expiration Date` (pre-filled in Manila time) and optional `Batch / Lot Code` (`maxLength={60}`) on PO receiving (including Step 2 Review) and direct stock receipt for ingredients. |
-| `src/features/inventory/components/suppliers/SupplierFormModal.jsx` | Aligned `conversion_factor` minimum from `0.01` to `INPUT_LIMITS.CONVERSION_FACTOR_MIN` (`0.0001`). |
-| `src/features/inventory/RawMaterialTracker.jsx` | Added `LIVE_STOCK` vs `STOCKTAKE` mode switcher; switched stock status/KPIs to `usable_stock` with `Expired` badges and `Nearest Expiry` pills; added inline expandable `Batches (N)` FEFO queue rows (`FEFO #1`, `Expiring Soon`, `Expired`). |
-| `src/features/inventory/LowStockAlerts.jsx` | Renamed to **Low-Stock & Expiration Alerts** with **Low Usable Stock** (showing `usable_stock`, excluded expired stock, and `Nearest Expiry`) and **Expiration Alerts** (`getExpiryAlerts()` expired & expiring-soon batch table) tabs. |
-| `src/features/dashboard/hooks/useNotifications.js` & `NotificationInbox.jsx` | Synced `stats?.expiryAlerts` into `sharedStore.internalExpiryAlerts`, generated `BATCH_EXPIRED` and `BATCH_EXPIRING_SOON` notifications routed to `LowStockAlerts` / `RawMaterialTracker`, and added matching SVG icons. |
-| `src/features/wastage/ReportWastage.jsx` | Switched stock chip to `Usable Available` + `Expired Stock` warning and added **Batch to Deduct** (`Auto (FEFO / Earliest Expiry)` or explicit batch) selector passing `batch_id` to `reportWastage`. |
+## 3. Full-System Scan & Verification Report
+All full-system checks passed inside `InventoryProject/` after all Phase 1–6 edits:
+- **Backend Syntax (`node --check`)**: `43 / 43` `.js` files under `server/` passed (`failures: 0`).
+- **Frontend Lint (`npx eslint src/`)**: Passed with `0` errors and `0` warnings across all `src/` files.
+- **Production Build (`npm run build` / `vite build`)**: Passed cleanly (`772 modules transformed`, built in `623ms`).
+- **End-to-End Node Assertions (Phases 1-6)**: Passed across `validationHelper`, `stringHelper.checkCompositeDuplicate`, `validationUtils`, `batchService`, `purchasingService.sanitizeSupplierDetails`, `recipesService.resolveRecipeQuantityForSize`, `productUtils`, `posStockUtils`, `posOperationsService`, `cmsService`, `receiptPrint.extractDiscountLabel`, `sales.js` windowing/aggregation, `ocrService`, `analytics.js` (`simulateFefoSpoilage`, `computeIngredientForecastMetrics`), and `aiForecastingService.js` (`computePerishabilityContext`, `runDeterministicEnsembleForecast`).
+- **Static Hygiene Scan (`153` `src/` files, `43` `server/` files)**:
+  - Unicode emojis in `src/` and `server/`: `0` hits.
+  - Raw `fetch(` in `src/`: only `src/api/authApi.js:20` (`loginUser` exception per `AGENTS.md`) and `src/api/client.js:81` (`apiCall` itself).
+  - `req.body.user_id` in `server/`: `0` hits.
+  - CMS key isolation (`cmsService.js`): `8` `ALLOWED_CMS_KEYS`, `11` `INTERNAL_CMS_KEYS`, `0` overlap.
 
----
+## 4. Supabase SQL Migrations & Deployment Notes
+Reference SQL migrations stored in `docs/database/` (apply sequentially in Supabase SQL Editor if migrating from an older schema):
+1. `docs/database/phase1_duplicate_and_bounds.sql` — Unique normalized name+category index and numeric `CHECK` constraints.
+2. `docs/database/phase2_batches_fefo_stocktake.sql` — `inventory_batches`, `stocktakes`, PO cancellation/partial delivery statuses, and expiry metadata columns.
+3. `docs/database/phase3_sizes_modifiers_ordertype.sql` — `recipes.size_name`, `recipes.size_quantities` (`JSONB`), `sales.order_type`, and `sale_items.modifiers` (`JSONB`).
+4. `docs/database/phase4_pos_payments_void_shifts_kds.sql` — `users.pin_hash`, `sale_payments`, `pos_shifts`, `sale_voids`, and `kds_tickets`.
 
-## 2. Phase 2 Database / SQL Notes
+**Deployment & Environment Checklist:**
+- Set `GEMINI_API_KEY` (or `GOOGLE_API_KEY`) in `server/.env` to enable live Gemini Vision OCR and Gemini AI demand reasoning (offline fallbacks remain active when unset).
+- For cPanel deployment: run `npm run build` in `InventoryProject/`, upload updated `/server/` files and the new `/dist` folder (no `/src/` or `/node_modules/` upload needed), and restart the Node.js App in cPanel.
 
-- **Reference Script:** `InventoryProject/docs/database/phase2_batches_fefo_stocktake.sql` (local reference migration; `InventoryProject/docs/database/*` is gitignored per `.gitignore`).
-- **Dual-Layer Behavior:** Until you execute the SQL script in **Supabase Dashboard -> SQL Editor**, `batchService.js` persists all batch records, perishability overrides, and stocktake sessions inside `cms_content` (`inventory_batches_store`, `ingredient_perishability_meta`, `stocktake_history_store`, all hidden from public CMS reads via `INTERNAL_CMS_KEYS`).
-- **What the SQL Script Adds When Applied:**
-  1. `is_perishable` (`BOOLEAN DEFAULT TRUE`) and `default_shelf_life_days` (`INTEGER`, `CHECK 1..3650`) columns on `public.ingredients`.
-  2. `public.inventory_batches` table with `CHECK` bounds and FEFO/expiry indexes.
-  3. `public.stocktake_sessions` and `public.stocktake_items` tables with bounds and foreign-key indexes.
-
----
-
-## 3. Phase 2 Verification Results
-
-All checks were executed after the final Phase 2 edits:
-
-| Check | Command (run from `InventoryProject/`) | Outcome |
-| :--- | :--- | :--- |
-| Backend syntax (`node --check`) | `node --check server/services/batchService.js server/services/cmsService.js server/utils/validationHelper.js server/services/inventoryService.js server/routes/inventory.js server/controllers/inventoryController.js server/services/purchasingService.js server/controllers/purchasingController.js server/services/posService.js server/services/wastageService.js server/routes/dashboard.js` | **Passed** (exit 0, all 11 files) |
-| Frontend ESLint | `npx eslint src/utils/validationUtils.js src/utils/dateUtils.js src/api/inventoryApi.js src/features/inventory/hooks/useManageRawMaterials.js src/features/inventory/ManageRawMaterials.jsx src/features/inventory/components/purchasing/ReceivePOModal.jsx src/features/inventory/StockReceived.jsx src/features/inventory/components/suppliers/SupplierFormModal.jsx src/features/inventory/RawMaterialTracker.jsx src/features/inventory/components/RawMaterialStocktakeSection.jsx src/features/inventory/LowStockAlerts.jsx src/features/dashboard/hooks/useNotifications.js src/features/dashboard/components/NotificationInbox.jsx src/features/wastage/ReportWastage.jsx` | **Passed** (exit 0, all 14 files) |
-| Production build | `npm run build` (`vite build`) | **Passed** (exit 0; 767 modules transformed in 605ms) |
-| Batch/FEFO/Perishability assertions | `node --input-type=module -e "..."` verifying `LIMITS`/`INPUT_LIMITS` parity, `INTERNAL_CMS_KEYS`, `addDaysManila` parity, smart perishability defaults/overrides, FEFO sort order, `allowExpired: false` `409` guard, and `preferExpired`/`targetBatchId` wastage plans | **Passed** (exit 0) |
-| Static hygiene scan | Node scan across all 25 Phase 2 `.js`/`.jsx` files for Unicode emojis, raw `fetch(`, and `req.body.user_id` | **Passed** (0 issues) |
-
----
-
-## 4. Next Up: Phase 3 Blueprint
-
-1. **Sizes Inside Add/Edit Product**
-   - Move cup/portion size configuration directly into `AddProductFormSection.jsx` and `ModifyProductModal.jsx` (inheriting defaults from category settings with per-product customization and `ADDON_PRICE_MAX` bounds).
-2. **Per-Size Recipe & Packaging Deduction**
-   - Allow recipes (`recipes` table / size-linked mappings) to vary ingredient quantities and cup/lid packaging per selected size (e.g., 12oz vs 16oz vs 22oz cup, espresso shots, milk/ice volume) so `posService.js` (`computeProductAvailability`, `createSale`) and `posStockUtils.js` calculate exact stock caps and FEFO deductions per size.
-3. **Modifiers & Add-ons Engine**
-   - Standardize add-on and modifier groups (sugar level, ice level, extra espresso, pearls, whipped cream) with stock-linked ingredient deduction, availability capping in POS, and bounded price/qty rules across `ManageProducts`, `POS`, and `LandingMenuBoard`.
-4. **Order-Type Tagging**
-   - Add first-class `order_type` (`Dine-In`, `Take-Out`, `Delivery`) tagging in `POS`, `sales` persistence, receipt modals/journal (`SalesReceiptModal.jsx`, `SalesReceiptJournal.jsx`), and optional packaging auto-deduction (e.g., carrier bag / take-out cup sleeve when `Take-Out` or `Delivery` is selected).
-
----
-
-## 5. Possible Improvements & Edge Cases Noted
-
-1. **PO Item Perishability Enrichment in `ReceivePOModal.jsx`:** `purchasingService.js` (`getPoSelectColumns`) currently selects `ingredients ( name, unit )` without enriching `is_perishable` / `default_shelf_life_days`. As a result, `ReceivePOModal.jsx` pre-fills a +30-day date for PO items until manually cleared, though `batchService.createBatch` still applies the ingredient's true perishability metadata when `expiry_date` is cleared. Enriching PO items via `batchService.getIngredientPerishability` in `getPurchaseOrders` would allow `ReceivePOModal.jsx` to default non-perishable packaging to blank and pre-fill exact ingredient shelf lives (e.g., 14d for dairy).
-2. **Blank Expiry on Perishable Receipt:** In `batchService.createBatch`, submitting a blank/cleared `expiry_date` on an item configured as `is_perishable: true` intentionally falls back to `todayManila + default_shelf_life_days`. Items that genuinely do not expire should be toggled to `Non-Perishable` (`is_perishable: false`) in **Manage Raw Materials**.
-3. **Native SQL Migration Backfill:** `batchService.js` stores full historical batches in `cms_content` and dual-upserts batches touched after migration to `inventory_batches`. If you run `phase2_batches_fefo_stocktake.sql` after batches already exist in `cms_content`, opening **Raw Material Tracker** or triggering `enrichIngredientsWithBatches` reconciles newly created/seeded batches, while an optional one-time backfill from `cms_content` -> `inventory_batches` can be added if querying `inventory_batches` directly in SQL reports.
-4. **Phase 1 Carryover Notes (Updated):**
-   - *Resolved in Phase 2:* `SupplierFormModal.jsx` `conversion_factor` minimum now matches `INPUT_LIMITS.CONVERSION_FACTOR_MIN` (`0.0001`).
-   - *Still applicable:* `PO_QTY_MIN` (`1` integer clamp in `PurchaseOrderForm.jsx` vs `0.01` in `validationHelper.js`), `ForecastCreatePOModal.jsx` bounds adoption, backend text-length validation in `purchasingService.js` (`sanitizeSupplierDetails`), and pre-existing working tree deletions under `InventoryProject/docs/defense/`.
-
----
-
-## 6. Phase 1 Summary (Reference Archive)
-
-- **Composite Duplicate Prevention (`name + category`):** Added `checkCompositeDuplicate` (`server/utils/stringHelper.js`) and 3-pass `checkDuplicateOrSimilar` (`src/utils/productUtils.js`) to hard-block (`409`, `is_hard_duplicate: true`, unforceable) exact same-category duplicates on products and raw materials while keeping soft `409` confirmation warnings for different categories or similar names; added reference SQL `docs/database/phase1_duplicate_and_bounds.sql`.
-- **Global Input Bounds:** Created `server/utils/validationHelper.js` (`LIMITS`) and `src/utils/validationUtils.js` (`INPUT_LIMITS`), enforcing aligned bounds across products, raw materials, recipes, direct stock receipt, POs, suppliers, and wastage.
-- **Modal UX Cleanup & Bug Fixes:** Removed redundant blocking `ConfirmModal` prompts on normal Add/Update in `useManageProducts.js` and `useManageRawMaterials.js`, fixed `handleUpdateIngredient` to pass `category` and `force_update`, and surfaced inline modal error banners inside `ModifyProductModal.jsx` and `ManageRawMaterials.jsx`.
+## 5. Remaining Minor Notes & Future Recommendations
+1. **Security Hardening**: Migrate auth from spoofable `x-user-id` headers to signed JWTs/HTTP-only cookies, install `helmet`, restrict CORS origins, and move in-memory `loginAttempts` / `pinFailureBuckets` rate limits into Redis or Supabase.
+2. **Default Manager PIN Override**: `verifyManagerPin` falls back to `'1234'` only while zero custom PINs exist — set an Owner/Admin custom 4–8 digit PIN in **POS -> Void & Refund -> Manager Approval PIN Settings** before production rollout.
+3. **Historical Store Backfill & Single-Shift Scale**: Records written to `cms_content` stores prior to running `phase4_pos_payments_void_shifts_kds.sql` stay readable via dual-layer services; optionally backfill them into native tables for external SQL reporting. `computeXReading` assumes single-register shifts under 1,000 sales per shift window.
+4. **Live Gateway & Print Hardware**: Wire live GCash/Maya/QRPH webhooks (`PAYMENT_WEBHOOK_SECRET`), optional thermal ESC/POS printing, and explicit base-vs-purchase unit conversion toggles on OCR intake lines if suppliers mix pack sizes and gram/mL quantities.

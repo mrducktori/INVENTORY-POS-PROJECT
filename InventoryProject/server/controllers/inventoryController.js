@@ -1,5 +1,6 @@
 import * as inventoryService from "../services/inventoryService.js";
 import * as batchService from "../services/batchService.js";
+import * as ocrService from "../services/ocrService.js";
 import { logAudit } from "../utils/auditHelper.js";
 import { invalidateAnalyticsCache } from "../routes/analytics.js";
 
@@ -259,6 +260,30 @@ export const performStocktake = async (req, res) => {
     });
     invalidateAnalyticsCache();
     res.status(201).json(session);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+};
+
+export const scanOcrDocument = async (req, res) => {
+  try {
+    const result = await ocrService.scanInventoryDocument({
+      base64Image: req.body?.base64Image ?? req.body?.image_base64 ?? null,
+      mimeType: req.body?.mimeType ?? req.body?.mime_type ?? null,
+      fileName: req.body?.fileName ?? req.body?.file_name ?? null,
+      rawText: req.body?.rawText ?? req.body?.raw_text ?? "",
+      scanMode: req.body?.scanMode ?? req.body?.scan_mode ?? "PO_RECEIPT"
+    });
+
+    await logAudit("OCR_DOCUMENT_SCANNED", req.user.id, {
+      engine: result.engine,
+      scan_mode: result.scan_mode,
+      items_count: result.items.length,
+      warnings_count: result.warnings.length,
+      supplier_name: result.supplier_name || null
+    });
+
+    res.json(result);
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
   }

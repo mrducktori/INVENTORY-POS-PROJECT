@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { formatCurrency } from '../utils/forecastUtils';
+import { INPUT_LIMITS, clampNumberInput } from '../../../utils/validationUtils';
 import { doesItemMatchSupplier } from '../hooks/useDemandForecasting';
 
 const ForecastCreatePOModal = ({
@@ -155,10 +156,17 @@ const ForecastCreatePOModal = ({
                       <div className="flex items-center gap-1.5">
                         <input
                           type="number"
-                          min="1"
+                          min={INPUT_LIMITS.PO_QTY_MIN}
+                          max={INPUT_LIMITS.PO_QTY_MAX}
                           value={item.quantity}
-                          onChange={(e) => onUpdateQty(idx, e.target.value)}
-                          className="w-16 px-2 py-1 border border-zinc-300 rounded-md text-sm font-semibold text-zinc-900 focus:outline-none focus:border-zinc-900"
+                          onChange={(e) => {
+                            const parsed = parseInt(e.target.value, 10);
+                            const clamped = Number.isFinite(parsed)
+                              ? clampNumberInput(parsed, INPUT_LIMITS.PO_QTY_MIN, INPUT_LIMITS.PO_QTY_MAX)
+                              : INPUT_LIMITS.PO_QTY_MIN;
+                            onUpdateQty(idx, clamped);
+                          }}
+                          className="w-20 px-2 py-1 border border-zinc-300 rounded-md text-sm font-semibold text-zinc-900 focus:outline-none focus:border-zinc-900"
                         />
                         <span className="text-xs text-zinc-500">{item.purchase_unit}</span>
                       </div>
@@ -197,8 +205,9 @@ const ForecastCreatePOModal = ({
             </label>
             <input
               type="text"
+              maxLength={INPUT_LIMITS.DESC_MAX_LEN}
               value={poNotes}
-              onChange={(e) => setPoNotes(e.target.value)}
+              onChange={(e) => setPoNotes(e.target.value.slice(0, INPUT_LIMITS.DESC_MAX_LEN))}
               placeholder="Optional delivery instructions..."
               className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm text-zinc-900 focus:outline-none focus:border-zinc-900"
             />

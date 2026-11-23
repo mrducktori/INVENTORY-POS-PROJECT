@@ -33,6 +33,77 @@ export async function createSale(saleData) {
   });
 }
 
+export async function createPaymentIntent({ provider, amount }) {
+  return apiCall("/pos/payment-intent", {
+    method: "POST",
+    body: JSON.stringify({ provider, amount })
+  });
+}
+
+export async function voidOrRefundSale(saleId, payload) {
+  return apiCall(`/pos/sales/${encodeURIComponent(saleId)}/void`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function setManagerPin(payload) {
+  return apiCall("/pos/pin", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function getCurrentShift() {
+  return apiCall("/pos/shifts/current", {
+    method: "GET"
+  });
+}
+
+export async function openShift(payload) {
+  return apiCall("/pos/shifts/open", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function getXReading(shiftId = "") {
+  const query = shiftId ? `?shift_id=${encodeURIComponent(shiftId)}` : "";
+  return apiCall(`/pos/shifts/x-reading${query}`, {
+    method: "GET"
+  });
+}
+
+export async function closeShiftZReading(payload) {
+  return apiCall("/pos/shifts/close-z", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function getShiftHistory() {
+  return apiCall("/pos/shifts/history", {
+    method: "GET"
+  });
+}
+
+export async function getKdsQueue({ station = "ALL", includeServed = false } = {}) {
+  const params = new URLSearchParams();
+  if (station && station !== "ALL") params.append("station", station);
+  if (includeServed) params.append("include_served", "true");
+  const qs = params.toString();
+  return apiCall(`/pos/kds${qs ? `?${qs}` : ""}`, {
+    method: "GET"
+  });
+}
+
+export async function updateKdsTicketStatus(ticketId, status) {
+  return apiCall(`/pos/kds/${encodeURIComponent(ticketId)}/status`, {
+    method: "PUT",
+    body: JSON.stringify({ status })
+  });
+}
+
 /**
  * Get inventory items (raw materials)
  * @returns {Promise<Array>} Array of inventory items

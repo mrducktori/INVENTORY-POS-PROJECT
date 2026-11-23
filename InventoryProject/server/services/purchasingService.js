@@ -1,7 +1,7 @@
 import { supabase } from "../config/supabaseClient.js";
 import { logAudit } from "../utils/auditHelper.js";
 import { getManilaDateOnly } from "../utils/dateUtils.js";
-import { LIMITS, validateNumberBound } from "../utils/validationHelper.js";
+import { LIMITS, validateNumberBound, validateTextLength } from "../utils/validationHelper.js";
 import * as batchService from "./batchService.js";
 
 const safeParseAuditDetails = (rawDetails) => {
@@ -203,8 +203,42 @@ const buildSupplierIngredientMappings = async (supplierId, ingredientItems, ingr
   return [];
 };
 
-const sanitizeSupplierDetails = (details) => {
+export const sanitizeSupplierDetails = (details = {}) => {
   const payload = { ...details };
+  payload.name = validateTextLength(payload.name, {
+    label: 'Supplier name',
+    min: 1,
+    max: LIMITS.NAME_MAX_LEN,
+    required: true
+  });
+
+  if (payload.contact_person !== undefined && payload.contact_person !== null) {
+    payload.contact_person = validateTextLength(payload.contact_person, {
+      label: 'Contact person',
+      min: 1,
+      max: 100,
+      required: false
+    });
+  }
+
+  if (payload.email !== undefined && payload.email !== null) {
+    payload.email = validateTextLength(payload.email, {
+      label: 'Email',
+      min: 1,
+      max: 120,
+      required: false
+    });
+  }
+
+  if (payload.address !== undefined && payload.address !== null) {
+    payload.address = validateTextLength(payload.address, {
+      label: 'Address',
+      min: 1,
+      max: 250,
+      required: false
+    });
+  }
+
   if (!payload.contact_info && (payload.contact_person || payload.contact_number || payload.email)) {
     payload.contact_info = [payload.contact_person, payload.contact_number, payload.email].filter(Boolean).join(' | ');
   }
@@ -604,18 +638,42 @@ const getPoSelectColumns = () => `
     purchase_unit,
     conversion_factor,
     ${hasPoReceiptHistoryCol ? 'receipt_history,' : ''}
-    ingredients ( name, unit )
+    ingredients ( id, name, category, unit )
   )
 `;
 
-// === Purchase Orders ===
-export const getPurchaseOrders = async () => {
-  const [poRes, auditLogs] = await Promise.all([
-    supabase
+const enrichPOsWithIngredientPerishability = (pos = [], metaMap = {}) =>
+  (pos || []).map((po) => ({
+    ...po,
+    purchase_order_items: (po.purchase_order_items || []).map((item) => {
+      if (!item?.ingredients) return item;
+      const perishability = batchService.getIngredientPerishability(item.ingredients, metaMap);
+      return {
+        ...item,
+        ingredients: {
+          ...item.ingredients,
+          is_perishable: perishability.is_perishable,
+          default_shelf_life_days: perishability.default_shelf_life_days
+        }
+      };
+    })
+  }));
+
+const fetchPurchaseOrders = async (supplierId = null) => {
+  const buildQuery = () => {
+    let query = supabase
       .from("purchase_orders")
-      .select(getPoSelectColumns())
-      .order("created_at", { ascending: false }),
-    fetchPoAuditLogs()
+      .select(getPoSelectColumns());
+    if (supplierId !== null && supplierId !== undefined) {
+      query = query.eq("supplier_id", supplierId);
+    }
+    return query.order("created_at", { ascending: false });
+  };
+
+  const [poRes, auditLogs, metaMap] = await Promise.all([
+    buildQuery(),
+    fetchPoAuditLogs(),
+    batchService.getPerishabilityMetaMap().catch(() => ({}))
   ]);
 
   let { data, error } = poRes;
@@ -623,11 +681,7 @@ export const getPurchaseOrders = async () => {
   // Fallback if receipt_history column doesn't exist yet in the database
   if (error && (error.code === '42703' || error.message?.includes('receipt_history'))) {
     hasPoReceiptHistoryCol = false;
-    const fallback = await supabase
-      .from("purchase_orders")
-      .select(getPoSelectColumns())
-      .order("created_at", { ascending: false });
-
+    const fallback = await buildQuery();
     if (fallback.error) throw fallback.error;
     data = fallback.data;
   } else if (error) {
@@ -636,41 +690,15 @@ export const getPurchaseOrders = async () => {
 
   const withReceipts = await enrichPOsWithReceiptHistory(data, auditLogs);
   const withProposals = await enrichPOsWithSupplierProposals(withReceipts, auditLogs);
-  return await enrichPOsWithMetadata(withProposals, auditLogs);
+  const withMeta = await enrichPOsWithMetadata(withProposals, auditLogs);
+  return enrichPOsWithIngredientPerishability(withMeta, metaMap);
 };
+
+// === Purchase Orders ===
+export const getPurchaseOrders = async () => fetchPurchaseOrders(null);
 
 // Get purchase orders for a specific supplier (Supplier Portal)
-export const getPurchaseOrdersBySupplier = async (supplierId) => {
-  const [poRes, auditLogs] = await Promise.all([
-    supabase
-      .from("purchase_orders")
-      .select(getPoSelectColumns())
-      .eq("supplier_id", supplierId)
-      .order("created_at", { ascending: false }),
-    fetchPoAuditLogs()
-  ]);
-
-  let { data, error } = poRes;
-
-  // Fallback if receipt_history column doesn't exist yet
-  if (error && (error.code === '42703' || error.message?.includes('receipt_history'))) {
-    hasPoReceiptHistoryCol = false;
-    const fallback = await supabase
-      .from("purchase_orders")
-      .select(getPoSelectColumns())
-      .eq("supplier_id", supplierId)
-      .order("created_at", { ascending: false });
-
-    if (fallback.error) throw fallback.error;
-    data = fallback.data;
-  } else if (error) {
-    throw error;
-  }
-
-  const withReceipts = await enrichPOsWithReceiptHistory(data, auditLogs);
-  const withProposals = await enrichPOsWithSupplierProposals(withReceipts, auditLogs);
-  return await enrichPOsWithMetadata(withProposals, auditLogs);
-};
+export const getPurchaseOrdersBySupplier = async (supplierId) => fetchPurchaseOrders(supplierId);
 
 export const createPurchaseOrder = async (poData) => {
   // poData should look like: { supplier_id, expected_date, notes, items: [{ ingredient_id, quantity, unit_price }] }

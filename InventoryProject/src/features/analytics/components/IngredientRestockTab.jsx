@@ -1,8 +1,17 @@
 import React from 'react';
 import { TableSkeleton } from '../../../components/shared/SkeletonLoader';
 import { InfoTip } from '../../../components/shared/InfoTip';
+import { getManilaDateOnly } from '../../../utils/dateUtils';
 import { formatCurrency } from '../utils/forecastUtils';
 import { SortIcon, IngredientStatusBadge } from './ForecastBadges';
+
+const getDaysUntilDate = (dateStr, todayStr) => {
+  if (!dateStr) return null;
+  const t0 = new Date(`${todayStr}T00:00:00Z`).getTime();
+  const t1 = new Date(`${String(dateStr).slice(0, 10)}T00:00:00Z`).getTime();
+  if (!Number.isFinite(t0) || !Number.isFinite(t1)) return null;
+  return Math.round((t1 - t0) / 86400000);
+};
 
 const IngredientRestockTab = ({
   ingredientData,
@@ -35,6 +44,7 @@ const IngredientRestockTab = ({
   onOpenGuide,
   onRefresh,
 }) => {
+  const todayManila = getManilaDateOnly();
   const totalPages = Math.ceil(filteredIngredients.length / pageSize);
   const selectableFilteredIngredients = lockedSupplier?.id && doesItemMatchSupplier
     ? filteredIngredients.filter((item) => doesItemMatchSupplier(item, lockedSupplier.id))
@@ -355,6 +365,17 @@ const IngredientRestockTab = ({
                       item.urgency_status === 'CRITICAL' ||
                       item.urgency_status === 'OUT_OF_STOCK' ||
                       item.urgency_status === 'LOW_STOCK';
+                    const totalStock = Number(item.stock_quantity || 0);
+                    const usableStock =
+                      item.usable_stock !== undefined && item.usable_stock !== null
+                        ? Number(item.usable_stock)
+                        : totalStock;
+                    const expiredStock = Number(item.expired_stock || 0);
+                    const expiringSoonStock = Number(item.expiring_soon_stock || 0);
+                    const projectedSpoilageQty = Number(item.projected_spoilage_qty || 0);
+                    const nearestDays = getDaysUntilDate(item.nearest_expiry_date, todayManila);
+                    const showNearestExpiry =
+                      nearestDays !== null && nearestDays >= 0 && nearestDays <= 14;
 
                     return (
                       <tr
@@ -390,10 +411,36 @@ const IngredientRestockTab = ({
 
                         {/* On Hand */}
                         <td className="py-3.5 px-4 text-right font-mono whitespace-nowrap">
-                          <span className="font-semibold text-zinc-900">
-                            {Number(item.stock_quantity).toLocaleString()}
-                          </span>{' '}
-                          <span className="text-zinc-500 text-xs">{item.unit}</span>
+                          <div>
+                            <span className="font-semibold text-zinc-900">
+                              {usableStock.toLocaleString()}
+                            </span>{' '}
+                            <span className="text-zinc-500 text-xs">{item.unit}</span>
+                          </div>
+                          {Math.abs(totalStock - usableStock) > 0.001 && (
+                            <div className="text-[10px] text-zinc-400">
+                              Total: {totalStock.toLocaleString()} {item.unit}
+                            </div>
+                          )}
+                          {(expiredStock > 0 || expiringSoonStock > 0 || showNearestExpiry) && (
+                            <div className="flex flex-wrap justify-end gap-1 mt-1">
+                              {expiredStock > 0 && (
+                                <span className="inline-flex px-1.5 py-0.5 rounded bg-red-50 border border-red-200 text-[10px] font-bold text-red-700">
+                                  Expired: {expiredStock.toLocaleString()}
+                                </span>
+                              )}
+                              {expiringSoonStock > 0 && (
+                                <span className="inline-flex px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-[10px] font-bold text-amber-800">
+                                  Expiring &lt;=7d: {expiringSoonStock.toLocaleString()}
+                                </span>
+                              )}
+                              {showNearestExpiry && (
+                                <span className="inline-flex px-1.5 py-0.5 rounded bg-zinc-100 border border-zinc-200 text-[10px] font-semibold text-zinc-700">
+                                  {nearestDays === 0 ? 'Exp Today' : `Exp ${nearestDays}d`}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </td>
 
                         {/* Daily Usage */}
@@ -417,17 +464,42 @@ const IngredientRestockTab = ({
                         <td className="py-3.5 px-4 whitespace-nowrap">
                           {item.suggested_purchase_qty > 0 ? (
                             <div>
-                              <span className="font-semibold text-zinc-900">
-                                {item.suggested_purchase_qty} {item.purchase_unit}
-                              </span>
-                              {item.estimated_restock_cost > 0 && (
-                                <span className="text-xs text-zinc-500 font-mono ml-1.5">
-                                  ({formatCurrency(item.estimated_restock_cost)})
+                              <div>
+                                <span className="font-semibold text-zinc-900">
+                                  {item.suggested_purchase_qty} {item.purchase_unit}
                                 </span>
+                                {item.estimated_restock_cost > 0 && (
+                                  <span className="text-xs text-zinc-500 font-mono ml-1.5">
+                                    ({formatCurrency(item.estimated_restock_cost)})
+                                  </span>
+                                )}
+                              </div>
+                              {(item.shelf_life_capped || projectedSpoilageQty > 0) && (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {item.shelf_life_capped && (
+                                    <span className="inline-flex px-1.5 py-0.5 rounded bg-zinc-100 border border-zinc-200 text-[10px] font-bold text-zinc-700">
+                                      Shelf-Life Cap ({item.recommended_horizon_days || 14}d)
+                                    </span>
+                                  )}
+                                  {projectedSpoilageQty > 0 && (
+                                    <span className="inline-flex px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-[10px] font-bold text-amber-800">
+                                      Spoilage Risk: {projectedSpoilageQty.toLocaleString()} {item.unit}
+                                    </span>
+                                  )}
+                                </div>
                               )}
                             </div>
                           ) : (
-                            <span className="text-xs text-zinc-400">Sufficient</span>
+                            <div className="space-y-1">
+                              <span className="text-xs text-zinc-400">Sufficient</span>
+                              {projectedSpoilageQty > 0 && (
+                                <div>
+                                  <span className="inline-flex px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-[10px] font-bold text-amber-800">
+                                    Spoilage Risk: {projectedSpoilageQty.toLocaleString()} {item.unit}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
                           )}
                         </td>
 

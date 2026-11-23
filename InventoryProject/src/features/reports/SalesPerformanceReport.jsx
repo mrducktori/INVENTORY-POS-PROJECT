@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { getSalesPerformanceReport } from '../../api/reportsApi';
 import { downloadCSV, printReport } from './utils/reportUtils';
+import { getManilaDateOnly } from '../../utils/dateUtils';
 import { TableSkeleton, StatCardsSkeleton } from '../../components/shared/SkeletonLoader';
 import Pagination from '../../components/shared/Pagination';
 
@@ -30,7 +31,14 @@ const TrendBars = ({ data }) => {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 const SalesPerformanceReport = () => {
+  const currentManilaYear = Number(getManilaDateOnly().slice(0, 4)) || new Date().getFullYear();
+  const yearOptions = useMemo(
+    () => Array.from({ length: 5 }, (_, idx) => currentManilaYear - idx),
+    [currentManilaYear]
+  );
+
   const [period, setPeriod] = useState('daily');
+  const [selectedYear, setSelectedYear] = useState(currentManilaYear);
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   const [summary, setSummary] = useState(null);
@@ -45,12 +53,17 @@ const SalesPerformanceReport = () => {
 
   useEffect(() => {
     setProductPage(1);
-  }, [productSearch, period]);
+  }, [productSearch, period, selectedYear]);
 
   const fetchReport = useCallback(async () => {
     setLoading(true);
     try {
-      const summaryData = await getSalesPerformanceReport(period, customStart, customEnd);
+      const summaryData = await getSalesPerformanceReport(
+        period,
+        customStart,
+        customEnd,
+        period === 'yearly' ? selectedYear : ''
+      );
       setSummary(summaryData);
       setFetched(true);
     } catch (err) {
@@ -58,7 +71,7 @@ const SalesPerformanceReport = () => {
     } finally {
       setLoading(false);
     }
-  }, [period, customStart, customEnd]);
+  }, [period, customStart, customEnd, selectedYear]);
 
   // Auto-fetch default report on initial mount
   const didInitRef = useRef(false);
@@ -117,6 +130,12 @@ const SalesPerformanceReport = () => {
     );
   };
 
+  const periodBreakdown = Array.isArray(summary?.period_breakdown) ? summary.period_breakdown : [];
+  const breakdownBars = periodBreakdown.map((b) => ({
+    label: b.label,
+    value: Number(b.revenue || 0)
+  }));
+
   // Build trend data from staff performance
   const trendData = sortedStaff.slice(0, 10).map(s => ({
     label: (s.name || '').split(' ')[0],
@@ -124,25 +143,55 @@ const SalesPerformanceReport = () => {
   }));
 
   const totalSales = summary?.total_sales || 0;
+  const totalDiscounts = Number(summary?.total_discounts || 0);
+  const voidedCount = Number(summary?.voided_count || 0);
+  const voidedAmount = Number(summary?.voided_amount || 0);
   const totalTx = summary?.total_transactions || 0;
   const avgTicket = totalTx > 0 ? totalSales / totalTx : 0;
   const totalItems = summary?.total_items_sold || 0;
-  const periodLabel = period === 'daily' ? 'Today' : period === 'weekly' ? 'This Week' : period === 'monthly' ? 'This Month' : `${customStart} to ${customEnd}`;
+  const periodLabel =
+    period === 'daily'
+      ? 'Today'
+      : period === 'weekly'
+      ? 'This Week'
+      : period === 'monthly'
+      ? 'This Month'
+      : period === 'yearly'
+      ? `Year ${selectedYear}`
+      : `${customStart} to ${customEnd}`;
 
   const handleExport = () => {
     if (!summary) return;
     const date = new Date().toLocaleDateString('en-PH');
     const time = new Date().toLocaleTimeString('en-PH');
 
+    const periodRows = periodBreakdown.length > 0
+      ? [
+          [],
+          ['PERIOD BREAKDOWN'],
+          ['Interval', 'Net Revenue (PHP)', 'Transactions', 'Items Sold'],
+          ...periodBreakdown.map((b) => [
+            b.label,
+            Number(b.revenue || 0).toFixed(2),
+            b.transactions || 0,
+            b.items_sold || 0
+          ])
+        ]
+      : [];
+
     const rows = [
       ['COF/TEA CAFE — SALES PERFORMANCE REPORT'],
       ['Store Name', 'Cof/Tea Cafe'],
       ['Reporting Period', periodLabel],
       ['Date Generated', `${date} ${time}`],
-      ['Total Revenue (PHP)', totalSales.toFixed(2)],
+      ['Net Revenue (PHP)', totalSales.toFixed(2)],
+      ['Total Discounts (PHP)', totalDiscounts.toFixed(2)],
+      ['Voided Transactions', voidedCount],
+      ['Voided Amount (PHP)', voidedAmount.toFixed(2)],
       ['Total Transactions', totalTx],
       ['Average Order Value (PHP)', avgTicket.toFixed(2)],
       ['Total Items Sold', totalItems],
+      ...periodRows,
       [],
       ['SECTION 1: STAFF SALES BREAKDOWN'],
       ['Staff Name', 'Total Sales (PHP)', 'Number of Orders', 'Average Ticket (PHP)', 'Sales Share (%)'],
@@ -257,9 +306,22 @@ const SalesPerformanceReport = () => {
               <option value="daily">Today (Daily)</option>
               <option value="weekly">This Week</option>
               <option value="monthly">This Month</option>
+              <option value="yearly">Yearly (Annual)</option>
               <option value="custom">Custom Date</option>
             </select>
           </div>
+          {period === 'yearly' && (
+            <select
+              aria-label="Report Year"
+              className="px-3 py-1.5 border border-zinc-200 rounded-lg text-xs sm:text-sm font-semibold bg-white text-zinc-800 focus:outline-none focus:border-zinc-400 cursor-pointer shadow-2xs"
+              value={selectedYear}
+              onChange={e => { setSelectedYear(Number(e.target.value)); setFetched(false); }}
+            >
+              {yearOptions.map((yr) => (
+                <option key={yr} value={yr}>{yr}</option>
+              ))}
+            </select>
+          )}
           {period === 'custom' && (
             <div className="flex items-center gap-2 bg-zinc-50 border border-zinc-200 rounded-lg px-2.5 py-1 text-xs">
               <input 
@@ -329,9 +391,9 @@ const SalesPerformanceReport = () => {
       {fetched && !loading && summary && (
         <div className="flex flex-col gap-6 animate-[fadeIn_0.3s_ease-out]">
           {/* KPI Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             <div className="bg-white border border-zinc-200 rounded-xl p-4 shadow-2xs">
-              <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Gross Revenue</div>
+              <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Net Revenue</div>
               <div className="text-2xl font-bold text-zinc-900 tabular-nums mt-1 font-mono">₱{totalSales.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
               <div className="text-xs text-zinc-400 mt-1 capitalize">{period} completed sales</div>
             </div>
@@ -350,7 +412,60 @@ const SalesPerformanceReport = () => {
               <div className="text-2xl font-bold text-zinc-900 tabular-nums mt-1 font-mono">{totalItems.toLocaleString()}</div>
               <div className="text-xs text-zinc-400 mt-1">total units sold</div>
             </div>
+            <div className="bg-white border border-zinc-200 rounded-xl p-4 shadow-2xs">
+              <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Total Discounts</div>
+              <div className="text-2xl font-bold text-emerald-700 tabular-nums mt-1 font-mono">₱{totalDiscounts.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              <div className="text-xs text-zinc-400 mt-1">promo &amp; SC/PWD</div>
+            </div>
+            <div className="bg-white border border-zinc-200 rounded-xl p-4 shadow-2xs">
+              <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Voided Txns</div>
+              <div className="text-2xl font-bold text-red-700 tabular-nums mt-1 font-mono">{voidedCount}</div>
+              <div className="text-xs text-red-500 mt-1 font-mono">₱{voidedAmount.toFixed(2)} excluded</div>
+            </div>
           </div>
+
+          {/* Period Breakdown (Daily / Monthly) */}
+          {periodBreakdown.length > 0 && (
+            <div className="bg-white border border-zinc-200/80 shadow-2xs rounded-2xl overflow-hidden">
+              <div className="px-6 py-4 border-b border-zinc-100 flex justify-between items-baseline">
+                <h2 className="m-0 text-base font-bold text-zinc-900 tracking-tight">
+                  {period === 'yearly' ? `Monthly Sales Breakdown (${selectedYear})` : 'Daily Sales Breakdown'}
+                </h2>
+                <span className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">
+                  {periodBreakdown.length} intervals
+                </span>
+              </div>
+              {breakdownBars.length > 1 && (
+                <div className="overflow-x-auto border-b border-zinc-100">
+                  <TrendBars data={breakdownBars} />
+                </div>
+              )}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse whitespace-nowrap text-xs sm:text-sm">
+                  <thead>
+                    <tr className="bg-zinc-50/70 border-b border-zinc-200 text-zinc-500 uppercase text-[11px] font-bold tracking-wider">
+                      <th className="py-2.5 px-4">Interval</th>
+                      <th className="py-2.5 px-4 text-center">Transactions</th>
+                      <th className="py-2.5 px-4 text-center">Items Sold</th>
+                      <th className="py-2.5 px-4 text-right">Net Revenue</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100">
+                    {periodBreakdown.map((b) => (
+                      <tr key={b.date_key || b.label} className="hover:bg-zinc-50/60">
+                        <td className="py-2.5 px-4 font-semibold text-zinc-900">{b.label}</td>
+                        <td className="py-2.5 px-4 text-center font-mono text-zinc-700">{b.transactions || 0}</td>
+                        <td className="py-2.5 px-4 text-center font-mono text-zinc-700">{b.items_sold || 0}</td>
+                        <td className="py-2.5 px-4 text-right font-mono font-bold text-zinc-900">
+                          ₱{Number(b.revenue || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           {/* Revenue by Staff (Trend Bars) */}
           {trendData.length > 0 && (

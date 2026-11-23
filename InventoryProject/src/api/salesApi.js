@@ -8,6 +8,7 @@ export const getSales = async (filters = {}, pageSize = 50, page = 1) => {
   if (filters.category) params.append('category', filters.category);
   if (filters.staff_id) params.append('staff_id', filters.staff_id);
   if (filters.period) params.append('period', filters.period);
+  if (filters.year) params.append('year', String(filters.year));
   if (filters.payment_method && filters.payment_method !== 'ALL') {
     params.append('payment_method', filters.payment_method);
   }

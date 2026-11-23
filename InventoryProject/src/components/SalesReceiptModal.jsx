@@ -50,6 +50,17 @@ const SalesReceiptModal = ({ saleId, initialReceipt = null, onClose }) => {
   const { discountAmount, totalAmount, subtotalAmount, discountLabel } =
     computeReceiptTotals(receipt);
   const orderTypeLabel = extractOrderTypeLabel(receipt);
+  const rawStatus = String(
+    receipt?.void_info?.action_type === 'REFUND'
+      ? 'REFUNDED'
+      : receipt?.void_info
+      ? 'VOIDED'
+      : receipt?.status || 'COMPLETED'
+  ).toUpperCase();
+  const isVoidedOrRefunded =
+    rawStatus === 'VOIDED' || rawStatus === 'REFUNDED' || rawStatus === 'RETURNED';
+  const discountDetails = receipt?.discount_details || null;
+  const splitPayments = Array.isArray(receipt?.payments) ? receipt.payments : [];
 
   const handlePaperWidthChange = (e) => {
     const nextWidth = e.target.value;
@@ -70,10 +81,15 @@ const SalesReceiptModal = ({ saleId, initialReceipt = null, onClose }) => {
       >
         <div className="flex items-center justify-between pb-3 border-b border-zinc-100 mb-4 shrink-0">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            <span className={`w-2 h-2 rounded-full ${isVoidedOrRefunded ? 'bg-red-500' : 'bg-emerald-500'}`} />
             <span className="text-sm font-bold text-zinc-900 uppercase tracking-wider">
               Digital Transaction Receipt
             </span>
+            {isVoidedOrRefunded && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-red-50 text-red-700 border border-red-200">
+                {rawStatus}
+              </span>
+            )}
           </div>
           <button
             type="button"
@@ -93,6 +109,24 @@ const SalesReceiptModal = ({ saleId, initialReceipt = null, onClose }) => {
               <h3 className="font-extrabold text-xl text-zinc-900 tracking-tight m-0">COF/TEA CAFE</h3>
               <p className="text-xs text-zinc-500 font-medium mt-0.5 mb-0">Main Branch • Store #001</p>
             </div>
+
+            {isVoidedOrRefunded && (
+              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-800 space-y-0.5">
+                <div className="font-bold uppercase tracking-wider">
+                  Transaction {rawStatus}
+                  {receipt.void_info?.restock_policy ? ` • ${receipt.void_info.restock_policy}` : ''}
+                </div>
+                {receipt.void_info?.reason && <div>Reason: {receipt.void_info.reason}</div>}
+                {receipt.void_info?.approved_by_name && (
+                  <div className="text-[11px] text-red-700">
+                    Approved by: {receipt.void_info.approved_by_name}
+                    {receipt.void_info?.voided_at
+                      ? ` • ${formatReceiptDateTime(receipt.void_info.voided_at)}`
+                      : ''}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="border-t border-b border-dashed border-zinc-200 py-2.5 text-xs text-zinc-600 space-y-1">
               <div className="flex justify-between">
@@ -168,9 +202,27 @@ const SalesReceiptModal = ({ saleId, initialReceipt = null, onClose }) => {
               </div>
 
               {discountAmount > 0 && (
-                <div className="flex justify-between text-emerald-700 font-semibold">
-                  <span>Discount{discountLabel ? ` (${discountLabel})` : ''}</span>
-                  <span className="font-mono font-bold">-₱{discountAmount.toFixed(2)}</span>
+                <div className="space-y-0.5">
+                  <div className="flex justify-between text-emerald-700 font-semibold">
+                    <span>Discount{discountLabel ? ` (${discountLabel})` : ''}</span>
+                    <span className="font-mono font-bold">-₱{discountAmount.toFixed(2)}</span>
+                  </div>
+                  {(discountDetails?.customer_name || discountDetails?.discount_id_number) && (
+                    <div className="text-[11px] text-zinc-500 pl-2">
+                      {discountDetails.customer_name || 'Beneficiary'}
+                      {discountDetails.discount_id_number ? ` (ID: ${discountDetails.discount_id_number})` : ''}
+                    </div>
+                  )}
+                  {discountDetails?.promo_code && (
+                    <div className="text-[11px] text-zinc-500 pl-2">
+                      Promo Code: {discountDetails.promo_code}
+                    </div>
+                  )}
+                  {Number(discountDetails?.vat_exempt_sales) > 0 && (
+                    <div className="text-[11px] text-zinc-500 pl-2">
+                      VAT-Exempt Sales: ₱{Number(discountDetails.vat_exempt_sales).toFixed(2)}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -185,6 +237,22 @@ const SalesReceiptModal = ({ saleId, initialReceipt = null, onClose }) => {
                   ₱{Number(receipt.amount_received ?? totalAmount).toFixed(2)}
                 </span>
               </div>
+
+              {splitPayments.length > 0 && (
+                <div className="pl-3 border-l-2 border-zinc-200 space-y-0.5 py-0.5 text-[11px] text-zinc-500">
+                  {splitPayments.map((leg, i) => (
+                    <div key={i} className="flex justify-between">
+                      <span>
+                        {String(leg.method || '').toUpperCase()}
+                        {leg.reference_number ? ` (${leg.reference_number})` : ''}
+                      </span>
+                      <span className="font-mono font-semibold text-zinc-700">
+                        ₱{Number(leg.amount || 0).toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {receipt.transaction_reference && (
                 <div className="flex justify-between text-zinc-600">
