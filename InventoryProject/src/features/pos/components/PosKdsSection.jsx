@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { getKdsQueue, updateKdsTicketStatus } from '../../../api/posApi';
 import {
   formatReceiptDateTime,
@@ -91,7 +91,12 @@ const PosKdsSection = ({ categorySettings = {}, ongoingOrders = [], onOpenOngoin
     return map;
   }, [categorySettings]);
 
+  const requestIdRef = useRef(0);
+  const noticeTimerRef = useRef(null);
+  useEffect(() => () => clearTimeout(noticeTimerRef.current), []);
+
   const fetchQueue = useCallback(async (silent = false) => {
+    const reqId = ++requestIdRef.current;
     try {
       if (!silent) setLoading(true);
       setError('');
@@ -101,8 +106,10 @@ const PosKdsSection = ({ categorySettings = {}, ongoingOrders = [], onOpenOngoin
         includeServed
       });
       const list = Array.isArray(res) ? res : (res?.tickets || res?.data || []);
+      if (reqId !== requestIdRef.current) return;
       setTickets(list);
     } catch (err) {
+      if (reqId !== requestIdRef.current) return;
       setError(err?.message || 'Failed to load kitchen display queue.');
     } finally {
       if (!silent) setLoading(false);
@@ -116,6 +123,7 @@ const PosKdsSection = ({ categorySettings = {}, ongoingOrders = [], onOpenOngoin
   useEffect(() => {
     if (!autoRefresh) return undefined;
     const timer = setInterval(() => {
+      if (document.hidden) return;
       void fetchQueue(true);
     }, 10000);
     return () => clearInterval(timer);
@@ -132,7 +140,8 @@ const PosKdsSection = ({ categorySettings = {}, ongoingOrders = [], onOpenOngoin
         prev.map((t) => (t.id === ticketId ? { ...t, ...(updatedTicket || {}), status: nextStatus } : t))
       );
       setNotice(`Ticket updated to ${nextStatus}.`);
-      setTimeout(() => setNotice(''), 2500);
+      clearTimeout(noticeTimerRef.current);
+      noticeTimerRef.current = setTimeout(() => setNotice(''), 2500);
       await fetchQueue(true);
     } catch (err) {
       setError(err?.message || 'Failed to update ticket status.');

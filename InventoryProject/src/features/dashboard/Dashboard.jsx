@@ -264,7 +264,6 @@ const Dashboard = () => {
       case 'Reports':           return <Reports />;
 
       // Content Management
-      // Content Management
       case 'CMSDashboard':      return <CMSDashboard />;
 
       // Supplier Portal

@@ -267,6 +267,10 @@ export const performStocktake = async (req, res) => {
 
 export const scanOcrDocument = async (req, res) => {
   try {
+    const b64 = req.body?.base64Image ?? req.body?.image_base64 ?? "";
+    if (typeof b64 === "string" && b64.length * 0.75 > 8 * 1024 * 1024) {
+      return res.status(413).json({ error: "Image is too large. Maximum size is 8MB." });
+    }
     const result = await ocrService.scanInventoryDocument({
       base64Image: req.body?.base64Image ?? req.body?.image_base64 ?? null,
       mimeType: req.body?.mimeType ?? req.body?.mime_type ?? null,

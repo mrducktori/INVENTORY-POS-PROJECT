@@ -105,3 +105,6 @@ export const canAccess = (user, tab) => {
 export const getRoleLabel = (user) =>
   user?.role === 'Custom' ? user.custom_role_name || 'Custom' : user?.role || '';
 
+
+/** Server only allows Owner/Admin/Custom to submit stocktakes (not Staff). */
+export const canStocktake = (user) => !!user && user.role !== 'Staff' && user.role !== 'Supplier';

@@ -7,9 +7,7 @@ import {
   getShiftHistory
 } from '../../../api/posApi';
 import { formatReceiptDateTime, printShiftReading } from '../../../utils/receiptPrint';
-
-const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
-const formatPeso = (n) => `₱${Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+import { round2, formatPeso } from '../../../utils/money';
 
 const PosShiftReadingSection = ({ user }) => {
   const [currentShift, setCurrentShift] = useState(null);
@@ -120,12 +118,10 @@ const PosShiftReadingSection = ({ user }) => {
     }
   };
 
-  const expectedDrawerCash = Number(
-    xReading?.expected_drawer_cash ??
-      (Number(currentShift?.opening_cash || 0) + Number(xReading?.cash_sales || 0))
-  );
+  const expectedDrawerCash = Number(xReading?.expected_drawer_cash ?? 0);
+  const hasExpected = xReading?.expected_drawer_cash != null;
   const actualNum = parseFloat(actualCashCounted);
-  const hasActualPreview = actualCashCounted !== '' && !Number.isNaN(actualNum);
+  const hasActualPreview = hasExpected && actualCashCounted !== '' && !Number.isNaN(actualNum);
   const shortOverPreview = hasActualPreview ? round2(actualNum - expectedDrawerCash) : null;
 
   return (
@@ -254,7 +250,7 @@ const PosShiftReadingSection = ({ user }) => {
             </div>
             <div className="p-3.5 rounded-xl bg-gray-900 text-white">
               <div className="text-[11px] font-bold text-gray-300 uppercase tracking-wider">Expected Drawer Cash</div>
-              <div className="text-lg font-extrabold font-mono mt-1">{formatPeso(expectedDrawerCash)}</div>
+              <div className="text-lg font-extrabold font-mono mt-1">{hasExpected ? formatPeso(expectedDrawerCash) : '—'}</div>
             </div>
           </div>
         </div>
@@ -316,7 +312,7 @@ const PosShiftReadingSection = ({ user }) => {
 
               <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl flex justify-between items-center text-xs">
                 <span className="font-semibold text-gray-600">Expected Drawer Cash</span>
-                <span className="font-mono font-bold text-gray-900 text-sm">{formatPeso(expectedDrawerCash)}</span>
+                <span className="font-mono font-bold text-gray-900 text-sm">{hasExpected ? formatPeso(expectedDrawerCash) : '—'}</span>
               </div>
 
               <div>

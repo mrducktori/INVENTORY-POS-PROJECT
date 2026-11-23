@@ -317,7 +317,7 @@ export const setIngredientPerishability = async (ingredientId, { is_perishable =
   return { is_perishable: perishableFlag, default_shelf_life_days: resolvedDays };
 };
 
-export const annotateAndSortBatchesFEFO = (batches = [], todayManila = getManilaDateOnly()) => {
+const annotateAndSortBatchesFEFO = (batches = [], todayManila = getManilaDateOnly()) => {
   const annotated = batches
     .filter((b) => Number(b?.quantity_remaining) > EPSILON)
     .map((b) => {
@@ -427,10 +427,14 @@ const reconcileIngredientBatchesInArray = (ing, allBatches, perishability, today
       mutated = true;
     } else if (diff < -EPSILON) {
       let toTrim = Math.abs(diff);
-      const newestFirst = [...activeBatches].sort((a, b) =>
-        String(b.received_at || "").localeCompare(String(a.received_at || ""))
-      );
-      for (const b of newestFirst) {
+      // FEFO trim: expired / earliest-expiry first, no-expiry last, then oldest received.
+      const trimOrder = [...activeBatches].sort((a, b) => {
+        const ea = a.expiry_date ? String(a.expiry_date).slice(0, 10) : "9999-12-31";
+        const eb = b.expiry_date ? String(b.expiry_date).slice(0, 10) : "9999-12-31";
+        if (ea !== eb) return ea.localeCompare(eb);
+        return String(a.received_at || "").localeCompare(String(b.received_at || ""));
+      });
+      for (const b of trimOrder) {
         if (toTrim <= EPSILON) break;
         const avail = Number(b.quantity_remaining || 0);
         const take = Math.min(avail, toTrim);
@@ -481,40 +485,10 @@ export const enrichIngredientsWithBatches = async (ingredients = []) => {
 
   const [initialBatches, metaMap] = await Promise.all([loadBatches(), loadPerishabilityMetaMap()]);
 
-  let needsSave = false;
+  // Read-only: reconcile on a clone for display only; write paths persist reconciliation under the lock.
+  const finalBatches = structuredClone(initialBatches);
   for (const ing of ingredients) {
-    const perishability = getIngredientPerishability(ing, metaMap);
-    const ingBatches = initialBatches.filter((b) => String(b.ingredient_id) === String(ing.id));
-    const activeSum = round6(
-      ingBatches.filter((b) => Number(b.quantity_remaining) > EPSILON).reduce((s, b) => s + Number(b.quantity_remaining || 0), 0)
-    );
-    const rawStock = Math.max(0, Number(ing.stock_quantity) || 0);
-    if ((rawStock > EPSILON && ingBatches.filter((b) => Number(b.quantity_remaining) > EPSILON).length === 0) || Math.abs(rawStock - activeSum) > EPSILON) {
-      needsSave = true;
-      break;
-    }
-  }
-
-  let finalBatches = initialBatches;
-  if (needsSave) {
-    finalBatches = await withStoreLock(BATCHES_STORE_KEY, async () => {
-      const currentBatches = await loadBatches();
-      let mutated = false;
-      const allTouched = [];
-      for (const ing of ingredients) {
-        const perishability = getIngredientPerishability(ing, metaMap);
-        const res = reconcileIngredientBatchesInArray(ing, currentBatches, perishability, todayManila);
-        if (res.mutated) {
-          mutated = true;
-          allTouched.push(...res.touched);
-        }
-      }
-      if (mutated) {
-        await saveBatches(currentBatches);
-        await syncNativeBatchUpsert(allTouched);
-      }
-      return currentBatches;
-    });
+    reconcileIngredientBatchesInArray(ing, finalBatches, getIngredientPerishability(ing, metaMap), todayManila);
   }
 
   return ingredients.map((ing) => {
@@ -536,7 +510,10 @@ export const createBatch = async ({
   purchase_quantity = null,
   conversion_factor = null,
   notes = null,
-  prior_stock = null
+  prior_stock = null,
+  // When set, stock is raised by this amount inside the same lock (fresh read), after the batch is persisted.
+  stock_increment = null,
+  stock_max = LIMITS.STOCK_QTY_MAX
 }) => {
   const qty = validateNumberBound(initial_quantity, {
     label: "Batch initial quantity",
@@ -581,6 +558,18 @@ export const createBatch = async ({
   await withStoreLock(BATCHES_STORE_KEY, async () => {
     const batches = await loadBatches();
     const touched = [];
+    let freshStock = null;
+    if (stock_increment !== null) {
+      const { data: cur, error: curErr } = await supabase.from("ingredients").select("stock_quantity").eq("id", ingredient_id).single();
+      if (curErr) throw curErr;
+      freshStock = Number(cur?.stock_quantity || 0);
+      if (freshStock + Number(stock_increment) > stock_max) {
+        const err = new Error(`Resulting stock quantity cannot exceed ${Number(stock_max).toLocaleString()}.`);
+        err.status = 400;
+        throw err;
+      }
+      prior_stock = freshStock;
+    }
     if (prior_stock !== null && prior_stock !== undefined && Number(prior_stock) > EPSILON) {
       const seedRes = reconcileIngredientBatchesInArray(
         { ...(ing || { id: ingredient_id }), stock_quantity: Number(prior_stock) },
@@ -595,6 +584,16 @@ export const createBatch = async ({
     batches.push(newBatch);
     touched.push(newBatch);
     await saveBatches(batches);
+    if (freshStock !== null) {
+      const { error: stockErr } = await supabase
+        .from("ingredients")
+        .update({ stock_quantity: round6(freshStock + Number(stock_increment)) })
+        .eq("id", ingredient_id);
+      if (stockErr) {
+        await saveBatches(batches.filter((b) => b.id !== newBatch.id));
+        throw stockErr;
+      }
+    }
     await syncNativeBatchUpsert(touched);
   });
 
@@ -605,7 +604,7 @@ export const createBatch = async ({
 /**
  * Pure FEFO/batch deduction planner (also useful for unit testing without DB).
  */
-export const planBatchDeduction = (
+const planBatchDeduction = (
   ingredientBatches,
   quantityNeeded,
   { allowExpired = false, preferExpired = false, targetBatchId = null, todayManila = getManilaDateOnly() } = {}
@@ -911,7 +910,7 @@ export const performStocktake = async ({ counts, notes = "", user }) => {
     required: false
   });
 
-  const validatedCounts = counts.map((entry) => {
+  const rawValidated = counts.map((entry) => {
     if (!entry || !entry.ingredient_id) {
       const err = new Error("Each stocktake entry must include an ingredient_id.");
       err.status = 400;
@@ -937,7 +936,9 @@ export const performStocktake = async ({ counts, notes = "", user }) => {
     };
   });
 
-  const targetIds = [...new Set(validatedCounts.map((c) => c.ingredient_id))];
+  // Duplicate ingredient_id entries: last one wins.
+  const validatedCounts = [...new Map(rawValidated.map((c) => [String(c.ingredient_id), c])).values()];
+  const targetIds = validatedCounts.map((c) => c.ingredient_id);
   const { data: ingRows, error: ingErr } = await supabase
     .from("ingredients")
     .select("*")
@@ -957,7 +958,6 @@ export const performStocktake = async ({ counts, notes = "", user }) => {
     }
 
     const systemQty = round6(Number(ing.stock_quantity || 0));
-    const variance = round6(item.physical_count - systemQty);
     const signedVariance = Math.round((item.physical_count - systemQty) * 1e6) / 1e6;
 
     if (Math.abs(signedVariance) <= EPSILON) continue;

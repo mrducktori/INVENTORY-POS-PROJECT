@@ -468,8 +468,8 @@ export const calculateCartPricingFromCatalog = (cart = [], productMap = new Map(
       }
     }
 
-    const discPct = Math.min(100, Math.max(0, parseFloat(item.discount_percent) || 0));
-    const netUnitPrice = round2(unitPrice * (1 - discPct / 100));
+    // Client item.discount_percent is ignored; discounts come only from server-configured types.
+    const netUnitPrice = round2(unitPrice);
     const lineTotal = round2(netUnitPrice * qty);
 
     subtotal = round2(subtotal + lineTotal);
@@ -508,6 +508,15 @@ export const computeAuthoritativeSubtotal = async (cart = []) => {
   );
 
   return calculateCartPricingFromCatalog(cart, productMap, categorySettingsMap);
+};
+
+/**
+ * RA 9994 / RA 10754 Senior/PWD discount: VAT removed + rate x VAT-exclusive price.
+ * computeVatExemptDiscount(112, 0.2) === 32 (final 80.00).
+ */
+export const computeVatExemptDiscount = (subtotal, rate) => {
+  const vatExclusive = subtotal / 1.12;
+  return round2(vatExclusive * rate + (subtotal - vatExclusive));
 };
 
 /**
@@ -628,7 +637,9 @@ export const validateAndComputeDiscount = ({
     }
 
     const rate = Number(matchedDiscount.rate_percent || 0) / 100;
-    discountAmount = round2(safeSubtotal * rate);
+    discountAmount = matchedDiscount.vat_exempt
+      ? computeVatExemptDiscount(safeSubtotal, rate)
+      : round2(safeSubtotal * rate);
     if (matchedDiscount.vat_exempt) {
       const vatExemptSales = round2(safeSubtotal / 1.12);
       const vatDeducted = round2(safeSubtotal - vatExemptSales);
@@ -1028,6 +1039,9 @@ export const verifyManagerPin = async (pin, rateKey = "global") => {
 
   const pinsMap = await readCmsStore(MANAGER_PINS_STORE_KEY, {});
   const configuredEntries = Object.entries(pinsMap || {}).filter(([, v]) => v && v.hash);
+  if (configuredEntries.length === 0) {
+    throw createHttpError(400, "No Manager PIN is configured. Set a Manager PIN in POS Settings first.");
+  }
 
   for (const [uid, entry] of configuredEntries) {
     const matched = await bcrypt.compare(pinStr, entry.hash);
@@ -1044,37 +1058,6 @@ export const verifyManagerPin = async (pin, rateKey = "global") => {
         approved_by_role: userRow?.role || "Admin"
       };
     }
-  }
-
-  // Fallback to active Owner/Admin password_hash
-  const { data: managers } = await supabase
-    .from("users")
-    .select("id, name, role, password_hash")
-    .in("role", ["Owner", "Admin"])
-    .eq("status", "ACTIVE");
-
-  for (const mgr of managers || []) {
-    if (!mgr.password_hash) continue;
-    const matched = await bcrypt.compare(pinStr, mgr.password_hash);
-    if (matched) {
-      clearPinFailures(rateKey);
-      return {
-        approved_by_id: mgr.id,
-        approved_by_name: mgr.name,
-        approved_by_role: mgr.role
-      };
-    }
-  }
-
-  // Default fallback PIN '1234' ONLY when zero custom PINs are configured
-  if (configuredEntries.length === 0 && pinStr === "1234") {
-    const fallbackMgr = (managers || [])[0];
-    clearPinFailures(rateKey);
-    return {
-      approved_by_id: fallbackMgr?.id || null,
-      approved_by_name: fallbackMgr?.name || "Default Manager PIN",
-      approved_by_role: fallbackMgr?.role || "Admin"
-    };
   }
 
   recordPinFailure(rateKey);
@@ -1150,6 +1133,16 @@ export const voidOrRefundSale = async ({
   const [voidsMap, metaMap] = await Promise.all([getVoidRefundMap(), getSaleMetadataMap()]);
   const statusUpper = String(sale.status || "").toUpperCase();
   if (voidsMap[sale.id] || ["VOIDED", "REFUNDED", "RETURNED"].includes(statusUpper)) {
+    throw createHttpError(409, "This transaction has already been voided or refunded.");
+  }
+
+  // Atomically claim the sale so concurrent voids cannot both restock.
+  const claimedStatus = actionType === "VOID" ? "VOIDED" : actionType === "REFUND" ? "REFUNDED" : "RETURNED";
+  let claimQuery = supabase.from("sales").update({ status: claimedStatus }).eq("id", sale.id);
+  claimQuery = sale.status == null ? claimQuery.is("status", null) : claimQuery.eq("status", sale.status);
+  const { data: claimed, error: claimErr } = await claimQuery.select("id");
+  if (claimErr) throw claimErr;
+  if (!claimed || claimed.length === 0) {
     throw createHttpError(409, "This transaction has already been voided or refunded.");
   }
 
@@ -1266,7 +1259,8 @@ export const voidOrRefundSale = async ({
       const { data: pRow } = await supabase.from("products").select("stock_quantity").eq("id", pid).single();
       if (pRow) {
         const nextStock = Math.min(LIMITS.STOCK_QTY_MAX, round6((parseFloat(pRow.stock_quantity) || 0) + qty));
-        await supabase.from("products").update({ stock_quantity: nextStock }).eq("id", pid);
+        const { error: pUpdErr } = await supabase.from("products").update({ stock_quantity: nextStock }).eq("id", pid);
+        if (pUpdErr) throw pUpdErr;
       }
     }
 
@@ -1275,7 +1269,8 @@ export const voidOrRefundSale = async ({
       if (iRow) {
         const priorStock = parseFloat(iRow.stock_quantity) || 0;
         const nextStock = Math.min(LIMITS.STOCK_QTY_MAX, round6(priorStock + entry.qty));
-        await supabase.from("ingredients").update({ stock_quantity: nextStock }).eq("id", iid);
+        const { error: iUpdErr } = await supabase.from("ingredients").update({ stock_quantity: nextStock }).eq("id", iid);
+        if (iUpdErr) throw iUpdErr;
         await batchService.createBatch({
           ingredient_id: iid,
           source: "VOID_RESTOCK",
@@ -1343,17 +1338,18 @@ export const voidOrRefundSale = async ({
       ]);
       if (error) {
         if (isMissingTableError(error)) hasNativeSaleVoidsTable = false;
+        else throw error;
       } else {
         hasNativeSaleVoidsTable = true;
       }
     } catch (err) {
       if (isMissingTableError(err)) hasNativeSaleVoidsTable = false;
+      else throw err;
     }
   }
 
-  await supabase.from("sales").update({ status: nextSaleStatus }).eq("id", sale.id);
-
-  // Cancel any matching KDS ticket
+  // Cancel any matching KDS ticket (non-fatal: the sale is already voided)
+  try {
   await withStoreLock(KDS_STORE_KEY, async () => {
     const store = await readCmsStore(KDS_STORE_KEY, { tickets: [] });
     const tickets = Array.isArray(store.tickets) ? store.tickets : [];
@@ -1369,6 +1365,9 @@ export const voidOrRefundSale = async ({
       await writeCmsStore(KDS_STORE_KEY, "POS KDS Queue Store", { tickets });
     }
   });
+  } catch (kdsErr) {
+    console.error("Failed to cancel KDS ticket for voided sale", sale.id, kdsErr);
+  }
 
   const auditAction = actionType === "VOID" ? "SALE_VOIDED" : "SALE_REFUNDED";
   await Promise.all([

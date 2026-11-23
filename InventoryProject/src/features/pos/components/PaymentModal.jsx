@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { createPaymentIntent, getPosSettings } from '../../../api/posApi';
+import { round2 } from '../../../utils/money';
 
 const DEFAULT_DISCOUNT_TYPES = [
   { id: 'SENIOR', label: 'Senior Citizen', rate_percent: 20, requires_id: true, vat_exempt: true, active: true },
@@ -33,8 +34,6 @@ const generateIdempotencyKey = () => {
   }
   return `pos-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 };
-
-const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 
 const PaymentModal = ({ order, posSettings = null, onConfirm, onClose }) => {
   const [localSettings, setLocalSettings] = useState(posSettings);
@@ -198,7 +197,13 @@ const PaymentModal = ({ order, posSettings = null, onConfirm, onClose }) => {
         }
       }
     } else if (selected.rate) {
-      disc = subtotal * selected.rate;
+      if (selected.vat_exempt) {
+        // RA 9994/10754: remove 12% VAT first, then apply the rate on the VAT-exclusive price
+        const vatExclusive = subtotal / 1.12;
+        disc = vatExclusive * selected.rate + (subtotal - vatExclusive);
+      } else {
+        disc = subtotal * selected.rate;
+      }
       label = `${selected.label} (${selected.rate_percent}%)`;
     }
 

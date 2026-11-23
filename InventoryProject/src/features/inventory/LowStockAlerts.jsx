@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getLowStockAlerts, getExpiryAlerts } from '../../api/inventoryApi';
 import { formatQuantity } from '../../utils/productUtils';
 import { getManilaDateOnly } from '../../utils/dateUtils';
+import { TableSkeleton } from '../../components/shared/SkeletonLoader';
 import Pagination from '../../components/shared/Pagination';
 
 const getUsableStock = (alert) => {
@@ -27,7 +28,7 @@ const LowStockAlerts = () => {
   const [activeTab, setActiveTab] = useState('LOW_STOCK'); // 'LOW_STOCK' | 'EXPIRATION'
   const [alerts, setAlerts] = useState([]);
   const [expiryData, setExpiryData] = useState({ expiredBatches: [], expiringSoonBatches: [] });
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // first load only; polls refresh silently
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -35,7 +36,6 @@ const LowStockAlerts = () => {
 
   const fetchAlerts = useCallback(async () => {
     try {
-      setLoading(true);
       const [lowStock, expiry] = await Promise.all([
         getLowStockAlerts(),
         getExpiryAlerts().catch(() => ({ expiredBatches: [], expiringSoonBatches: [] }))
@@ -178,7 +178,7 @@ const LowStockAlerts = () => {
             </div>
             <div className="p-0">
               {loading ? (
-                <div className="p-8 text-center text-gray-500 font-medium">Loading...</div>
+                <TableSkeleton rows={6} cols={5} />
               ) : paginatedRows.length > 0 ? (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse whitespace-nowrap">
@@ -323,7 +323,7 @@ const LowStockAlerts = () => {
 
             <div className="p-0">
               {loading ? (
-                <div className="p-8 text-center text-gray-500 font-medium">Loading...</div>
+                <TableSkeleton rows={6} cols={5} />
               ) : paginatedRows.length > 0 ? (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse whitespace-nowrap">

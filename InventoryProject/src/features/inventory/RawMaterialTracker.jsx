@@ -4,6 +4,8 @@ import { formatQuantity } from '../../utils/productUtils';
 import { getManilaDateOnly } from '../../utils/dateUtils';
 import { TableSkeleton } from '../../components/shared/SkeletonLoader';
 import Pagination from '../../components/shared/Pagination';
+import { getCurrentUser } from '../../api/authApi';
+import { canStocktake } from '../../utils/permissions';
 import RawMaterialStocktakeSection from './components/RawMaterialStocktakeSection';
 
 const STATUS_GROUPS = [
@@ -76,7 +78,9 @@ const getNearestExpiryMeta = (ing, todayManila) => {
 const RawMaterialTracker = ({ subTab = null, onSubTabChange = null }) => {
   const [localMode, setLocalMode] = useState('LIVE_STOCK'); // 'LIVE_STOCK' | 'STOCKTAKE'
   const isControlled = typeof onSubTabChange === 'function';
-  const mode = isControlled ? (subTab === 'STOCKTAKE' ? 'STOCKTAKE' : 'LIVE_STOCK') : localMode;
+  const stocktakeAllowed = canStocktake(getCurrentUser());
+  const rawMode = isControlled ? (subTab === 'STOCKTAKE' ? 'STOCKTAKE' : 'LIVE_STOCK') : localMode;
+  const mode = stocktakeAllowed ? rawMode : 'LIVE_STOCK';
   const [ingredients, setIngredients] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -197,18 +201,20 @@ const RawMaterialTracker = ({ subTab = null, onSubTabChange = null }) => {
             >
               Live Stock & Batches
             </button>
+            {stocktakeAllowed && (
             <button
-              type="button"
-              onClick={() => {
-                setLocalMode('STOCKTAKE');
-                onSubTabChange?.('STOCKTAKE');
-              }}
-              className={`px-3.5 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-                mode === 'STOCKTAKE' ? 'bg-gray-900 text-white shadow-xs' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
-            >
-              Physical Count / Stocktake
-            </button>
+                type="button"
+                onClick={() => {
+                  setLocalMode('STOCKTAKE');
+                  onSubTabChange?.('STOCKTAKE');
+                }}
+                className={`px-3.5 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                  mode === 'STOCKTAKE' ? 'bg-gray-900 text-white shadow-xs' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
+              >
+                Physical Count / Stocktake
+              </button>
+            )}
           </div>
           <button 
             className="px-4 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-gray-50 transition-colors shadow-xs disabled:bg-gray-100 disabled:text-gray-400 cursor-pointer"

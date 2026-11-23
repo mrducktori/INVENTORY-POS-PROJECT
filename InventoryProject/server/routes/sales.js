@@ -496,23 +496,6 @@ const handleSalesSummaryReport = async (req, res) => {
 router.get('/summary/report', handleSalesSummaryReport);
 router.get('/reports/summary', handleSalesSummaryReport);
 
-// Void / Return / Refund a sale
-router.post('/:id/void', async (req, res) => {
-  try {
-    const record = await posOperationsService.voidOrRefundSale({
-      sale_id: req.params.id,
-      action_type: req.body?.action_type,
-      reason: req.body?.reason,
-      restock_policy: req.body?.restock_policy,
-      manager_pin: req.body?.manager_pin,
-      requested_by_user: req.user
-    });
-    res.json(record);
-  } catch (err) {
-    res.status(err.status || 500).json({ error: err.message });
-  }
-});
-
 // Get single sale detail (Receipt)
 router.get('/:id', async (req, res) => {
   try {

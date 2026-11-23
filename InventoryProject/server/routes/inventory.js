@@ -21,7 +21,7 @@ router.get("/batches", inventoryController.getBatches);
 router.get("/expiry-alerts", inventoryController.getExpiryAlerts);
 router.get("/stocktake", inventoryController.getStocktakeHistory);
 router.post("/stocktake", requireRole("Owner", "Admin", "Custom"), inventoryController.performStocktake);
-router.post("/ocr-scan", inventoryController.scanOcrDocument);
+router.post("/ocr-scan", requireRole("Owner", "Admin", "Custom"), inventoryController.scanOcrDocument);
 
 // Raw material category management
 router.get("/categories", inventoryController.getCategories);

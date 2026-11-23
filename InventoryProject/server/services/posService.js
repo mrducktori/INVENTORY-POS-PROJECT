@@ -545,7 +545,7 @@ export const createSale = async ({
       add_ons: Array.isArray(item.add_ons)
         ? item.add_ons.map(ao => typeof ao === 'string' ? ao : JSON.stringify(ao))
         : [],
-      discount_percent: item.discount_percent || 0,
+      discount_percent: 0, // unit_price is already the authoritative net price
       notes: combinedNotes,
       ...(item.modifiers ? { _modifiers: item.modifiers } : {})
     };
@@ -708,4 +708,4 @@ export const createSale = async ({
   invalidateAnalyticsCache();
 
   return sale;
-};
+};

@@ -51,7 +51,7 @@ const isValidCalendarDate = (y, m, d) => {
   return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
 };
 
-export const normalizeOcrDate = (rawDate) => {
+const normalizeOcrDate = (rawDate) => {
   if (!rawDate) return null;
   const str = String(rawDate).trim();
 
@@ -153,7 +153,7 @@ const validateImageInput = (base64Image, mimeType) => {
 /**
  * Deterministic line-by-line receipt and expiry label parser (offline/fallback engine).
  */
-export const parseReceiptText = (rawText) => {
+const parseReceiptText = (rawText) => {
   const lines = String(rawText || "")
     .split(/\r?\n/)
     .map((l) => l.trim())
@@ -306,13 +306,13 @@ const computeTokenOverlapScore = (rawName, ingName) => {
 /**
  * Matches extracted items against active ingredients and enforces bounds/date warnings.
  */
-export const matchExtractedItemsToIngredients = (extractedItems = [], ingredients = []) => {
+const matchExtractedItemsToIngredients = (extractedItems = [], ingredients = []) => {
   const todayManila = getManilaDateOnly();
   const warnings = [];
   const activeIngredients = (ingredients || []).filter((i) => !i.is_archived);
   const ingNames = activeIngredients.map((i) => i.name);
 
-  const items = (extractedItems || []).map((rawItem, idx) => {
+  const items = (extractedItems || []).slice(0, 100).map((rawItem, idx) => {
     const rawName = String(rawItem?.raw_name || "").trim().slice(0, LIMITS.NAME_MAX_LEN);
     const normRaw = normalizeName(rawName);
 
@@ -415,7 +415,10 @@ export const matchExtractedItemsToIngredients = (extractedItems = [], ingredient
       match_confidence: matchConfidence,
       needs_review: matchConfidence !== "HIGH",
       quantity: validatedQty,
-      unit: rawItem?.unit ? normalizeOcrUnit(rawItem.unit) : (matchedIng?.purchase_unit || matchedIng?.unit || null),
+      unit: (() => {
+        const u = rawItem?.unit ? normalizeOcrUnit(rawItem.unit) : null;
+        return u && OCR_UNITS.has(String(u).toUpperCase()) ? u : (matchedIng?.purchase_unit || matchedIng?.unit || null);
+      })(),
       unit_price: validatedUnitPrice,
       expiry_date: normalizedExpiry,
       batch_code: cleanBatchCode
@@ -469,15 +472,19 @@ Normalize dates to YYYY-MM-DD. If no items are visible, return {"supplier_name":
   };
 
   for (const apiKey of apiKeys) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent`;
     try {
       const response = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
         body: JSON.stringify(requestBody),
         signal: AbortSignal.timeout(12000)
       });
-      if (!response.ok) continue;
+      if (!response.ok) {
+        const body = await response.text().catch(() => "");
+        console.error(`Gemini OCR request failed (${response.status}): ${body.slice(0, 500)}`);
+        continue;
+      }
       const data = await response.json();
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!text) continue;
@@ -485,8 +492,8 @@ Normalize dates to YYYY-MM-DD. If no items are visible, return {"supplier_name":
       if (parsed && Array.isArray(parsed.items)) {
         return parsed;
       }
-    } catch {
-      // Fall through to backup key or deterministic parser
+    } catch (err) {
+      console.error("Gemini OCR error:", err?.message || err);
     }
   }
 

@@ -11,7 +11,7 @@ export const normalizeName = (name) => {
  * Calculates the Levenshtein distance between two strings.
  * Used for fuzzy matching to detect typos.
  */
-export const getLevenshteinDistance = (a, b) => {
+const getLevenshteinDistance = (a, b) => {
   const matrix = [];
 
   for (let i = 0; i <= b.length; i++) {
@@ -38,7 +38,7 @@ export const getLevenshteinDistance = (a, b) => {
   return matrix[b.length][a.length];
 };
 
-export const collapseRepeats = (str) => {
+const collapseRepeats = (str) => {
   if (!str) return '';
   return str.replace(/(.)\1+/g, '$1');
 };
@@ -86,7 +86,7 @@ export const findSimilarName = (newName, existingNames) => {
 /**
  * Normalizes a category label for case- and whitespace-insensitive comparison.
  */
-export const normalizeCategory = (cat) => {
+const normalizeCategory = (cat) => {
   const cleaned = String(cat ?? '').trim().replace(/\s+/g, ' ');
   return (cleaned || 'GENERAL').toUpperCase();
 };

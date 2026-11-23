@@ -418,9 +418,6 @@ export const receiveStock = async (id, quantity, options = {}) => {
   const validatedExpiry = batchService.validateOptionalExpiryDate(options.expiry_date);
   const validatedBatchCode = batchService.validateOptionalBatchCode(options.batch_code);
 
-  const priorIngredient = await getIngredientById(id);
-  await updateStock(id, parsedQty, "add", { maxLimit: LIMITS.STOCK_QTY_MAX });
-
   const createdBatch = await batchService.createBatch({
     ingredient_id: id,
     source: 'DIRECT_RECEIVE',
@@ -428,7 +425,8 @@ export const receiveStock = async (id, quantity, options = {}) => {
     expiry_date: validatedExpiry,
     batch_code: validatedBatchCode,
     notes: options.notes || null,
-    prior_stock: Number(priorIngredient?.stock_quantity || 0)
+    stock_increment: parsedQty,
+    stock_max: LIMITS.STOCK_QTY_MAX
   });
 
   const updated = await getIngredientById(id);

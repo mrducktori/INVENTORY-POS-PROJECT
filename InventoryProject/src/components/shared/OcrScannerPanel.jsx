@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { scanOcrDocument } from '../../api/inventoryApi';
 import { INPUT_LIMITS } from '../../utils/validationUtils';
 
-const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 6 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 
 const buildSampleReceiptText = (ingredients = []) => {
@@ -67,7 +67,7 @@ const OcrScannerPanel = ({
       return;
     }
     if (file.size > MAX_IMAGE_BYTES) {
-      setError('Image size exceeds the 8MB limit.');
+      setError('Image size exceeds the 6MB limit.');
       return;
     }
 
@@ -250,7 +250,7 @@ const OcrScannerPanel = ({
                 </div>
               )}
               <p className="m-0 text-[11px] text-gray-400">
-                Supports PNG, JPG, or WEBP up to 8MB. Text fallback parser works offline too.
+                Supports PNG, JPG, or WEBP up to 6MB. Text fallback parser works offline too.
               </p>
             </div>
 

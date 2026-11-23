@@ -141,12 +141,10 @@ export const createSale = async (req, res) => {
           price: itemPrices[idx]?.unit_price ?? item.price
         }));
 
-        let orderPackagingItems = Array.isArray(req.body.order_packaging_items)
-          ? req.body.order_packaging_items
-          : [];
+        // Client-supplied packaging is ignored; only server-configured takeout packaging applies.
+        let orderPackagingItems = [];
         const takeoutCfg = posSettings?.takeout_packaging;
         if (
-          orderPackagingItems.length === 0 &&
           takeoutCfg?.carrier_ingredient_id &&
           ((normalizedOrderType === "TAKE_OUT" && takeoutCfg.apply_to_takeout) ||
             (normalizedOrderType === "DELIVERY" && takeoutCfg.apply_to_delivery))
@@ -160,8 +158,8 @@ export const createSale = async (req, res) => {
         }
 
         const createdSale = await posService.createSale({
-          ...req.body,
           cart: authoritativeCart,
+          notes: typeof req.body.notes === "string" ? req.body.notes.slice(0, 500) : "",
           order_type: normalizedOrderType,
           order_packaging_items: orderPackagingItems,
           total: discountResult.final_total,

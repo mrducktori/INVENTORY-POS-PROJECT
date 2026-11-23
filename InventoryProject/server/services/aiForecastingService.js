@@ -896,11 +896,11 @@ Do not include markdown backticks.
           const targetModel = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
           for (let i = 0; i < apiKeys.length; i++) {
             const keyLabel = i === 0 ? 'primary' : 'backup';
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKeys[i]}`;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent`;
             try {
               const response = await fetch(url, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKeys[i] },
                 body: JSON.stringify(requestBody),
                 signal: AbortSignal.timeout(10000)
               });

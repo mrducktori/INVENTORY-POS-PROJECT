@@ -942,37 +942,21 @@ export const updatePurchaseOrderStatus = async (id, status = null, items_receive
       let createdBatch = null;
 
       if (targetIngredientId) {
-        const { data: ingData } = await supabase
-          .from("ingredients")
-          .select("stock_quantity")
-          .eq("id", targetIngredientId)
-          .single();
-
-        if (ingData) {
-          const priorStock = Number(ingData.stock_quantity || 0);
-          const baseUnitsReceived = qtyToReceive * conversion;
-          const newStock = priorStock + baseUnitsReceived;
-
-          const { error: ingUpdateErr } = await supabase
-            .from("ingredients")
-            .update({ stock_quantity: newStock })
-            .eq("id", targetIngredientId);
-          if (ingUpdateErr) throw ingUpdateErr;
-
-          createdBatch = await batchService.createBatch({
-            po_id: id,
-            po_item_id: currentItem.id,
-            ingredient_id: targetIngredientId,
-            source: 'PURCHASE_ORDER',
-            initial_quantity: baseUnitsReceived,
-            purchase_unit: item.purchase_unit || 'Unit',
-            purchase_quantity: qtyToReceive,
-            conversion_factor: conversion,
-            expiry_date: item.expiry_date || null,
-            batch_code: item.batch_code || null,
-            prior_stock: priorStock
-          });
-        }
+        const baseUnitsReceived = qtyToReceive * conversion;
+        // Stock raise + batch happen atomically under the batch lock; validation precedes the stock write.
+        createdBatch = await batchService.createBatch({
+          po_id: id,
+          po_item_id: currentItem.id,
+          ingredient_id: targetIngredientId,
+          source: 'PURCHASE_ORDER',
+          initial_quantity: baseUnitsReceived,
+          purchase_unit: item.purchase_unit || 'Unit',
+          purchase_quantity: qtyToReceive,
+          conversion_factor: conversion,
+          expiry_date: item.expiry_date || null,
+          batch_code: item.batch_code || null,
+          stock_increment: baseUnitsReceived
+        });
 
         appliedReceipts.push({
           ingredient_id: targetIngredientId,

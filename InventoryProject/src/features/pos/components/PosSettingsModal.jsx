@@ -87,6 +87,8 @@ const PosSettingsModal = ({ allIngredients = [], initialSettings = null, onSaved
   const [activeTab, setActiveTab] = useState('PROMOS');
   const [settings, setSettings] = useState(() => buildDefaultSettings(initialSettings));
   const [loading, setLoading] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const [saving, setSaving] = useState(false);
   const [uploadingProvider, setUploadingProvider] = useState(null);
   const [notice, setNotice] = useState({ type: '', text: '' });
@@ -114,9 +116,11 @@ const PosSettingsModal = ({ allIngredients = [], initialSettings = null, onSaved
         const data = await getPosSettings();
         if (mounted && data) {
           setSettings(buildDefaultSettings(data));
+          setLoadFailed(false);
         }
       } catch (err) {
         if (mounted) {
+          setLoadFailed(true);
           setNotice({ type: 'error', text: err.message || 'Failed to load POS settings.' });
         }
       } finally {
@@ -127,7 +131,7 @@ const PosSettingsModal = ({ allIngredients = [], initialSettings = null, onSaved
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [reloadKey]);
 
   const handleAddPromo = (e) => {
     e.preventDefault();
@@ -888,10 +892,18 @@ const PosSettingsModal = ({ allIngredients = [], initialSettings = null, onSaved
           >
             Close
           </button>
+          {loadFailed && (
+            <span className="mr-auto text-xs font-bold text-red-700">
+              Settings failed to load; saving is disabled.{' '}
+              <button type="button" onClick={() => setReloadKey((k) => k + 1)} className="underline bg-transparent border-none cursor-pointer text-red-700 font-bold p-0">
+                Retry
+              </button>
+            </span>
+          )}
           <button
             type="button"
             onClick={handleSave}
-            disabled={saving || loading || Boolean(uploadingProvider)}
+            disabled={saving || loading || loadFailed || Boolean(uploadingProvider)}
             className="px-6 py-2.5 bg-gray-900 hover:bg-black text-white rounded-xl text-xs font-bold uppercase tracking-wider border-none cursor-pointer disabled:opacity-50"
           >
             {saving ? 'Saving...' : 'Save Setup'}
