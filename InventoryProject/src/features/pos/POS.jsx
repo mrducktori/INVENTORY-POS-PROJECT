@@ -16,9 +16,13 @@ import { usePOS } from "./hooks/usePOS";
 const POS = () => {
   const {
     products,
+    recipesByProduct,
+    ingredientsMap,
     categories,
     categorySettings,
     cart,
+    orderType,
+    setOrderType,
     searchTerm,
     setSearchTerm,
     category,
@@ -183,6 +187,8 @@ const POS = () => {
               cart={cart}
               total={calculateTotal()}
               maxQtyByCartItemId={maxQtyByCartItemId}
+              orderType={orderType}
+              onOrderTypeChange={setOrderType}
               onUpdateQty={updateQty}
               onRemove={removeFromCart}
               onEdit={openEditOptions}
@@ -234,6 +240,8 @@ const POS = () => {
           setProductOptions={setProductOptions}
           optionsAvailability={selectedOptionsAvailability}
           optionsStock={optionsModalStock}
+          productRecipes={selectedProduct ? (recipesByProduct[selectedProduct.id] || []) : []}
+          ingredientsMap={ingredientsMap}
           onUpdateAddOnQty={updateAddOnQty}
           onConfirm={handleAddWithOptions}
           onClose={closeOptions}

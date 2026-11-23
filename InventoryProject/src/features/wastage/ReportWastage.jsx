@@ -28,13 +28,19 @@ const ReportWastage = () => {
   const [formData, setFormData] = useState({
     ingredient_id: '',
     quantity: '',
-    reason: ''
+    reason: '',
+    batch_id: ''
   });
   const [feedback, setFeedback] = useState({ type: '', text: '' });
 
   const selectedIngredient = useMemo(
     () => ingredients.find(ing => ing.id === formData.ingredient_id),
     [ingredients, formData.ingredient_id]
+  );
+
+  const selectedBatch = useMemo(
+    () => selectedIngredient?.batches?.find(b => String(b.id) === String(formData.batch_id)) || null,
+    [selectedIngredient, formData.batch_id]
   );
 
   useEffect(() => {
@@ -77,7 +83,15 @@ const ReportWastage = () => {
 
     const qty = qtyCheck.numericValue;
 
-    if (selectedIngredient && qty > parseFloat(selectedIngredient.stock_quantity || 0)) {
+    if (selectedBatch && qty > parseFloat(selectedBatch.quantity_remaining || 0) + 1e-6) {
+      setFeedback({
+        type: 'error',
+        text: `Cannot report ${qty} ${selectedIngredient.unit}. Selected batch ${selectedBatch.batch_code} only has ${selectedBatch.quantity_remaining} ${selectedIngredient.unit} remaining.`
+      });
+      return;
+    }
+
+    if (selectedIngredient && qty > parseFloat(selectedIngredient.stock_quantity || 0) + 1e-6) {
       setFeedback({
         type: 'error',
         text: `Cannot report ${qty} ${selectedIngredient.unit}. Current stock is only ${selectedIngredient.stock_quantity} ${selectedIngredient.unit}.`
@@ -89,13 +103,15 @@ const ReportWastage = () => {
       setSubmitting(true);
       const currentUser = getCurrentUser() || JSON.parse(localStorage.getItem('user') || '{}');
       await reportWastage({
-        ...formData,
+        ingredient_id: formData.ingredient_id,
+        reason: formData.reason,
         quantity: qty,
+        batch_id: formData.batch_id || null,
         reported_by: currentUser.id
       });
 
       setFeedback({ type: 'success', text: 'Wastage logged and inventory successfully deducted!' });
-      setFormData({ ingredient_id: '', quantity: '', reason: '' });
+      setFormData({ ingredient_id: '', quantity: '', reason: '', batch_id: '' });
       setTimeout(() => setFeedback({ type: '', text: '' }), 4000);
       await fetchData();
     } catch (err) {
@@ -234,7 +250,7 @@ const ReportWastage = () => {
                 ingredients={ingredients}
                 value={formData.ingredient_id}
                 onChange={(selectedId) =>
-                  setFormData((prev) => ({ ...prev, ingredient_id: selectedId }))
+                  setFormData((prev) => ({ ...prev, ingredient_id: selectedId, batch_id: '' }))
                 }
                 placeholder="Search or select raw material..."
               />
@@ -245,31 +261,40 @@ const ReportWastage = () => {
               <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-3.5 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-zinc-500">
-                    Current Stock
+                    Usable Stock
                   </span>
                   <span
                     className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold border ${
-                      selectedIngredient.stock_quantity <= 0
+                      (selectedIngredient.usable_stock ?? selectedIngredient.stock_quantity) <= 0
                         ? 'bg-zinc-900 text-white border-zinc-900'
-                        : selectedIngredient.stock_quantity <= selectedIngredient.low_stock_alert
+                        : (selectedIngredient.usable_stock ?? selectedIngredient.stock_quantity) <= selectedIngredient.low_stock_alert
                         ? 'bg-rose-50 text-rose-700 border-rose-200'
                         : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                     }`}
                   >
-                    {selectedIngredient.stock_quantity <= 0
-                      ? 'Out of Stock'
-                      : selectedIngredient.stock_quantity <= selectedIngredient.low_stock_alert
+                    {(selectedIngredient.usable_stock ?? selectedIngredient.stock_quantity) <= 0
+                      ? 'Out of Usable Stock'
+                      : (selectedIngredient.usable_stock ?? selectedIngredient.stock_quantity) <= selectedIngredient.low_stock_alert
                       ? 'Low Stock'
                       : 'In Stock'}
                   </span>
                 </div>
 
                 <div className="flex items-baseline justify-between text-sm">
-                  <span className="text-zinc-600">Available:</span>
+                  <span className="text-zinc-600">Usable Available:</span>
                   <span className="text-zinc-900 font-bold tabular-nums font-mono">
-                    {formatQuantity(selectedIngredient.stock_quantity, selectedIngredient.unit)}
+                    {formatQuantity(selectedIngredient.usable_stock ?? selectedIngredient.stock_quantity, selectedIngredient.unit)}
                   </span>
                 </div>
+
+                {(Number(selectedIngredient.expired_stock) || 0) > 0 && (
+                  <div className="flex items-baseline justify-between text-xs">
+                    <span className="text-rose-600 font-semibold">Expired Stock:</span>
+                    <span className="text-rose-700 font-bold tabular-nums font-mono">
+                      {formatQuantity(selectedIngredient.expired_stock, selectedIngredient.unit)}
+                    </span>
+                  </div>
+                )}
 
                 <div className="flex items-baseline justify-between text-xs">
                   <span className="text-zinc-500">Alert threshold:</span>
@@ -277,6 +302,28 @@ const ReportWastage = () => {
                     {formatQuantity(selectedIngredient.low_stock_alert, selectedIngredient.unit)}
                   </span>
                 </div>
+              </div>
+            )}
+
+            {/* Batch Selector */}
+            {selectedIngredient?.batches?.length > 0 && (
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-zinc-700">
+                  Batch to Deduct
+                </label>
+                <select
+                  name="batch_id"
+                  value={formData.batch_id}
+                  onChange={handleInputChange}
+                  className="w-full px-3.5 py-2.5 bg-zinc-50 hover:bg-white focus:bg-white border border-zinc-300 rounded-xl text-sm text-zinc-900 font-medium focus:outline-none focus:border-zinc-900 transition-all shadow-xs cursor-pointer"
+                >
+                  <option value="">Auto (FEFO / Earliest Expiry)</option>
+                  {selectedIngredient.batches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.batch_code} • {b.quantity_remaining} {selectedIngredient.unit} • Exp: {b.expiry_date || 'No expiry'}{b.is_expired ? ' [EXPIRED]' : ''}
+                    </option>
+                  ))}
+                </select>
               </div>
             )}
 
@@ -290,7 +337,13 @@ const ReportWastage = () => {
                   type="number"
                   step="any"
                   min="0.01"
-                  max={selectedIngredient ? Math.min(1000000, parseFloat(selectedIngredient.stock_quantity) || 1000000) : 1000000}
+                  max={
+                    selectedBatch
+                      ? Math.min(1000000, parseFloat(selectedBatch.quantity_remaining) || 1000000)
+                      : selectedIngredient
+                        ? Math.min(1000000, parseFloat(selectedIngredient.stock_quantity) || 1000000)
+                        : 1000000
+                  }
                   name="quantity"
                   placeholder="e.g. 250"
                   value={formData.quantity}

@@ -3,6 +3,7 @@ import { getArchiveTimestampsMap, getDaysSinceArchived, invalidateArchiveMap } f
 import { checkCompositeDuplicate } from "../utils/stringHelper.js";
 import { LIMITS, validateNumberBound, validateTextLength } from "../utils/validationHelper.js";
 import { invalidateCmsCache } from "./cmsService.js";
+import * as batchService from "./batchService.js";
 
 export const getIngredients = async ({ includeArchived = false } = {}) => {
   let query = supabase
@@ -17,9 +18,10 @@ export const getIngredients = async ({ includeArchived = false } = {}) => {
 
   if (error) throw error;
 
+  let rows = data || [];
   if (includeArchived) {
     const archiveMap = await getArchiveTimestampsMap();
-    return (data || []).map(item => {
+    rows = rows.map(item => {
       if (!item.is_archived) return item;
       const archivedAt = archiveMap.ingredients[item.id] || item.created_at || null;
       return {
@@ -30,7 +32,7 @@ export const getIngredients = async ({ includeArchived = false } = {}) => {
     });
   }
 
-  return data;
+  return await batchService.enrichIngredientsWithBatches(rows);
 };
 
 export const getIngredientById = async (id) => {
@@ -41,7 +43,8 @@ export const getIngredientById = async (id) => {
     .single();
 
   if (error) throw error;
-  return data;
+  const [enriched] = await batchService.enrichIngredientsWithBatches([data]);
+  return enriched;
 };
 
 const validateIngredientInput = (payload, { isUpdate = false } = {}) => {
@@ -187,6 +190,8 @@ export const createIngredient = async ({
   conversion_factor,
   cost_per_purchase_unit,
   unit_cost,
+  is_perishable,
+  default_shelf_life_days,
   force_create
 }) => {
   const validated = validateIngredientInput({
@@ -198,6 +203,22 @@ export const createIngredient = async ({
     cost_per_purchase_unit,
     unit_cost
   });
+
+  if (is_perishable !== undefined && Boolean(is_perishable)) {
+    validateNumberBound(default_shelf_life_days ?? 180, {
+      label: 'Default shelf life (days)',
+      min: LIMITS.SHELF_LIFE_DAYS_MIN,
+      max: LIMITS.SHELF_LIFE_DAYS_MAX,
+      allowZero: false
+    });
+  } else if (is_perishable === undefined && default_shelf_life_days !== undefined && default_shelf_life_days !== null && default_shelf_life_days !== '') {
+    validateNumberBound(default_shelf_life_days, {
+      label: 'Default shelf life (days)',
+      min: LIMITS.SHELF_LIFE_DAYS_MIN,
+      max: LIMITS.SHELF_LIFE_DAYS_MAX,
+      allowZero: false
+    });
+  }
 
   await assertNoIngredientDuplicate({
     name: validated.name,
@@ -241,16 +262,41 @@ export const createIngredient = async ({
     }
     throw error;
   }
-  return data;
+
+  if (is_perishable !== undefined || (default_shelf_life_days !== undefined && default_shelf_life_days !== null && default_shelf_life_days !== '')) {
+    await batchService.setIngredientPerishability(data.id, {
+      is_perishable: is_perishable !== undefined ? Boolean(is_perishable) : true,
+      default_shelf_life_days
+    });
+  }
+
+  const [enriched] = await batchService.enrichIngredientsWithBatches([data]);
+  return enriched || data;
 };
 
 // FIX #2: stock_quantity is intentionally excluded — stock must only be changed
 // through receiveStock() (add) or the POS/wastage flow (subtract).
-export const updateIngredient = async (id, { name, unit, category, low_stock_alert, image_url, purchase_unit, conversion_factor, cost_per_purchase_unit, unit_cost, force_update }) => {
+export const updateIngredient = async (id, { name, unit, category, low_stock_alert, image_url, purchase_unit, conversion_factor, cost_per_purchase_unit, unit_cost, is_perishable, default_shelf_life_days, force_update }) => {
   const validated = validateIngredientInput(
     { name, category, low_stock_alert, conversion_factor, cost_per_purchase_unit, unit_cost },
     { isUpdate: true }
   );
+
+  if (is_perishable !== undefined && Boolean(is_perishable)) {
+    validateNumberBound(default_shelf_life_days ?? 180, {
+      label: 'Default shelf life (days)',
+      min: LIMITS.SHELF_LIFE_DAYS_MIN,
+      max: LIMITS.SHELF_LIFE_DAYS_MAX,
+      allowZero: false
+    });
+  } else if (is_perishable === undefined && default_shelf_life_days !== undefined && default_shelf_life_days !== null && default_shelf_life_days !== '') {
+    validateNumberBound(default_shelf_life_days, {
+      label: 'Default shelf life (days)',
+      min: LIMITS.SHELF_LIFE_DAYS_MIN,
+      max: LIMITS.SHELF_LIFE_DAYS_MAX,
+      allowZero: false
+    });
+  }
 
   await assertNoIngredientDuplicate({
     name: validated.name,
@@ -292,7 +338,16 @@ export const updateIngredient = async (id, { name, unit, category, low_stock_ale
     }
     throw error;
   }
-  return data;
+
+  if (is_perishable !== undefined || (default_shelf_life_days !== undefined && default_shelf_life_days !== null && default_shelf_life_days !== '')) {
+    await batchService.setIngredientPerishability(id, {
+      is_perishable: is_perishable !== undefined ? Boolean(is_perishable) : true,
+      default_shelf_life_days
+    });
+  }
+
+  const [enriched] = await batchService.enrichIngredientsWithBatches([data]);
+  return enriched || data;
 };
 
 // FIX #4: Added floor guard — will throw if the result would go below 0.
@@ -333,13 +388,15 @@ export const getLowStockAlerts = async () => {
     .eq("is_archived", false);
 
   if (error) throw error;
-  
-  // Configurable Thresholds: Flag items where current_stock <= (max_stock * 0.5)
-  return (data || []).filter(i => {
-    const currentStock = parseFloat(i.stock_quantity) || 0;
+
+  const enriched = await batchService.enrichIngredientsWithBatches(data || []);
+
+  // Configurable Thresholds: Flag items where usable_stock <= (max_stock * 0.5)
+  return enriched.filter(i => {
+    const usableStock = parseFloat(i.usable_stock ?? i.stock_quantity) || 0;
     const maxStock = parseFloat(i.max_stock) || parseFloat(i.max_capacity) || (parseFloat(i.low_stock_alert || 10) * 2);
     const threshold = maxStock * 0.5;
-    return currentStock <= threshold;
+    return usableStock <= threshold;
   }).map(i => {
     const maxStock = parseFloat(i.max_stock) || parseFloat(i.max_capacity) || (parseFloat(i.low_stock_alert || 10) * 2);
     return {
@@ -350,15 +407,35 @@ export const getLowStockAlerts = async () => {
   });
 };
 
-// FIX #12: Validates that quantity is within allowed bounds before adding to stock.
-export const receiveStock = async (id, quantity) => {
+// FIX #12: Validates that quantity is within allowed bounds before adding to stock & recording batch.
+export const receiveStock = async (id, quantity, options = {}) => {
   const parsedQty = validateNumberBound(quantity, {
     label: 'Quantity received',
     min: LIMITS.RECEIVE_QTY_MIN,
     max: LIMITS.RECEIVE_QTY_MAX,
     allowZero: false
   });
-  return updateStock(id, parsedQty, "add", { maxLimit: LIMITS.STOCK_QTY_MAX });
+  const validatedExpiry = batchService.validateOptionalExpiryDate(options.expiry_date);
+  const validatedBatchCode = batchService.validateOptionalBatchCode(options.batch_code);
+
+  const priorIngredient = await getIngredientById(id);
+  await updateStock(id, parsedQty, "add", { maxLimit: LIMITS.STOCK_QTY_MAX });
+
+  const createdBatch = await batchService.createBatch({
+    ingredient_id: id,
+    source: 'DIRECT_RECEIVE',
+    initial_quantity: parsedQty,
+    expiry_date: validatedExpiry,
+    batch_code: validatedBatchCode,
+    notes: options.notes || null,
+    prior_stock: Number(priorIngredient?.stock_quantity || 0)
+  });
+
+  const updated = await getIngredientById(id);
+  return {
+    ...updated,
+    created_batch: createdBatch
+  };
 };
 
 export const deleteIngredient = async (id) => {

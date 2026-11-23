@@ -25,17 +25,56 @@ const parseAddons = (raw) => {
   }
 };
 
-const Cart = ({ cart, total, maxQtyByCartItemId = {}, onUpdateQty, onRemove, onEdit }) => {
+const ORDER_TYPES = [
+  { id: 'DINE_IN', label: 'Dine-In' },
+  { id: 'TAKE_OUT', label: 'Take-Out' },
+  { id: 'DELIVERY', label: 'Delivery' }
+];
+
+const Cart = ({
+  cart,
+  total,
+  maxQtyByCartItemId = {},
+  orderType = 'DINE_IN',
+  onOrderTypeChange = null,
+  onUpdateQty,
+  onRemove,
+  onEdit
+}) => {
   const numTotal = parseFloat(total) || 0;
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden bg-white">
       {/* Header — clean, lessened eyebrows */}
-      <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 bg-white z-10">
-        <h2 className="m-0 text-base font-bold text-gray-900">Transaction</h2>
-        <span className="text-xs font-semibold text-gray-500">
-          {cart.length} {cart.length === 1 ? 'item' : 'items'}
-        </span>
+      <div className="px-6 py-3.5 border-b border-gray-100 bg-white z-10 space-y-2.5">
+        <div className="flex justify-between items-center">
+          <h2 className="m-0 text-base font-bold text-gray-900">Transaction</h2>
+          <span className="text-xs font-semibold text-gray-500">
+            {cart.length} {cart.length === 1 ? 'item' : 'items'}
+          </span>
+        </div>
+
+        {onOrderTypeChange && (
+          <div className="grid grid-cols-3 p-1 bg-zinc-100 rounded-xl border border-zinc-200/80 gap-1">
+            {ORDER_TYPES.map((opt) => {
+              const active = orderType === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => onOrderTypeChange(opt.id)}
+                  className={`py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer border-none ${
+                    active
+                      ? 'bg-zinc-900 text-white shadow-2xs'
+                      : 'bg-transparent text-zinc-600 hover:text-zinc-900'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Cart Items List */}
@@ -64,6 +103,14 @@ const Cart = ({ cart, total, maxQtyByCartItemId = {}, onUpdateQty, onRemove, onE
                     {item.cup_size && (
                       <span className="bg-gray-100 text-gray-600 text-xs font-semibold px-2 py-0.5 rounded">
                         {item.cup_size}
+                      </span>
+                    )}
+                    {item.modifiers && (item.modifiers.sugar_level || item.modifiers.ice_level) && (
+                      <span className="text-[11px] font-medium text-zinc-500">
+                        {[
+                          item.modifiers.sugar_level ? `Sugar: ${item.modifiers.sugar_level}` : null,
+                          item.modifiers.ice_level || null
+                        ].filter(Boolean).join(' • ')}
                       </span>
                     )}
                     {parseAddons(item.add_ons).length > 0 && (

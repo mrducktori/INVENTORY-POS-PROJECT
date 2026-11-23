@@ -14,7 +14,9 @@ import {
   validateItemsAgainstStock
 } from "../utils/posStockUtils";
 
-const buildCartItemId = (productId, hasSizes, cupSize, hasAddOns, addOnsMap) => {
+const DEFAULT_MODIFIERS = { sugar_level: "100%", ice_level: "Normal Ice" };
+
+const buildCartItemId = (productId, hasSizes, cupSize, hasAddOns, addOnsMap, modifiers = null) => {
   if (!hasSizes && !hasAddOns) {
     return `${productId}-standard`;
   }
@@ -26,7 +28,9 @@ const buildCartItemId = (productId, hasSizes, cupSize, hasAddOns, addOnsMap) => 
         .sort()
         .join(",") || "none"
     : "none";
-  return `${productId}-${sizeKey}-${addOnKey}`;
+  const sugar = modifiers?.sugar_level || DEFAULT_MODIFIERS.sugar_level;
+  const ice = modifiers?.ice_level || DEFAULT_MODIFIERS.ice_level;
+  return `${productId}-${sizeKey}-${addOnKey}-s:${sugar}-i:${ice}`;
 };
 
 const resolveConfiguredItemDetails = (product, options, categorySettings) => {
@@ -62,12 +66,20 @@ const resolveConfiguredItemDetails = (product, options, categorySettings) => {
     });
   }
 
+  const normalizedModifiers = (hasSizes || hasAddOns)
+    ? {
+        sugar_level: options.modifiers?.sugar_level || DEFAULT_MODIFIERS.sugar_level,
+        ice_level: options.modifiers?.ice_level || DEFAULT_MODIFIERS.ice_level
+      }
+    : null;
+
   const cartItemId = buildCartItemId(
     product?.id,
     hasSizes,
     options.cupSize,
     hasAddOns,
-    options.addOns
+    options.addOns,
+    normalizedModifiers
   );
 
   return {
@@ -76,6 +88,7 @@ const resolveConfiguredItemDetails = (product, options, categorySettings) => {
     finalPrice,
     selectedSizeObj,
     selectedAddonObjs,
+    normalizedModifiers,
     cartItemId
   };
 };
@@ -110,6 +123,7 @@ export const usePOS = () => {
     }
   });
   const [activeTab, setActiveTab] = useState("cart");
+  const [orderType, setOrderType] = useState("DINE_IN");
 
   const [stockNotice, setStockNotice] = useState("");
   const noticeTimerRef = useRef(null);
@@ -278,9 +292,10 @@ export const usePOS = () => {
         cart,
         ongoingOrders,
         recipesByProduct,
-        ingredientsMap
+        ingredientsMap,
+        orderType
       }),
-    [cart, ongoingOrders, recipesByProduct, ingredientsMap]
+    [cart, ongoingOrders, recipesByProduct, ingredientsMap, orderType]
   );
 
   const ongoingOnlyReserved = useMemo(
@@ -289,9 +304,10 @@ export const usePOS = () => {
         cart: [],
         ongoingOrders,
         recipesByProduct,
-        ingredientsMap
+        ingredientsMap,
+        orderType
       }),
-    [ongoingOrders, recipesByProduct, ingredientsMap]
+    [ongoingOrders, recipesByProduct, ingredientsMap, orderType]
   );
 
   const stockSummaryByProductId = useMemo(() => {
@@ -316,12 +332,16 @@ export const usePOS = () => {
         ongoingOrders,
         recipesByProduct,
         ingredientsMap,
-        excludeCartItemId: item.cartItemId
+        excludeCartItemId: item.cartItemId,
+        orderType
       });
       const { maxQty } = getMaxQtyForConfiguredItem({
         product: liveProduct,
         cupSizeObj: item.cup_size_obj || null,
+        cupSizeName: item.cup_size || null,
         addOnsList: item.add_ons || [],
+        modifiers: item.modifiers || null,
+        orderType,
         recipesByProduct,
         ingredientsMap,
         reserved: reservedExcludingThis,
@@ -330,7 +350,7 @@ export const usePOS = () => {
       map[item.cartItemId] = maxQty;
     });
     return map;
-  }, [cart, ongoingOrders, productsMap, recipesByProduct, ingredientsMap, getVirtualProduct]);
+  }, [cart, ongoingOrders, productsMap, recipesByProduct, ingredientsMap, getVirtualProduct, orderType]);
 
   const cartStockValidation = useMemo(() => {
     if (!catalogLoaded) return { valid: true, issues: [] };
@@ -338,9 +358,10 @@ export const usePOS = () => {
       productsMap,
       recipesByProduct,
       ingredientsMap,
-      reserved: ongoingOnlyReserved
+      reserved: ongoingOnlyReserved,
+      orderType
     });
-  }, [catalogLoaded, cart, productsMap, recipesByProduct, ingredientsMap, ongoingOnlyReserved]);
+  }, [catalogLoaded, cart, productsMap, recipesByProduct, ingredientsMap, ongoingOnlyReserved, orderType]);
 
   const stockIssuesByOrderId = useMemo(() => {
     const map = {};
@@ -350,7 +371,8 @@ export const usePOS = () => {
         productsMap,
         recipesByProduct,
         ingredientsMap,
-        reserved: null
+        reserved: null,
+        orderType: order.order_type || "DINE_IN"
       });
       if (!res.valid) {
         map[order.id] = res.issues;
@@ -473,7 +495,8 @@ export const usePOS = () => {
   const [productOptions, setProductOptions] = useState({
     qty: 1,
     cupSize: "12 oz",
-    addOns: {}
+    addOns: {},
+    modifiers: { ...DEFAULT_MODIFIERS }
   });
 
   const optionsModalStock = useMemo(() => {
@@ -493,10 +516,11 @@ export const usePOS = () => {
       ongoingOrders,
       recipesByProduct,
       ingredientsMap,
-      excludeCartItemId: editingCartItemId
+      excludeCartItemId: editingCartItemId,
+      orderType
     });
 
-    const { selectedSizeObj, selectedAddonObjs, cartItemId } = resolveConfiguredItemDetails(
+    const { selectedSizeObj, selectedAddonObjs, normalizedModifiers, cartItemId } = resolveConfiguredItemDetails(
       selectedProduct,
       productOptions,
       categorySettings
@@ -510,7 +534,10 @@ export const usePOS = () => {
     const { stockMax, maxQty, limitingName } = getMaxQtyForConfiguredItem({
       product: selectedProduct,
       cupSizeObj: selectedSizeObj,
+      cupSizeName: productOptions.cupSize,
       addOnsList: selectedAddonObjs,
+      modifiers: normalizedModifiers,
+      orderType,
       recipesByProduct,
       ingredientsMap,
       reserved: reservedForModal,
@@ -534,9 +561,12 @@ export const usePOS = () => {
       addonMaxMap[ao.name] = getMaxAddOnQty({
         product: selectedProduct,
         cupSizeObj: selectedSizeObj,
+        cupSizeName: productOptions.cupSize,
         currentAddOns: selectedAddonObjs,
         targetAddon: ao,
         currentItemQty: productOptions.qty,
+        modifiers: normalizedModifiers,
+        orderType,
         recipesByProduct,
         ingredientsMap,
         reserved: reservedForModal
@@ -560,7 +590,8 @@ export const usePOS = () => {
     ongoingOrders,
     recipesByProduct,
     ingredientsMap,
-    editingCartItemId
+    editingCartItemId,
+    orderType
   ]);
 
   // Automatically clamp quantity when cup size, add-on, or existing cart line lowers available cap
@@ -601,7 +632,12 @@ export const usePOS = () => {
       defaultSize = availableSize ? availableSize.name : virtualProduct.sizes[0].name;
     }
 
-    setProductOptions({ qty: 1, cupSize: defaultSize, addOns: {} });
+    setProductOptions({
+      qty: 1,
+      cupSize: defaultSize,
+      addOns: {},
+      modifiers: { ...DEFAULT_MODIFIERS }
+    });
     setEditingCartItemId(null);
     setShowOptions(true);
   };
@@ -623,7 +659,11 @@ export const usePOS = () => {
     setProductOptions({
       qty: item.qty,
       cupSize: item.cup_size || liveProduct.sizes?.[0]?.name || "12 oz",
-      addOns: reconstructedAddOns
+      addOns: reconstructedAddOns,
+      modifiers: {
+        sugar_level: item.modifiers?.sugar_level || DEFAULT_MODIFIERS.sugar_level,
+        ice_level: item.modifiers?.ice_level || DEFAULT_MODIFIERS.ice_level
+      }
     });
     setEditingCartItemId(cartItemId);
     setShowOptions(true);
@@ -650,7 +690,7 @@ export const usePOS = () => {
       return;
     }
 
-    const { hasSizes, hasAddOns, finalPrice, selectedSizeObj, selectedAddonObjs, cartItemId } =
+    const { hasSizes, hasAddOns, finalPrice, selectedSizeObj, selectedAddonObjs, normalizedModifiers, cartItemId } =
       resolveConfiguredItemDetails(selectedProduct, productOptions, categorySettings);
 
     const safeQty = Math.min(maxAllowed, Math.max(1, parseInt(productOptions.qty, 10) || 1));
@@ -662,6 +702,7 @@ export const usePOS = () => {
       cup_size: hasSizes ? productOptions.cupSize : null,
       cup_size_obj: hasSizes ? selectedSizeObj : null,
       add_ons: hasAddOns ? selectedAddonObjs : [],
+      modifiers: normalizedModifiers,
       cartItemId,
       baseProduct: selectedProduct
     };
@@ -695,9 +736,10 @@ export const usePOS = () => {
       ongoingOrders,
       recipesByProduct,
       ingredientsMap,
-      excludeCartItemId: editingCartItemId
+      excludeCartItemId: editingCartItemId,
+      orderType
     });
-    const { selectedSizeObj, selectedAddonObjs } = resolveConfiguredItemDetails(
+    const { selectedSizeObj, selectedAddonObjs, normalizedModifiers } = resolveConfiguredItemDetails(
       selectedProduct,
       productOptions,
       categorySettings
@@ -706,9 +748,12 @@ export const usePOS = () => {
     const maxAo = getMaxAddOnQty({
       product: selectedProduct,
       cupSizeObj: selectedSizeObj,
+      cupSizeName: productOptions.cupSize,
       currentAddOns: selectedAddonObjs,
       targetAddon,
       currentItemQty: productOptions.qty,
+      modifiers: normalizedModifiers,
+      orderType,
       recipesByProduct,
       ingredientsMap,
       reserved: reservedForModal
@@ -826,6 +871,7 @@ export const usePOS = () => {
     const directOrder = {
       id: Date.now(),
       items: [...cart],
+      order_type: orderType,
       total: details.subtotal,
       discountType: details.discountType,
       customDiscountMode: details.customDiscountMode,
@@ -855,6 +901,7 @@ export const usePOS = () => {
       const newOrder = {
         id: Date.now(),
         items: [...cart],
+        order_type: orderType,
         total: details.subtotal,
         discountType: details.discountType,
         customDiscountMode: details.customDiscountMode,
@@ -868,6 +915,7 @@ export const usePOS = () => {
       };
       setOngoingOrders((prev) => [...prev, newOrder]);
       setCart([]);
+      setOrderType("DINE_IN");
       setDiscountType("NONE");
       setCustomDiscountValue("");
       setActiveTab("ongoing");
@@ -966,7 +1014,8 @@ export const usePOS = () => {
       productsMap: latestProductsMap,
       recipesByProduct: latestRecipesMap,
       ingredientsMap: latestIngredientsMap,
-      reserved: null
+      reserved: null,
+      orderType: updatedOrder.order_type || "DINE_IN"
     });
 
     if (!validation.valid) {
@@ -990,12 +1039,14 @@ export const usePOS = () => {
         ? parseFloat(paymentData.finalTotal)
         : Math.max(0, subtotal - discountAmount);
     const discountLabel = paymentData.discountLabel || "";
+    const resolvedOrderType = paymentOrder.order_type || orderType || "DINE_IN";
 
     const saleData = {
       cart: paymentOrder.items,
       total: finalTotal,
       discount_amount: discountAmount,
       staff_id: user.id,
+      order_type: resolvedOrderType,
       payment_method: paymentData.method,
       amount_received: paymentData.amountReceived || 0,
       change_amount: paymentData.change || 0,
@@ -1018,6 +1069,7 @@ export const usePOS = () => {
       id: createdSale.id || `LOCAL-${Date.now()}`,
       receipt_number: createdSale.receipt_number || `RCP-${Date.now().toString().slice(-6)}`,
       created_at: createdSale.created_at || new Date().toISOString(),
+      order_type: createdSale.order_type || resolvedOrderType,
       subtotal_amount: subtotal,
       discount_amount: discountAmount,
       discount_label: discountLabel,
@@ -1027,7 +1079,7 @@ export const usePOS = () => {
       amount_received: paymentData.amountReceived || finalTotal,
       change_amount: paymentData.change || 0,
       transaction_reference: paymentData.reference || "",
-      notes: saleData.notes,
+      notes: createdSale.notes || saleData.notes,
       users: {
         name: user?.name || user?.username || "Staff"
       },
@@ -1037,6 +1089,7 @@ export const usePOS = () => {
         unit_price: item.price,
         cup_size: item.cup_size || null,
         add_ons: item.add_ons || [],
+        modifiers: item.modifiers || null,
         products: {
           id: item.id,
           name: item.name,
@@ -1047,6 +1100,7 @@ export const usePOS = () => {
 
     if (paymentOrder.isDirectCartCheckout) {
       setCart([]);
+      setOrderType("DINE_IN");
       setDiscountType("NONE");
       setCustomDiscountValue("");
     } else {
@@ -1097,6 +1151,7 @@ export const usePOS = () => {
       return newCart;
     });
 
+    if (order.order_type) setOrderType(order.order_type);
     if (order.discountType) setDiscountType(order.discountType);
     if (order.customDiscountMode) setCustomDiscountMode(order.customDiscountMode);
     if (order.customDiscountValue !== undefined) setCustomDiscountValue(order.customDiscountValue);
@@ -1106,9 +1161,14 @@ export const usePOS = () => {
 
   return {
     products,
+    recipes,
+    recipesByProduct,
+    ingredientsMap,
     categories,
     categorySettings,
     cart,
+    orderType,
+    setOrderType,
     searchTerm,
     setSearchTerm,
     category,

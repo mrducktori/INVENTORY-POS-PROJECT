@@ -49,7 +49,9 @@ router.post("/", requireRecipeWriteAccess, async (req, res) => {
       product_id: recipe.product_id,
       ingredient_id: recipe.ingredient_id,
       quantity_used: recipe.quantity_used,
-      recipe_unit: recipe.recipe_unit
+      recipe_unit: recipe.recipe_unit,
+      ...(recipe.size_name ? { size_name: recipe.size_name } : {}),
+      ...(recipe.size_quantities ? { size_quantities: recipe.size_quantities } : {})
     });
     res.status(201).json(recipe);
   } catch (err) {
@@ -67,7 +69,9 @@ router.put("/:id", requireRecipeWriteAccess, async (req, res) => {
       product_id: recipe.product_id,
       ingredient_id: recipe.ingredient_id,
       quantity_used: recipe.quantity_used,
-      recipe_unit: recipe.recipe_unit
+      recipe_unit: recipe.recipe_unit,
+      ...(recipe.size_name ? { size_name: recipe.size_name } : {}),
+      ...(recipe.size_quantities ? { size_quantities: recipe.size_quantities } : {})
     });
     res.json(recipe);
   } catch (err) {

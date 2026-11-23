@@ -17,6 +17,13 @@ const parseAddons = (raw) => {
   }
 };
 
+const formatOrderTypeLabel = (orderType) => {
+  const norm = String(orderType || 'DINE_IN').toUpperCase();
+  if (norm === 'TAKE_OUT') return 'Take-Out';
+  if (norm === 'DELIVERY') return 'Delivery';
+  return 'Dine-In';
+};
+
 const OngoingOrders = ({ orders, stockIssuesByOrderId = {}, onComplete, onCancel, onEdit }) => (
   <div className="flex flex-col flex-1 overflow-hidden bg-white">
     {/* Header — clean, lessened eyebrows */}
@@ -42,7 +49,12 @@ const OngoingOrders = ({ orders, stockIssuesByOrderId = {}, onComplete, onCancel
             return (
             <div key={order.id} className="bg-white border border-gray-200 rounded-xl shadow-xs overflow-hidden transition-shadow hover:shadow-sm">
               <div className="flex justify-between items-center px-4 py-2.5 bg-gray-50 border-b border-gray-100">
-                <span className="text-sm font-bold text-gray-900">Order #{order.id}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold text-gray-900">Order #{order.id}</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-zinc-200/80 text-zinc-800">
+                    {formatOrderTypeLabel(order.order_type)}
+                  </span>
+                </div>
                 <span className="text-xs text-gray-500 font-medium">{order.timestamp}</span>
               </div>
 
@@ -66,6 +78,14 @@ const OngoingOrders = ({ orders, stockIssuesByOrderId = {}, onComplete, onCancel
                     <div className="text-[11px] text-gray-500 leading-tight">
                       {item.cup_size}{parseAddons(item.add_ons).length > 0 ? ` + ${parseAddons(item.add_ons).map(addonName).join(', ')}` : ''}
                     </div>
+                    {item.modifiers && (item.modifiers.sugar_level || item.modifiers.ice_level) && (
+                      <div className="text-[11px] text-zinc-500 leading-tight">
+                        {[
+                          item.modifiers.sugar_level ? `Sugar: ${item.modifiers.sugar_level}` : null,
+                          item.modifiers.ice_level || null
+                        ].filter(Boolean).join(' • ')}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

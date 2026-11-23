@@ -1,5 +1,6 @@
 import { supabase } from "../config/supabaseClient.js";
-import { getIngredientById, updateStock } from "./inventoryService.js";
+import { getIngredientById } from "./inventoryService.js";
+import * as batchService from "./batchService.js";
 import { logAudit } from "../utils/auditHelper.js";
 import { toManilaStartOfDay, toManilaEndOfDay } from "../utils/dateUtils.js";
 import { invalidateAnalyticsCache } from "../routes/analytics.js";
@@ -32,7 +33,7 @@ const computeWastageEntryCost = (entry) => {
 // FIX #3 & #13: Added a stock sufficiency check BEFORE logging the wastage record.
 // This prevents the audit log from being created if the deduction would fail,
 // keeping the wastage log and actual inventory perfectly in sync.
-export const reportWastage = async ({ ingredient_id, quantity, reason, reported_by }) => {
+export const reportWastage = async ({ ingredient_id, quantity, reason, batch_id = null, reported_by }) => {
   const qty = validateNumberBound(quantity, {
     label: 'Wastage quantity',
     min: LIMITS.WASTAGE_QTY_MIN,
@@ -58,8 +59,12 @@ export const reportWastage = async ({ ingredient_id, quantity, reason, reported_
     );
   }
 
-  // Deduct from stock first (most important step)
-  await updateStock(ingredient_id, qty, "subtract");
+  // Deduct from batches & stock first (preferring expired batches when reason is Expiry, or using explicit batch_id)
+  const dedResult = await batchService.deductStockFEFO(ingredient_id, qty, {
+    targetBatchId: batch_id || null,
+    preferExpired: /expir/i.test(cleanReason),
+    allowExpired: true
+  });
 
   let data;
   let estimated_cost;
@@ -86,7 +91,7 @@ export const reportWastage = async ({ ingredient_id, quantity, reason, reported_
     data = inserted;
   } catch (insertErr) {
     try {
-      await updateStock(ingredient_id, qty, "add");
+      await batchService.restoreDeductedBatches(ingredient_id, dedResult.deductedBatches);
     } catch (rollbackErr) {
       console.error("[Wastage Rollback] Failed to restore stock after insert error:", rollbackErr.message);
     }
@@ -101,7 +106,8 @@ export const reportWastage = async ({ ingredient_id, quantity, reason, reported_
     ingredient_name: ingredient.name,
     quantity: qty,
     estimated_cost,
-    reason: cleanReason
+    reason: cleanReason,
+    deducted_batches: dedResult.deductedBatches
   });
 
   return data;

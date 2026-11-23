@@ -28,8 +28,41 @@ export const formatReceiptDateTime = (isoString) => {
 export const extractDiscountLabel = (receipt) => {
   if (!receipt) return '';
   if (receipt.discount_label) return receipt.discount_label;
-  if (typeof receipt.notes === 'string' && receipt.notes.startsWith('Discount:')) {
-    return receipt.notes.replace(/^Discount:\s*/i, '').trim();
+  if (typeof receipt.notes === 'string') {
+    const match = receipt.notes.match(/Discount:\s*([^|\n]+)/i);
+    if (match?.[1]) return match[1].trim();
+  }
+  return '';
+};
+
+export const extractOrderTypeLabel = (receipt) => {
+  if (!receipt) return '';
+  const raw = String(receipt.order_type || '').trim().toUpperCase();
+  if (raw === 'TAKE_OUT') return 'Take-Out';
+  if (raw === 'DELIVERY') return 'Delivery';
+  if (raw === 'DINE_IN') return 'Dine-In';
+
+  if (typeof receipt.notes === 'string') {
+    if (/\[TAKE[-_ ]OUT\]/i.test(receipt.notes)) return 'Take-Out';
+    if (/\[DELIVERY\]/i.test(receipt.notes)) return 'Delivery';
+    if (/\[DINE[-_ ]IN\]/i.test(receipt.notes)) return 'Dine-In';
+  }
+  return '';
+};
+
+export const extractItemModifiersLabel = (item) => {
+  if (!item) return '';
+  const mods = item.modifiers && typeof item.modifiers === 'object' ? item.modifiers : null;
+  if (mods) {
+    const parts = [
+      mods.sugar_level ? `Sugar: ${mods.sugar_level}` : null,
+      mods.ice_level || null,
+      mods.note || null
+    ].filter(Boolean);
+    if (parts.length > 0) return parts.join(' • ');
+  }
+  if (typeof item.notes === 'string' && item.notes.trim()) {
+    return item.notes.trim();
   }
   return '';
 };
@@ -104,12 +137,17 @@ const buildReceiptMarkup = (
 ) => {
   const { discountAmount, totalAmount, subtotalAmount, discountLabel } =
     computeReceiptTotals(receipt);
+  const orderTypeLabel = extractOrderTypeLabel(receipt);
 
   const itemsHtml = (receipt.sale_items || [])
     .map((item) => {
       const name = escapeHtml(item.products?.name || item.name || 'Item');
       const cupSize = item.cup_size
         ? ` <span class="coftea-receipt-size">(${escapeHtml(item.cup_size)})</span>`
+        : '';
+      const modText = extractItemModifiersLabel(item);
+      const modifiersHtml = modText
+        ? `<div class="coftea-receipt-addons">${escapeHtml(modText)}</div>`
         : '';
       const addOns =
         Array.isArray(item.add_ons) && item.add_ons.length > 0
@@ -127,6 +165,7 @@ const buildReceiptMarkup = (
         <tr>
           <td class="coftea-col-item">
             <div class="coftea-item-name">${name}${cupSize}</div>
+            ${modifiersHtml}
             ${addOns}
           </td>
           <td class="coftea-col-qty">${qty}</td>
@@ -176,6 +215,11 @@ const buildReceiptMarkup = (
         <span>Cashier:</span>
         <span class="coftea-meta-val">${escapeHtml(receipt.users?.name || 'System')}</span>
       </div>
+      ${orderTypeLabel ? `
+      <div class="coftea-meta-row">
+        <span>Order Type:</span>
+        <span class="coftea-meta-val">${escapeHtml(orderTypeLabel)}</span>
+      </div>` : ''}
 
       <div class="coftea-dashed-divider"></div>
 

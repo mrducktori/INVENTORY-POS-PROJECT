@@ -192,7 +192,7 @@ const SupplierFormModal = ({
           : item.conversion_factor;
       const factorCheck = validateAmountInput(rawFactor, {
         label: `Conversion factor for ${ingName}`,
-        min: 0.01,
+        min: INPUT_LIMITS.CONVERSION_FACTOR_MIN,
         max: INPUT_LIMITS.CONVERSION_FACTOR_MAX
       });
       if (!factorCheck.valid) {
@@ -474,8 +474,8 @@ const SupplierFormModal = ({
                               <span className="text-[11px] font-bold text-zinc-500 uppercase">Yield ({ing.unit}):</span>
                               <input
                                 type="number"
-                                min="0.01"
-                                max="1000000"
+                                min={INPUT_LIMITS.CONVERSION_FACTOR_MIN}
+                                max={INPUT_LIMITS.CONVERSION_FACTOR_MAX}
                                 step="any"
                                 value={itemConfig.conversion_factor || ''}
                                 onChange={(e) => handleFieldChange(ing.id, 'conversion_factor', e.target.value)}

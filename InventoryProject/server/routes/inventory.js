@@ -16,6 +16,12 @@ router.get("/alerts", inventoryController.getLowStockAlerts);
 router.put("/ingredients/:id/archive", inventoryController.archiveIngredient);
 router.put("/ingredients/:id/restore", inventoryController.restoreIngredient);
 
+// Batch tracking, expiration alerts & stocktake reconciliation
+router.get("/batches", inventoryController.getBatches);
+router.get("/expiry-alerts", inventoryController.getExpiryAlerts);
+router.get("/stocktake", inventoryController.getStocktakeHistory);
+router.post("/stocktake", requireRole("Owner", "Admin", "Custom"), inventoryController.performStocktake);
+
 // Raw material category management
 router.get("/categories", inventoryController.getCategories);
 router.post("/categories", requireRole("Owner", "Admin", "Custom"), inventoryController.createCategory);

@@ -3,6 +3,7 @@ import { getIngredients, receiveStock } from '../../api/inventoryApi';
 import { getAllProducts, receiveProductStock } from '../../api/productsApi';
 import { formatQuantity } from '../../utils/productUtils';
 import { INPUT_LIMITS, validateAmountInput } from '../../utils/validationUtils';
+import { getManilaDateOnly, addDaysManila } from '../../utils/dateUtils';
 import SearchableIngredientSelect from '../../components/shared/SearchableIngredientSelect';
 import Pagination from '../../components/shared/Pagination';
 
@@ -14,6 +15,8 @@ const StockReceived = () => {
   const [submitting, setSubmitting] = useState(false);
   const [selectedId, setSelectedId] = useState('');
   const [quantity, setQuantity] = useState('');
+  const [expiryDate, setExpiryDate] = useState('');
+  const [batchCode, setBatchCode] = useState('');
   const [message, setMessage] = useState('');
   const [searchFilter, setSearchFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -98,10 +101,19 @@ const StockReceived = () => {
       return;
     }
 
+    const trimmedBatch = batchCode.trim();
+    if (trimmedBatch.length > INPUT_LIMITS.BATCH_CODE_MAX_LEN) {
+      setMessage(`Error: Batch / lot code must be ${INPUT_LIMITS.BATCH_CODE_MAX_LEN} characters or less.`);
+      return;
+    }
+
     try {
       setSubmitting(true);
       if (selectedItem.itemType === 'ingredient') {
-        await receiveStock(selectedId, qty);
+        await receiveStock(selectedId, qty, {
+          expiry_date: expiryDate || null,
+          batch_code: trimmedBatch || null
+        });
       } else {
         await receiveProductStock(selectedId, qty);
       }
@@ -109,6 +121,8 @@ const StockReceived = () => {
       setMessage(`Successfully added ${qty} ${selectedItem.unit || ''} to ${selectedItem.name}!`);
       setSelectedId('');
       setQuantity('');
+      setExpiryDate('');
+      setBatchCode('');
       setTimeout(() => setMessage(''), 4000);
       fetchData();
     } catch (err) {
@@ -148,7 +162,17 @@ const StockReceived = () => {
               <SearchableIngredientSelect
                 ingredients={allItems}
                 value={selectedId}
-                onChange={(id) => setSelectedId(id)}
+                onChange={(id) => {
+                  setSelectedId(id);
+                  const chosen = allItems.find(i => String(i.id) === String(id));
+                  if (chosen && chosen.itemType === 'ingredient' && chosen.is_perishable !== false) {
+                    const shelfDays = Number(chosen.default_shelf_life_days) || 30;
+                    setExpiryDate(addDaysManila(getManilaDateOnly(), shelfDays));
+                  } else {
+                    setExpiryDate('');
+                  }
+                  setBatchCode('');
+                }}
                 placeholder="Search or select ingredient or product..."
               />
             </div>
@@ -185,6 +209,42 @@ const StockReceived = () => {
                 required
               />
             </div>
+
+            {selectedItem?.itemType === 'ingredient' && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-bold text-gray-700">Expiration Date</label>
+                    {expiryDate && (
+                      <button
+                        type="button"
+                        onClick={() => setExpiryDate('')}
+                        className="text-xs font-semibold text-gray-500 hover:text-gray-900 cursor-pointer"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    type="date"
+                    value={expiryDate}
+                    onChange={(e) => setExpiryDate(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-bold text-gray-700">Batch / Lot Code (Optional)</label>
+                  <input
+                    type="text"
+                    maxLength={INPUT_LIMITS.BATCH_CODE_MAX_LEN}
+                    placeholder="Auto-generated if blank"
+                    value={batchCode}
+                    onChange={(e) => setBatchCode(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
+                  />
+                </div>
+              </div>
+            )}
 
             <button 
               type="submit" 

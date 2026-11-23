@@ -1,4 +1,5 @@
 import * as inventoryService from "../services/inventoryService.js";
+import * as batchService from "../services/batchService.js";
 import { logAudit } from "../utils/auditHelper.js";
 import { invalidateAnalyticsCache } from "../routes/analytics.js";
 
@@ -91,17 +92,23 @@ export const deleteIngredient = async (req, res) => {
 
 export const receiveStock = async (req, res) => {
   try {
-    const { quantity } = req.body;
+    const { quantity, expiry_date, batch_code, notes } = req.body;
     // Fetch ingredient name before updating
     const existing = await inventoryService.getIngredientById(req.params.id).catch(() => null);
-    const data = await inventoryService.receiveStock(req.params.id, quantity);
+    const data = await inventoryService.receiveStock(req.params.id, quantity, {
+      expiry_date,
+      batch_code,
+      notes
+    });
     invalidateAnalyticsCache();
 
     await logAudit('RAW_MATERIAL_STOCK_RECEIVED', req.user.id, {
       ingredient_id: req.params.id,
-      name: existing?.name || 'Unknown',
+      name: existing?.name || data?.name || 'Unknown',
       quantity_added: Number(quantity),
-      new_stock: data.stock_quantity
+      new_stock: data.stock_quantity,
+      batch_code: data.created_batch?.batch_code || null,
+      expiry_date: data.created_batch?.expiry_date || null
     });
 
     res.json(data);
@@ -209,6 +216,49 @@ export const deleteCategory = async (req, res) => {
     });
 
     res.json({ success: true });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+};
+
+export const getBatches = async (req, res) => {
+  try {
+    const ingredientId = req.query.ingredient_id || null;
+    const data = await batchService.getBatches({ ingredientId });
+    res.json(data);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+};
+
+export const getExpiryAlerts = async (req, res) => {
+  try {
+    const data = await batchService.getExpiryAlerts();
+    res.json(data);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+};
+
+export const getStocktakeHistory = async (req, res) => {
+  try {
+    const data = await batchService.getStocktakeHistory();
+    res.json(data);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+};
+
+export const performStocktake = async (req, res) => {
+  try {
+    const { counts, notes } = req.body;
+    const session = await batchService.performStocktake({
+      counts,
+      notes,
+      user: req.user
+    });
+    invalidateAnalyticsCache();
+    res.status(201).json(session);
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
   }

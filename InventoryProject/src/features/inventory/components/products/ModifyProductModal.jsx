@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { CATEGORIES } from '../../../../utils/constants';
 import SearchableIngredientSelect from '../../../../components/shared/SearchableIngredientSelect';
+import ProductOptionsEditor from './ProductOptionsEditor';
 
 const ModifyProductModal = ({
   selectedProduct,
@@ -20,6 +21,13 @@ const ModifyProductModal = ({
   editStockQty,
   editThreshold,
   setEditThreshold,
+  editSizes = [],
+  editAddOns = [],
+  onAddSize,
+  onRemoveSize,
+  onUpdateSize,
+  onAddAddOn,
+  onRemoveAddOn,
   onUpdateProduct,
   recipe,
   allIngredients,
@@ -34,6 +42,7 @@ const ModifyProductModal = ({
   const [editingRecipeId, setEditingRecipeId] = useState(null);
   const [editRecipeQty, setEditRecipeQty] = useState('');
   const [editRecipeUnit, setEditRecipeUnit] = useState('');
+  const [editRecipeSizeQtys, setEditRecipeSizeQtys] = useState({});
   const quantityInputRef = useRef(null);
 
   if (!selectedProduct) return null;
@@ -159,6 +168,26 @@ const ModifyProductModal = ({
             )}
           </form>
 
+          {/* Cup Sizes & Add-ons Configuration */}
+          <div className="mt-8 pt-8 border-t border-gray-200">
+            <div className="mb-4">
+              <h3 className="m-0 text-xl font-extrabold text-gray-900 tracking-tight">Cup Sizes & Add-ons Configuration</h3>
+              <p className="m-0 text-xs text-gray-500 font-medium mt-0.5">
+                Configure cup sizes, packaging materials (cup/lid/straw), multipliers, and optional add-ons. Remember to click Save Changes after modifying sizes or add-ons.
+              </p>
+            </div>
+            <ProductOptionsEditor
+              allIngredients={allIngredients}
+              sizes={editSizes}
+              onAddSize={onAddSize}
+              onRemoveSize={onRemoveSize}
+              onUpdateSize={onUpdateSize}
+              addOns={editAddOns}
+              onAddAddOn={onAddAddOn}
+              onRemoveAddOn={onRemoveAddOn}
+            />
+          </div>
+
           <div className="mt-8 pt-8 border-t border-gray-200">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
               <div>
@@ -199,76 +228,118 @@ const ModifyProductModal = ({
                           </td>
                           <td className="px-4 py-3">
                             {isEditing ? (
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="number"
-                                  step="any"
-                                  min="0.001"
-                                  max="100000"
-                                  value={editRecipeQty}
-                                  onChange={(e) => setEditRecipeQty(e.target.value)}
-                                  onKeyDown={async (e) => {
-                                    if (e.key === 'Enter') {
-                                      e.preventDefault();
-                                      const ok = await onUpdateRecipeItem(r.id, editRecipeQty, editRecipeUnit);
+                              <div className="flex flex-col gap-2">
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="number"
+                                    step="any"
+                                    min="0.001"
+                                    max="100000"
+                                    value={editRecipeQty}
+                                    onChange={(e) => setEditRecipeQty(e.target.value)}
+                                    onKeyDown={async (e) => {
+                                      if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        const ok = await onUpdateRecipeItem(r.id, editRecipeQty, editRecipeUnit, editRecipeSizeQtys);
+                                        if (ok !== false) {
+                                          setEditingRecipeId(null);
+                                        }
+                                      } else if (e.key === 'Escape') {
+                                        setEditingRecipeId(null);
+                                      }
+                                    }}
+                                    className="w-24 px-2.5 py-1.5 text-sm font-bold border border-gray-900 rounded-md bg-white focus:outline-none ring-1 ring-gray-900"
+                                    autoFocus
+                                  />
+                                  <span className="text-xs font-bold text-gray-700 px-2 py-1 bg-gray-100 rounded border border-gray-200">
+                                    {editRecipeUnit}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      const ok = await onUpdateRecipeItem(r.id, editRecipeQty, editRecipeUnit, editRecipeSizeQtys);
                                       if (ok !== false) {
                                         setEditingRecipeId(null);
                                       }
-                                    } else if (e.key === 'Escape') {
-                                      setEditingRecipeId(null);
-                                    }
-                                  }}
-                                  className="w-24 px-2.5 py-1.5 text-sm font-bold border border-gray-900 rounded-md bg-white focus:outline-none ring-1 ring-gray-900"
-                                  autoFocus
-                                />
-                                <span className="text-xs font-bold text-gray-700 px-2 py-1 bg-gray-100 rounded border border-gray-200">
-                                  {editRecipeUnit}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={async () => {
-                                    const ok = await onUpdateRecipeItem(r.id, editRecipeQty, editRecipeUnit);
-                                    if (ok !== false) {
-                                      setEditingRecipeId(null);
-                                    }
-                                  }}
-                                  className="p-1.5 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-md border border-emerald-300 transition-colors cursor-pointer"
-                                  title="Save quantity"
-                                >
-                                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                  </svg>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setEditingRecipeId(null)}
-                                  className="p-1.5 text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors cursor-pointer"
-                                  title="Cancel"
-                                >
-                                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                  </svg>
-                                </button>
+                                    }}
+                                    className="p-1.5 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-md border border-emerald-300 transition-colors cursor-pointer"
+                                    title="Save quantity"
+                                  >
+                                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingRecipeId(null)}
+                                    className="p-1.5 text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors cursor-pointer"
+                                    title="Cancel"
+                                  >
+                                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                  </button>
+                                </div>
+                                {editSizes.length > 0 && (
+                                  <div className="flex flex-wrap gap-2 pt-1">
+                                    {editSizes.map((sz) => (
+                                      <div key={sz.name} className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded px-2 py-1">
+                                        <span className="text-[11px] font-bold text-gray-600">{sz.name}:</span>
+                                        <input
+                                          type="number"
+                                          step="any"
+                                          min="0.001"
+                                          max="100000"
+                                          placeholder="Auto"
+                                          value={editRecipeSizeQtys[sz.name] ?? ''}
+                                          onChange={(e) =>
+                                            setEditRecipeSizeQtys((prev) => ({
+                                              ...prev,
+                                              [sz.name]: e.target.value
+                                            }))
+                                          }
+                                          className="w-16 px-1.5 py-0.5 text-xs font-semibold bg-white border border-gray-300 rounded"
+                                        />
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             ) : (
-                              <div className="flex items-center gap-2">
-                                <span className="px-3 py-1 text-sm font-bold bg-amber-50 text-amber-900 border border-amber-200/60 rounded-lg">
-                                  {r.quantity_used} {unitToUse}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setEditingRecipeId(r.id);
-                                    setEditRecipeQty(String(r.quantity_used));
-                                    setEditRecipeUnit(unitToUse || '');
-                                  }}
-                                  className="p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors cursor-pointer"
-                                  title="Edit quantity"
-                                >
-                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                  </svg>
-                                </button>
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="px-3 py-1 text-sm font-bold bg-amber-50 text-amber-900 border border-amber-200/60 rounded-lg">
+                                    {r.quantity_used} {unitToUse}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingRecipeId(r.id);
+                                      setEditRecipeQty(String(r.quantity_used));
+                                      setEditRecipeUnit(unitToUse || '');
+                                      setEditRecipeSizeQtys(
+                                        r.size_quantities && typeof r.size_quantities === 'object'
+                                          ? Object.fromEntries(Object.entries(r.size_quantities).map(([k, v]) => [k, String(v)]))
+                                          : {}
+                                      );
+                                    }}
+                                    className="p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors cursor-pointer"
+                                    title="Edit quantity"
+                                  >
+                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                    </svg>
+                                  </button>
+                                </div>
+                                {r.size_quantities && Object.keys(r.size_quantities).length > 0 && (
+                                  <div className="flex flex-wrap gap-1">
+                                    {Object.entries(r.size_quantities).map(([szName, szVal]) => (
+                                      <span key={szName} className="text-[11px] font-semibold px-2 py-0.5 bg-zinc-100 text-zinc-700 border border-zinc-200 rounded">
+                                        {szName}: {szVal} {unitToUse}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             )}
                           </td>
@@ -351,84 +422,119 @@ const ModifyProductModal = ({
                 );
               })()}
 
-              <form onSubmit={onAddRecipeItem} className="flex flex-col sm:flex-row gap-3 items-end">
-                <div className="flex flex-col gap-1.5 flex-[2] w-full">
-                  <label className="text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider">Select Ingredient</label>
-                  <SearchableIngredientSelect
-                    ingredients={allIngredients}
-                    value={newRecipeItem.ingredient_id}
-                    filterExcludedIds={recipe.map(r => r.ingredient_id)}
-                    autoFocusNextRef={quantityInputRef}
-                    onChange={(id, ing) => {
-                      const baseUnit = (ing?.unit || '').toUpperCase();
-                      let preferredUnit = baseUnit;
-                      if (baseUnit === 'L') preferredUnit = 'ML';
-                      if (baseUnit === 'KG') preferredUnit = 'G';
-                      setNewRecipeItem({
-                        ...newRecipeItem,
-                        ingredient_id: id,
-                        input_unit: preferredUnit
-                      });
-                    }}
-                    placeholder="Search recipe ingredient (e.g. Syrup, Tea, Cups)..."
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1.5 flex-1 w-full sm:w-auto">
-                  <label className="text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider">Quantity</label>
-                  <div className="flex gap-2">
-                    <input
-                      ref={quantityInputRef}
-                      type="number"
-                      step="any"
-                      min="0.001"
-                      max="100000"
-                      placeholder="Qty"
-                      className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm md:text-base font-semibold focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors"
-                      value={newRecipeItem.quantity}
-                      onChange={e => setNewRecipeItem({ ...newRecipeItem, quantity: e.target.value })}
-                      required
+              <form onSubmit={onAddRecipeItem} className="flex flex-col gap-3">
+                <div className="flex flex-col sm:flex-row gap-3 items-end">
+                  <div className="flex flex-col gap-1.5 flex-[2] w-full">
+                    <label className="text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider">Select Ingredient</label>
+                    <SearchableIngredientSelect
+                      ingredients={allIngredients}
+                      value={newRecipeItem.ingredient_id}
+                      filterExcludedIds={recipe.map(r => r.ingredient_id)}
+                      autoFocusNextRef={quantityInputRef}
+                      onChange={(id, ing) => {
+                        const baseUnit = (ing?.unit || '').toUpperCase();
+                        let preferredUnit = baseUnit;
+                        if (baseUnit === 'L') preferredUnit = 'ML';
+                        if (baseUnit === 'KG') preferredUnit = 'G';
+                        setNewRecipeItem({
+                          ...newRecipeItem,
+                          ingredient_id: id,
+                          input_unit: preferredUnit
+                        });
+                      }}
+                      placeholder="Search recipe ingredient (e.g. Syrup, Tea, Cups)..."
                     />
-                    {(() => {
-                      const selectedIng = allIngredients.find(i => i.id === newRecipeItem.ingredient_id);
-                      const baseUnit = (selectedIng?.unit || '').toUpperCase();
-
-                      if (baseUnit === 'L') {
-                        return (
-                          <select
-                            className="w-20 px-2 py-2 bg-gray-100 border border-gray-300 rounded-lg text-sm font-bold text-gray-900 focus:outline-none cursor-pointer"
-                            value={newRecipeItem.input_unit || 'ML'}
-                            onChange={e => setNewRecipeItem({ ...newRecipeItem, input_unit: e.target.value })}
-                          >
-                            <option value="ML">ML</option>
-                            <option value="L">L</option>
-                          </select>
-                        );
-                      } else if (baseUnit === 'KG') {
-                        return (
-                          <select
-                            className="w-20 px-2 py-2 bg-gray-100 border border-gray-300 rounded-lg text-sm font-bold text-gray-900 focus:outline-none cursor-pointer"
-                            value={newRecipeItem.input_unit || 'G'}
-                            onChange={e => setNewRecipeItem({ ...newRecipeItem, input_unit: e.target.value })}
-                          >
-                            <option value="G">G</option>
-                            <option value="KG">KG</option>
-                          </select>
-                        );
-                      } else if (baseUnit) {
-                        return <span className="flex items-center justify-center px-3 bg-gray-100 border border-gray-300 rounded-lg text-sm font-bold text-gray-900 uppercase shrink-0">{baseUnit}</span>;
-                      }
-                      return null;
-                    })()}
                   </div>
+
+                  <div className="flex flex-col gap-1.5 flex-1 w-full sm:w-auto">
+                    <label className="text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider">Base Qty</label>
+                    <div className="flex gap-2">
+                      <input
+                        ref={quantityInputRef}
+                        type="number"
+                        step="any"
+                        min="0.001"
+                        max="100000"
+                        placeholder="Qty"
+                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm md:text-base font-semibold focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors"
+                        value={newRecipeItem.quantity}
+                        onChange={e => setNewRecipeItem({ ...newRecipeItem, quantity: e.target.value })}
+                        required
+                      />
+                      {(() => {
+                        const selectedIng = allIngredients.find(i => i.id === newRecipeItem.ingredient_id);
+                        const baseUnit = (selectedIng?.unit || '').toUpperCase();
+
+                        if (baseUnit === 'L') {
+                          return (
+                            <select
+                              className="w-20 px-2 py-2 bg-gray-100 border border-gray-300 rounded-lg text-sm font-bold text-gray-900 focus:outline-none cursor-pointer"
+                              value={newRecipeItem.input_unit || 'ML'}
+                              onChange={e => setNewRecipeItem({ ...newRecipeItem, input_unit: e.target.value })}
+                            >
+                              <option value="ML">ML</option>
+                              <option value="L">L</option>
+                            </select>
+                          );
+                        } else if (baseUnit === 'KG') {
+                          return (
+                            <select
+                              className="w-20 px-2 py-2 bg-gray-100 border border-gray-300 rounded-lg text-sm font-bold text-gray-900 focus:outline-none cursor-pointer"
+                              value={newRecipeItem.input_unit || 'G'}
+                              onChange={e => setNewRecipeItem({ ...newRecipeItem, input_unit: e.target.value })}
+                            >
+                              <option value="G">G</option>
+                              <option value="KG">KG</option>
+                            </select>
+                          );
+                        } else if (baseUnit) {
+                          return <span className="flex items-center justify-center px-3 bg-gray-100 border border-gray-300 rounded-lg text-sm font-bold text-gray-900 uppercase shrink-0">{baseUnit}</span>;
+                        }
+                        return null;
+                      })()}
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="px-6 py-2.5 bg-gray-900 text-white rounded-lg text-sm md:text-base font-bold hover:bg-black transition-colors shadow-sm h-[40px] w-full sm:w-auto cursor-pointer shrink-0"
+                  >
+                    Add to Recipe
+                  </button>
                 </div>
 
-                <button
-                  type="submit"
-                  className="px-6 py-2.5 bg-gray-900 text-white rounded-lg text-sm md:text-base font-bold hover:bg-black transition-colors shadow-sm h-[40px] w-full sm:w-auto cursor-pointer shrink-0"
-                >
-                  Add to Recipe
-                </button>
+                {editSizes.length > 0 && (
+                  <div className="pt-2 border-t border-gray-200/70">
+                    <div className="text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-1.5">
+                      Per-Size Quantities (Optional overrides — leave blank for auto-scaling)
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                      {editSizes.map((sz) => (
+                        <div key={sz.name} className="flex flex-col gap-1">
+                          <label className="text-[11px] font-semibold text-gray-600">{sz.name}</label>
+                          <input
+                            type="number"
+                            step="any"
+                            min="0.001"
+                            max="100000"
+                            placeholder="Auto"
+                            value={newRecipeItem.size_quantities?.[sz.name] ?? ''}
+                            onChange={(e) =>
+                              setNewRecipeItem({
+                                ...newRecipeItem,
+                                size_quantities: {
+                                  ...(newRecipeItem.size_quantities || {}),
+                                  [sz.name]: e.target.value
+                                }
+                              })
+                            }
+                            className="px-2.5 py-1.5 bg-white border border-gray-300 rounded-lg text-xs font-semibold focus:outline-none focus:border-gray-900"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </form>
             </div>
           </div>

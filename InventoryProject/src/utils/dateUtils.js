@@ -36,6 +36,18 @@ export const getManilaDateOnly = () => {
 };
 
 /**
+ * Adds a whole number of calendar days to a YYYY-MM-DD Manila date string.
+ */
+export const addDaysManila = (dateStr, days) => {
+  const baseStr = dateStr && /^\d{4}-\d{2}-\d{2}$/.test(String(dateStr).trim())
+    ? String(dateStr).trim()
+    : getManilaDateOnly();
+  const d = new Date(`${baseStr}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + (parseInt(days, 10) || 0));
+  return d.toISOString().split('T')[0];
+};
+
+/**
  * Safely parses any date string from Supabase (which may be UTC without a 'Z' suffix)
  * into a proper Date object.
  */

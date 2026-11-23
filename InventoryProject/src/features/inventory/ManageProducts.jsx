@@ -31,6 +31,8 @@ const ManageProducts = () => {
     categoryFilter, setCategoryFilter,
     confirmConfig, setConfirmConfig,
     formData, handleInputChange, handleImageUpload,
+    handleAddFormSize, handleRemoveFormSize, handleUpdateFormSize,
+    handleAddFormAddOn, handleRemoveFormAddOn,
     selectedProduct, setSelectedProduct,
     recipe, allIngredients,
     newRecipeItem, setNewRecipeItem,
@@ -41,6 +43,10 @@ const ManageProducts = () => {
     editTrackStock, setEditTrackStock,
     editStockQty,
     editThreshold, setEditThreshold,
+    editSizes,
+    editAddOns,
+    handleAddSize, handleRemoveSize, handleUpdateEditSize,
+    handleAddAddOn, handleRemoveAddOn,
     handleAddProduct,
     handleArchiveToggle,
     handlePermanentDeleteProduct,
@@ -193,9 +199,15 @@ const ManageProducts = () => {
           <AddProductFormSection
             formData={formData}
             categories={categories}
+            allIngredients={allIngredients}
             uploading={uploading}
             onInputChange={handleInputChange}
             onImageUpload={handleImageUpload}
+            onAddFormSize={handleAddFormSize}
+            onRemoveFormSize={handleRemoveFormSize}
+            onUpdateFormSize={handleUpdateFormSize}
+            onAddFormAddOn={handleAddFormAddOn}
+            onRemoveFormAddOn={handleRemoveFormAddOn}
             onSubmit={handleAddProduct}
           />
 
@@ -277,6 +289,13 @@ const ManageProducts = () => {
           editStockQty={editStockQty}
           editThreshold={editThreshold}
           setEditThreshold={setEditThreshold}
+          editSizes={editSizes}
+          editAddOns={editAddOns}
+          onAddSize={handleAddSize}
+          onRemoveSize={handleRemoveSize}
+          onUpdateSize={handleUpdateEditSize}
+          onAddAddOn={handleAddAddOn}
+          onRemoveAddOn={handleRemoveAddOn}
           onUpdateProduct={handleUpdateProduct}
           recipe={recipe}
           allIngredients={allIngredients}

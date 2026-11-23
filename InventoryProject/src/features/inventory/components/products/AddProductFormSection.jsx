@@ -1,21 +1,32 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { CATEGORIES } from '../../../../utils/constants';
+import ProductOptionsEditor from './ProductOptionsEditor';
 
 const AddProductFormSection = ({
   formData,
   categories,
+  allIngredients = [],
   uploading,
   onInputChange,
   onImageUpload,
+  onAddFormSize,
+  onRemoveFormSize,
+  onUpdateFormSize,
+  onAddFormAddOn,
+  onRemoveFormAddOn,
   onSubmit
 }) => {
+  const [showOptionsEditor, setShowOptionsEditor] = useState(false);
   const categoryOptions =
     Array.isArray(categories) && categories.length > 0
       ? categories
       : CATEGORIES.filter((c) => c !== 'OTHERS');
 
+  const sizeCount = formData.sizes?.length || 0;
+  const addOnCount = formData.add_ons?.length || 0;
+
   return (
-    <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden flex-1 max-w-xl">
+    <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden flex-1 max-w-2xl">
       <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 ">
         <h2 className="m-0 text-lg md:text-xl font-bold text-gray-900 tracking-tight">Add New Product</h2>
       </div>
@@ -84,6 +95,42 @@ const AddProductFormSection = ({
               </div>
             </div>
           )}
+
+          {/* Cup Sizes & Add-ons Section */}
+          <div className="border border-gray-200 rounded-xl overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setShowOptionsEditor((prev) => !prev)}
+              className="w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 flex items-center justify-between text-left border-none cursor-pointer transition-colors"
+            >
+              <div>
+                <span className="block text-xs md:text-sm font-bold text-gray-900 uppercase tracking-wider">
+                  Cup Sizes & Add-ons
+                </span>
+                <span className="block text-[11px] text-gray-500 font-medium mt-0.5">
+                  {sizeCount} size(s), {addOnCount} add-on(s) {formData.category ? `• Auto-filled from ${formData.category}` : '• Select a category to auto-fill defaults'}
+                </span>
+              </div>
+              <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                {showOptionsEditor ? 'Hide' : 'Configure'}
+              </span>
+            </button>
+            {showOptionsEditor && (
+              <div className="p-3 bg-white border-t border-gray-200">
+                <ProductOptionsEditor
+                  allIngredients={allIngredients}
+                  sizes={formData.sizes || []}
+                  onAddSize={onAddFormSize}
+                  onRemoveSize={onRemoveFormSize}
+                  onUpdateSize={onUpdateFormSize}
+                  addOns={formData.add_ons || []}
+                  onAddAddOn={onAddFormAddOn}
+                  onRemoveAddOn={onRemoveFormAddOn}
+                  compact
+                />
+              </div>
+            )}
+          </div>
 
           <div className="pt-4 border-t border-gray-100 mt-2">
             <button type="submit" className="w-full py-3.5 bg-gray-900 text-white rounded-xl text-sm md:text-base font-bold uppercase tracking-wider hover:bg-black hover:shadow-lg transition-all hover:-translate-y-0.5 cursor-pointer">Add Product</button>

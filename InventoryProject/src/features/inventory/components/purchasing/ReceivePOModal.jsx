@@ -1,13 +1,23 @@
 import React, { useState } from 'react';
 import InfoTip from '../../../../components/shared/InfoTip';
+import { getManilaDateOnly, addDaysManila } from '../../../../utils/dateUtils';
+import { INPUT_LIMITS } from '../../../../utils/validationUtils';
 
 const ReceivePOModal = ({ po, onClose, onSubmit }) => {
-  const [items, setItems] = useState(
-    po.purchase_order_items.map(item => ({
-      ...item,
-      received_now: Math.max(1, (item.quantity || 1) - (item.quantity_received || 0))
-    }))
-  );
+  const [items, setItems] = useState(() => {
+    const todayManila = getManilaDateOnly();
+    return po.purchase_order_items.map(item => {
+      const isPerishable = item.ingredients?.is_perishable !== false;
+      const shelfDays = Number(item.ingredients?.default_shelf_life_days) || 30;
+      const defaultExpiry = isPerishable ? addDaysManila(todayManila, shelfDays) : '';
+      return {
+        ...item,
+        received_now: Math.max(1, (item.quantity || 1) - (item.quantity_received || 0)),
+        expiry_date: defaultExpiry,
+        batch_code: ''
+      };
+    });
+  });
   const [saving, setSaving] = useState(false);
   const [isReviewStep, setIsReviewStep] = useState(false);
 
@@ -25,10 +35,23 @@ const ReceivePOModal = ({ po, onClose, onSubmit }) => {
     setItems(prev => prev.map(item => item.id === id ? { ...item, received_now: fullQuantity } : item));
   };
 
+  const handleExpiryChange = (id, val) => {
+    setItems(prev => prev.map(item => item.id === id ? { ...item, expiry_date: val } : item));
+  };
+
+  const handleBatchCodeChange = (id, val) => {
+    setItems(prev => prev.map(item => item.id === id ? { ...item, batch_code: val } : item));
+  };
+
   // Determine items to receive
   const itemsToSubmit = items
     .filter(item => item.received_now > 0)
-    .map(item => ({ ...item, quantity_received_now: item.received_now }));
+    .map(item => ({
+      ...item,
+      quantity_received_now: item.received_now,
+      expiry_date: item.expiry_date || null,
+      batch_code: item.batch_code?.trim() || null
+    }));
 
   const isComplete = items.every(item => item.is_received || ((item.quantity_received || 0) + (item.received_now || 0)) >= item.quantity);
   const newStatus = isComplete ? 'Received' : 'Partial';
@@ -86,49 +109,87 @@ const ReceivePOModal = ({ po, onClose, onSubmit }) => {
                   const isFullyReceivedAlready = item.is_received || item.quantity_received >= item.quantity;
 
                   return (
-                    <div key={item.id} className={`flex flex-col md:flex-row md:items-center gap-4 p-4 border rounded-xl transition-all ${isFullyReceivedAlready ? 'bg-zinc-50 border-zinc-200 opacity-70' : 'bg-white border-zinc-200 hover:border-zinc-300 shadow-2xs'}`}>
-                      <div className="flex-1">
-                        <div className="text-sm md:text-base font-bold text-zinc-900">{item.ingredients?.name}</div>
-                        <div className="text-xs font-semibold text-zinc-500 mt-0.5">
-                          Ordered: {item.quantity} {item.purchase_unit} • Previously Received: {item.quantity_received || 0}
+                    <div key={item.id} className={`flex flex-col gap-3 p-4 border rounded-xl transition-all ${isFullyReceivedAlready ? 'bg-zinc-50 border-zinc-200 opacity-70' : 'bg-white border-zinc-200 hover:border-zinc-300 shadow-2xs'}`}>
+                      <div className="flex flex-col md:flex-row md:items-center gap-4">
+                        <div className="flex-1">
+                          <div className="text-sm md:text-base font-bold text-zinc-900">{item.ingredients?.name}</div>
+                          <div className="text-xs font-semibold text-zinc-500 mt-0.5">
+                            Ordered: {item.quantity} {item.purchase_unit} • Previously Received: {item.quantity_received || 0}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          {isFullyReceivedAlready ? (
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg">
+                              <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                              </svg>
+                              Fully Received
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <div className="flex items-center border border-zinc-300 rounded-lg overflow-hidden bg-white shadow-xs focus-within:ring-2 focus-within:ring-zinc-900 focus-within:border-transparent transition-all">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max={maxRemaining}
+                                  step="any"
+                                  className="w-20 px-3 py-2 text-sm md:text-base font-bold text-zinc-900 text-center border-none focus:outline-none"
+                                  value={item.received_now === 0 ? '' : item.received_now}
+                                  onChange={(e) => handleQuantityChange(item.id, e.target.value)}
+                                  placeholder="0"
+                                />
+                                <div className="px-3 py-2 bg-zinc-50 border-l border-zinc-200 text-xs md:text-sm font-semibold text-zinc-700">
+                                  {item.purchase_unit}
+                                </div>
+                                <button
+                                  type="button"
+                                  className="px-3 py-2 bg-zinc-100 hover:bg-zinc-200 border-l border-zinc-200 text-xs font-bold text-zinc-700 transition-colors uppercase tracking-wider cursor-pointer"
+                                  onClick={() => setMaxQuantity(item.id, maxRemaining)}
+                                >
+                                  Max
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        {isFullyReceivedAlready ? (
-                          <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg">
-                            <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
-                            </svg>
-                            Fully Received
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <div className="flex items-center border border-zinc-300 rounded-lg overflow-hidden bg-white shadow-xs focus-within:ring-2 focus-within:ring-zinc-900 focus-within:border-transparent transition-all">
-                              <input
-                                type="number"
-                                min="0"
-                                max={maxRemaining}
-                                step="any"
-                                className="w-20 px-3 py-2 text-sm md:text-base font-bold text-zinc-900 text-center border-none focus:outline-none"
-                                value={item.received_now === 0 ? '' : item.received_now}
-                                onChange={(e) => handleQuantityChange(item.id, e.target.value)}
-                                placeholder="0"
-                              />
-                              <div className="px-3 py-2 bg-zinc-50 border-l border-zinc-200 text-xs md:text-sm font-semibold text-zinc-700">
-                                {item.purchase_unit}
-                              </div>
-                              <button
-                                type="button"
-                                className="px-3 py-2 bg-zinc-100 hover:bg-zinc-200 border-l border-zinc-200 text-xs font-bold text-zinc-700 transition-colors uppercase tracking-wider cursor-pointer"
-                                onClick={() => setMaxQuantity(item.id, maxRemaining)}
-                              >
-                                Max
-                              </button>
+                      {!isFullyReceivedAlready && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-zinc-100">
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center justify-between">
+                              <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Expiration Date</label>
+                              {item.expiry_date && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleExpiryChange(item.id, '')}
+                                  className="text-[11px] font-semibold text-zinc-500 hover:text-zinc-900 cursor-pointer"
+                                >
+                                  Clear
+                                </button>
+                              )}
                             </div>
+                            <input
+                              type="date"
+                              value={item.expiry_date || ''}
+                              onChange={(e) => handleExpiryChange(item.id, e.target.value)}
+                              className="px-3 py-1.5 border border-zinc-300 rounded-lg text-xs font-semibold text-zinc-900 bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                            />
                           </div>
-                        )}
-                      </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Batch / Lot Code</label>
+                            <input
+                              type="text"
+                              maxLength={INPUT_LIMITS.BATCH_CODE_MAX_LEN}
+                              value={item.batch_code || ''}
+                              onChange={(e) => handleBatchCodeChange(item.id, e.target.value)}
+                              placeholder="Auto-generated"
+                              className="px-3 py-1.5 border border-zinc-300 rounded-lg text-xs font-semibold text-zinc-900 bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -201,6 +262,11 @@ const ReceivePOModal = ({ po, onClose, onSubmit }) => {
                           <div className="text-zinc-500 font-medium">
                             Receiving: {item.quantity_received_now} {item.purchase_unit}
                             {conv > 1 && ` (+${baseUnits.toLocaleString()} ${item.ingredients?.unit || 'base units'})`}
+                          </div>
+                          <div className="text-[11px] text-zinc-500 font-medium mt-0.5">
+                            Batch: <span className="font-semibold text-zinc-700">{item.batch_code || 'Auto-generated'}</span>
+                            {' • '}
+                            Expiry: <span className="font-semibold text-zinc-700">{item.expiry_date || 'No expiry'}</span>
                           </div>
                         </div>
                         <div className="text-right">

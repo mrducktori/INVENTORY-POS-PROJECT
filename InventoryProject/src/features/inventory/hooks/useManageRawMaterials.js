@@ -34,7 +34,14 @@ export const useManageRawMaterials = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingId, setProcessingId] = useState(null);
 
-  const [formData, setFormData] = useState({ name: '', unit: '', category: '', low_stock_alert: '' });
+  const [formData, setFormData] = useState({
+    name: '',
+    unit: '',
+    category: '',
+    low_stock_alert: '',
+    is_perishable: true,
+    default_shelf_life_days: 30
+  });
 
   const [selectedIngredient, setSelectedIngredient] = useState(null);
   const [editName, setEditName] = useState('');
@@ -45,6 +52,8 @@ export const useManageRawMaterials = () => {
   const [editConversionFactor, setEditConversionFactor] = useState(1);
   const [editCost, setEditCost] = useState(0);
   const [editCategory, setEditCategory] = useState('');
+  const [editIsPerishable, setEditIsPerishable] = useState(true);
+  const [editShelfLifeDays, setEditShelfLifeDays] = useState(30);
 
   const [categoryObjects, setCategoryObjects] = useState(() =>
     RAW_MATERIAL_CATEGORIES.map((category) => ({ category, ingredient_count: 0 }))
@@ -95,8 +104,8 @@ export const useManageRawMaterials = () => {
   };
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
   };
 
   const handleAddIngredient = async (e, forceCreate = false) => {
@@ -104,6 +113,7 @@ export const useManageRawMaterials = () => {
     const newName = String(formData.name || '').trim().toUpperCase();
     const newUnit = String(formData.unit || '').trim().toUpperCase();
     const trimmedCategory = formData.category ? String(formData.category).trim() : null;
+    const isPerishable = formData.is_perishable !== false;
 
     if (!newName) {
       setMessage('Error: Ingredient name is required.');
@@ -131,6 +141,20 @@ export const useManageRawMaterials = () => {
     if (!alertCheck.valid) {
       setMessage('Error: ' + alertCheck.error);
       return;
+    }
+
+    let shelfLifeDays = null;
+    if (isPerishable) {
+      const shelfCheck = validateAmountInput(formData.default_shelf_life_days, {
+        label: 'Default shelf life (days)',
+        min: INPUT_LIMITS.SHELF_LIFE_DAYS_MIN,
+        max: INPUT_LIMITS.SHELF_LIFE_DAYS_MAX
+      });
+      if (!shelfCheck.valid) {
+        setMessage('Error: ' + shelfCheck.error);
+        return;
+      }
+      shelfLifeDays = Math.round(shelfCheck.numericValue);
     }
 
     if (!forceCreate) {
@@ -162,10 +186,19 @@ export const useManageRawMaterials = () => {
         category: trimmedCategory,
         low_stock_alert: alertCheck.numericValue,
         stock_quantity: 0,
+        is_perishable: isPerishable,
+        default_shelf_life_days: shelfLifeDays,
         force_create: forceCreate
       });
       setMessage('Ingredient created successfully!');
-      setFormData({ name: '', unit: '', category: '', low_stock_alert: '' });
+      setFormData({
+        name: '',
+        unit: '',
+        category: '',
+        low_stock_alert: '',
+        is_perishable: true,
+        default_shelf_life_days: 30
+      });
       fetchIngredients();
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
@@ -321,6 +354,21 @@ export const useManageRawMaterials = () => {
       return;
     }
 
+    const isPerishable = Boolean(editIsPerishable);
+    let shelfLifeDays = null;
+    if (isPerishable) {
+      const shelfCheck = validateAmountInput(editShelfLifeDays, {
+        label: 'Default shelf life (days)',
+        min: INPUT_LIMITS.SHELF_LIFE_DAYS_MIN,
+        max: INPUT_LIMITS.SHELF_LIFE_DAYS_MAX
+      });
+      if (!shelfCheck.valid) {
+        setMessage('Error: ' + shelfCheck.error);
+        return;
+      }
+      shelfLifeDays = Math.round(shelfCheck.numericValue);
+    }
+
     if (!forceUpdate) {
       const similarityMatch = checkDuplicateOrSimilar(editName, ingredients, selectedIngredient.id, trimmedCategory);
       if (similarityMatch?.isHardDuplicate) {
@@ -353,6 +401,8 @@ export const useManageRawMaterials = () => {
         purchase_unit: trimmedPurchaseUnit || 'Unit',
         conversion_factor: factorCheck.numericValue,
         cost_per_purchase_unit: costCheck.numericValue,
+        is_perishable: isPerishable,
+        default_shelf_life_days: shelfLifeDays,
         force_update: forceUpdate
       });
       setMessage('Ingredient details updated successfully!');
@@ -390,6 +440,9 @@ export const useManageRawMaterials = () => {
     setEditPurchaseUnit(ingredient.purchase_unit || 'Unit');
     setEditConversionFactor(ingredient.conversion_factor || 1);
     setEditCost(ingredient.cost_per_purchase_unit || 0);
+    const isPerishable = ingredient.is_perishable !== false;
+    setEditIsPerishable(isPerishable);
+    setEditShelfLifeDays(isPerishable ? (ingredient.default_shelf_life_days ?? 30) : '');
   };
 
   return {
@@ -414,6 +467,8 @@ export const useManageRawMaterials = () => {
     editConversionFactor, setEditConversionFactor,
     editCost, setEditCost,
     editCategory, setEditCategory,
+    editIsPerishable, setEditIsPerishable,
+    editShelfLifeDays, setEditShelfLifeDays,
     UNIT_CHOICES,
     handleAddIngredient,
     handleArchiveToggle,

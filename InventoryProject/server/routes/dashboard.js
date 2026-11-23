@@ -1,6 +1,7 @@
 import express from 'express';
 import { supabase } from '../config/supabaseClient.js';
 import * as inventoryService from '../services/inventoryService.js';
+import * as batchService from '../services/batchService.js';
 import { toManilaStartOfDay, toManilaEndOfDay, getManilaDateOnly } from '../utils/dateUtils.js';
 import { requireRole } from '../middleware/authMiddleware.js';
 
@@ -88,7 +89,8 @@ router.get('/stats', async (req, res) => {
       fetchedSales,
       { count: productCount },
       ingredients,
-      { data: lowStockProductsData }
+      { data: lowStockProductsData },
+      expiryAlerts
     ] = await Promise.all([
       fetchBoundedSales(
         salesQueryStart,
@@ -104,7 +106,8 @@ router.get('/stats', async (req, res) => {
         .from('products')
         .select('name, stock_quantity, low_stock_threshold, max_stock')
         .eq('track_stock', true)
-        .eq('is_archived', false)
+        .eq('is_archived', false),
+      batchService.getExpiryAlerts()
     ]);
 
     // 3. Basic metrics from bounded sales
@@ -121,20 +124,22 @@ router.get('/stats', async (req, res) => {
     const transactionsCount = salesList.length;
     const avgTransactionValue = transactionsCount > 0 ? (totalRevenue / transactionsCount) : 0;
 
-    // 4. Products count & Configurable Threshold Low Stock Alerts
+    // 4. Products count & Configurable Threshold Low Stock Alerts (using usable non-expired stock)
     const lowStockIngredients = (ingredients || [])
       .filter(i => {
-        const currentStock = parseFloat(i.stock_quantity) || 0;
+        const currentStock = parseFloat(i.usable_stock ?? i.stock_quantity) || 0;
         const maxStock = parseFloat(i.max_stock) || parseFloat(i.max_capacity) || (parseFloat(i.low_stock_alert || 10) * 2);
         const threshold = maxStock * 0.5;
         return currentStock <= threshold;
       })
       .map(i => {
-        const currentStock = parseFloat(i.stock_quantity) || 0;
+        const currentStock = parseFloat(i.usable_stock ?? i.stock_quantity) || 0;
         const maxStock = parseFloat(i.max_stock) || parseFloat(i.max_capacity) || (parseFloat(i.low_stock_alert || 10) * 2);
         return {
           name: i.name,
           stock: currentStock,
+          usable_stock: currentStock,
+          expired_stock: parseFloat(i.expired_stock) || 0,
           unit: i.unit,
           max_stock: maxStock,
           threshold: maxStock * 0.5
@@ -276,6 +281,7 @@ router.get('/stats', async (req, res) => {
       topProducts,
       topProductsByCategory,
       categoryData,
+      expiryAlerts,
       dateRange: {
         startDate: boundStart,
         endDate: boundEnd

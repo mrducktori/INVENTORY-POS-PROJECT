@@ -3,7 +3,7 @@ import { supabase } from "../config/supabaseClient.js";
 import { logAudit } from "../utils/auditHelper.js";
 import { checkCompositeDuplicate } from "../utils/stringHelper.js";
 import { LIMITS, validateNumberBound, validateTextLength } from "../utils/validationHelper.js";
-import { recalculateProductEstimatedCost } from "../services/recipesService.js";
+import { recalculateProductEstimatedCost, createRecipe, validateSizeOverridesInput } from "../services/recipesService.js";
 import { invalidateAnalyticsCache } from "./analytics.js";
 import { requireRole } from "../middleware/authMiddleware.js";
 import { getArchiveTimestampsMap, getDaysSinceArchived, invalidateArchiveMap } from "../utils/archiveHelper.js";
@@ -84,7 +84,25 @@ const validateProductInput = (body, { isUpdate = false } = {}) => {
         min: LIMITS.ADDON_PRICE_MIN,
         max: LIMITS.ADDON_PRICE_MAX
       });
-      return { ...s, ...(cleanSizeName !== undefined ? { name: cleanSizeName } : {}), price_add };
+      const hasMult = s.recipe_multiplier !== undefined && s.recipe_multiplier !== null && s.recipe_multiplier !== '';
+      const recipe_multiplier = hasMult
+        ? validateNumberBound(s.recipe_multiplier, {
+            label: 'Size recipe multiplier',
+            min: 0.1,
+            max: 10,
+            allowZero: false
+          })
+        : 1;
+      return {
+        ...s,
+        ...(cleanSizeName !== undefined ? { name: cleanSizeName } : {}),
+        price_add,
+        recipe_multiplier,
+        ingredient_id: s.ingredient_id || null,
+        lid_ingredient_id: s.lid_ingredient_id || null,
+        straw_ingredient_id: s.straw_ingredient_id || null,
+        dine_in_no_cup: Boolean(s.dine_in_no_cup)
+      };
     });
   } else {
     sizes = [];
@@ -131,7 +149,40 @@ const validateProductInput = (body, { isUpdate = false } = {}) => {
     add_ons = [];
   }
 
-  return { name, category, description, price, low_stock_threshold, stock_quantity, sizes, add_ons };
+  let initial_recipes = [];
+  if (!isUpdate && body.initial_recipes !== undefined && body.initial_recipes !== null) {
+    if (!Array.isArray(body.initial_recipes)) {
+      const err = new Error('initial_recipes must be an array.');
+      err.status = 400;
+      throw err;
+    }
+    initial_recipes = body.initial_recipes.map((r) => {
+      if (!r || typeof r !== 'object' || !r.ingredient_id) {
+        const err = new Error('Each initial recipe item must include an ingredient_id.');
+        err.status = 400;
+        throw err;
+      }
+      const quantity_used = validateNumberBound(r.quantity_used, {
+        label: 'Recipe quantity',
+        min: LIMITS.RECIPE_QTY_MIN,
+        max: LIMITS.RECIPE_QTY_MAX,
+        allowZero: false
+      });
+      const overrides = validateSizeOverridesInput({
+        size_name: r.size_name,
+        size_quantities: r.size_quantities
+      });
+      return {
+        ingredient_id: r.ingredient_id,
+        quantity_used,
+        recipe_unit: r.recipe_unit || null,
+        size_name: overrides.size_name,
+        size_quantities: overrides.size_quantities
+      };
+    });
+  }
+
+  return { name, category, description, price, low_stock_threshold, stock_quantity, sizes, add_ons, initial_recipes };
 };
 
 const findProductDuplicateConflict = async ({ name, category, excludeId = null, force = false }) => {
@@ -232,6 +283,23 @@ router.post('/', async (req, res) => {
       .select()
       .single();
     if (error) throw error;
+
+    if (validated.initial_recipes.length > 0) {
+      for (const r of validated.initial_recipes) {
+        await createRecipe({
+          product_id: data.id,
+          ingredient_id: r.ingredient_id,
+          quantity_used: r.quantity_used,
+          recipe_unit: r.recipe_unit,
+          size_name: r.size_name,
+          size_quantities: r.size_quantities
+        });
+      }
+      const updatedCost = await recalculateProductEstimatedCost(data.id);
+      if (updatedCost !== null) {
+        data.estimated_cost = updatedCost;
+      }
+    }
 
     invalidateAnalyticsCache();
 

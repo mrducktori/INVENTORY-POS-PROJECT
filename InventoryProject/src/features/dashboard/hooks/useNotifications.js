@@ -101,6 +101,15 @@ export const resolveNotificationAction = (notification, user) => {
   if (!user) return { actionTab: null, actionLabel: null };
 
   if (notification.category === 'STOCK') {
+    if (notification.type === 'BATCH_EXPIRED' || notification.type === 'BATCH_EXPIRING_SOON') {
+      if (canAccess(user, 'LowStockAlerts')) {
+        return { actionTab: 'LowStockAlerts', actionLabel: 'Inspect Alerts' };
+      }
+      if (canAccess(user, 'RawMaterialTracker')) {
+        return { actionTab: 'RawMaterialTracker', actionLabel: 'Inspect Batches' };
+      }
+      return { actionTab: null, actionLabel: null };
+    }
     const isPcs = notification.unit === 'PCS';
     const primaryTab = isPcs ? 'ProductStockTracker' : 'RawMaterialTracker';
     if (canAccess(user, primaryTab)) {
@@ -142,6 +151,7 @@ export const resolveNotificationAction = (notification, user) => {
 const sharedStore = {
   orders: [],
   internalLowStock: [],
+  internalExpiryAlerts: null,
   priceUpdates: [],
   loading: true,
   userStates: {}, // { [userId]: { readIds: [], dismissedIds: [] } }
@@ -225,7 +235,12 @@ const fetchSharedPriceUpdates = async (force = false) => {
 
 const fetchSharedLowStock = async (force = false) => {
   const now = Date.now();
-  if (!force && sharedStore.lastLowStockTime > 0 && now - sharedStore.lastLowStockTime < 30000) {
+  if (
+    !force &&
+    sharedStore.internalExpiryAlerts !== null &&
+    sharedStore.lastLowStockTime > 0 &&
+    now - sharedStore.lastLowStockTime < 30000
+  ) {
     return sharedStore.internalLowStock;
   }
   if (sharedStore.lowStockPromise) return sharedStore.lowStockPromise;
@@ -236,8 +251,12 @@ const fetchSharedLowStock = async (force = false) => {
       const details = stats?.lowStockDetails || stats?.lowStockItemsDetails;
       if (Array.isArray(details)) {
         sharedStore.internalLowStock = details;
-        notifyListeners();
       }
+      sharedStore.internalExpiryAlerts = stats?.expiryAlerts || {
+        expiredBatches: [],
+        expiringSoonBatches: []
+      };
+      notifyListeners();
       return sharedStore.internalLowStock;
     })
     .catch(() => sharedStore.internalLowStock)
@@ -302,6 +321,7 @@ export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK, userOverride =
 
   const orders = snapshot.orders;
   const internalLowStock = snapshot.internalLowStock;
+  const internalExpiryAlerts = snapshot.internalExpiryAlerts;
   const priceUpdates = snapshot.priceUpdates;
   const loading = snapshot.loading;
 
@@ -338,9 +358,9 @@ export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK, userOverride =
   useEffect(() => {
     if (Array.isArray(lowStockItems) && lowStockItems.length > 0) {
       sharedStore.internalLowStock = lowStockItems;
-      sharedStore.lastLowStockTime = Date.now();
       notifyListeners();
-    } else if (canViewStock && sharedStore.lastLowStockTime === 0) {
+    }
+    if (canViewStock && (sharedStore.lastLowStockTime === 0 || sharedStore.internalExpiryAlerts === null)) {
       fetchSharedLowStock(false);
     }
   }, [lowStockItems, canViewStock]);
@@ -357,7 +377,7 @@ export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK, userOverride =
     if (canViewSuppliers) {
       fetchSharedPriceUpdates(false);
     }
-    if (canViewStock && sharedStore.lastLowStockTime === 0) {
+    if (canViewStock && (sharedStore.lastLowStockTime === 0 || sharedStore.internalExpiryAlerts === null)) {
       fetchSharedLowStock(false);
     }
 
@@ -452,6 +472,56 @@ export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK, userOverride =
               isRead,
             });
           }
+        });
+      }
+
+      if (internalExpiryAlerts) {
+        const expiredList = Array.isArray(internalExpiryAlerts.expiredBatches)
+          ? internalExpiryAlerts.expiredBatches
+          : [];
+        expiredList.forEach((batch) => {
+          const id = `batch_expired_${batch.id || batch.batch_code}`;
+          if (dismissedSet.has(id)) return;
+          const actionInfo = resolveNotificationAction({ category: 'STOCK', type: 'BATCH_EXPIRED' }, activeUser);
+          list.push({
+            id,
+            category: 'STOCK',
+            type: 'BATCH_EXPIRED',
+            title: `Batch Expired: ${batch.ingredient_name}`,
+            message: `Batch ${batch.batch_code} (${formatQuantity(batch.quantity_remaining, batch.unit)}) expired on ${batch.expiry_date || 'N/A'} and is excluded from POS deduction.`,
+            badgeText: 'Expired',
+            badgeVariant: 'danger',
+            actionTab: actionInfo.actionTab,
+            actionLabel: actionInfo.actionLabel,
+            timestamp: snapshotNowMs - 30000,
+            isRead: readSet.has(id),
+          });
+        });
+
+        const expiringList = Array.isArray(internalExpiryAlerts.expiringSoonBatches)
+          ? internalExpiryAlerts.expiringSoonBatches
+          : [];
+        expiringList.forEach((batch) => {
+          const id = `batch_expiring_${batch.id || batch.batch_code}`;
+          if (dismissedSet.has(id)) return;
+          const actionInfo = resolveNotificationAction({ category: 'STOCK', type: 'BATCH_EXPIRING_SOON' }, activeUser);
+          const daysMsg =
+            batch.days_until_expiry === 0
+              ? 'expires today'
+              : `expires in ${batch.days_until_expiry} day(s)`;
+          list.push({
+            id,
+            category: 'STOCK',
+            type: 'BATCH_EXPIRING_SOON',
+            title: `Expiring Soon: ${batch.ingredient_name}`,
+            message: `Batch ${batch.batch_code} (${formatQuantity(batch.quantity_remaining, batch.unit)}) ${daysMsg} (${batch.expiry_date}).`,
+            badgeText: 'Expiring Soon',
+            badgeVariant: 'warning',
+            actionTab: actionInfo.actionTab,
+            actionLabel: actionInfo.actionLabel,
+            timestamp: snapshotNowMs - 90000,
+            isRead: readSet.has(id),
+          });
         });
       }
     }
@@ -687,6 +757,7 @@ export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK, userOverride =
     canViewSuppliers,
     lowStockItems,
     internalLowStock,
+    internalExpiryAlerts,
     orders,
     priceUpdates,
     readIds,

@@ -33,10 +33,36 @@ export const deleteIngredient = async (id) => {
   });
 };
 
-export const receiveStock = async (id, quantity) => {
+export const receiveStock = async (id, quantity, options = {}) => {
   return apiCall(`/inventory/ingredients/${id}/receive`, {
     method: 'POST',
-    body: JSON.stringify({ quantity, user_id: getUserId() })
+    body: JSON.stringify({
+      quantity,
+      expiry_date: options.expiry_date || null,
+      batch_code: options.batch_code || null,
+      notes: options.notes || null,
+      user_id: getUserId()
+    })
+  });
+};
+
+export const getInventoryBatches = async (ingredientId = '') => {
+  const query = ingredientId ? `?ingredient_id=${encodeURIComponent(ingredientId)}` : '';
+  return apiCall(`/inventory/batches${query}`, { method: 'GET' });
+};
+
+export const getExpiryAlerts = async () => {
+  return apiCall('/inventory/expiry-alerts', { method: 'GET' });
+};
+
+export const getStocktakeHistory = async () => {
+  return apiCall('/inventory/stocktake', { method: 'GET' });
+};
+
+export const submitStocktake = async (payload) => {
+  return apiCall('/inventory/stocktake', {
+    method: 'POST',
+    body: JSON.stringify(payload)
   });
 };
 

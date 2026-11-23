@@ -4,6 +4,62 @@ export const MAX_LINE_QTY = 99;
 export const MAX_ADDON_QTY = 5;
 export const STOCK_EPSILON = 1e-9;
 
+export const normalizeSizeKey = (s) =>
+  String(s || "").trim().replace(/\s+/g, "").toLowerCase();
+
+export const isSweetenerIngredient = (ing) => {
+  if (!ing) return false;
+  const nameMatch = /SUGAR|FRUCTOSE|SWEETENER/i.test(String(ing.name || ""));
+  const catMatch = String(ing.category || "").trim().toUpperCase() === "SWEETENERS & SYRUPS";
+  return nameMatch || catMatch;
+};
+
+export const getSugarScaleFactor = (modifiers) => {
+  const level = String(modifiers?.sugar_level || "").trim();
+  if (!level) return 1;
+  const map = { "0%": 0, "25%": 0.25, "50%": 0.5, "75%": 0.75, "100%": 1 };
+  if (Object.prototype.hasOwnProperty.call(map, level)) return map[level];
+  const parsed = parseFloat(level.replace("%", ""));
+  if (Number.isFinite(parsed) && parsed >= 0 && parsed <= 200) return parsed / 100;
+  return 1;
+};
+
+const getUsableStock = (ing) => {
+  if (!ing) return 0;
+  const raw =
+    ing.usable_stock !== undefined && ing.usable_stock !== null
+      ? ing.usable_stock
+      : ing.stock_quantity;
+  return Math.max(0, parseFloat(raw) || 0);
+};
+
+export const resolveRecipeQuantityForSize = (recipe, cupSizeName, cupSizeObj = null) => {
+  if (!recipe) return 0;
+  const normTarget = normalizeSizeKey(cupSizeName);
+
+  if (recipe.size_quantities && typeof recipe.size_quantities === "object" && normTarget) {
+    for (const [key, val] of Object.entries(recipe.size_quantities)) {
+      if (normalizeSizeKey(key) === normTarget) {
+        const num = Number(val);
+        if (Number.isFinite(num) && num >= 0) {
+          return num;
+        }
+      }
+    }
+  }
+
+  if (recipe.size_name) {
+    const normRecipeSize = normalizeSizeKey(recipe.size_name);
+    if (normRecipeSize && normRecipeSize !== "all") {
+      return normRecipeSize === normTarget ? (parseFloat(recipe.quantity_used) || 0) : 0;
+    }
+  }
+
+  const baseQty = parseFloat(recipe.quantity_used) || 0;
+  const mult = parseFloat(cupSizeObj?.recipe_multiplier);
+  return baseQty * (Number.isFinite(mult) && mult > 0 ? mult : 1);
+};
+
 export const buildRecipesByProductMap = (recipes = []) => {
   const map = {};
   (recipes || []).forEach((recipe) => {
@@ -32,11 +88,33 @@ const parseAddOnEntry = (raw) => {
   }
 };
 
+const accumulatePackagingUsage = (reservedIngredients, cupSizeObj, qty, orderType, ingredientsMap) => {
+  if (!cupSizeObj || qty <= 0) return;
+  const normOrderType = String(orderType || "DINE_IN").toUpperCase();
+  const skipCup = normOrderType === "DINE_IN" && Boolean(cupSizeObj.dine_in_no_cup);
+
+  if (!skipCup && cupSizeObj.ingredient_id && ingredientsMap[cupSizeObj.ingredient_id]) {
+    reservedIngredients[cupSizeObj.ingredient_id] =
+      (reservedIngredients[cupSizeObj.ingredient_id] || 0) + qty;
+  }
+
+  if (normOrderType === "TAKE_OUT" || normOrderType === "DELIVERY") {
+    if (cupSizeObj.lid_ingredient_id && ingredientsMap[cupSizeObj.lid_ingredient_id]) {
+      reservedIngredients[cupSizeObj.lid_ingredient_id] =
+        (reservedIngredients[cupSizeObj.lid_ingredient_id] || 0) + qty;
+    }
+    if (cupSizeObj.straw_ingredient_id && ingredientsMap[cupSizeObj.straw_ingredient_id]) {
+      reservedIngredients[cupSizeObj.straw_ingredient_id] =
+        (reservedIngredients[cupSizeObj.straw_ingredient_id] || 0) + qty;
+    }
+  }
+};
+
 const accumulateItemUsage = (
   item,
   reservedProducts,
   reservedIngredients,
-  { recipesByProduct = {}, ingredientsMap = {} }
+  { recipesByProduct = {}, ingredientsMap = {}, orderType = "DINE_IN" }
 ) => {
   if (!item?.id) return;
   const qty = Math.max(0, Number(item.qty ?? item.quantity) || 0);
@@ -50,13 +128,21 @@ const accumulateItemUsage = (
     return;
   }
 
+  const cupSizeName = item.cup_size_obj?.name || item.cup_size || null;
+
   if (prodRecipes.length === 0) {
     reservedProducts[item.id] = (reservedProducts[item.id] || 0) + qty;
   } else {
     for (const recipe of prodRecipes) {
       const ing = ingredientsMap[recipe.ingredient_id];
       if (!ing) continue;
-      const perUnit = convertToBaseUnit(recipe.quantity_used, recipe.recipe_unit || ing.unit, ing.unit);
+      const resolvedQty = resolveRecipeQuantityForSize(recipe, cupSizeName, item.cup_size_obj || null);
+      const sugarFactor = isSweetenerIngredient(ing) ? getSugarScaleFactor(item.modifiers) : 1;
+      const perUnit = convertToBaseUnit(
+        resolvedQty * sugarFactor,
+        recipe.recipe_unit || ing.unit,
+        ing.unit
+      );
       if (perUnit > 0) {
         reservedIngredients[recipe.ingredient_id] =
           (reservedIngredients[recipe.ingredient_id] || 0) + perUnit * qty;
@@ -64,10 +150,7 @@ const accumulateItemUsage = (
     }
   }
 
-  if (item.cup_size_obj?.ingredient_id && ingredientsMap[item.cup_size_obj.ingredient_id]) {
-    const cupIngId = item.cup_size_obj.ingredient_id;
-    reservedIngredients[cupIngId] = (reservedIngredients[cupIngId] || 0) + qty;
-  }
+  accumulatePackagingUsage(reservedIngredients, item.cup_size_obj, qty, orderType, ingredientsMap);
 
   if (Array.isArray(item.add_ons)) {
     for (const rawAddon of item.add_ons) {
@@ -95,7 +178,8 @@ export const calculateReservedStock = ({
   recipesByProduct = {},
   ingredientsMap = {},
   excludeCartItemId = null,
-  excludeOrderId = null
+  excludeOrderId = null,
+  orderType = "DINE_IN"
 } = {}) => {
   const reservedProducts = {};
   const reservedIngredients = {};
@@ -104,16 +188,19 @@ export const calculateReservedStock = ({
     if (excludeCartItemId && item.cartItemId === excludeCartItemId) return;
     accumulateItemUsage(item, reservedProducts, reservedIngredients, {
       recipesByProduct,
-      ingredientsMap
+      ingredientsMap,
+      orderType
     });
   });
 
   (ongoingOrders || []).forEach((order) => {
     if (excludeOrderId && order.id === excludeOrderId) return;
+    const orderTypeForOrder = order.order_type || "DINE_IN";
     (order.items || []).forEach((item) => {
       accumulateItemUsage(item, reservedProducts, reservedIngredients, {
         recipesByProduct,
-        ingredientsMap
+        ingredientsMap,
+        orderType: orderTypeForOrder
       });
     });
   });
@@ -165,7 +252,7 @@ export const getProductStockSummary = (
     const isMissing = !ing;
     const stockUnit = (ing?.unit || "").toUpperCase();
     const recipeUnit = (recipe.recipe_unit || ing?.unit || "").toUpperCase();
-    const totalStock = ing ? parseFloat(ing.stock_quantity) || 0 : 0;
+    const totalStock = getUsableStock(ing);
     const reservedStock = ing ? reserved?.reservedIngredients?.[recipe.ingredient_id] || 0 : 0;
     const remainingStock = Math.max(0, totalStock - reservedStock);
     const perUnit = ing ? convertToBaseUnit(recipe.quantity_used, recipeUnit, ing.unit) : Infinity;
@@ -186,6 +273,7 @@ export const getProductStockSummary = (
       ingredientId: recipe.ingredient_id,
       name: ing?.name || "Missing ingredient",
       quantityUsed: parseFloat(recipe.quantity_used) || 0,
+      sizeQuantities: recipe.size_quantities || null,
       recipeUnit,
       stockUnit,
       totalStock,
@@ -203,12 +291,41 @@ export const getProductStockSummary = (
   const finiteTotals = recipeBreakdown.map((b) => b.maxFromTotal).filter(Number.isFinite);
   const finiteRemaining = recipeBreakdown.map((b) => b.maxFromRemaining).filter(Number.isFinite);
 
-  const recipeTotalPossible = hasMissing ? 0 : (finiteTotals.length > 0 ? Math.min(...finiteTotals) : 0);
-  const recipeRemainingOrderable = hasMissing ? 0 : (finiteRemaining.length > 0 ? Math.min(...finiteRemaining) : 0);
+  const baseRecipeTotalPossible = hasMissing ? 0 : (finiteTotals.length > 0 ? Math.min(...finiteTotals) : 0);
+  const baseRecipeRemainingOrderable = hasMissing ? 0 : (finiteRemaining.length > 0 ? Math.min(...finiteRemaining) : 0);
 
   const sizes = virtualProduct?.sizes || product.sizes || [];
   const sizeAvailability = sizes.map((sz) => {
     const sizeName = sz?.name || sz?.size || "Standard";
+    let sizeRecipeTotal = hasMissing ? 0 : Infinity;
+    let sizeRecipeRemaining = hasMissing ? 0 : Infinity;
+
+    if (!hasMissing) {
+      for (const recipe of prodRecipes) {
+        const ing = ingredientsMap[recipe.ingredient_id];
+        if (!ing) {
+          sizeRecipeTotal = 0;
+          sizeRecipeRemaining = 0;
+          break;
+        }
+        const resolvedQty = resolveRecipeQuantityForSize(recipe, sizeName, sz);
+        if (resolvedQty <= 0) continue;
+
+        const recipeUnit = (recipe.recipe_unit || ing.unit || "").toUpperCase();
+        const perUnit = convertToBaseUnit(resolvedQty, recipeUnit, ing.unit);
+        if (perUnit <= 0) continue;
+
+        const totalStock = getUsableStock(ing);
+        const reservedStock = reserved?.reservedIngredients?.[recipe.ingredient_id] || 0;
+        const remainingStock = Math.max(0, totalStock - reservedStock);
+
+        sizeRecipeTotal = Math.min(sizeRecipeTotal, Math.max(0, Math.floor((totalStock + STOCK_EPSILON) / perUnit)));
+        sizeRecipeRemaining = Math.min(sizeRecipeRemaining, Math.max(0, Math.floor((remainingStock + STOCK_EPSILON) / perUnit)));
+      }
+      if (!Number.isFinite(sizeRecipeTotal)) sizeRecipeTotal = baseRecipeTotalPossible;
+      if (!Number.isFinite(sizeRecipeRemaining)) sizeRecipeRemaining = baseRecipeRemainingOrderable;
+    }
+
     const ingredientId = sz?.ingredient_id || null;
     if (!ingredientId) {
       return {
@@ -217,13 +334,15 @@ export const getProductStockSummary = (
         cupName: null,
         cupTotal: null,
         cupRemaining: null,
-        maxForSizeTotal: recipeTotalPossible,
-        maxForSizeRemaining: recipeRemainingOrderable
+        sizeRecipeTotal,
+        sizeRecipeRemaining,
+        maxForSizeTotal: sizeRecipeTotal,
+        maxForSizeRemaining: sizeRecipeRemaining
       };
     }
 
     const cupIng = ingredientsMap[ingredientId];
-    const rawStock = cupIng ? parseFloat(cupIng.stock_quantity) || 0 : 0;
+    const rawStock = getUsableStock(cupIng);
     const cupReserved = cupIng ? reserved?.reservedIngredients?.[ingredientId] || 0 : 0;
     const cupTotal = cupIng ? Math.max(0, Math.floor(rawStock + STOCK_EPSILON)) : 0;
     const cupRemaining = cupIng
@@ -236,10 +355,21 @@ export const getProductStockSummary = (
       cupName: cupIng?.name || "Cup material",
       cupTotal,
       cupRemaining,
-      maxForSizeTotal: Math.min(recipeTotalPossible, cupTotal),
-      maxForSizeRemaining: Math.min(recipeRemainingOrderable, cupRemaining)
+      sizeRecipeTotal,
+      sizeRecipeRemaining,
+      maxForSizeTotal: Math.min(sizeRecipeTotal, cupTotal),
+      maxForSizeRemaining: Math.min(sizeRecipeRemaining, cupRemaining)
     };
   });
+
+  const recipeTotalPossible =
+    sizeAvailability.length > 0
+      ? Math.max(...sizeAvailability.map((s) => s.sizeRecipeTotal))
+      : baseRecipeTotalPossible;
+  const recipeRemainingOrderable =
+    sizeAvailability.length > 0
+      ? Math.max(...sizeAvailability.map((s) => s.sizeRecipeRemaining))
+      : baseRecipeRemainingOrderable;
 
   let totalPossible = recipeTotalPossible;
   let remainingOrderable = recipeRemainingOrderable;
@@ -249,8 +379,10 @@ export const getProductStockSummary = (
     const uniqueCupTotals = new Map();
     const uniqueCupRemaining = new Map();
     sizeAvailability.forEach((s) => {
-      if (!uniqueCupTotals.has(s.ingredientId)) {
+      if (s.sizeRecipeTotal > 0 && !uniqueCupTotals.has(s.ingredientId)) {
         uniqueCupTotals.set(s.ingredientId, s.cupTotal || 0);
+      }
+      if (s.sizeRecipeRemaining > 0 && !uniqueCupRemaining.has(s.ingredientId)) {
         uniqueCupRemaining.set(s.ingredientId, s.cupRemaining || 0);
       }
     });
@@ -263,10 +395,13 @@ export const getProductStockSummary = (
     totalPossible = Math.min(recipeTotalPossible, totalCupCap);
     remainingOrderable = Math.min(recipeRemainingOrderable, remCupCap);
     limitedByCups = remCupCap < recipeRemainingOrderable;
+  } else if (sizeAvailability.length > 0) {
+    totalPossible = Math.max(...sizeAvailability.map((s) => s.maxForSizeTotal));
+    remainingOrderable = Math.max(...sizeAvailability.map((s) => s.maxForSizeRemaining));
   }
 
   recipeBreakdown.forEach((b) => {
-    if (b.isMissing || b.maxFromRemaining === recipeRemainingOrderable) {
+    if (b.isMissing || b.maxFromRemaining === baseRecipeRemainingOrderable) {
       b.isLimiting = true;
     }
   });
@@ -298,7 +433,10 @@ export const getProductStockSummary = (
 export const getMaxQtyForConfiguredItem = ({
   product,
   cupSizeObj = null,
+  cupSizeName = null,
   addOnsList = [],
+  modifiers = null,
+  orderType = "DINE_IN",
   recipesByProduct = {},
   ingredientsMap = {},
   reserved = null,
@@ -324,20 +462,28 @@ export const getMaxQtyForConfiguredItem = ({
   }
 
   const perUnitMap = {};
+  const targetSizeName = cupSizeObj?.name || cupSizeName || null;
 
   for (const recipe of prodRecipes) {
     const ing = ingredientsMap[recipe.ingredient_id];
     if (!ing) {
       return { stockMax: 0, maxQty: 0, limitingName: "Missing recipe ingredient" };
     }
-    const perUnit = convertToBaseUnit(recipe.quantity_used, recipe.recipe_unit || ing.unit, ing.unit);
+    const resolvedQty = resolveRecipeQuantityForSize(recipe, targetSizeName, cupSizeObj);
+    const sugarFactor = isSweetenerIngredient(ing) ? getSugarScaleFactor(modifiers) : 1;
+    const perUnit = convertToBaseUnit(resolvedQty * sugarFactor, recipe.recipe_unit || ing.unit, ing.unit);
+    if (perUnit <= 0) continue;
+
     if (!perUnitMap[recipe.ingredient_id]) {
       perUnitMap[recipe.ingredient_id] = { perUnit: 0, name: ing.name };
     }
     perUnitMap[recipe.ingredient_id].perUnit += perUnit;
   }
 
-  if (cupSizeObj?.ingredient_id) {
+  const normOrderType = String(orderType || "DINE_IN").toUpperCase();
+  const skipCup = normOrderType === "DINE_IN" && Boolean(cupSizeObj?.dine_in_no_cup);
+
+  if (!skipCup && cupSizeObj?.ingredient_id) {
     const cupIng = ingredientsMap[cupSizeObj.ingredient_id];
     if (!cupIng) {
       return { stockMax: 0, maxQty: 0, limitingName: cupSizeObj.name || "Cup material" };
@@ -346,6 +492,29 @@ export const getMaxQtyForConfiguredItem = ({
       perUnitMap[cupSizeObj.ingredient_id] = { perUnit: 0, name: cupIng.name };
     }
     perUnitMap[cupSizeObj.ingredient_id].perUnit += 1;
+  }
+
+  if (normOrderType === "TAKE_OUT" || normOrderType === "DELIVERY") {
+    if (cupSizeObj?.lid_ingredient_id) {
+      const lidIng = ingredientsMap[cupSizeObj.lid_ingredient_id];
+      if (!lidIng) {
+        return { stockMax: 0, maxQty: 0, limitingName: "Lid material" };
+      }
+      if (!perUnitMap[cupSizeObj.lid_ingredient_id]) {
+        perUnitMap[cupSizeObj.lid_ingredient_id] = { perUnit: 0, name: lidIng.name };
+      }
+      perUnitMap[cupSizeObj.lid_ingredient_id].perUnit += 1;
+    }
+    if (cupSizeObj?.straw_ingredient_id) {
+      const strawIng = ingredientsMap[cupSizeObj.straw_ingredient_id];
+      if (!strawIng) {
+        return { stockMax: 0, maxQty: 0, limitingName: "Straw material" };
+      }
+      if (!perUnitMap[cupSizeObj.straw_ingredient_id]) {
+        perUnitMap[cupSizeObj.straw_ingredient_id] = { perUnit: 0, name: strawIng.name };
+      }
+      perUnitMap[cupSizeObj.straw_ingredient_id].perUnit += 1;
+    }
   }
 
   for (const rawAddon of addOnsList || []) {
@@ -373,7 +542,7 @@ export const getMaxQtyForConfiguredItem = ({
     const ing = ingredientsMap[ingId];
     const available = Math.max(
       0,
-      (parseFloat(ing?.stock_quantity) || 0) - (reserved?.reservedIngredients?.[ingId] || 0)
+      getUsableStock(ing) - (reserved?.reservedIngredients?.[ingId] || 0)
     );
     const possible = entry.perUnit > 0
       ? Math.max(0, Math.floor((available + STOCK_EPSILON) / entry.perUnit))
@@ -398,9 +567,12 @@ export const getMaxQtyForConfiguredItem = ({
 export const getMaxAddOnQty = ({
   product,
   cupSizeObj = null,
+  cupSizeName = null,
   currentAddOns = [],
   targetAddon = null,
   currentItemQty = 1,
+  modifiers = null,
+  orderType = "DINE_IN",
   recipesByProduct = {},
   ingredientsMap = {},
   reserved = null
@@ -415,19 +587,32 @@ export const getMaxAddOnQty = ({
   const targetIngId = targetAddon.ingredient_id;
   const totalAvailable = Math.max(
     0,
-    (parseFloat(ing.stock_quantity) || 0) - (reserved?.reservedIngredients?.[targetIngId] || 0)
+    getUsableStock(ing) - (reserved?.reservedIngredients?.[targetIngId] || 0)
   );
 
   let otherUsagePerUnit = 0;
+  const targetSizeName = cupSizeObj?.name || cupSizeName || null;
   const prodRecipes = recipesByProduct[product?.id] || [];
   for (const recipe of prodRecipes) {
     if (recipe.ingredient_id === targetIngId) {
-      otherUsagePerUnit += convertToBaseUnit(recipe.quantity_used, recipe.recipe_unit || ing.unit, ing.unit);
+      const resolvedQty = resolveRecipeQuantityForSize(recipe, targetSizeName, cupSizeObj);
+      const sugarFactor = isSweetenerIngredient(ing) ? getSugarScaleFactor(modifiers) : 1;
+      otherUsagePerUnit += convertToBaseUnit(
+        resolvedQty * sugarFactor,
+        recipe.recipe_unit || ing.unit,
+        ing.unit
+      );
     }
   }
 
-  if (cupSizeObj?.ingredient_id === targetIngId) {
+  const normOrderType = String(orderType || "DINE_IN").toUpperCase();
+  const skipCup = normOrderType === "DINE_IN" && Boolean(cupSizeObj?.dine_in_no_cup);
+  if (!skipCup && cupSizeObj?.ingredient_id === targetIngId) {
     otherUsagePerUnit += 1;
+  }
+  if (normOrderType === "TAKE_OUT" || normOrderType === "DELIVERY") {
+    if (cupSizeObj?.lid_ingredient_id === targetIngId) otherUsagePerUnit += 1;
+    if (cupSizeObj?.straw_ingredient_id === targetIngId) otherUsagePerUnit += 1;
   }
 
   for (const ao of currentAddOns || []) {
@@ -455,7 +640,7 @@ export const getMaxAddOnQty = ({
 
 export const validateItemsAgainstStock = (
   items = [],
-  { productsMap = {}, recipesByProduct = {}, ingredientsMap = {}, reserved = null } = {}
+  { productsMap = {}, recipesByProduct = {}, ingredientsMap = {}, reserved = null, orderType = "DINE_IN" } = {}
 ) => {
   const issues = [];
   if (!Array.isArray(items) || items.length === 0) {
@@ -469,6 +654,8 @@ export const validateItemsAgainstStock = (
       track_stock: liveProduct?.track_stock ?? item.track_stock
     };
   });
+
+  const normOrderType = String(orderType || "DINE_IN").toUpperCase();
 
   for (const item of normalizedItems) {
     const prod = productsMap[item.id] || item.baseProduct || item;
@@ -484,8 +671,18 @@ export const validateItemsAgainstStock = (
         issues.push(`${prod.name || item.name} has a missing recipe ingredient`);
       }
 
-      if (item.cup_size_obj?.ingredient_id && !ingredientsMap[item.cup_size_obj.ingredient_id]) {
+      const skipCup = normOrderType === "DINE_IN" && Boolean(item.cup_size_obj?.dine_in_no_cup);
+      if (!skipCup && item.cup_size_obj?.ingredient_id && !ingredientsMap[item.cup_size_obj.ingredient_id]) {
         issues.push(`${prod.name || item.name} cup material is unavailable`);
+      }
+
+      if (normOrderType === "TAKE_OUT" || normOrderType === "DELIVERY") {
+        if (item.cup_size_obj?.lid_ingredient_id && !ingredientsMap[item.cup_size_obj.lid_ingredient_id]) {
+          issues.push(`${prod.name || item.name} lid material is unavailable`);
+        }
+        if (item.cup_size_obj?.straw_ingredient_id && !ingredientsMap[item.cup_size_obj.straw_ingredient_id]) {
+          issues.push(`${prod.name || item.name} straw material is unavailable`);
+        }
       }
 
       if (Array.isArray(item.add_ons)) {
@@ -507,7 +704,8 @@ export const validateItemsAgainstStock = (
       cart: normalizedItems,
       ongoingOrders: [],
       recipesByProduct,
-      ingredientsMap
+      ingredientsMap,
+      orderType: normOrderType
     });
 
   for (const [pid, reqQty] of Object.entries(neededProducts)) {
@@ -526,14 +724,14 @@ export const validateItemsAgainstStock = (
 
   for (const [ingId, reqQty] of Object.entries(neededIngredients)) {
     const ing = ingredientsMap[ingId];
-    const totalStock = parseFloat(ing?.stock_quantity) || 0;
+    const totalStock = getUsableStock(ing);
     const alreadyReserved = reserved?.reservedIngredients?.[ingId] || 0;
 
     if (totalStock + STOCK_EPSILON < reqQty + alreadyReserved) {
       const available = Math.max(0, Math.round((totalStock - alreadyReserved) * 100) / 100);
       const unit = (ing?.unit || "").toUpperCase();
       issues.push(
-        `Insufficient ${ing?.name || "ingredient"} (${available}${unit ? ` ${unit}` : ""} available)`
+        `Insufficient usable ${ing?.name || "ingredient"} (${available}${unit ? ` ${unit}` : ""} available)`
       );
     }
   }

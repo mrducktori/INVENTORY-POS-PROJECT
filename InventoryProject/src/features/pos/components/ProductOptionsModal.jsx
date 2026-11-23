@@ -1,9 +1,17 @@
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
-import { MAX_LINE_QTY, MAX_ADDON_QTY } from "../utils/posStockUtils";
+import {
+  MAX_LINE_QTY,
+  MAX_ADDON_QTY,
+  resolveRecipeQuantityForSize,
+  isSweetenerIngredient,
+  getSugarScaleFactor
+} from "../utils/posStockUtils";
 
 const DEFAULT_SIZES = ["12 oz", "16 oz", "22 oz"];
 const DEFAULT_ADDONS = ["Pearl", "Nata", "Jelly", "Pudding", "Extra Sugar", "Extra Ice"];
+const SUGAR_LEVELS = ["0%", "25%", "50%", "75%", "100%"];
+const ICE_LEVELS = ["No Ice", "Less Ice", "Normal Ice", "Extra Ice"];
 
 const ProductOptionsModal = ({
   selectedProduct,
@@ -12,6 +20,8 @@ const ProductOptionsModal = ({
   setProductOptions,
   optionsAvailability,
   optionsStock,
+  productRecipes = [],
+  ingredientsMap = {},
   onUpdateAddOnQty,
   onConfirm,
   onClose
@@ -226,6 +236,92 @@ const ProductOptionsModal = ({
                     </button>
                   );
                 })}
+              </div>
+
+              {productRecipes.length > 0 && (() => {
+                const selectedSizeObj = selectedProduct.sizes?.find((s) => s.name === productOptions.cupSize) || null;
+                const usageEntries = productRecipes
+                  .map((r) => {
+                    const ing = ingredientsMap[r.ingredient_id];
+                    const baseResolved = resolveRecipeQuantityForSize(r, productOptions.cupSize, selectedSizeObj);
+                    const scaled = isSweetenerIngredient(ing)
+                      ? baseResolved * getSugarScaleFactor(productOptions.modifiers)
+                      : baseResolved;
+                    const rounded = Math.round(scaled * 1000) / 1000;
+                    if (rounded <= 0) return null;
+                    const unit = (r.recipe_unit || ing?.unit || "").toUpperCase();
+                    return `${ing?.name || "Ingredient"} ${rounded}${unit ? ` ${unit}` : ""}`;
+                  })
+                  .filter(Boolean);
+                if (usageEntries.length === 0) return null;
+                return (
+                  <div className="mt-2.5 px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-[11px] font-medium text-zinc-600">
+                    <span className="font-bold text-zinc-800">Recipe ({productOptions.cupSize}): </span>
+                    {usageEntries.slice(0, 4).join(" • ")}
+                    {usageEntries.length > 4 ? ` • +${usageEntries.length - 4} more` : ""}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
+          {/* Modifiers (Sugar & Ice Level) */}
+          {(optionsAvailability.hasSizes || optionsAvailability.hasAddOns) && (
+            <div className="mb-6 space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-800 mb-2">Sugar Level</label>
+                <div className="flex gap-2 flex-wrap">
+                  {SUGAR_LEVELS.map((level) => {
+                    const active = (productOptions.modifiers?.sugar_level || "100%") === level;
+                    return (
+                      <button
+                        key={level}
+                        type="button"
+                        onClick={() =>
+                          setProductOptions((p) => ({
+                            ...p,
+                            modifiers: { ...(p.modifiers || {}), sugar_level: level }
+                          }))
+                        }
+                        className={`px-3.5 py-1.5 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
+                          active
+                            ? "bg-gray-900 text-white border-gray-900 shadow-xs"
+                            : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+                        }`}
+                      >
+                        {level}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-800 mb-2">Ice Level</label>
+                <div className="flex gap-2 flex-wrap">
+                  {ICE_LEVELS.map((level) => {
+                    const active = (productOptions.modifiers?.ice_level || "Normal Ice") === level;
+                    return (
+                      <button
+                        key={level}
+                        type="button"
+                        onClick={() =>
+                          setProductOptions((p) => ({
+                            ...p,
+                            modifiers: { ...(p.modifiers || {}), ice_level: level }
+                          }))
+                        }
+                        className={`px-3.5 py-1.5 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
+                          active
+                            ? "bg-gray-900 text-white border-gray-900 shadow-xs"
+                            : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+                        }`}
+                      >
+                        {level}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}

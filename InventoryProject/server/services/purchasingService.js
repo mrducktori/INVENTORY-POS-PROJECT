@@ -2,6 +2,7 @@ import { supabase } from "../config/supabaseClient.js";
 import { logAudit } from "../utils/auditHelper.js";
 import { getManilaDateOnly } from "../utils/dateUtils.js";
 import { LIMITS, validateNumberBound } from "../utils/validationHelper.js";
+import * as batchService from "./batchService.js";
 
 const safeParseAuditDetails = (rawDetails) => {
   if (!rawDetails) return {};
@@ -805,6 +806,8 @@ export const updatePurchaseOrderStatus = async (id, status = null, items_receive
         max: LIMITS.PO_QTY_MAX,
         allowZero: false
       });
+      batchService.validateOptionalExpiryDate(item?.expiry_date);
+      batchService.validateOptionalBatchCode(item?.batch_code);
     }
   }
 
@@ -880,7 +883,7 @@ export const updatePurchaseOrderStatus = async (id, status = null, items_receive
 
       const { data: itemWithHistory, error: historyErr } = await supabase
         .from("purchase_order_items")
-        .select("quantity_received, quantity, conversion_factor, ingredient_id, purchase_order_id, receipt_history")
+        .select("id, quantity_received, quantity, conversion_factor, ingredient_id, purchase_order_id, receipt_history")
         .eq("id", item.id)
         .single();
 
@@ -888,7 +891,7 @@ export const updatePurchaseOrderStatus = async (id, status = null, items_receive
         hasReceiptHistory = false;
         const { data: itemWithoutHistory } = await supabase
           .from("purchase_order_items")
-          .select("quantity_received, quantity, conversion_factor, ingredient_id, purchase_order_id")
+          .select("id, quantity_received, quantity, conversion_factor, ingredient_id, purchase_order_id")
           .eq("id", item.id)
           .single();
         currentItem = itemWithoutHistory;
@@ -904,8 +907,56 @@ export const updatePurchaseOrderStatus = async (id, status = null, items_receive
 
       const newQtyReceived = Number(currentItem.quantity_received || 0) + qtyToReceive;
       const isFullyReceived = newQtyReceived >= Number(currentItem.quantity);
-      
-      const itemUpdate = { 
+
+      // Update ingredient stock & create FEFO batch first so receipt_history records resolved batch_code/expiry_date
+      const targetIngredientId = currentItem.ingredient_id || item.ingredient_id;
+      const conversion = Number(currentItem.conversion_factor) || Number(item.conversion_factor) || 1;
+      let createdBatch = null;
+
+      if (targetIngredientId) {
+        const { data: ingData } = await supabase
+          .from("ingredients")
+          .select("stock_quantity")
+          .eq("id", targetIngredientId)
+          .single();
+
+        if (ingData) {
+          const priorStock = Number(ingData.stock_quantity || 0);
+          const baseUnitsReceived = qtyToReceive * conversion;
+          const newStock = priorStock + baseUnitsReceived;
+
+          const { error: ingUpdateErr } = await supabase
+            .from("ingredients")
+            .update({ stock_quantity: newStock })
+            .eq("id", targetIngredientId);
+          if (ingUpdateErr) throw ingUpdateErr;
+
+          createdBatch = await batchService.createBatch({
+            po_id: id,
+            po_item_id: currentItem.id,
+            ingredient_id: targetIngredientId,
+            source: 'PURCHASE_ORDER',
+            initial_quantity: baseUnitsReceived,
+            purchase_unit: item.purchase_unit || 'Unit',
+            purchase_quantity: qtyToReceive,
+            conversion_factor: conversion,
+            expiry_date: item.expiry_date || null,
+            batch_code: item.batch_code || null,
+            prior_stock: priorStock
+          });
+        }
+
+        appliedReceipts.push({
+          ingredient_id: targetIngredientId,
+          quantity_received_now: qtyToReceive,
+          conversion_factor: conversion,
+          purchase_unit: item.purchase_unit || 'Unit',
+          batch_code: createdBatch?.batch_code || null,
+          expiry_date: createdBatch?.expiry_date || null
+        });
+      }
+
+      const itemUpdate = {
         quantity_received: newQtyReceived,
         is_received: isFullyReceived
       };
@@ -921,49 +972,21 @@ export const updatePurchaseOrderStatus = async (id, status = null, items_receive
         } catch {
           currentHistory = [];
         }
-        
+
         const newHistoryEvent = {
           date: new Date().toISOString(),
-          quantity: qtyToReceive
+          quantity: qtyToReceive,
+          ...(createdBatch?.batch_code ? { batch_code: createdBatch.batch_code } : {}),
+          ...(createdBatch?.expiry_date ? { expiry_date: createdBatch.expiry_date } : {})
         };
         itemUpdate.receipt_history = [...currentHistory, newHistoryEvent];
       }
 
-      // 1. Update purchase_order_items
       const { error: itemUpdateErr } = await supabase
         .from("purchase_order_items")
         .update(itemUpdate)
         .eq("id", item.id);
       if (itemUpdateErr) throw itemUpdateErr;
-        
-      // 2. Update stock
-      const targetIngredientId = currentItem.ingredient_id || item.ingredient_id;
-      const conversion = Number(currentItem.conversion_factor) || Number(item.conversion_factor) || 1;
-      if (targetIngredientId) {
-        const { data: ingData } = await supabase
-          .from("ingredients")
-          .select("stock_quantity")
-          .eq("id", targetIngredientId)
-          .single();
-          
-        if (ingData) {
-          const baseUnitsReceived = qtyToReceive * conversion;
-          const newStock = Number(ingData.stock_quantity || 0) + baseUnitsReceived;
-          
-          const { error: ingUpdateErr } = await supabase
-            .from("ingredients")
-            .update({ stock_quantity: newStock })
-            .eq("id", targetIngredientId);
-          if (ingUpdateErr) throw ingUpdateErr;
-        }
-
-        appliedReceipts.push({
-          ingredient_id: targetIngredientId,
-          quantity_received_now: qtyToReceive,
-          conversion_factor: conversion,
-          purchase_unit: item.purchase_unit || 'Unit'
-        });
-      }
     }
   }
 

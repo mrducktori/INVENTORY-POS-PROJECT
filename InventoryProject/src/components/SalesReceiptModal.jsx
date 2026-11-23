@@ -4,6 +4,8 @@ import { getSalesReceipt } from '../api/logsApi';
 import {
   formatReceiptDateTime,
   computeReceiptTotals,
+  extractOrderTypeLabel,
+  extractItemModifiersLabel,
   normalizeAddOn,
   getSavedPaperWidth,
   savePaperWidth,
@@ -47,6 +49,7 @@ const SalesReceiptModal = ({ saleId, initialReceipt = null, onClose }) => {
 
   const { discountAmount, totalAmount, subtotalAmount, discountLabel } =
     computeReceiptTotals(receipt);
+  const orderTypeLabel = extractOrderTypeLabel(receipt);
 
   const handlePaperWidthChange = (e) => {
     const nextWidth = e.target.value;
@@ -104,6 +107,14 @@ const SalesReceiptModal = ({ saleId, initialReceipt = null, onClose }) => {
                 <span>Cashier:</span>
                 <span className="font-medium text-zinc-900">{receipt.users?.name || 'System'}</span>
               </div>
+              {orderTypeLabel && (
+                <div className="flex justify-between items-center">
+                  <span>Order Type:</span>
+                  <span className="px-2 py-0.5 rounded bg-zinc-100 border border-zinc-200 font-bold text-[10px] uppercase tracking-wider text-zinc-800">
+                    {orderTypeLabel}
+                  </span>
+                </div>
+              )}
             </div>
 
             <table className="w-full text-xs border-collapse">
@@ -115,7 +126,9 @@ const SalesReceiptModal = ({ saleId, initialReceipt = null, onClose }) => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                {receipt.sale_items?.map((item, idx) => (
+                {receipt.sale_items?.map((item, idx) => {
+                  const modLabel = extractItemModifiersLabel(item);
+                  return (
                   <tr key={item.id || idx} className="py-1.5 align-top">
                     <td className="py-1.5 font-medium text-zinc-900">
                       <div>
@@ -124,6 +137,11 @@ const SalesReceiptModal = ({ saleId, initialReceipt = null, onClose }) => {
                           <span className="text-[10px] text-zinc-400 ml-1 font-mono">({item.cup_size})</span>
                         )}
                       </div>
+                      {modLabel && (
+                        <div className="text-[11px] text-zinc-500 mt-0.5">
+                          {modLabel}
+                        </div>
+                      )}
                       {Array.isArray(item.add_ons) && item.add_ons.length > 0 && (
                         <div className="text-[11px] text-zinc-500 mt-0.5">
                           + {item.add_ons.map((rawAo) => {
@@ -138,7 +156,8 @@ const SalesReceiptModal = ({ saleId, initialReceipt = null, onClose }) => {
                       ₱{(Number(item.quantity) * Number(item.unit_price)).toFixed(2)}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
 

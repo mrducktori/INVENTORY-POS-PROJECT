@@ -11,7 +11,13 @@ export const ALLOWED_CMS_KEYS = new Set([
   "footer_info"
 ]);
 
-export const INTERNAL_CMS_KEYS = new Set(["raw_material_categories"]);
+export const INTERNAL_CMS_KEYS = new Set([
+  "raw_material_categories",
+  "inventory_batches_store",
+  "ingredient_perishability_meta",
+  "stocktake_history_store",
+  "recipe_size_overrides_store"
+]);
 
 const isPublicCmsKey = (sectionKey) =>
   typeof sectionKey === "string" &&

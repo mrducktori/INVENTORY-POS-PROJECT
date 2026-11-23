@@ -11,6 +11,7 @@ export const useManageProducts = () => {
   const [viewMode, setViewMode] = useState('ADD'); 
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState(() => extractCategoryNames([]));
+  const [categorySettings, setCategorySettings] = useState([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState('');
@@ -27,7 +28,9 @@ export const useManageProducts = () => {
     price: '',
     image_url: '',
     track_stock: false,
-    low_stock_threshold: 5
+    low_stock_threshold: 5,
+    sizes: [],
+    add_ons: []
   });
 
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -37,7 +40,12 @@ export const useManageProducts = () => {
   }, [selectedProduct]);
   const [recipe, setRecipe] = useState([]);
   const [allIngredients, setAllIngredients] = useState([]);
-  const [newRecipeItem, setNewRecipeItem] = useState({ ingredient_id: '', quantity: '', input_unit: '' });
+  const [newRecipeItem, setNewRecipeItem] = useState({
+    ingredient_id: '',
+    quantity: '',
+    input_unit: '',
+    size_quantities: {}
+  });
   const [editPrice, setEditPrice] = useState('');
   const [editName, setEditName] = useState('');
   const [editCategory, setEditCategory] = useState('');
@@ -63,6 +71,7 @@ export const useManageProducts = () => {
   const fetchCategories = useCallback(async () => {
     try {
       const data = await getCategorySettings();
+      setCategorySettings(Array.isArray(data) ? data : []);
       const names = extractCategoryNames(data);
       setCategories(names);
       return names;
@@ -106,7 +115,123 @@ export const useManageProducts = () => {
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData({ ...formData, [name]: type === 'checkbox' ? checked : value });
+    if (name === 'category') {
+      const targetUpper = String(value || '').trim().toUpperCase();
+      const matched = categorySettings.find(
+        (cs) => String(cs?.category || '').trim().toUpperCase() === targetUpper
+      );
+      setFormData((prev) => ({
+        ...prev,
+        category: value,
+        sizes: Array.isArray(matched?.sizes) ? matched.sizes.map((s) => ({ ...s })) : [],
+        add_ons: Array.isArray(matched?.add_ons) ? matched.add_ons.map((a) => ({ ...a })) : []
+      }));
+      return;
+    }
+    setFormData((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+  };
+
+  const validateSizeEntry = (sizeObj) => {
+    const priceCheck = validateAmountInput(sizeObj.price_add === '' ? 0 : (sizeObj.price_add ?? 0), {
+      label: `Size price add for ${sizeObj.name || 'size'}`,
+      min: 0,
+      max: INPUT_LIMITS.ADDON_PRICE_MAX
+    });
+    if (!priceCheck.valid) return { valid: false, error: priceCheck.error };
+
+    const multVal =
+      sizeObj.recipe_multiplier === '' || sizeObj.recipe_multiplier === null || sizeObj.recipe_multiplier === undefined
+        ? 1
+        : sizeObj.recipe_multiplier;
+    const multCheck = validateAmountInput(multVal, {
+      label: `Recipe multiplier for ${sizeObj.name || 'size'}`,
+      min: 0.1,
+      max: 10
+    });
+    if (!multCheck.valid) return { valid: false, error: multCheck.error };
+
+    return {
+      valid: true,
+      normalized: {
+        ...sizeObj,
+        name: String(sizeObj.name || '').trim(),
+        price_add: priceCheck.numericValue,
+        recipe_multiplier: multCheck.numericValue,
+        ingredient_id: sizeObj.ingredient_id || null,
+        lid_ingredient_id: sizeObj.lid_ingredient_id || null,
+        straw_ingredient_id: sizeObj.straw_ingredient_id || null,
+        dine_in_no_cup: Boolean(sizeObj.dine_in_no_cup)
+      }
+    };
+  };
+
+  const validateAddOnEntry = (addonObj) => {
+    const priceCheck = validateAmountInput(addonObj.price === '' ? 0 : (addonObj.price ?? 0), {
+      label: `Add-on price for ${addonObj.name || 'add-on'}`,
+      min: 0,
+      max: INPUT_LIMITS.ADDON_PRICE_MAX
+    });
+    if (!priceCheck.valid) return { valid: false, error: priceCheck.error };
+
+    const qtyCheck = validateAmountInput(addonObj.quantity === '' ? 0 : (addonObj.quantity ?? 0), {
+      label: `Add-on quantity for ${addonObj.name || 'add-on'}`,
+      min: 0,
+      max: INPUT_LIMITS.RECIPE_QTY_MAX
+    });
+    if (!qtyCheck.valid) return { valid: false, error: qtyCheck.error };
+
+    return {
+      valid: true,
+      normalized: {
+        ...addonObj,
+        name: String(addonObj.name || '').trim(),
+        price: priceCheck.numericValue,
+        quantity: qtyCheck.numericValue
+      }
+    };
+  };
+
+  const handleAddFormSize = (sizeObj) => {
+    if (!sizeObj?.name?.trim()) return false;
+    const res = validateSizeEntry(sizeObj);
+    if (!res.valid) {
+      setMessage('Error: ' + res.error);
+      return false;
+    }
+    setFormData((prev) => ({ ...prev, sizes: [...(prev.sizes || []), res.normalized] }));
+    return true;
+  };
+
+  const handleRemoveFormSize = (index) => {
+    setFormData((prev) => ({
+      ...prev,
+      sizes: (prev.sizes || []).filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleUpdateFormSize = (index, patch) => {
+    setFormData((prev) => ({
+      ...prev,
+      sizes: (prev.sizes || []).map((sz, i) => (i === index ? { ...sz, ...patch } : sz))
+    }));
+  };
+
+  const handleAddFormAddOn = (addonObj) => {
+    if (!addonObj?.name?.trim()) return false;
+    const res = validateAddOnEntry(addonObj);
+    if (!res.valid) {
+      setMessage('Error: ' + res.error);
+      return false;
+    }
+    setFormData((prev) => ({ ...prev, add_ons: [...(prev.add_ons || []), res.normalized] }));
+    return true;
+  };
+
+  const handleRemoveFormAddOn = (index) => {
+    setFormData((prev) => ({
+      ...prev,
+      add_ons: (prev.add_ons || []).filter((_, i) => i !== index)
+    }));
   };
 
   const handleImageUpload = async (e, isEdit = false) => {
@@ -242,6 +367,26 @@ export const useManageProducts = () => {
       }
     }
 
+    const validatedSizes = [];
+    for (const sz of formData.sizes || []) {
+      const szRes = validateSizeEntry(sz);
+      if (!szRes.valid) {
+        setMessage('Error: ' + szRes.error);
+        return;
+      }
+      validatedSizes.push(szRes.normalized);
+    }
+
+    const validatedAddOns = [];
+    for (const ao of formData.add_ons || []) {
+      const aoRes = validateAddOnEntry(ao);
+      if (!aoRes.valid) {
+        setMessage('Error: ' + aoRes.error);
+        return;
+      }
+      validatedAddOns.push(aoRes.normalized);
+    }
+
     try {
       await createProduct({
         name: newName,
@@ -251,6 +396,8 @@ export const useManageProducts = () => {
         track_stock: formData.track_stock,
         stock_quantity: 0,
         low_stock_threshold: thresholdCheck.numericValue,
+        sizes: validatedSizes,
+        add_ons: validatedAddOns,
         force_create: forceCreate
       });
       setMessage('Product created successfully!');
@@ -260,7 +407,9 @@ export const useManageProducts = () => {
         price: '', 
         image_url: '',
         track_stock: false, 
-        low_stock_threshold: 5 
+        low_stock_threshold: 5,
+        sizes: [],
+        add_ons: []
       });
       fetchProducts();
       setTimeout(() => setMessage(''), 3000);
@@ -445,6 +594,26 @@ export const useManageProducts = () => {
       }
     }
 
+    const validatedSizes = [];
+    for (const sz of editSizes || []) {
+      const szRes = validateSizeEntry(sz);
+      if (!szRes.valid) {
+        setMessage('Error: ' + szRes.error);
+        return;
+      }
+      validatedSizes.push(szRes.normalized);
+    }
+
+    const validatedAddOns = [];
+    for (const ao of editAddOns || []) {
+      const aoRes = validateAddOnEntry(ao);
+      if (!aoRes.valid) {
+        setMessage('Error: ' + aoRes.error);
+        return;
+      }
+      validatedAddOns.push(aoRes.normalized);
+    }
+
     try {
       await updateProduct(selectedProduct.id, {
         name: updatedName,
@@ -454,8 +623,8 @@ export const useManageProducts = () => {
         track_stock: editTrackStock,
         stock_quantity: parseFloat(editStockQty) || 0,
         low_stock_threshold: thresholdCheck.numericValue,
-        sizes: editSizes,
-        add_ons: editAddOns,
+        sizes: validatedSizes,
+        add_ons: validatedAddOns,
         force_update: forceUpdate
       });
       setMessage('Product details updated successfully!');
@@ -502,58 +671,66 @@ export const useManageProducts = () => {
     });
   };
 
-  const handleAddSize = (e) => {
-    if (e) e.preventDefault();
-    if (!newSize.name) return;
-    const priceAdd = newSize.price_add === '' ? 0 : newSize.price_add;
-    const priceCheck = validateAmountInput(priceAdd, {
-      label: 'Size add-on price',
-      min: 0,
-      max: INPUT_LIMITS.ADDON_PRICE_MAX
-    });
-    if (!priceCheck.valid) {
-      setMessage('Error: ' + priceCheck.error);
-      return;
+  const handleAddSize = (sizeObjOrEvent) => {
+    const isEvent = Boolean(sizeObjOrEvent?.preventDefault);
+    if (isEvent) sizeObjOrEvent.preventDefault();
+    const target = isEvent ? newSize : sizeObjOrEvent;
+    if (!target?.name?.trim()) return false;
+    const res = validateSizeEntry(target);
+    if (!res.valid) {
+      setMessage('Error: ' + res.error);
+      return false;
     }
-    setEditSizes(prev => [...prev, { ...newSize, price_add: priceCheck.numericValue }]);
-    setNewSize({ name: '', price_add: '', ingredient_id: '' });
+    setEditSizes(prev => [...prev, res.normalized]);
+    if (isEvent) {
+      setNewSize({ name: '', price_add: '', ingredient_id: '' });
+    }
+    return true;
   };
 
   const handleRemoveSize = (index) => {
     setEditSizes(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleAddAddOn = (e) => {
-    if (e) e.preventDefault();
-    if (!newAddOn.name) return;
-    const priceCheck = validateAmountInput(newAddOn.price === '' ? 0 : newAddOn.price, {
-      label: 'Add-on price',
-      min: 0,
-      max: INPUT_LIMITS.ADDON_PRICE_MAX
-    });
-    if (!priceCheck.valid) {
-      setMessage('Error: ' + priceCheck.error);
-      return;
+  const handleUpdateEditSize = (index, patch) => {
+    setEditSizes(prev => prev.map((sz, i) => (i === index ? { ...sz, ...patch } : sz)));
+  };
+
+  const handleAddAddOn = (addonObjOrEvent) => {
+    const isEvent = Boolean(addonObjOrEvent?.preventDefault);
+    if (isEvent) addonObjOrEvent.preventDefault();
+    const target = isEvent ? newAddOn : addonObjOrEvent;
+    if (!target?.name?.trim()) return false;
+    const res = validateAddOnEntry(target);
+    if (!res.valid) {
+      setMessage('Error: ' + res.error);
+      return false;
     }
-    const qtyCheck = validateAmountInput(newAddOn.quantity === '' ? 0 : newAddOn.quantity, {
-      label: 'Add-on quantity',
-      min: 0,
-      max: INPUT_LIMITS.RECIPE_QTY_MAX
-    });
-    if (!qtyCheck.valid) {
-      setMessage('Error: ' + qtyCheck.error);
-      return;
+    setEditAddOns(prev => [...prev, res.normalized]);
+    if (isEvent) {
+      setNewAddOn({ name: '', price: '', ingredient_id: '', quantity: '', unit: '' });
     }
-    setEditAddOns(prev => [...prev, { 
-      ...newAddOn, 
-      price: priceCheck.numericValue,
-      quantity: qtyCheck.numericValue
-    }]);
-    setNewAddOn({ name: '', price: '', ingredient_id: '', quantity: '', unit: '' });
+    return true;
   };
 
   const handleRemoveAddOn = (index) => {
     setEditAddOns(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const parseSizeQuantitiesInput = (rawMap) => {
+    const clean = {};
+    if (!rawMap || typeof rawMap !== 'object') return { valid: true, map: null };
+    for (const [sizeName, rawVal] of Object.entries(rawMap)) {
+      if (rawVal === '' || rawVal === null || rawVal === undefined) continue;
+      const check = validateAmountInput(rawVal, {
+        label: `${sizeName} recipe quantity`,
+        min: INPUT_LIMITS.RECIPE_QTY_MIN,
+        max: INPUT_LIMITS.RECIPE_QTY_MAX
+      });
+      if (!check.valid) return { valid: false, error: check.error };
+      clean[sizeName] = check.numericValue;
+    }
+    return { valid: true, map: Object.keys(clean).length > 0 ? clean : null };
   };
 
   const handleAddRecipeItem = async (e) => {
@@ -576,6 +753,13 @@ export const useManageProducts = () => {
       return;
     }
 
+    const sizeQtyRes = parseSizeQuantitiesInput(newRecipeItem.size_quantities);
+    if (!sizeQtyRes.valid) {
+      setMessage('Error: ' + sizeQtyRes.error);
+      setTimeout(() => setMessage(''), 3500);
+      return;
+    }
+
     const qty = qtyCheck.numericValue;
     const ingredient = allIngredients.find(i => i.id === newRecipeItem.ingredient_id);
     const unit = (newRecipeItem.input_unit || ingredient?.unit || '').toUpperCase();
@@ -586,11 +770,12 @@ export const useManageProducts = () => {
         product_id: selectedProduct.id,
         ingredient_id: newRecipeItem.ingredient_id,
         quantity_used: qty,
-        recipe_unit: unit
+        recipe_unit: unit,
+        size_quantities: sizeQtyRes.map
       });
 
       setMessage(`Added ${qty} ${unit} of ${ingredient?.name || 'ingredient'} to recipe!`);
-      setNewRecipeItem({ ingredient_id: '', quantity: '', input_unit: '' });
+      setNewRecipeItem({ ingredient_id: '', quantity: '', input_unit: '', size_quantities: {} });
       const data = await getRecipesByProduct(selectedProduct.id);
       setRecipe(data || []);
       setTimeout(() => setMessage(''), 2500);
@@ -602,7 +787,7 @@ export const useManageProducts = () => {
     }
   };
 
-  const handleUpdateRecipeItem = async (recipeId, quantityUsed, recipeUnit) => {
+  const handleUpdateRecipeItem = async (recipeId, quantityUsed, recipeUnit, sizeQuantities = null) => {
     const qtyCheck = validateAmountInput(quantityUsed, {
       label: 'Recipe quantity',
       min: INPUT_LIMITS.RECIPE_QTY_MIN,
@@ -614,11 +799,19 @@ export const useManageProducts = () => {
       return false;
     }
 
+    const sizeQtyRes = parseSizeQuantitiesInput(sizeQuantities);
+    if (!sizeQtyRes.valid) {
+      setMessage('Error: ' + sizeQtyRes.error);
+      setTimeout(() => setMessage(''), 3500);
+      return false;
+    }
+
     try {
       setIsProcessing(true);
       await updateRecipe(recipeId, {
         quantity_used: qtyCheck.numericValue,
-        recipe_unit: recipeUnit
+        recipe_unit: recipeUnit,
+        size_quantities: sizeQtyRes.map
       });
       setMessage('Recipe ingredient updated successfully');
       const data = await getRecipesByProduct(selectedProduct.id);
@@ -636,7 +829,7 @@ export const useManageProducts = () => {
 
   return {
     viewMode, setViewMode,
-    products, categories, fetchCategories, loading, uploading, message, setMessage,
+    products, categories, categorySettings, fetchCategories, loading, uploading, message, setMessage,
     fetchProducts,
     isProcessing, processingId,
     searchTerm, setSearchTerm,
@@ -644,6 +837,8 @@ export const useManageProducts = () => {
     categoryFilter, setCategoryFilter,
     confirmConfig, setConfirmConfig,
     formData, setFormData, handleInputChange, handleImageUpload,
+    handleAddFormSize, handleRemoveFormSize, handleUpdateFormSize,
+    handleAddFormAddOn, handleRemoveFormAddOn,
     selectedProduct, setSelectedProduct,
     recipe, allIngredients,
     newRecipeItem, setNewRecipeItem,
@@ -658,7 +853,7 @@ export const useManageProducts = () => {
     editThreshold, setEditThreshold,
     editSizes, setEditSizes,
     editAddOns, setEditAddOns,
-    handleAddSize, handleRemoveSize,
+    handleAddSize, handleRemoveSize, handleUpdateEditSize,
     handleAddAddOn, handleRemoveAddOn,
     handleReceiveProductStock,
     handleAddProduct,

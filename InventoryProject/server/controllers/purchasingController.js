@@ -193,7 +193,9 @@ export const updatePurchaseOrderStatus = async (req, res) => {
           source: 'purchase_order',
           po_id: id,
           purchase_unit: item.purchase_unit || 'Unit',
-          purchase_qty: item.quantity_received_now
+          purchase_qty: item.quantity_received_now,
+          ...(item.batch_code ? { batch_code: item.batch_code } : {}),
+          ...(item.expiry_date ? { expiry_date: item.expiry_date } : {})
         });
       }
       invalidateAnalyticsCache();

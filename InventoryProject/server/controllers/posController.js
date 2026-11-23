@@ -18,9 +18,22 @@ export const getPosCatalog = async (req, res) => {
   }
 };
 
+const ALLOWED_ORDER_TYPES = new Set(["DINE_IN", "TAKE_OUT", "DELIVERY"]);
+const ALLOWED_SUGAR_LEVELS = new Set(["0%", "25%", "50%", "75%", "100%"]);
+
 export const createSale = async (req, res) => {
   try {
-    const { cart, total, amount_received, payment_method } = req.body;
+    const { cart, total, amount_received, payment_method, order_type } = req.body;
+
+    let normalizedOrderType = "DINE_IN";
+    if (order_type !== undefined && order_type !== null && String(order_type).trim() !== "") {
+      normalizedOrderType = String(order_type).trim().toUpperCase().replace(/-/g, "_");
+      if (!ALLOWED_ORDER_TYPES.has(normalizedOrderType)) {
+        return res.status(400).json({
+          error: "Invalid order_type. Must be DINE_IN, TAKE_OUT, or DELIVERY."
+        });
+      }
+    }
 
     if (!Array.isArray(cart) || cart.length === 0) {
       return res.status(400).json({ error: "Cart cannot be empty." });
@@ -35,6 +48,32 @@ export const createSale = async (req, res) => {
         return res.status(400).json({
           error: `Invalid quantity for item "${item.name || item.id}". Quantity must be an integer between 1 and 99.`
         });
+      }
+
+      if (item.modifiers !== undefined && item.modifiers !== null) {
+        if (typeof item.modifiers !== "object" || Array.isArray(item.modifiers)) {
+          return res.status(400).json({
+            error: `Invalid modifiers format for "${item.name || item.id}".`
+          });
+        }
+        const { sugar_level, ice_level, note } = item.modifiers;
+        if (sugar_level !== undefined && sugar_level !== null && String(sugar_level).trim() !== "") {
+          if (!ALLOWED_SUGAR_LEVELS.has(String(sugar_level).trim())) {
+            return res.status(400).json({
+              error: `Invalid sugar level for "${item.name || item.id}". Must be 0%, 25%, 50%, 75%, or 100%.`
+            });
+          }
+        }
+        if (ice_level !== undefined && ice_level !== null && String(ice_level).trim().length > 50) {
+          return res.status(400).json({
+            error: `Ice level for "${item.name || item.id}" must be at most 50 characters.`
+          });
+        }
+        if (note !== undefined && note !== null && String(note).trim().length > 200) {
+          return res.status(400).json({
+            error: `Modifier note for "${item.name || item.id}" must be at most 200 characters.`
+          });
+        }
       }
 
       if (Array.isArray(item.add_ons)) {
@@ -75,6 +114,7 @@ export const createSale = async (req, res) => {
 
     const sale = await posService.createSale({
       ...req.body,
+      order_type: normalizedOrderType,
       staff_id: req.user.id,
     });
     res.json({ message: "Sale completed", sale });
