@@ -69,7 +69,7 @@ const DashboardOverview = ({ onNavigate }) => {
               {todayFormatted}
             </span>
           </div>
-          <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-900 tracking-tight m-0">
+          <h1 className="text-xl md:text-2xl font-bold text-zinc-900 tracking-tight m-0">
             Operations & Performance
           </h1>
           <p className="text-base text-zinc-600 mt-1 mb-0">

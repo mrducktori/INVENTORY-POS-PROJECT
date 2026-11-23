@@ -117,7 +117,7 @@ const SupplierPriceComparison = ({ suppliers, ingredients, onEditSupplier }) => 
           <div className="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-1">
             Supplier Catalog Coverage
           </div>
-          <div className="text-2xl font-black text-zinc-950 tabular-nums">
+          <div className="text-2xl font-bold text-zinc-950 tabular-nums">
             {stats.covered} / {stats.total}
           </div>
           <div className="text-xs font-semibold text-emerald-700 mt-1">
@@ -129,7 +129,7 @@ const SupplierPriceComparison = ({ suppliers, ingredients, onEditSupplier }) => 
           <div className="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-1">
             Multi-Supplier Sourcing
           </div>
-          <div className="text-2xl font-black text-zinc-950 tabular-nums">
+          <div className="text-2xl font-bold text-zinc-950 tabular-nums">
             {stats.multiSupplier} materials
           </div>
           <div className="text-xs font-semibold text-zinc-600 mt-1">
@@ -141,7 +141,7 @@ const SupplierPriceComparison = ({ suppliers, ingredients, onEditSupplier }) => 
           <div className="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-1">
             Active Vendors
           </div>
-          <div className="text-2xl font-black text-zinc-950 tabular-nums">
+          <div className="text-2xl font-bold text-zinc-950 tabular-nums">
             {suppliers.length} suppliers
           </div>
           <div className="text-xs font-semibold text-zinc-600 mt-1">

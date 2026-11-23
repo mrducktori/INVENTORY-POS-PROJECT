@@ -71,7 +71,7 @@ const CustomRevenueTooltip = ({ active, payload, label }) => {
       <div className="text-xs text-zinc-400 uppercase font-semibold tracking-wider mb-0.5">
         Gross Sales
       </div>
-      <div className="text-2xl font-black text-white tabular-nums tracking-tight">
+      <div className="text-2xl font-bold text-white tabular-nums tracking-tight">
         ₱{Number(val).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
       </div>
 

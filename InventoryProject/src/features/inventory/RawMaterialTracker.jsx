@@ -185,7 +185,7 @@ const RawMaterialTracker = ({ subTab = null, onSubTabChange = null }) => {
     <div className="p-4 md:p-8 flex-1 bg-gray-50 overflow-y-auto w-full">
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 gap-4">
         <div>
-          <h1 className="m-0 text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">Raw Material Tracker</h1>
+          <h1 className="m-0 text-xl md:text-2xl font-bold text-gray-900 tracking-tight">Raw Material Tracker</h1>
           <p className="m-0 mt-1 text-sm text-gray-500 font-medium">Monitor usable ingredient stock, FEFO batches, and physical stocktakes.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -239,19 +239,19 @@ const RawMaterialTracker = ({ subTab = null, onSubTabChange = null }) => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <div className="bg-white border border-gray-200 p-5 rounded-xl shadow-sm flex flex-col justify-center text-center">
           <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Total Ingredients</div>
-          <div className="text-2xl font-extrabold text-gray-900">{stats.total}</div>
+          <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
         </div>
         <div className="bg-red-50 border border-red-200 p-5 rounded-xl shadow-sm flex flex-col justify-center text-center">
           <div className="text-xs font-bold text-red-600 uppercase tracking-wider mb-1">Out of Stock</div>
-          <div className="text-2xl font-extrabold text-red-700">{stats.out}</div>
+          <div className="text-2xl font-bold text-red-700">{stats.out}</div>
         </div>
         <div className="bg-amber-50 border border-amber-200 p-5 rounded-xl shadow-sm flex flex-col justify-center text-center">
           <div className="text-xs font-bold text-amber-700 uppercase tracking-wider mb-1">Low Stock / Restock Needed</div>
-          <div className="text-2xl font-extrabold text-amber-700">{stats.low}</div>
+          <div className="text-2xl font-bold text-amber-700">{stats.low}</div>
         </div>
         <div className="bg-green-50 border border-green-200 p-5 rounded-xl shadow-sm flex flex-col justify-center text-center">
           <div className="text-xs font-bold text-green-700 uppercase tracking-wider mb-1">In Stock</div>
-          <div className="text-2xl font-extrabold text-green-700">{stats.healthy}</div>
+          <div className="text-2xl font-bold text-green-700">{stats.healthy}</div>
         </div>
       </div>
 

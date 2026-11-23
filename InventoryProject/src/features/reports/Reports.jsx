@@ -88,11 +88,11 @@ const Reports = () => {
   };
 
   return (
-    <div className="p-4 md:p-8 pb-24 bg-white w-full flex flex-col min-h-screen space-y-6">
+    <div className="p-4 md:p-8 pb-24 bg-gray-50 w-full flex flex-col min-h-screen space-y-6">
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-zinc-200">
         <div>
-          <h1 className="text-2xl md:text-3xl font-extrabold text-zinc-900 tracking-tight m-0">
+          <h1 className="text-xl md:text-2xl font-bold text-zinc-900 tracking-tight m-0">
             Reports &amp; Analytics
           </h1>
           <p className="text-sm text-zinc-500 font-medium mt-1 mb-0">

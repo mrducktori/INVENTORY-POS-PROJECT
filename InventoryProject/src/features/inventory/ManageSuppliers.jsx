@@ -221,7 +221,7 @@ const ManageSuppliers = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <div>
-          <h1 className="m-0 text-2xl md:text-3xl font-extrabold text-zinc-900 tracking-tight">
+          <h1 className="m-0 text-xl md:text-2xl font-bold text-zinc-900 tracking-tight">
             Manage Suppliers & Pricing
           </h1>
           <p className="m-0 mt-1 text-sm text-zinc-500 font-medium">

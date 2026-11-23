@@ -5,6 +5,7 @@ import { getManilaDateOnly } from '../../utils/dateUtils';
 import { TableSkeleton } from '../../components/shared/SkeletonLoader';
 import Pagination from '../../components/shared/Pagination';
 import ExpiryLevelBadge from './components/ExpiryLevelBadge';
+import { SortIcon } from '../analytics/components/ForecastBadges';
 
 const getUsableStock = (alert) => {
   if (alert && alert.usable_stock !== undefined && alert.usable_stock !== null) {
@@ -12,6 +13,11 @@ const getUsableStock = (alert) => {
   }
   return Number(alert?.stock_quantity) || 0;
 };
+
+// The level the server actually alerts on: the larger of reorder point and manual threshold.
+const getAlertLevel = (a) => Number(a?.low_stock_threshold ?? a?.low_stock_alert) || 0;
+
+const SEVERITY_RANK = { critical: 0, warning: 1, low: 2 };
 
 const formatExpiryBadge = (expiryDate, todayManila) => {
   if (!expiryDate) return { label: 'No Expiry', cls: 'bg-zinc-100 text-zinc-600 border-zinc-200' };
@@ -31,6 +37,7 @@ const LowStockAlerts = () => {
   const [expiryData, setExpiryData] = useState({ expiredBatches: [], expiringSoonBatches: [] });
   const [loading, setLoading] = useState(true); // first load only; polls refresh silently
   const [searchTerm, setSearchTerm] = useState('');
+  const [sort, setSort] = useState({ key: 'severity', dir: 'asc' });
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const todayManila = getManilaDateOnly();
@@ -68,8 +75,25 @@ const LowStockAlerts = () => {
 
   const filteredAlerts = useMemo(() => {
     const q = (searchTerm || '').trim().toLowerCase();
-    return alerts.filter(a => (a.name || '').toLowerCase().includes(q));
-  }, [alerts, searchTerm]);
+    const rows = alerts.filter(a => (a.name || '').toLowerCase().includes(q));
+    const sev = (a) => SEVERITY_RANK[a?.alert === 'CANNOT_MAKE' ? 'critical' : getSeverity(getUsableStock(a), getAlertLevel(a))];
+    const value = {
+      name: (a) => (a.name || '').toLowerCase(),
+      usable: getUsableStock,
+      level: getAlertLevel,
+      expiry: (a) => a.nearest_expiry_date || '9999-12-31',
+      shortage: (a) => Math.max(0, getAlertLevel(a) - getUsableStock(a)),
+      severity: sev
+    }[sort.key];
+    const dir = sort.dir === 'asc' ? 1 : -1;
+    return rows.sort((a, b) => {
+      const x = value(a), y = value(b);
+      return (x < y ? -1 : x > y ? 1 : 0) * dir || (a.name || '').localeCompare(b.name || '');
+    });
+  }, [alerts, searchTerm, sort]);
+
+  const toggleSort = (key) =>
+    setSort((cur) => (cur.key === key ? { key, dir: cur.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }));
 
   const combinedExpiryBatches = useMemo(() => {
     const expired = (expiryData.expiredBatches || []).map(b => ({ ...b, _group: 'EXPIRED' }));
@@ -93,7 +117,7 @@ const LowStockAlerts = () => {
     setCurrentPage(1);
   }, [searchTerm, activeTab]);
 
-  const alertSeverity = (a) => (a?.alert === 'CANNOT_MAKE' ? 'critical' : getSeverity(getUsableStock(a), a?.low_stock_alert));
+  const alertSeverity = (a) => (a?.alert === 'CANNOT_MAKE' ? 'critical' : getSeverity(getUsableStock(a), getAlertLevel(a)));
   const getCriticalCount = () => alerts.filter(a => alertSeverity(a) === 'critical').length;
   const getWarningCount = () => alerts.filter(a => alertSeverity(a) === 'warning').length;
   const expiredCount = expiryData.expiredBatches?.length || 0;
@@ -103,7 +127,7 @@ const LowStockAlerts = () => {
     <div className="p-4 md:p-8 flex-1 bg-gray-50 overflow-y-auto w-full">
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 gap-4">
         <div>
-          <h1 className="m-0 text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">Low-Stock & Expiration Alerts</h1>
+          <h1 className="m-0 text-xl md:text-2xl font-bold text-gray-900 tracking-tight">Low-Stock & Expiration Alerts</h1>
           <p className="m-0 mt-1 text-sm text-gray-500 font-medium">Monitor low usable inventory and expiring or expired batches.</p>
         </div>
         <div className="inline-flex bg-white p-1 rounded-xl border border-gray-200 shadow-xs gap-1">
@@ -147,15 +171,15 @@ const LowStockAlerts = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <div className="bg-white border border-gray-200 p-6 rounded-xl shadow-sm flex flex-col justify-center">
               <div className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Total Low Usable Stock</div>
-              <div className="text-3xl font-extrabold text-gray-900">{alerts.length}</div>
+              <div className="text-2xl font-bold text-gray-900">{alerts.length}</div>
             </div>
             <div className="bg-white border border-red-200 p-6 rounded-xl shadow-sm flex flex-col justify-center">
               <div className="text-sm font-semibold text-red-600 uppercase tracking-wider mb-2">Critical Alert</div>
-              <div className="text-3xl font-extrabold text-red-700">{getCriticalCount()}</div>
+              <div className="text-2xl font-bold text-red-700">{getCriticalCount()}</div>
             </div>
             <div className="bg-white border border-orange-200 p-6 rounded-xl shadow-sm flex flex-col justify-center">
               <div className="text-sm font-semibold text-orange-600 uppercase tracking-wider mb-2">Warning Level</div>
-              <div className="text-3xl font-extrabold text-orange-700">{getWarningCount()}</div>
+              <div className="text-2xl font-bold text-orange-700">{getWarningCount()}</div>
             </div>
           </div>
 
@@ -186,20 +210,21 @@ const LowStockAlerts = () => {
                   <table className="w-full text-left border-collapse whitespace-nowrap">
                     <thead>
                       <tr className="bg-gray-50 border-b border-gray-200">
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider sticky left-0 z-10 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb]">Ingredient</th>
+                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider sticky left-0 z-10 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb]"><button type="button" onClick={() => toggleSort('name')} className="group inline-flex items-center gap-1 uppercase font-bold tracking-wider cursor-pointer">Ingredient<SortIcon active={sort.key === 'name'} direction={sort.dir} /></button></th>
                         <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Unit</th>
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Usable Stock</th>
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Alert Level</th>
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Nearest Expiry</th>
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Shortage</th>
-                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Severity</th>
+                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right"><button type="button" onClick={() => toggleSort('usable')} className="group inline-flex items-center gap-1 uppercase font-bold tracking-wider cursor-pointer justify-end">Usable Stock<SortIcon active={sort.key === 'usable'} direction={sort.dir} /></button></th>
+                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right"><button type="button" onClick={() => toggleSort('level')} className="group inline-flex items-center gap-1 uppercase font-bold tracking-wider cursor-pointer justify-end">Alert Level<SortIcon active={sort.key === 'level'} direction={sort.dir} /></button></th>
+                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider"><button type="button" onClick={() => toggleSort('expiry')} className="group inline-flex items-center gap-1 uppercase font-bold tracking-wider cursor-pointer">Nearest Expiry<SortIcon active={sort.key === 'expiry'} direction={sort.dir} /></button></th>
+                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right"><button type="button" onClick={() => toggleSort('shortage')} className="group inline-flex items-center gap-1 uppercase font-bold tracking-wider cursor-pointer justify-end">Shortage<SortIcon active={sort.key === 'shortage'} direction={sort.dir} /></button></th>
+                        <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider"><button type="button" onClick={() => toggleSort('severity')} className="group inline-flex items-center gap-1 uppercase font-bold tracking-wider cursor-pointer">Severity<SortIcon active={sort.key === 'severity'} direction={sort.dir} /></button></th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {paginatedRows.map(alert => {
                         const usable = getUsableStock(alert);
                         const expired = Number(alert.expired_stock) || 0;
-                        const shortage = Math.max(0, (Number(alert.low_stock_alert) || 0) - usable);
+                        const level = getAlertLevel(alert);
+                        const shortage = Math.max(0, level - usable);
                         const severity = alertSeverity(alert);
                         const blocked = Array.isArray(alert.blocked_products) ? alert.blocked_products : [];
                         const first = blocked[0];
@@ -226,14 +251,14 @@ const LowStockAlerts = () => {
                                 </div>
                               )}
                             </td>
-                            <td className="px-6 py-4 text-sm font-medium text-gray-500 text-right">{alert.low_stock_alert}</td>
+                            <td className="px-6 py-4 text-sm font-medium text-gray-500 text-right">{level}</td>
                             <td className="px-6 py-4">
                               <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${expBadge.cls}`}>
                                 {expBadge.label}
                               </span>
                             </td>
                             <td className="px-6 py-4 text-sm font-bold text-red-600 text-right">
-                              -{shortage.toFixed(2)}
+                              {shortage > 0 ? `-${Math.round(shortage * 100) / 100}` : '—'}
                             </td>
                             <td className="px-6 py-4">
                               <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
@@ -306,15 +331,15 @@ const LowStockAlerts = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <div className="bg-white border border-red-200 p-6 rounded-xl shadow-sm flex flex-col justify-center">
               <div className="text-sm font-semibold text-red-600 uppercase tracking-wider mb-2">Expired Batches</div>
-              <div className="text-3xl font-extrabold text-red-700">{expiredCount}</div>
+              <div className="text-2xl font-bold text-red-700">{expiredCount}</div>
             </div>
             <div className="bg-white border border-amber-200 p-6 rounded-xl shadow-sm flex flex-col justify-center">
               <div className="text-sm font-semibold text-amber-600 uppercase tracking-wider mb-2">Expiring Within 7 Days</div>
-              <div className="text-3xl font-extrabold text-amber-700">{expiringSoonCount}</div>
+              <div className="text-2xl font-bold text-amber-700">{expiringSoonCount}</div>
             </div>
             <div className="bg-white border border-gray-200 p-6 rounded-xl shadow-sm flex flex-col justify-center">
               <div className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Total Flagged Batches</div>
-              <div className="text-3xl font-extrabold text-gray-900">{expiredCount + expiringSoonCount}</div>
+              <div className="text-2xl font-bold text-gray-900">{expiredCount + expiringSoonCount}</div>
             </div>
           </div>
 

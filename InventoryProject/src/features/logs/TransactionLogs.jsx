@@ -199,12 +199,12 @@ const TransactionLogs = () => {
   }
 
   return (
-    <div className="p-4 md:p-8 flex-1 bg-white min-h-screen overflow-y-auto w-full space-y-6">
+    <div className="p-4 md:p-8 flex-1 bg-gray-50 min-h-screen overflow-y-auto w-full space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-zinc-200">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl md:text-3xl font-extrabold text-zinc-900 tracking-tight m-0">
+            <h1 className="text-xl md:text-2xl font-bold text-zinc-900 tracking-tight m-0">
               Transaction Logs
             </h1>
             <span className="px-2 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-zinc-900 text-white shadow-2xs">

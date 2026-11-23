@@ -98,7 +98,7 @@ const MenuDemandTab = ({
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white border border-zinc-200/80 rounded-xl p-4 sm:p-5 shadow-2xs">
           <span className="text-xs font-medium text-zinc-500">Expected sales, next 7 days</span>
-          <div className="text-2xl sm:text-3xl font-bold text-zinc-900 mt-1 tabular-nums">
+          <div className="text-2xl sm:text-2xl font-bold text-zinc-900 mt-1 tabular-nums">
             {loadingProducts ? '—' : `${Math.round(productSummary.total7DayUnits).toLocaleString()} cups/orders`}
           </div>
         </div>
@@ -110,7 +110,7 @@ const MenuDemandTab = ({
         </div>
         <div className="bg-white border border-zinc-200/80 rounded-xl p-4 sm:p-5 shadow-2xs">
           <span className="text-xs font-medium text-zinc-500">Selling more than before</span>
-          <div className="text-2xl sm:text-3xl font-bold text-emerald-600 mt-1 tabular-nums">
+          <div className="text-2xl sm:text-2xl font-bold text-emerald-600 mt-1 tabular-nums">
             {loadingProducts ? '—' : `${productSummary.trendingUpCount} items`}
           </div>
         </div>

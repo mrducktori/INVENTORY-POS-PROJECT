@@ -51,7 +51,7 @@ const ViewRequests = () => {
     <div className="p-4 md:p-8 flex-1 bg-gray-50 overflow-y-auto w-full">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-          <h1 className="m-0 text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">Request Tracker</h1>
+          <h1 className="m-0 text-xl md:text-2xl font-bold text-gray-900 tracking-tight">Request Tracker</h1>
           <p className="m-0 mt-1 text-sm text-gray-500 font-medium">Review and approve staff requests for products and modifications.</p>
         </div>
       </div>

@@ -166,7 +166,7 @@ const ReportWastage = () => {
       {/* Operational Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-4 border-b border-gray-200">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-zinc-900 tracking-tight m-0">
+          <h1 className="text-xl md:text-2xl font-bold text-zinc-900 tracking-tight m-0">
             Report Wastage
           </h1>
           <p className="text-sm text-zinc-500 mt-1 mb-0">
@@ -181,7 +181,7 @@ const ReportWastage = () => {
           <div className="text-xs font-medium text-zinc-500 mb-1">
             Total Incidents
           </div>
-          <div className="text-3xl font-bold text-zinc-900 tabular-nums">
+          <div className="text-2xl font-bold text-zinc-900 tabular-nums">
             {wastageHistory.length}
           </div>
           <div className="text-xs text-zinc-400 mt-1">
@@ -193,7 +193,7 @@ const ReportWastage = () => {
           <div className="text-xs font-medium text-zinc-500 mb-1">
             Total Units Wasted
           </div>
-          <div className="text-3xl font-bold text-zinc-900 tabular-nums">
+          <div className="text-2xl font-bold text-zinc-900 tabular-nums">
             {totalWastageQuantity.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 2 })}
           </div>
           <div className="text-xs text-zinc-400 mt-1">
@@ -205,7 +205,7 @@ const ReportWastage = () => {
           <div className="text-xs font-medium text-zinc-500 mb-1">
             Logged This Month
           </div>
-          <div className="text-3xl font-bold text-zinc-900 tabular-nums">
+          <div className="text-2xl font-bold text-zinc-900 tabular-nums">
             {thisMonthCount}
           </div>
           <div className="text-xs text-zinc-400 mt-1">

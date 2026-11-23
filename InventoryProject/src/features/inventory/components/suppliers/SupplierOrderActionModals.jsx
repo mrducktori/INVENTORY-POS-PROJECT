@@ -70,7 +70,7 @@ const SupplierOrderActionModals = ({
       {postponeModal.show && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[9999] p-4 flex justify-center items-start pt-6 sm:pt-10 md:pt-14 pb-12 animate-[modalBackdropFadeIn_0.2s_ease-out]" onClick={() => setPostponeModal({ show: false, orderId: null, date: '' })}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 md:p-8" onClick={e => e.stopPropagation()}>
-            <h3 className="m-0 text-xl md:text-2xl font-black text-gray-900 mb-2">Postpone Order</h3>
+            <h3 className="m-0 text-xl md:text-2xl font-bold text-gray-900 mb-2">Postpone Order</h3>
             <p className="m-0 text-sm md:text-base text-gray-600 mb-6 font-medium">Select a new expected delivery date for this order.</p>
             <form onSubmit={onPostponeSubmit} className="flex flex-col gap-5">
               <div className="flex flex-col gap-2">

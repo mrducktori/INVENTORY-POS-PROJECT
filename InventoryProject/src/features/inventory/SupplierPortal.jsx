@@ -30,7 +30,7 @@ const SupplierPortal = () => {
     <div className="p-4 md:p-8 flex-1 bg-gray-50 overflow-y-auto w-full">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-          <h1 className="m-0 text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">Supplier Portal</h1>
+          <h1 className="m-0 text-xl md:text-2xl font-bold text-gray-900 tracking-tight">Supplier Portal</h1>
           <p className="m-0 mt-1 text-sm md:text-base text-gray-500 font-medium">
             {mainView === 'ORDERS'
               ? 'Manage incoming purchase orders from the store.'
@@ -85,7 +85,7 @@ const SupplierPortal = () => {
                 }`}
               >
                 <span className={`text-xs font-bold uppercase tracking-wider mb-1 ${tabFilter === 'ALL' ? 'text-zinc-400' : 'text-gray-500'}`}>Total Orders</span>
-                <span className="text-2xl font-extrabold">{orders.length}</span>
+                <span className="text-2xl font-bold">{orders.length}</span>
               </div>
 
               <div
@@ -98,7 +98,7 @@ const SupplierPortal = () => {
                   <span className={`text-xs font-bold uppercase tracking-wider mb-1 ${tabFilter === 'OVERDUE' ? 'text-rose-100' : overdueCount > 0 ? 'text-rose-700' : 'text-gray-500'}`}>Overdue</span>
                   {overdueCount > 0 && <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>}
                 </div>
-                <span className="text-2xl font-extrabold">{overdueCount}</span>
+                <span className="text-2xl font-bold">{overdueCount}</span>
               </div>
 
               <div
@@ -108,7 +108,7 @@ const SupplierPortal = () => {
                 }`}
               >
                 <span className={`text-xs font-bold uppercase tracking-wider mb-1 ${tabFilter === 'PENDING' ? 'text-yellow-100' : 'text-yellow-700'}`}>Pending Review</span>
-                <span className="text-2xl font-extrabold">{pendingCount}</span>
+                <span className="text-2xl font-bold">{pendingCount}</span>
               </div>
 
               <div
@@ -118,7 +118,7 @@ const SupplierPortal = () => {
                 }`}
               >
                 <span className={`text-xs font-bold uppercase tracking-wider mb-1 ${tabFilter === 'PROPOSALS' ? 'text-amber-100' : 'text-amber-700'}`}>Proposals</span>
-                <span className="text-2xl font-extrabold">{proposalsCount}</span>
+                <span className="text-2xl font-bold">{proposalsCount}</span>
               </div>
 
               <div
@@ -128,7 +128,7 @@ const SupplierPortal = () => {
                 }`}
               >
                 <span className={`text-xs font-bold uppercase tracking-wider mb-1 ${tabFilter === 'ACTIVE' ? 'text-indigo-100' : 'text-indigo-700'}`}>Active Deliveries</span>
-                <span className="text-2xl font-extrabold">{activeCount}</span>
+                <span className="text-2xl font-bold">{activeCount}</span>
               </div>
             </div>
           )}

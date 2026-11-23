@@ -153,7 +153,7 @@ const SalesSummaryReport = () => {
     <div className="p-4 md:p-8 flex-1 bg-gray-50 overflow-y-auto w-full">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-          <h1 className="m-0 text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">Sales Summary Report</h1>
+          <h1 className="m-0 text-xl md:text-2xl font-bold text-gray-900 tracking-tight">Sales Summary Report</h1>
           <p className="m-0 mt-1 text-sm md:text-base text-gray-500 font-medium">Analyze revenue and performance. Click on a staff member to view detailed logs.</p>
         </div>
         <button 
@@ -232,19 +232,19 @@ const SalesSummaryReport = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             <div className="bg-white border-l-4 border-blue-500 border-y border-r border-gray-200 rounded-xl shadow-sm p-5">
               <p className="m-0 text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Net Revenue</p>
-              <p className="m-0 text-2xl font-black text-gray-900 tracking-tight font-mono">₱{(summary.total_sales || 0).toFixed(2)}</p>
+              <p className="m-0 text-2xl font-bold text-gray-900 tracking-tight font-mono">₱{(summary.total_sales || 0).toFixed(2)}</p>
             </div>
             <div className="bg-white border-l-4 border-green-500 border-y border-r border-gray-200 rounded-xl shadow-sm p-5">
               <p className="m-0 text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Volume</p>
-              <p className="m-0 text-2xl font-black text-gray-900 tracking-tight font-mono">{summary.total_transactions || 0}</p>
+              <p className="m-0 text-2xl font-bold text-gray-900 tracking-tight font-mono">{summary.total_transactions || 0}</p>
             </div>
             <div className="bg-white border-l-4 border-amber-500 border-y border-r border-gray-200 rounded-xl shadow-sm p-5">
               <p className="m-0 text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Items Dispatched</p>
-              <p className="m-0 text-2xl font-black text-gray-900 tracking-tight font-mono">{summary.total_items_sold || 0}</p>
+              <p className="m-0 text-2xl font-bold text-gray-900 tracking-tight font-mono">{summary.total_items_sold || 0}</p>
             </div>
             <div className="bg-white border-l-4 border-purple-500 border-y border-r border-gray-200 rounded-xl shadow-sm p-5">
               <p className="m-0 text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Average Ticket</p>
-              <p className="m-0 text-2xl font-black text-gray-900 tracking-tight font-mono">
+              <p className="m-0 text-2xl font-bold text-gray-900 tracking-tight font-mono">
                 ₱{summary.total_transactions > 0
                   ? ((summary.total_sales || 0) / summary.total_transactions).toFixed(2)
                   : '0.00'}
@@ -252,7 +252,7 @@ const SalesSummaryReport = () => {
             </div>
             <div className="bg-white border-l-4 border-emerald-500 border-y border-r border-gray-200 rounded-xl shadow-sm p-5">
               <p className="m-0 text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Total Discounts</p>
-              <p className="m-0 text-2xl font-black text-emerald-700 tracking-tight font-mono">₱{Number(summary.total_discounts || 0).toFixed(2)}</p>
+              <p className="m-0 text-2xl font-bold text-emerald-700 tracking-tight font-mono">₱{Number(summary.total_discounts || 0).toFixed(2)}</p>
             </div>
             <div className="bg-white border-l-4 border-red-500 border-y border-r border-gray-200 rounded-xl shadow-sm p-5">
               <p className="m-0 text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Voided Txns</p>

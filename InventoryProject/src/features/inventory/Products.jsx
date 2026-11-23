@@ -139,7 +139,7 @@ const Products = () => {
               {products.filter(p => !p.is_archived).length} Total Menu Items
             </span>
           </div>
-          <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-900 tracking-tight m-0">
+          <h1 className="text-xl md:text-2xl font-bold text-zinc-900 tracking-tight m-0">
             Products & Recipes
           </h1>
           <p className="text-base text-zinc-600 mt-1 mb-0">
@@ -550,7 +550,7 @@ const Products = () => {
                   <span className="text-xs md:text-sm font-bold text-zinc-400 uppercase tracking-wider block">
                     Recipe Breakdown
                   </span>
-                  <h3 className="m-0 text-xl md:text-2xl font-black text-white tracking-wide">
+                  <h3 className="m-0 text-xl md:text-2xl font-bold text-white tracking-wide">
                     {selectedProduct.name}
                   </h3>
                 </div>

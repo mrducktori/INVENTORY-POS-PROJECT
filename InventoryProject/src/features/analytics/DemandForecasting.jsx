@@ -59,7 +59,7 @@ const DemandForecasting = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-200">
         <div>
           <div className="flex items-center gap-2.5">
-            <h1 className="text-2xl font-bold text-zinc-900 tracking-tight m-0">
+            <h1 className="text-xl md:text-2xl font-bold text-zinc-900 tracking-tight m-0">
               Demand Forecasting
             </h1>
             <button

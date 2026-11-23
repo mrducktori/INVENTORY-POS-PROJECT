@@ -123,7 +123,7 @@ const SupplierReviewPOModal = ({ isOpen, onClose, order, onSubmit }) => {
                 #{order.id.substring(0, 8).toUpperCase()}
               </span>
             </div>
-            <h2 className="text-xl md:text-2xl font-extrabold m-0 text-white tracking-tight">
+            <h2 className="text-xl md:text-2xl font-bold m-0 text-white tracking-tight">
               Confirm Product Availability
             </h2>
             <p className="text-xs text-zinc-300 mt-1 mb-0">

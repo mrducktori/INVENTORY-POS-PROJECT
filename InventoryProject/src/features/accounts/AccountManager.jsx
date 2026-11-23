@@ -335,7 +335,7 @@ const AccountManager = ({ subTab = null, onSubTabChange = null }) => {
     <div className="p-4 md:p-8 flex-1 bg-gray-50 overflow-y-auto w-full">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
         <div>
-          <h1 className="m-0 text-2xl md:text-3xl font-extrabold text-zinc-900 tracking-tight">Access Control</h1>
+          <h1 className="m-0 text-xl md:text-2xl font-bold text-zinc-900 tracking-tight">Access Control</h1>
           <p className="m-0 mt-1 text-sm text-zinc-500">
             {users.length} accounts &middot; {activeCount} active
           </p>

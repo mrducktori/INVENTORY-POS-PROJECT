@@ -63,7 +63,7 @@ const IngredientRestockTab = ({
         ].map(([label, val, color]) => (
           <div key={label} className="bg-white border border-zinc-200/80 rounded-xl p-4 sm:p-5 shadow-2xs">
             <span className="text-xs font-medium text-zinc-500">{label}</span>
-            <div className={`text-2xl sm:text-3xl font-bold mt-1 tabular-nums ${color}`}>
+            <div className={`text-2xl sm:text-2xl font-bold mt-1 tabular-nums ${color}`}>
               {loadingIngredients ? '—' : val}
             </div>
           </div>

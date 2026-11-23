@@ -15,8 +15,7 @@ const ProductOptionsEditor = ({
   onUpdateSize,
   addOns = [],
   onAddAddOn,
-  onRemoveAddOn,
-  compact = false
+  onRemoveAddOn
 }) => {
   const [newSize, setNewSize] = useState({
     name: '',
@@ -79,7 +78,7 @@ const ProductOptionsEditor = ({
   };
 
   return (
-    <div className={`grid grid-cols-1 ${compact ? '' : 'xl:grid-cols-2'} gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200`}>
+    <div className={`grid grid-cols-1 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200`}>
       {/* CUP SIZES */}
       <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-2xs flex flex-col gap-3">
         <div className="flex items-center justify-between">
@@ -217,35 +216,35 @@ const ProductOptionsEditor = ({
 
         <div className="flex flex-col gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            <input
+            <div className="flex flex-col gap-1"><label className="text-[10px] font-bold text-gray-600 uppercase tracking-wider">Size</label><input
               type="text"
               maxLength={40}
-              placeholder="Size (e.g. 16 oz)"
+              placeholder="e.g. 16 oz"
               value={newSize.name}
               onChange={(e) => setNewSize({ ...newSize, name: e.target.value })}
               className="px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-semibold bg-white focus:outline-none focus:border-gray-900"
-            />
-            <input
+            /></div>
+            <div className="flex flex-col gap-1"><label className="text-[10px] font-bold text-gray-600 uppercase tracking-wider">Extra price (₱)</label><input
               type="number"
               min="0"
               max="50000"
               step="0.01"
-              placeholder="Price Add (₱)"
+              placeholder="0"
               value={newSize.price_add}
               onChange={(e) => setNewSize({ ...newSize, price_add: e.target.value })}
               className="px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-semibold bg-white focus:outline-none focus:border-gray-900"
-            />
-            <input
+            /></div>
+            <div className="flex flex-col gap-1"><label className="text-[10px] font-bold text-gray-600 uppercase tracking-wider">Recipe multiplier</label><input
               type="number"
               min="0.1"
               max="10"
               step="0.05"
-              placeholder="Multiplier (1)"
+              placeholder="1"
               value={newSize.recipe_multiplier}
               onChange={(e) => setNewSize({ ...newSize, recipe_multiplier: e.target.value })}
               title="Fallback recipe multiplier (0.1 - 10)"
               className="px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-semibold bg-white focus:outline-none focus:border-gray-900"
-            />
+            /></div>
           </div>
 
           <div className="flex flex-col gap-1">
