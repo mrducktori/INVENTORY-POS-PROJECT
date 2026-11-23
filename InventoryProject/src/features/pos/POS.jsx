@@ -24,9 +24,9 @@ const WORKSPACE_TABS = [
   { id: "SHIFTS", label: "Shifts (X/Z)" }
 ];
 
-const POS = () => {
-  const [workspace, setWorkspace] = useState("REGISTER");
-  const [showPosSettings, setShowPosSettings] = useState(false);
+const POS = ({ subTab = null, onSubTabChange = null }) => {
+  const [localWorkspace, setLocalWorkspace] = useState("REGISTER");
+  const [localShowPosSettings, setLocalShowPosSettings] = useState(false);
   const {
     products,
     ingredients,
@@ -93,6 +93,28 @@ const POS = () => {
   const filteredProducts = filterProducts(products, category, searchTerm, categories);
   const selectedOptionsAvailability = getProductOptionsAvailability(selectedProduct, categorySettings);
   const isManagerRole = user?.role === "Owner" || user?.role === "Admin";
+  const isControlledSubTab = typeof onSubTabChange === "function";
+  const workspace = isControlledSubTab
+    ? (subTab === "KDS" || subTab === "VOIDS" || subTab === "SHIFTS" ? subTab : "REGISTER")
+    : localWorkspace;
+  const showPosSettings = isControlledSubTab
+    ? (subTab === "SETUP" && isManagerRole)
+    : localShowPosSettings;
+
+  const setActiveWorkspace = (nextTab) => {
+    setLocalWorkspace(nextTab);
+    onSubTabChange?.(nextTab === "REGISTER" ? null : nextTab);
+  };
+
+  const openPosSetup = () => {
+    setLocalShowPosSettings(true);
+    onSubTabChange?.("SETUP");
+  };
+
+  const closePosSetup = () => {
+    setLocalShowPosSettings(false);
+    if (subTab === "SETUP") onSubTabChange?.(null);
+  };
 
   return (
     <div className="flex flex-col h-full lg:h-[calc(100vh-0px)] w-full bg-gray-50 overflow-hidden relative">
@@ -115,7 +137,7 @@ const POS = () => {
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setWorkspace(tab.id)}
+                onClick={() => setActiveWorkspace(tab.id)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-none ${
                   workspace === tab.id
                     ? "bg-gray-900 text-white shadow-xs"
@@ -130,7 +152,7 @@ const POS = () => {
           {isManagerRole && (
             <button
               type="button"
-              onClick={() => setShowPosSettings(true)}
+              onClick={openPosSetup}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border border-gray-300 bg-white text-gray-800 hover:bg-gray-50 cursor-pointer transition-colors"
             >
               <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -190,8 +212,9 @@ const POS = () => {
           categorySettings={categorySettings}
           ongoingOrders={ongoingOrders}
           onOpenOngoingOrder={() => {
-            setWorkspace("REGISTER");
+            setLocalWorkspace("REGISTER");
             setActiveTab("ongoing");
+            onSubTabChange?.(null);
           }}
         />
       )}
@@ -374,7 +397,7 @@ const POS = () => {
           allIngredients={ingredients}
           initialSettings={posSettings}
           onSaved={(saved) => setPosSettings(saved)}
-          onClose={() => setShowPosSettings(false)}
+          onClose={closePosSetup}
         />
       )}
 

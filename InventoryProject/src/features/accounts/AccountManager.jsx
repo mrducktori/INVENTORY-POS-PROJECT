@@ -19,12 +19,12 @@ const EMPTY_FORM = {
   permissions: [...STAFF_DEFAULT_PERMISSIONS],
 };
 
-const AccountManager = () => {
+const AccountManager = ({ subTab = null, onSubTabChange = null }) => {
   const currentUser = getCurrentUser();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null); // { type: 'success' | 'error', text }
-  const [view, setView] = useState('list'); // 'list' | 'form'
+  const [localView, setLocalView] = useState('list'); // 'list' | 'form' | 'pins'
 
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [editingUserId, setEditingUserId] = useState(null);
@@ -41,6 +41,13 @@ const AccountManager = () => {
   const [pinInputs, setPinInputs] = useState({});
   const [savingPinId, setSavingPinId] = useState(null);
   const isManagerRole = currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
+  const view = subTab === 'PINS' && isManagerRole
+    ? 'pins'
+    : (localView === 'pins' && !isManagerRole ? 'list' : (subTab !== 'PINS' && localView === 'pins' && typeof onSubTabChange === 'function' ? 'list' : localView));
+
+  const setView = (next) => {
+    setLocalView(next);
+  };
 
   const fetchPinStatus = useCallback(async () => {
     if (!isManagerRole) return;
@@ -343,12 +350,16 @@ const AccountManager = () => {
               key={t.id}
               type="button"
               onClick={() => {
-                if (t.id === 'list') resetForm();
-                else if (t.id === 'form') {
+                if (t.id === 'list') {
+                  resetForm();
+                  onSubTabChange?.(null);
+                } else if (t.id === 'form') {
                   if (view !== 'form') startCreate();
+                  onSubTabChange?.(null);
                 } else if (t.id === 'pins') {
                   setView('pins');
                   fetchPinStatus();
+                  onSubTabChange?.('PINS');
                 }
               }}
               className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer ${

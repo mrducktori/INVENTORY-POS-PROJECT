@@ -34,6 +34,36 @@ const Reports = lazy(() => import('../reports/Reports'));
 const CMSDashboard = lazy(() => import('../cms/CMSDashboard'));
 const SupplierPortal = lazy(() => import('../inventory/SupplierPortal'));
 
+const SUBTAB_PARENTS = new Set(['POS', 'RawMaterialTracker', 'ManageProducts', 'AccountManager']);
+
+const resolveInitialRoute = (user, defaultTab) => {
+  if (typeof window !== 'undefined' && window.location.hash) {
+    const rawHash = window.location.hash.replace(/^#\/?/, '');
+    const [hashTab, hashSub = null] = rawHash.split('/');
+    if (hashTab && canAccess(user, rawHash)) {
+      return {
+        tab: hashTab,
+        subTab: SUBTAB_PARENTS.has(hashTab) && hashSub ? hashSub : null
+      };
+    }
+  }
+  try {
+    const saved = localStorage.getItem('coftea_active_tab');
+    if (saved) {
+      const [savedTab, savedSub = null] = saved.split('/');
+      if (savedTab && canAccess(user, saved)) {
+        return {
+          tab: savedTab,
+          subTab: SUBTAB_PARENTS.has(savedTab) && savedSub ? savedSub : null
+        };
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return { tab: defaultTab, subTab: null };
+};
+
 const Dashboard = () => {
   const user = useMemo(() => getCurrentUser() || {}, []);
   const getDefaultTab = useCallback(() => {
@@ -44,43 +74,45 @@ const Dashboard = () => {
     return allowed[0] || 'POS';
   }, [user]);
 
-  const getInitialTab = useCallback(() => {
-    // 1. Check URL hash first (e.g. #Reports or #Reports/wastage)
-    if (typeof window !== 'undefined' && window.location.hash) {
-      const hashTab = window.location.hash.replace(/^#\/?/, '').split('/')[0];
-      if (hashTab && canAccess(user, hashTab)) {
-        return hashTab;
-      }
-    }
-    // 2. Check localStorage
-    try {
-      const savedTab = localStorage.getItem('coftea_active_tab');
-      if (savedTab && canAccess(user, savedTab)) {
-        return savedTab;
-      }
-    } catch {
-      // ignore
-    }
-    return getDefaultTab();
-  }, [user, getDefaultTab]);
-
-  const [activeTab, setActiveTab] = useState(getInitialTab);
+  const initialRoute = useMemo(() => resolveInitialRoute(user, getDefaultTab()), [user, getDefaultTab]);
+  const [activeTab, setActiveTab] = useState(initialRoute.tab);
+  const [activeSubTab, setActiveSubTab] = useState(initialRoute.subTab);
 
   const isAuthorized = useCallback((tab) => canAccess(user, tab), [user]);
   const defaultTab = getDefaultTab();
   const effectiveTab = isAuthorized(activeTab)
     ? activeTab
     : (isAuthorized(defaultTab) ? defaultTab : null);
+  const effectiveSubTab =
+    effectiveTab && SUBTAB_PARENTS.has(effectiveTab) && activeSubTab && isAuthorized(`${effectiveTab}/${activeSubTab}`)
+      ? activeSubTab
+      : null;
 
   const handleTabChange = useCallback((newTab) => {
-    const targetTab = isAuthorized(newTab) ? newTab : getDefaultTab();
-    setActiveTab(targetTab);
+    const [rawBase, rawSub = null] = String(newTab || '').split('/');
+    const targetBase = isAuthorized(rawBase) ? rawBase : getDefaultTab();
+    const targetSub =
+      rawBase === targetBase &&
+      SUBTAB_PARENTS.has(targetBase) &&
+      rawSub &&
+      isAuthorized(`${targetBase}/${rawSub}`)
+        ? rawSub
+        : null;
+
+    setActiveTab(targetBase);
+    setActiveSubTab(targetSub);
+
+    const routeString = targetSub ? `${targetBase}/${targetSub}` : targetBase;
     try {
-      localStorage.setItem('coftea_active_tab', targetTab);
+      localStorage.setItem('coftea_active_tab', routeString);
       if (typeof window !== 'undefined') {
         const currentHash = window.location.hash.replace(/^#\/?/, '');
-        if (!currentHash.startsWith(targetTab)) {
-          window.history.replaceState(null, '', `#${targetTab}`);
+        if (targetBase === 'Reports') {
+          if (!currentHash.startsWith('Reports')) {
+            window.history.replaceState(null, '', '#Reports');
+          }
+        } else if (currentHash !== routeString) {
+          window.history.replaceState(null, '', `#${routeString}`);
         }
       }
     } catch {
@@ -91,31 +123,40 @@ const Dashboard = () => {
   // Sync state with URL hash and localStorage on tab changes
   useEffect(() => {
     if (!effectiveTab) return;
+    const routeString = effectiveSubTab ? `${effectiveTab}/${effectiveSubTab}` : effectiveTab;
     if (typeof window !== 'undefined') {
-      const currentMain = window.location.hash.replace(/^#\/?/, '').split('/')[0];
-      if (currentMain !== effectiveTab) {
-        window.history.replaceState(null, '', `#${effectiveTab}`);
+      const currentRaw = window.location.hash.replace(/^#\/?/, '');
+      const currentMain = currentRaw.split('/')[0];
+      if (effectiveTab === 'Reports') {
+        if (currentMain !== 'Reports') {
+          window.history.replaceState(null, '', '#Reports');
+        }
+      } else if (currentRaw !== routeString) {
+        window.history.replaceState(null, '', `#${routeString}`);
       }
     }
     try {
-      localStorage.setItem('coftea_active_tab', effectiveTab);
+      localStorage.setItem('coftea_active_tab', routeString);
     } catch { /* ignore storage errors */ }
-  }, [effectiveTab]);
+  }, [effectiveTab, effectiveSubTab]);
 
   // Handle browser Back / Forward navigation
   useEffect(() => {
     const handleHashChange = () => {
-      const hashTab = window.location.hash.replace(/^#\/?/, '').split('/')[0];
-      if (hashTab && hashTab !== effectiveTab && canAccess(user, hashTab)) {
+      const rawHash = window.location.hash.replace(/^#\/?/, '');
+      const [hashTab, hashSub = null] = rawHash.split('/');
+      const nextSub = SUBTAB_PARENTS.has(hashTab) ? hashSub : null;
+      if (hashTab && canAccess(user, rawHash) && (hashTab !== effectiveTab || nextSub !== effectiveSubTab)) {
         setActiveTab(hashTab);
+        setActiveSubTab(nextSub);
         try {
-          localStorage.setItem('coftea_active_tab', hashTab);
+          localStorage.setItem('coftea_active_tab', nextSub ? `${hashTab}/${nextSub}` : hashTab);
         } catch { /* ignore storage errors */ }
       }
     };
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
-  }, [effectiveTab, user]);
+  }, [effectiveTab, effectiveSubTab, user]);
 
   // Monitor account active status and session validity in real time
   useEffect(() => {
@@ -166,6 +207,14 @@ const Dashboard = () => {
     };
   }, [user?.id]);
 
+  const handleSubTabChange = useCallback(
+    (sub) => {
+      if (!effectiveTab) return;
+      handleTabChange(sub ? `${effectiveTab}/${sub}` : effectiveTab);
+    },
+    [effectiveTab, handleTabChange]
+  );
+
   const renderContent = () => {
     if (!effectiveTab) {
       return (
@@ -178,15 +227,15 @@ const Dashboard = () => {
 
     switch (effectiveTab) {
       case 'Dashboard':         return <DashboardOverview onNavigate={handleTabChange} />;
-      case 'POS':               return <POS />;
+      case 'POS':               return <POS subTab={effectiveSubTab} onSubTabChange={handleSubTabChange} />;
       case 'ReportWastage':     return <ReportWastage />;
 
       // Inventory System
       case 'Products':          return <Products />;
-      case 'ManageProducts':    return <ManageProducts />;
+      case 'ManageProducts':    return <ManageProducts subTab={effectiveSubTab} onSubTabChange={handleSubTabChange} />;
 
       // Inventory Stock
-      case 'RawMaterialTracker': return <RawMaterialTracker />;
+      case 'RawMaterialTracker': return <RawMaterialTracker subTab={effectiveSubTab} onSubTabChange={handleSubTabChange} />;
       case 'ProductStockTracker': return <ProductStockTracker />;
       case 'ManageRawMaterials': return <ManageRawMaterials />;
       case 'StockReceived':     return <StockReceived />;
@@ -203,7 +252,7 @@ const Dashboard = () => {
       case 'SalesSummaryReport': return <SalesSummaryReport />;
 
       // Account Management & Staff Requests
-      case 'AccountManager':    return <AccountManager />;
+      case 'AccountManager':    return <AccountManager subTab={effectiveSubTab} onSubTabChange={handleSubTabChange} />;
       case 'EmployeeTracker':   return <EmployeeTracker />;
       case 'RequestProduct':    return <RequestProduct />;
       case 'ViewRequests':      return <ViewRequests />;
@@ -232,11 +281,12 @@ const Dashboard = () => {
   };
 
   const displayTab = effectiveTab || activeTab;
+  const navActiveTab = effectiveSubTab ? `${displayTab}/${effectiveSubTab}` : displayTab;
 
   return (
     <div className="w-full h-screen bg-[#f8fafc] text-zinc-900 font-sans flex flex-col">
       <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
-        <Navbar activeTab={displayTab} onTabChange={handleTabChange} />
+        <Navbar activeTab={navActiveTab} onTabChange={handleTabChange} />
         <main className="flex-1 overflow-y-auto bg-[#f8fafc] scrollbar-thin scrollbar-thumb-zinc-300 hover:scrollbar-thumb-zinc-400">
           <div key={displayTab} className="tab-pane-transition min-h-full">
             <ErrorBoundary key={displayTab} level="tab">

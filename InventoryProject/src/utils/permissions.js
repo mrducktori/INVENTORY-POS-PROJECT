@@ -10,39 +10,47 @@
 export const PERMISSION_GROUPS = [
   {
     label: 'Dashboard Overview',
-    pages: [{ key: 'Dashboard', label: 'Dashboard' }],
+    pages: [{ key: 'Dashboard', label: 'Dashboard Overview' }],
   },
   {
-    label: 'POS Terminal',
+    label: 'POS & Register',
     pages: [
-      { key: 'POS', label: 'Sales Console' },
+      { key: 'POS', label: 'POS Register, KDS, Voids & Shifts' },
+    ],
+  },
+  {
+    label: 'Products & Recipes',
+    pages: [
+      { key: 'Products', label: 'Menu Catalog' },
+      { key: 'ManageProducts', label: 'Add / Modify Products & Categories' },
+    ],
+  },
+  {
+    label: 'Inventory & Batches',
+    pages: [
+      { key: 'RawMaterialTracker', label: 'Raw Material Batches & Stocktake' },
+      { key: 'LowStockAlerts', label: 'Low-Stock & Expiry Alerts' },
+      { key: 'StockReceived', label: 'Receive Stock & OCR' },
+      { key: 'ManageRawMaterials', label: 'Manage Raw Materials' },
+      { key: 'ProductStockTracker', label: 'Direct Product Stock' },
       { key: 'ReportWastage', label: 'Report Wastage' },
     ],
   },
   {
-    label: 'Product Management',
+    label: 'Purchasing & Suppliers',
     pages: [
-      { key: 'Products', label: 'Product List' },
-      { key: 'ManageProducts', label: 'Manage Products' },
-    ],
-  },
-  {
-    label: 'Inventory Control',
-    pages: [
-      { key: 'RawMaterialTracker', label: 'Raw Material Stock' },
-      { key: 'ProductStockTracker', label: 'Product Stock' },
-      { key: 'ManageRawMaterials', label: 'Material Inventory' },
-      { key: 'ManageSuppliers', label: 'Manage Suppliers' },
       { key: 'PurchaseOrders', label: 'Purchase Orders' },
+      { key: 'ManageSuppliers', label: 'Manage Suppliers' },
     ],
   },
   {
-    label: 'Logs & Reports',
+    label: 'Analytics & Reports',
     pages: [
-      { key: 'AuditLogs', label: 'Audit Logs' },
+      { key: 'Forecasting', label: 'AI Demand Forecasting' },
+      { key: 'SalesSummaryReport', label: 'Sales Summary (D/W/M/Y)' },
+      { key: 'Reports', label: 'Reports & Exports' },
       { key: 'SalesReceiptJournal', label: 'Receipt Journal' },
-      { key: 'Forecasting', label: 'Demand Forecasting' },
-      { key: 'Reports', label: 'Reports Module' },
+      { key: 'AuditLogs', label: 'Audit Logs' },
     ],
   },
 ];
@@ -52,10 +60,12 @@ export const ALL_PERMISSION_KEYS = PERMISSION_GROUPS.flatMap((g) => g.pages.map(
 // Default access for Staff accounts that have no custom permission list
 export const STAFF_DEFAULT_PERMISSIONS = [
   'POS',
-  'ReportWastage',
   'Products',
   'RawMaterialTracker',
+  'LowStockAlerts',
+  'StockReceived',
   'ProductStockTracker',
+  'ReportWastage',
 ];
 
 // Tabs that are never grantable through page permissions
@@ -74,13 +84,21 @@ export const getUserPermissions = (user) => {
   return user.role === 'Staff' ? STAFF_DEFAULT_PERMISSIONS : [];
 };
 
-/** Whether the user may open the given Dashboard tab. */
+/** Whether the user may open the given Dashboard tab (supports base/sub routes like POS/KDS). */
 export const canAccess = (user, tab) => {
   if (!user) return false;
-  if (OWNER_ONLY_TABS.includes(tab)) return user.role === 'Owner';
+  const [baseTab, subTab] = String(tab || '').split('/');
+  if (!baseTab) return false;
+  if (OWNER_ONLY_TABS.includes(baseTab)) return user.role === 'Owner';
+  if (baseTab === 'POS' && subTab === 'SETUP') {
+    return user.role === 'Owner' || user.role === 'Admin';
+  }
+  if (baseTab === 'AccountManager') {
+    return user.role === 'Owner' || user.role === 'Admin';
+  }
   if (user.role === 'Owner' || user.role === 'Admin') return true;
-  if (user.role === 'Supplier') return tab === 'SupplierPortal';
-  return getUserPermissions(user).includes(tab);
+  if (user.role === 'Supplier') return baseTab === 'SupplierPortal';
+  return getUserPermissions(user).includes(baseTab);
 };
 
 /** Display name for a user's role (custom role name when applicable). */

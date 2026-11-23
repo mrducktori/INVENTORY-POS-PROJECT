@@ -10,9 +10,11 @@ import ArchivedProductsSection from './components/products/ArchivedProductsSecti
 import ModifyProductSection from './components/products/ModifyProductSection';
 import ModifyProductModal from './components/products/ModifyProductModal';
 
-const ManageProducts = () => {
+const ManageProducts = ({ subTab = null, onSubTabChange = null }) => {
   const user = getCurrentUser();
-  const [showCategorySettings, setShowCategorySettings] = useState(false);
+  const [localShowCategorySettings, setLocalShowCategorySettings] = useState(false);
+  const isControlled = typeof onSubTabChange === 'function';
+  const showCategorySettings = isControlled ? subTab === 'CATEGORIES' : localShowCategorySettings;
 
   // Sorting & Pagination States
   const [sortField, setSortField] = useState('name'); // 'name' | 'price'
@@ -183,7 +185,7 @@ const ManageProducts = () => {
           </button>
           <button
             className="px-4 py-2.5 text-sm md:text-base font-bold uppercase tracking-wider rounded-lg text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all ml-auto md:ml-0 border border-gray-200 bg-white cursor-pointer"
-            onClick={() => setShowCategorySettings(true)}
+            onClick={() => (isControlled ? onSubTabChange('CATEGORIES') : setLocalShowCategorySettings(true))}
           >
             Manage Categories
           </button>
@@ -312,7 +314,7 @@ const ManageProducts = () => {
       {showCategorySettings && (
         <CategorySettingsModal
           allIngredients={allIngredients}
-          onClose={() => setShowCategorySettings(false)}
+          onClose={() => (isControlled ? onSubTabChange(null) : setLocalShowCategorySettings(false))}
           onCategoriesChanged={async () => {
             const updated = await fetchCategories();
             await fetchProducts();

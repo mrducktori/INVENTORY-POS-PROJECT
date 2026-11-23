@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Navigation Overhaul: Organized Sidebar & Direct Sub-Feature Access - 2026-11-23]
+- **Organized Role-Based Sidebar & Sub-Links (`src/components/Navbar.jsx`, `src/features/dashboard/Dashboard.jsx`)**:
+  - Reorganized `MENU_CONFIG` and `buildPermissionMenu` into intuitive operational sections: `Dashboard Overview`, `POS & Register` (`Cashier Register`, `Order Queue / KDS`, `Void & Refund`, `Shift X / Z Reading`, `Promos & QR Setup`), `Products & Recipes` (`Menu Catalog`, `Add & Modify Products`, `Categories & Cup Sizes`), `Inventory & Batches` (`Raw Material Batches`, `Physical Stocktake`, `Low-Stock & Expiry Alerts`, `Receive Stock & OCR`, `Manage Raw Materials`, `Direct Product Stock`, `Report Wastage`), `Purchasing & Suppliers`, `Analytics & Reports` (adding direct access to `Sales Summary (D/W/M/Y)`), `Staff & Security` (adding direct links to `Manager Approval PINs` and `Staff Shift Logs`), and `Website Management`.
+  - Added `subTab` hash/route synchronization in `Dashboard.jsx` (`#POS/KDS`, `#POS/VOIDS`, `#POS/SHIFTS`, `#POS/SETUP`, `#RawMaterialTracker/STOCKTAKE`, `#ManageProducts/CATEGORIES`, `#AccountManager/PINS`) while preserving `#Reports/*` hash routes.
+- **Synchronized Sub-Tab Views (`POS.jsx`, `RawMaterialTracker.jsx`, `ManageProducts.jsx`, `AccountManager.jsx`)**:
+  - Wired `subTab` and `onSubTabChange` props across POS, Raw Material Tracker, Manage Products, and Access Control so sidebar links jump directly to the target workspace, modal, or view and stay in sync with internal tabs.
+- **Permissions Sync (`src/utils/permissions.js`, `server/utils/permissions.js`)**:
+  - Added `'LowStockAlerts'`, `'StockReceived'`, and `'SalesSummaryReport'` to `GRANTABLE_PERMISSIONS` and `PERMISSION_GROUPS`, updated `STAFF_DEFAULT_PERMISSIONS`, and normalized `canAccess()` to authorize `baseTab/subTab` routes cleanly.
+
 ## [Integration & Client-Setup Refactor: Category Prep Stations, POS Store Setup, KDS Sync & Access Control PINs - 2026-11-23]
 - **KDS Prep Station Routing & Manage Categories Overhaul (`server/routes/categorySettings.js`, `server/services/posOperationsService.js`, `server/services/cmsService.js`, `src/api/categorySettingsApi.js`, `src/features/inventory/components/products/CategorySettingsModal.jsx`, `CategoryDefaultsEditor.jsx`, `CategoryListSidebar.jsx`, `PosKdsSection.jsx`)**:
   - Replaced `BARISTA`-defaulting regex with `classifyKdsStation()` using explicit `prep_station` mappings (`category_prep_stations_map`), expanded food/pasta/pastry/meal keywords (fixing `SPAGHETTI` routing to `KITCHEN`), cup-size heuristics, and retroactive re-classification in `getKdsQueue`.

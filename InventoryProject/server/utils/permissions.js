@@ -11,10 +11,13 @@ export const GRANTABLE_PERMISSIONS = [
   'RawMaterialTracker',
   'ProductStockTracker',
   'ManageRawMaterials',
+  'LowStockAlerts',
+  'StockReceived',
   'ManageSuppliers',
   'PurchaseOrders',
   'AuditLogs',
   'SalesReceiptJournal',
+  'SalesSummaryReport',
   'Forecasting',
   'Reports',
 ];

@@ -73,8 +73,10 @@ const getNearestExpiryMeta = (ing, todayManila) => {
   return { label: `${diffDays}d left`, cls: 'bg-emerald-50 text-emerald-700 border-emerald-200', sub: expStr };
 };
 
-const RawMaterialTracker = () => {
-  const [mode, setMode] = useState('LIVE_STOCK'); // 'LIVE_STOCK' | 'STOCKTAKE'
+const RawMaterialTracker = ({ subTab = null, onSubTabChange = null }) => {
+  const [localMode, setLocalMode] = useState('LIVE_STOCK'); // 'LIVE_STOCK' | 'STOCKTAKE'
+  const isControlled = typeof onSubTabChange === 'function';
+  const mode = isControlled ? (subTab === 'STOCKTAKE' ? 'STOCKTAKE' : 'LIVE_STOCK') : localMode;
   const [ingredients, setIngredients] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -185,7 +187,10 @@ const RawMaterialTracker = () => {
           <div className="inline-flex bg-white p-1 rounded-xl border border-gray-200 shadow-xs gap-1">
             <button
               type="button"
-              onClick={() => setMode('LIVE_STOCK')}
+              onClick={() => {
+                setLocalMode('LIVE_STOCK');
+                onSubTabChange?.(null);
+              }}
               className={`px-3.5 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
                 mode === 'LIVE_STOCK' ? 'bg-gray-900 text-white shadow-xs' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
               }`}
@@ -194,7 +199,10 @@ const RawMaterialTracker = () => {
             </button>
             <button
               type="button"
-              onClick={() => setMode('STOCKTAKE')}
+              onClick={() => {
+                setLocalMode('STOCKTAKE');
+                onSubTabChange?.('STOCKTAKE');
+              }}
               className={`px-3.5 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
                 mode === 'STOCKTAKE' ? 'bg-gray-900 text-white shadow-xs' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
               }`}

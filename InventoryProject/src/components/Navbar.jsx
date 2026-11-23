@@ -8,23 +8,29 @@ import { PERMISSION_GROUPS, getUserPermissions, usesPagePermissions, getRoleLabe
 const MENU_CONFIG = {
   Staff: [
     {
-      label: 'POS Terminal',
+      label: 'POS & Register',
       submenu: [
-        { label: 'Sales Console', value: 'POS' },
-        { label: 'Report Wastage', value: 'ReportWastage' },
+        { label: 'Cashier Register', value: 'POS' },
+        { label: 'Order Queue / KDS', value: 'POS/KDS' },
+        { label: 'Void & Refund', value: 'POS/VOIDS' },
+        { label: 'Shift X / Z Reading', value: 'POS/SHIFTS' },
       ]
     },
     {
-      label: 'Product Catalog',
+      label: 'Products & Recipes',
       submenu: [
-        { label: 'View Products', value: 'Products' },
+        { label: 'Menu Catalog', value: 'Products' },
       ]
-    },  
+    },
     {
-      label: 'Inventory Management',
+      label: 'Inventory & Batches',
       submenu: [
-        { label: 'Raw Material Stock', value: 'RawMaterialTracker' },
-        { label: 'Product Stock', value: 'ProductStockTracker' },
+        { label: 'Raw Material Batches', value: 'RawMaterialTracker' },
+        { label: 'Physical Stocktake', value: 'RawMaterialTracker/STOCKTAKE' },
+        { label: 'Low-Stock & Expiry Alerts', value: 'LowStockAlerts' },
+        { label: 'Receive Stock & OCR', value: 'StockReceived' },
+        { label: 'Direct Product Stock', value: 'ProductStockTracker' },
+        { label: 'Report Wastage', value: 'ReportWastage' },
       ]
     },
   ],
@@ -33,90 +39,130 @@ const MENU_CONFIG = {
   ],
   Admin: [
     { label: 'Dashboard Overview', value: 'Dashboard' },
-
     {
-      label: 'Product Management',
+      label: 'POS & Register',
       submenu: [
-        { label: 'Product List', value: 'Products' },
-        { label: 'Manage Products', value: 'ManageProducts' },
+        { label: 'Cashier Register', value: 'POS' },
+        { label: 'Order Queue / KDS', value: 'POS/KDS' },
+        { label: 'Void & Refund', value: 'POS/VOIDS' },
+        { label: 'Shift X / Z Reading', value: 'POS/SHIFTS' },
+        { label: 'Promos & QR Setup', value: 'POS/SETUP' },
       ]
     },
     {
-      label: 'Inventory Control',
+      label: 'Products & Recipes',
       submenu: [
-        { label: 'Raw Material Stock', value: 'RawMaterialTracker' },
-        { label: 'Product Stock', value: 'ProductStockTracker' },
-        { label: 'Material Inventory', value: 'ManageRawMaterials' },
-
-        { label: 'Manage Suppliers', value: 'ManageSuppliers' },
+        { label: 'Menu Catalog', value: 'Products' },
+        { label: 'Add & Modify Products', value: 'ManageProducts' },
+        { label: 'Categories & Cup Sizes', value: 'ManageProducts/CATEGORIES' },
+      ]
+    },
+    {
+      label: 'Inventory & Batches',
+      submenu: [
+        { label: 'Raw Material Batches', value: 'RawMaterialTracker' },
+        { label: 'Physical Stocktake', value: 'RawMaterialTracker/STOCKTAKE' },
+        { label: 'Low-Stock & Expiry Alerts', value: 'LowStockAlerts' },
+        { label: 'Receive Stock & OCR', value: 'StockReceived' },
+        { label: 'Manage Raw Materials', value: 'ManageRawMaterials' },
+        { label: 'Direct Product Stock', value: 'ProductStockTracker' },
+        { label: 'Report Wastage', value: 'ReportWastage' },
+      ]
+    },
+    {
+      label: 'Purchasing & Suppliers',
+      submenu: [
         { label: 'Purchase Orders', value: 'PurchaseOrders' },
+        { label: 'Manage Suppliers', value: 'ManageSuppliers' },
       ]
     },
     {
-      label: 'Logs & Reports',
+      label: 'Analytics & Reports',
       submenu: [
-        { label: 'Audit Logs', value: 'AuditLogs' },
+        { label: 'AI Demand Forecasting', value: 'Forecasting' },
+        { label: 'Sales Summary (D/W/M/Y)', value: 'SalesSummaryReport' },
+        { label: 'Reports & Exports', value: 'Reports' },
         { label: 'Receipt Journal', value: 'SalesReceiptJournal' },
-
-        { label: 'Demand Forecasting', value: 'Forecasting' },
-        { label: 'Reports Module', value: 'Reports' },
+        { label: 'Audit Logs', value: 'AuditLogs' },
       ]
     },
     {
       label: 'Staff & Security',
       submenu: [
-        { label: 'Access Control', value: 'AccountManager' },
+        { label: 'User Accounts', value: 'AccountManager' },
+        { label: 'Manager Approval PINs', value: 'AccountManager/PINS' },
+        { label: 'Staff Shift Logs', value: 'EmployeeTracker' },
       ]
     },
     {
       label: 'Website Management',
       submenu: [
-        { label: 'Content Manager', value: 'CMSDashboard' },
+        { label: 'Content Manager (CMS)', value: 'CMSDashboard' },
       ]
     },
   ],
   Owner: [
     { label: 'Dashboard Overview', value: 'Dashboard' },
-
     {
-      label: 'Product Management',
+      label: 'POS & Register',
       submenu: [
-        { label: 'Product List', value: 'Products' },
-        { label: 'Manage Products', value: 'ManageProducts' },
+        { label: 'Cashier Register', value: 'POS' },
+        { label: 'Order Queue / KDS', value: 'POS/KDS' },
+        { label: 'Void & Refund', value: 'POS/VOIDS' },
+        { label: 'Shift X / Z Reading', value: 'POS/SHIFTS' },
+        { label: 'Promos & QR Setup', value: 'POS/SETUP' },
       ]
     },
     {
-      label: 'Inventory Control',
+      label: 'Products & Recipes',
       submenu: [
-        { label: 'Raw Material Stock', value: 'RawMaterialTracker' },
-        { label: 'Product Stock', value: 'ProductStockTracker' },
-        { label: 'Material Inventory', value: 'ManageRawMaterials' },
-
-        { label: 'Manage Suppliers', value: 'ManageSuppliers' },
+        { label: 'Menu Catalog', value: 'Products' },
+        { label: 'Add & Modify Products', value: 'ManageProducts' },
+        { label: 'Categories & Cup Sizes', value: 'ManageProducts/CATEGORIES' },
+      ]
+    },
+    {
+      label: 'Inventory & Batches',
+      submenu: [
+        { label: 'Raw Material Batches', value: 'RawMaterialTracker' },
+        { label: 'Physical Stocktake', value: 'RawMaterialTracker/STOCKTAKE' },
+        { label: 'Low-Stock & Expiry Alerts', value: 'LowStockAlerts' },
+        { label: 'Receive Stock & OCR', value: 'StockReceived' },
+        { label: 'Manage Raw Materials', value: 'ManageRawMaterials' },
+        { label: 'Direct Product Stock', value: 'ProductStockTracker' },
+        { label: 'Report Wastage', value: 'ReportWastage' },
+      ]
+    },
+    {
+      label: 'Purchasing & Suppliers',
+      submenu: [
         { label: 'Purchase Orders', value: 'PurchaseOrders' },
+        { label: 'Manage Suppliers', value: 'ManageSuppliers' },
       ]
     },
     {
-      label: 'Logs & Reports',
-      submenu: [  
+      label: 'Analytics & Reports',
+      submenu: [
+        { label: 'AI Demand Forecasting', value: 'Forecasting' },
+        { label: 'Sales Summary (D/W/M/Y)', value: 'SalesSummaryReport' },
+        { label: 'Reports & Exports', value: 'Reports' },
+        { label: 'Receipt Journal', value: 'SalesReceiptJournal' },
         { label: 'Audit Logs', value: 'AuditLogs' },
         { label: 'Transaction Logs', value: 'TransactionLogs' },
-        { label: 'Receipt Journal', value: 'SalesReceiptJournal' },
-
-        { label: 'Demand Forecasting', value: 'Forecasting' },
-        { label: 'Reports Module', value: 'Reports' },
       ]
     },
     {
       label: 'Staff & Security',
       submenu: [
-        { label: 'Access Control', value: 'AccountManager' },
+        { label: 'User Accounts', value: 'AccountManager' },
+        { label: 'Manager Approval PINs', value: 'AccountManager/PINS' },
+        { label: 'Staff Shift Logs', value: 'EmployeeTracker' },
       ]
     },
     {
       label: 'Website Management',
       submenu: [
-        { label: 'Content Manager', value: 'CMSDashboard' },
+        { label: 'Content Manager (CMS)', value: 'CMSDashboard' },
       ]
     },
   ],
@@ -126,26 +172,23 @@ const ICONS = {
   'Dashboard Overview': (
     <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
   ),
-  'Product Management': (
+  'POS & Register': (
+    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+  ),
+  'Products & Recipes': (
     <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
   ),
-  'Product Catalog': (
-    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+  'Inventory & Batches': (
+    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
   ),
-  'Inventory Control': (
+  'Purchasing & Suppliers': (
+    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
+  ),
+  'Analytics & Reports': (
     <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-  ),
-  'Inventory Management': (
-    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-  ),
-  'Logs & Reports': (
-    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
   ),
   'Staff & Security': (
     <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-  ),
-  'POS Terminal': (
-    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
   ),
   'Website Management': (
     <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>
@@ -158,15 +201,39 @@ const ICONS = {
   )
 };
 
+const EXPANDED_PAGE_LINKS = {
+  POS: [
+    { label: 'Cashier Register', value: 'POS' },
+    { label: 'Order Queue / KDS', value: 'POS/KDS' },
+    { label: 'Void & Refund', value: 'POS/VOIDS' },
+    { label: 'Shift X / Z Reading', value: 'POS/SHIFTS' },
+  ],
+  ManageProducts: [
+    { label: 'Add & Modify Products', value: 'ManageProducts' },
+    { label: 'Categories & Cup Sizes', value: 'ManageProducts/CATEGORIES' },
+  ],
+  RawMaterialTracker: [
+    { label: 'Raw Material Batches', value: 'RawMaterialTracker' },
+    { label: 'Physical Stocktake', value: 'RawMaterialTracker/STOCKTAKE' },
+  ],
+};
+
 // Builds a sidebar menu from a Staff/Custom account's page permissions
 const buildPermissionMenu = (user) => {
   const allowed = getUserPermissions(user);
   return PERMISSION_GROUPS
     .map((group) => {
-      const pages = group.pages.filter((p) => allowed.includes(p.key));
-      if (pages.length === 0) return null;
-      if (group.pages.length === 1) return { label: group.label, value: pages[0].key };
-      return { label: group.label, submenu: pages.map((p) => ({ label: p.label, value: p.key })) };
+      const permittedPages = group.pages.filter((p) => allowed.includes(p.key));
+      if (permittedPages.length === 0) return null;
+
+      const expandedItems = permittedPages.flatMap((p) =>
+        EXPANDED_PAGE_LINKS[p.key] ? EXPANDED_PAGE_LINKS[p.key] : [{ label: p.label, value: p.key }]
+      );
+
+      if (group.pages.length === 1 && expandedItems.length === 1) {
+        return { label: group.label, value: expandedItems[0].value };
+      }
+      return { label: group.label, submenu: expandedItems };
     })
     .filter(Boolean);
 };
