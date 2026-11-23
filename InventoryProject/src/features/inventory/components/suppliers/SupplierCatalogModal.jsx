@@ -148,7 +148,7 @@ const SupplierCatalogModal = ({ supplier, onClose, onAcknowledgePriceUpdates }) 
 
         {/* Notice Banner when Supplier recently updated prices */}
         {recentUpdates?.changes_count > 0 && (
-          <div className="mx-6 mt-4 p-3.5 bg-amber-50/90 border border-amber-200 rounded-xl flex flex-wrap items-center justify-between gap-3 text-xs text-amber-900 animate-[fadeIn_0.2s_ease-out]">
+          <div className="mx-6 mt-4 p-3.5 bg-amber-50/90 border border-amber-200 rounded-xl flex flex-wrap items-center justify-between gap-3 text-xs text-amber-900 fade-in">
             <div className="flex items-start gap-2.5">
               <svg className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />

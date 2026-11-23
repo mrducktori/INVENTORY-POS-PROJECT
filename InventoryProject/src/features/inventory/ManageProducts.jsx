@@ -193,7 +193,7 @@ const ManageProducts = ({ subTab = null, onSubTabChange = null }) => {
       </div>
 
       {message && (
-        <div className={`p-4 mb-6 rounded-xl text-base font-bold flex items-center shadow-sm ${message.includes('success') || message.includes('updated') ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>{message}</div>
+        <div role="status" className={`feedback-pop p-4 mb-6 rounded-xl text-base font-bold flex items-center shadow-sm ${message.includes('success') || message.includes('updated') ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>{message}</div>
       )}
 
       {viewMode === 'ADD' && (

@@ -8,11 +8,11 @@ const ReceiptGuideModal = ({ isOpen, onClose }) => {
 
   return (
     <div
-      className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4"
+      className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-[modalBackdropFadeIn_var(--dur-base)_var(--ease-out-expo)]"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl border border-zinc-200 shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 md:p-8 space-y-6"
+        className="bg-white rounded-2xl border border-zinc-200 shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 md:p-8 space-y-6 animate-[modalPopIn_var(--dur-slow)_var(--ease-out-expo)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4 pb-4 border-b border-zinc-100">

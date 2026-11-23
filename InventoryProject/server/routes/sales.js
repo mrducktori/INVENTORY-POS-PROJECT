@@ -3,6 +3,7 @@ import { supabase } from "../config/supabaseClient.js";
 import { toManilaStartOfDay, toManilaEndOfDay, getManilaDateOnly, getManilaDateString } from "../utils/dateUtils.js";
 import { requireRole } from "../middleware/authMiddleware.js";
 import * as posOperationsService from "../services/posOperationsService.js";
+import { allocateDiscount } from "../utils/allocateDiscount.js";
 
 const router = express.Router();
 router.use(requireRole('Owner', 'Admin', 'Staff', 'Custom'));
@@ -171,7 +172,12 @@ export const aggregateSalesSummaryReport = (sales = [], voidsMap = {}, windowInf
     staffMap[staffId].transactions += 1;
 
     let saleItemsCount = 0;
-    for (const item of sale.sale_items || []) {
+    const saleLines = sale.sale_items || [];
+    const lineDiscounts = allocateDiscount(
+      saleLines.map((i) => (Number(i.quantity) || 0) * (parseFloat(i.unit_price) || 0)),
+      discAmt
+    );
+    for (const [idx, item] of saleLines.entries()) {
       const qty = Number(item.quantity) || 0;
       saleItemsCount += qty;
       total_items_sold += qty;
@@ -185,7 +191,7 @@ export const aggregateSalesSummaryReport = (sales = [], voidsMap = {}, windowInf
           productMap[prodId] = { id: prodId, name: prodName, category, qty_sold: 0, revenue: 0 };
         }
         productMap[prodId].qty_sold += qty;
-        productMap[prodId].revenue = round2(productMap[prodId].revenue + qty * (parseFloat(item.unit_price) || 0));
+        productMap[prodId].revenue = round2(productMap[prodId].revenue + qty * (parseFloat(item.unit_price) || 0) - lineDiscounts[idx]);
       }
     }
 

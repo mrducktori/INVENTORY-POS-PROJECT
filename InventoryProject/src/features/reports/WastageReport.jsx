@@ -427,7 +427,7 @@ const WastageReport = () => {
       )}
 
       {fetched && !loading && (
-        <div className="flex flex-col gap-6 animate-[fadeIn_0.3s_ease-out]">
+        <div className="flex flex-col gap-6 fade-in">
           {/* KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white border border-zinc-200 rounded-xl p-4 shadow-2xs">

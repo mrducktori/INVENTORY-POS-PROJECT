@@ -367,7 +367,7 @@ const InventoryStatusReport = () => {
       )}
 
       {fetched && !loading && (
-        <div className="flex flex-col gap-6 animate-[fadeIn_0.3s_ease-out]">
+        <div className="flex flex-col gap-6 fade-in">
           {/* KPI Cards & Health Bar Combined */}
           <div className="bg-white border border-zinc-200/80 rounded-2xl shadow-2xs overflow-hidden">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-zinc-100">

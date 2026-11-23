@@ -204,7 +204,7 @@ const ProductStockTracker = () => {
               <TableSkeleton rows={8} cols={6} />
             </div>
           ) : groupedProducts.length > 0 ? (
-            <div className="overflow-x-auto">
+            <div className="fade-in overflow-x-auto">
               <table className="w-full text-left border-collapse whitespace-nowrap">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200">

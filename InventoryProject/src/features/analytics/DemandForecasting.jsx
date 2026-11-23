@@ -41,7 +41,7 @@ const DemandForecasting = () => {
       {/* Toast Notification */}
       {toast && (
         <div
-          className={`fixed top-5 right-5 z-[10000] flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border text-sm font-medium transition-all ${
+          className={`fixed top-5 right-5 z-[10000] flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border text-sm font-medium animate-[popupSlideUp_var(--dur-slow)_var(--ease-out-expo)] ${
             toast.type === 'error'
               ? 'bg-red-950 text-white border-red-800'
               : 'bg-zinc-900 text-white border-zinc-800'

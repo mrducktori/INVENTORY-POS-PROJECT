@@ -153,7 +153,7 @@ const AdminNotificationPopupInner = ({ user, onNavigate }) => {
       aria-live="polite"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
-      className="fixed bottom-5 right-5 z-40 w-[calc(100vw-2rem)] max-w-sm bg-white border border-zinc-200 rounded-2xl shadow-2xl overflow-hidden animate-[popupSlideUp_0.25s_cubic-bezier(0.16,1,0.3,1)]"
+      className="fixed bottom-5 right-5 z-40 w-[calc(100vw-2rem)] max-w-sm bg-white border border-zinc-200 rounded-2xl shadow-2xl overflow-hidden animate-[popupSlideUp_var(--dur-slow)_var(--ease-out-expo)]"
     >
       {/* Header */}
       <div className="bg-zinc-950 text-white px-4 py-3 flex items-center justify-between gap-2">

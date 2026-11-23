@@ -270,7 +270,7 @@ const RequestProduct = () => {
                 </div>
               </div>
 
-              <div className="animate-[fadeIn_0.3s_ease-out] flex flex-col gap-6">
+              <div className="fade-in flex flex-col gap-6">
                 {type === 'NEW_PRODUCT' && (
                   <div className="flex flex-col gap-6">
                     <div className="flex flex-col gap-2">
@@ -327,7 +327,7 @@ const RequestProduct = () => {
                 )}
 
                 {type === 'PRICE_CHANGE' && selectedProductId && (
-                  <div className="flex flex-col gap-2 animate-[fadeIn_0.3s_ease-out]">
+                  <div className="flex flex-col gap-2 fade-in">
                     <label className="text-sm font-bold text-gray-700">Proposed New Price (₱)</label>
                     <input 
                       type="number" 
@@ -342,7 +342,7 @@ const RequestProduct = () => {
                 )}
 
                 {type === 'RECIPE_CHANGE' && selectedProductId && (
-                  <div className="animate-[fadeIn_0.3s_ease-out] border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                  <div className="fade-in border border-gray-200 rounded-xl overflow-hidden shadow-sm">
                     <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
                       <h3 className="m-0 text-sm font-bold text-gray-900 uppercase tracking-wider">Proposed Recipe Changes</h3>
                     </div>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { getManilaDateOnly, addDaysManila } from '../../../../utils/dateUtils';
 
 const SupplierOrderActionModals = ({
   declineModal,
@@ -79,7 +80,7 @@ const SupplierOrderActionModals = ({
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-base font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 cursor-pointer"
                   value={postponeModal.date}
                   onChange={e => setPostponeModal({ ...postponeModal, date: e.target.value })}
-                  min={new Date(new Date().setDate(new Date().getDate() + 1)).toISOString().split('T')[0]}
+                  min={addDaysManila(getManilaDateOnly(), 1)}
                   required
                 />
               </div>

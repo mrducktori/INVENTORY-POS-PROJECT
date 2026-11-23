@@ -81,7 +81,7 @@ const StockMovementReport = () => {
 
       {/* Results View */}
       {fetched && !loading && (
-        <div className="flex flex-col gap-6 animate-in fade-in duration-300">
+        <div className="flex flex-col gap-6 fade-in">
           {/* Executive KPI Cards */}
           <StockMovementSummaryCards summary={summary} />
 

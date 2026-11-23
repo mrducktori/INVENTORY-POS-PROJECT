@@ -1,6 +1,6 @@
 import { supabase } from "../config/supabaseClient.js";
 import { findSimilarName, normalizeName } from "../utils/stringHelper.js";
-import { LIMITS, validateNumberBound, validateTextLength } from "../utils/validationHelper.js";
+import { LIMITS, validateNumberBound } from "../utils/validationHelper.js";
 import { getManilaDateOnly } from "../utils/dateUtils.js";
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
@@ -56,7 +56,7 @@ const normalizeOcrDate = (rawDate) => {
   const str = String(rawDate).trim();
 
   // YYYY-MM-DD or YYYY/MM/DD
-  let m = str.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+  let m = str.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
   if (m) {
     const y = Number(m[1]);
     const mo = Number(m[2]);
@@ -65,7 +65,7 @@ const normalizeOcrDate = (rawDate) => {
   }
 
   // MM/DD/YYYY or DD/MM/YYYY
-  m = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  m = str.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
   if (m) {
     let p1 = Number(m[1]);
     let p2 = Number(m[2]);
@@ -165,19 +165,19 @@ const parseReceiptText = (rawText) => {
   const items = [];
 
   for (const line of lines) {
-    const supMatch = line.match(/^(?:supplier|vendor|from|sold\s*by)\s*[:\-]\s*(.+)$/i);
+    const supMatch = line.match(/^(?:supplier|vendor|from|sold\s*by)\s*[:-]\s*(.+)$/i);
     if (supMatch) {
       supplier_name = supMatch[1].trim().slice(0, 120);
       continue;
     }
 
-    const invMatch = line.match(/^(?:invoice|inv|receipt|dr|po|ref)(?:\s*(?:#|no\.?))?\s*[:\-]\s*([A-Z0-9][A-Z0-9\-\/]{1,40})$/i);
+    const invMatch = line.match(/^(?:invoice|inv|receipt|dr|po|ref)(?:\s*(?:#|no\.?))?\s*[:-]\s*([A-Z0-9][A-Z0-9/-]{1,40})$/i);
     if (invMatch) {
       invoice_number = invMatch[1].trim();
       continue;
     }
 
-    const dateHeaderMatch = line.match(/^(?:invoice\s*date|date|issued)\s*[:\-]\s*(.+)$/i);
+    const dateHeaderMatch = line.match(/^(?:invoice\s*date|date|issued)\s*[:-]\s*(.+)$/i);
     if (dateHeaderMatch) {
       invoice_date = normalizeOcrDate(dateHeaderMatch[1]) || invoice_date;
       continue;
@@ -204,7 +204,7 @@ const parseReceiptText = (rawText) => {
 
     // 2. Extract Expiry date
     const expMatch = work.match(
-      /(?:exp(?:iry)?(?:\s*date)?|best\s*before|bb|use\s*by)\s*[:\-]?\s*(\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}|\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|[A-Za-z]{3,9}\s+\d{1,2},?\s+\d{4}|\d{1,2}\s+[A-Za-z]{3,9},?\s+\d{4})/i
+      /(?:exp(?:iry)?(?:\s*date)?|best\s*before|bb|use\s*by)\s*[:-]?\s*(\d{4}[/-]\d{1,2}[/-]\d{1,2}|\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|[A-Za-z]{3,9}\s+\d{1,2},?\s+\d{4}|\d{1,2}\s+[A-Za-z]{3,9},?\s+\d{4})/i
     );
     if (expMatch) {
       expiry_date = normalizeOcrDate(expMatch[1]);
@@ -229,7 +229,7 @@ const parseReceiptText = (rawText) => {
     const trailingQtyUnit = work.match(
       new RegExp(`(?:[-|x×:]|\\s)\\s*(\\d+(?:\\.\\d+)?)\\s*(${unitPattern})\\b`, "i")
     );
-    const qtyOnlyMatch = work.match(/(?:[x×]|qty\s*[:\-])\s*(\d+(?:\.\d+)?)\b/i);
+    const qtyOnlyMatch = work.match(/(?:[x×]|qty\s*[:-])\s*(\d+(?:\.\d+)?)\b/i);
 
     if (leadingQtyUnit) {
       quantity = Number(leadingQtyUnit[1]);
@@ -354,7 +354,7 @@ const matchExtractedItemsToIngredients = (extractedItems = [], ingredients = [])
     }
 
     // Validate quantity bounds
-    let validatedQty = null;
+    let validatedQty;
     try {
       validatedQty = validateNumberBound(rawItem?.quantity, {
         label: `Line ${idx + 1} quantity`,

@@ -80,14 +80,6 @@ router.post('/', requireAuth, requireRole('Admin', 'Owner'), userManagementLimit
       if (req.user.role !== 'Owner') {
         return res.status(403).json({ error: 'Only the current Owner can assign the Owner role.' });
       }
-      
-      // Demote current owner(s) to Admin before creating this one
-      const { error: demoteError } = await supabase
-        .from('users')
-        .update({ role: 'Admin' })
-        .eq('role', 'Owner');
-      
-      if (demoteError) throw demoteError;
     }
 
     const saltRounds = 10;
@@ -109,6 +101,18 @@ router.post('/', requireAuth, requireRole('Admin', 'Owner'), userManagementLimit
       .single();
 
     if (error) throw error;
+
+    if (role === 'Owner') {
+      // Demote previous owner(s) only after the new Owner row exists
+      const { data: demoted, error: demoteError } = await supabase
+        .from('users')
+        .update({ role: 'Admin' })
+        .eq('role', 'Owner')
+        .neq('id', data.id)
+        .select('id');
+      if (demoteError) throw demoteError;
+      (demoted || []).forEach((o) => invalidateUserAuthCache(o.id));
+    }
 
     await logAudit('USER_CREATED', req.user.id, {
       new_user_id: data.id,
@@ -300,25 +304,6 @@ router.put('/:id', requireAuth, requireRole('Admin', 'Owner'), userManagementLim
       if (req.user.role !== 'Owner') {
         return res.status(403).json({ error: 'Only the current Owner can assign the Owner role.' });
       }
-
-      // If making someone else the owner, demote all current owners to Admin
-      const { data: currentOwnerData, error: checkError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('role', 'Owner');
-        
-      if (checkError) throw checkError;
-
-      const currentOwnerIds = currentOwnerData.map(o => o.id);
-
-      if (!currentOwnerIds.includes(req.params.id)) {
-        const { error: demoteError } = await supabase
-          .from('users')
-          .update({ role: 'Admin' })
-          .eq('role', 'Owner');
-        if (demoteError) throw demoteError;
-        currentOwnerIds.forEach((oid) => invalidateUserAuthCache(oid));
-      }
     } else if (existingTarget?.role === 'Owner') {
       // Prevent demoting the ONLY owner directly
       return res.status(400).json({ error: 'Cannot demote the Owner. Transfer ownership to another user instead.' });
@@ -375,6 +360,18 @@ router.put('/:id', requireAuth, requireRole('Admin', 'Owner'), userManagementLim
       .single();
 
     if (error) throw error;
+
+    if (role === 'Owner') {
+      // Demote other owners only after the new Owner update succeeded
+      const { data: demoted, error: demoteError } = await supabase
+        .from('users')
+        .update({ role: 'Admin' })
+        .eq('role', 'Owner')
+        .neq('id', req.params.id)
+        .select('id');
+      if (demoteError) throw demoteError;
+      (demoted || []).forEach((o) => invalidateUserAuthCache(o.id));
+    }
 
     invalidateUserAuthCache(req.params.id);
 

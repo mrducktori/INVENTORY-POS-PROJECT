@@ -374,7 +374,8 @@ const AccountManager = ({ subTab = null, onSubTabChange = null }) => {
 
       {message && (
         <div
-          className={`px-4 py-3 mb-5 rounded-lg text-sm font-semibold border ${
+          role="status"
+          className={`feedback-pop px-4 py-3 mb-5 rounded-lg text-sm font-semibold border ${
             message.type === 'success' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'
           }`}
         >

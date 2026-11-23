@@ -136,9 +136,12 @@ export const createSale = async (req, res) => {
           finalTotal: discountResult.final_total
         });
 
+        // Price, size and add-on data all come from the server catalog, never the client payload.
         const authoritativeCart = cart.map((item, idx) => ({
           ...item,
-          price: itemPrices[idx]?.unit_price ?? item.price
+          price: itemPrices[idx].unit_price,
+          cup_size_obj: itemPrices[idx].cup_size_obj,
+          add_ons: itemPrices[idx].add_ons
         }));
 
         // Client-supplied packaging is ignored; only server-configured takeout packaging applies.
@@ -171,17 +174,27 @@ export const createSale = async (req, res) => {
           staff_id: req.user.id
         });
 
-        await posOperationsService.saveSaleMetadata(createdSale.id, {
-          payments: paymentResult.payments,
-          discount_details: discountResult.discount_details,
-          order_type: normalizedOrderType
-        });
+        // Sale is committed: side effects below must not fail the request, or a client retry would double-sell.
+        try {
+          await posOperationsService.saveSaleMetadata(createdSale.id, {
+            payments: paymentResult.payments,
+            discount_details: discountResult.discount_details,
+            order_type: normalizedOrderType
+          });
+        } catch (metaErr) {
+          console.error("[POS] Sale metadata save failed for committed sale", createdSale.id, metaErr);
+        }
 
-        const kdsTicket = await posOperationsService.enqueueKdsOrder({
-          sale: createdSale,
-          cart: authoritativeCart,
-          order_type: normalizedOrderType
-        });
+        let kdsTicket = null;
+        try {
+          kdsTicket = await posOperationsService.enqueueKdsOrder({
+            sale: createdSale,
+            cart: authoritativeCart,
+            order_type: normalizedOrderType
+          });
+        } catch (kdsErr) {
+          console.error("[POS] KDS enqueue failed for committed sale", createdSale.id, kdsErr);
+        }
 
         return {
           ...createdSale,

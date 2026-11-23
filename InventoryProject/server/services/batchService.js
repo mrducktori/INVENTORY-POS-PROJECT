@@ -957,21 +957,30 @@ export const performStocktake = async ({ counts, notes = "", user }) => {
       throw err;
     }
 
-    const systemQty = round6(Number(ing.stock_quantity || 0));
-    const signedVariance = Math.round((item.physical_count - systemQty) * 1e6) / 1e6;
+    let systemQty = 0;
+    let signedVariance = 0;
 
-    if (Math.abs(signedVariance) <= EPSILON) continue;
+    // Variance is computed from a fresh read inside the lock. The deficit path deducts a relative amount
+    // after the lock is released (deductStockFEFO takes the same non-reentrant lock).
+    await withStoreLock(BATCHES_STORE_KEY, async () => {
+      const { data: freshIng, error: freshErr } = await supabase
+        .from("ingredients")
+        .select("*")
+        .eq("id", ing.id)
+        .single();
+      if (freshErr || !freshIng) {
+        const err = new Error(`Raw material not found: ${item.ingredient_id}`);
+        err.status = 404;
+        throw err;
+      }
+      systemQty = round6(Number(freshIng.stock_quantity || 0));
+      signedVariance = Math.round((item.physical_count - systemQty) * 1e6) / 1e6;
 
-    if (signedVariance < 0) {
-      await deductStockFEFO(ing.id, Math.abs(signedVariance), {
-        allowExpired: true,
-        preferExpired: true
-      });
-    } else {
-      await withStoreLock(BATCHES_STORE_KEY, async () => {
+      if (signedVariance <= EPSILON) return;
+      {
         const [allBatches, metaMap] = await Promise.all([loadBatches(), loadPerishabilityMetaMap()]);
-        const perishability = getIngredientPerishability(ing, metaMap);
-        reconcileIngredientBatchesInArray(ing, allBatches, perishability, todayManila);
+        const perishability = getIngredientPerishability(freshIng, metaMap);
+        reconcileIngredientBatchesInArray(freshIng, allBatches, perishability, todayManila);
 
         const activeNonExpired = allBatches
           .filter(
@@ -1015,6 +1024,15 @@ export const performStocktake = async ({ counts, notes = "", user }) => {
 
         await saveBatches(allBatches);
         await syncNativeBatchUpsert(touched);
+      }
+    });
+
+    if (Math.abs(signedVariance) <= EPSILON) continue;
+
+    if (signedVariance < 0) {
+      await deductStockFEFO(ing.id, Math.abs(signedVariance), {
+        allowExpired: true,
+        preferExpired: true
       });
     }
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getSuppliers, createPurchaseOrder } from '../../api/purchasingApi';
 import { getIngredients } from '../../api/inventoryApi';
-import { formatDisplayDate } from '../../utils/dateUtils';
+import { formatDisplayDate, getManilaDateOnly, addDaysManila } from '../../utils/dateUtils';
 import { INPUT_LIMITS, validateAmountInput } from '../../utils/validationUtils';
 
 const PurchaseOrderForm = ({ onClose, onSuccess }) => {
@@ -310,8 +310,8 @@ const PurchaseOrderForm = ({ onClose, onSuccess }) => {
   );
 
   if (loading) return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 text-center text-gray-500 font-medium animate-[popIn_0.2s_ease-out]">Loading...</div>
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 animate-[modalBackdropFadeIn_var(--dur-base)_var(--ease-out-expo)]">
+      <div className="bg-white rounded-2xl shadow-2xl p-8 text-center text-gray-500 font-medium animate-[modalPopIn_var(--dur-slow)_var(--ease-out-expo)]">Loading...</div>
     </div>
   );
 
@@ -348,7 +348,7 @@ const PurchaseOrderForm = ({ onClose, onSuccess }) => {
                   <label className="text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider">Expected Delivery Date <span className="text-red-500">*</span></label>
                   <input 
                     type="date" 
-                    min={new Date(new Date().setDate(new Date().getDate() + 1)).toISOString().split('T')[0]}
+                    min={addDaysManila(getManilaDateOnly(), 1)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
                     value={formData.expected_date} 
                     onChange={e => setFormData({ ...formData, expected_date: e.target.value })} 

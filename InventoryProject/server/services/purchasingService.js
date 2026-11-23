@@ -805,7 +805,48 @@ export const createPurchaseOrder = async (poData) => {
   return po;
 };
 
-export const updatePurchaseOrderStatus = async (id, status = null, items_received = [], expected_date = null, reason = null) => {
+// Same promise-mutex pattern as batchService/posOperationsService: serializes read-check-write per PO.
+// shortcut: in-process only; multi-instance deploys rely on the conditional status write below.
+const poLocks = new Map();
+const withPoLock = async (key, fn) => {
+  const prev = poLocks.get(key) || Promise.resolve();
+  let release;
+  const current = new Promise((resolve) => {
+    release = resolve;
+  });
+  poLocks.set(key, prev.then(() => current, () => current));
+  await prev;
+  try {
+    return await fn();
+  } finally {
+    release();
+    if (poLocks.get(key) === current) {
+      poLocks.delete(key);
+    }
+  }
+};
+
+// Every PO status the app writes (staff UI, supplier portal, supplier item responses).
+const PO_STATUSES = [
+  'Pending', 'Proposal Pending', 'Partially Accepted', 'Accepted', 'To Be Delivered',
+  'Delivering', 'Postponed', 'Partial', 'Received', 'Declined', 'Cancelled'
+];
+const SUPPLIER_RESPONSE_STATUSES = ['Pending', 'Proposal Pending'];
+
+export const updatePurchaseOrderStatus = (id, status = null, ...rest) => {
+  let canonicalStatus = null;
+  if (status) {
+    canonicalStatus = PO_STATUSES.find((s) => s.toLowerCase() === String(status).toLowerCase());
+    if (!canonicalStatus) {
+      const err = new Error(`Invalid status. Allowed: ${PO_STATUSES.join(', ')}`);
+      err.status = 400;
+      return Promise.reject(err);
+    }
+  }
+  return withPoLock(String(id), () => updatePurchaseOrderStatusUnlocked(id, canonicalStatus, ...rest));
+};
+
+const updatePurchaseOrderStatusUnlocked = async (id, status = null, items_received = [], expected_date = null, reason = null) => {
   const { data: existingPO, error: existingErr } = await supabase
     .from("purchase_orders")
     .select("id, status")
@@ -839,62 +880,10 @@ export const updatePurchaseOrderStatus = async (id, status = null, items_receive
     }
   }
 
-  const updates = {};
-  if (status) {
-    updates.status = status;
-    if (status === 'Received' || status === 'Partial') {
-      updates.received_at = new Date().toISOString();
-    }
-  }
-  if (expected_date) {
-    updates.expected_date = expected_date;
-  }
-  if (reason) {
-    const sUpper = (status || '').toUpperCase();
-    if (sUpper === 'DECLINED') {
-      updates.decline_reason = reason;
-    } else if (sUpper === 'CANCELLED') {
-      updates.cancellation_reason = reason;
-    }
-  }
-
-  let data;
-  const result = await supabase
-    .from("purchase_orders")
-    .update(updates)
-    .eq("id", id)
-    .select()
-    .single();
-
-  if (result.error && (result.error.code === '42703' || result.error.message?.includes('decline_reason') || result.error.message?.includes('cancellation_reason'))) {
-    // If decline_reason or cancellation_reason column doesn't exist yet, retry without custom columns
-    delete updates.decline_reason;
-    delete updates.cancellation_reason;
-    const fallback = await supabase
-      .from("purchase_orders")
-      .update(updates)
-      .eq("id", id)
-      .select()
-      .single();
-    if (fallback.error) throw fallback.error;
-    data = fallback.data;
-    if (reason) {
-      const sUpper = (status || '').toUpperCase();
-      if (sUpper === 'DECLINED') {
-        data.decline_reason = reason;
-        data.declineReason = reason;
-      } else if (sUpper === 'CANCELLED') {
-        data.cancellation_reason = reason;
-        data.cancellationReason = reason;
-      }
-    }
-  } else if (result.error) {
-    throw result.error;
-  } else {
-    data = result.data;
-  }
-
-  // If items_received is provided, update those items and inventory stock
+  // Receipts are applied BEFORE the status write so a mid-loop failure never leaves a terminal
+  // 'Received' PO with missing stock; retries are safe because each item caps at its remaining qty.
+  // shortcut: no DB transaction, so a failure between createBatch and the item update can still
+  // add stock without bumping quantity_received; upgrade to a Postgres RPC when migrations are allowed.
   const appliedReceipts = [];
   if (items_received && items_received.length > 0 && !isTerminalStatus) {
     for (const item of items_received) {
@@ -1002,6 +991,66 @@ export const updatePurchaseOrderStatus = async (id, status = null, items_receive
     }
   }
 
+  const updates = {};
+  if (status) {
+    updates.status = status;
+    if (status === 'Received' || status === 'Partial') {
+      updates.received_at = new Date().toISOString();
+    }
+  }
+  if (expected_date) {
+    updates.expected_date = expected_date;
+  }
+  if (reason) {
+    const sUpper = (status || '').toUpperCase();
+    if (sUpper === 'DECLINED') {
+      updates.decline_reason = reason;
+    } else if (sUpper === 'CANCELLED') {
+      updates.cancellation_reason = reason;
+    }
+  }
+
+  // Conditional on the status we read: a concurrent writer (e.g. another server instance) that
+  // already moved the PO makes this match zero rows instead of silently overwriting it.
+  const writeStatus = (u) => {
+    let q = supabase.from("purchase_orders").update(u).eq("id", id);
+    q = existingPO.status == null ? q.is("status", null) : q.eq("status", existingPO.status);
+    return q.select().single();
+  };
+
+  let data;
+  let result = await writeStatus(updates);
+
+  if (result.error && (result.error.code === '42703' || result.error.message?.includes('decline_reason') || result.error.message?.includes('cancellation_reason'))) {
+    // If decline_reason or cancellation_reason column doesn't exist yet, retry without custom columns
+    delete updates.decline_reason;
+    delete updates.cancellation_reason;
+    result = await writeStatus(updates);
+    if (!result.error) {
+      data = result.data;
+      if (reason) {
+        const sUpper = (status || '').toUpperCase();
+        if (sUpper === 'DECLINED') {
+          data.decline_reason = reason;
+          data.declineReason = reason;
+        } else if (sUpper === 'CANCELLED') {
+          data.cancellation_reason = reason;
+          data.cancellationReason = reason;
+        }
+      }
+    }
+  }
+
+  if (result.error) {
+    if (result.error.code === 'PGRST116') {
+      const err = new Error("Purchase order status changed while this update was in progress. Refresh and try again.");
+      err.status = 409;
+      throw err;
+    }
+    throw result.error;
+  }
+  data = data || result.data;
+
   if (data && typeof data === 'object') {
     Object.defineProperty(data, '_appliedReceipts', {
       value: appliedReceipts,
@@ -1028,13 +1077,20 @@ export const submitSupplierItemResponses = async (poId, items, supplierUserId) =
     newPOStatus = 'Partially Accepted';
   }
 
-  const { data: updatedPO, error: poErr } = await supabase
+  // Conditional write: a Received/Cancelled/in-delivery PO can't be reopened by a late supplier response.
+  const { data: updatedPO, error: poErr } = await withPoLock(String(poId), () => supabase
     .from('purchase_orders')
     .update({ status: newPOStatus })
     .eq('id', poId)
+    .in('status', SUPPLIER_RESPONSE_STATUSES)
     .select()
-    .single();
+    .single());
 
+  if (poErr?.code === 'PGRST116') {
+    const err = new Error(`Item responses can only be submitted while the order is ${SUPPLIER_RESPONSE_STATUSES.join(' or ')}.`);
+    err.status = 409;
+    throw err;
+  }
   if (poErr) throw poErr;
 
   // Log audit event to capture item breakdown & proposals
@@ -1168,7 +1224,8 @@ export const respondToSupplierProposal = async (poId, itemId, decision, splitInt
       await supabase
         .from('purchase_orders')
         .update({ status: 'Accepted' })
-        .eq('id', poId);
+        .eq('id', poId)
+        .eq('status', 'Proposal Pending');
     }
   }
 

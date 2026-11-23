@@ -1,6 +1,23 @@
 @import "tailwindcss";
 @source "./";
 
+/* Color + motion tokens — one zinc neutral scale so CSS matches the Tailwind zinc-* used in JSX */
+:root {
+  --ink-soft: #27272a;
+  --muted: #71717a;
+  --line-strong: #d4d4d8;
+  --line: #e4e4e7;
+  --subtle: #f4f4f5;
+  --canvas: #fafafa;
+  --danger: #b91c1c;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 320ms;
+}
+
 @layer base {
   body {
     margin: 0;
@@ -15,6 +32,13 @@
     box-sizing: border-box;
     font-family: inherit;
   }
+
+  /* White inner ring + black outer ring: visible on both white pages and the black POS/header surfaces */
+  :focus-visible {
+    outline: 2px solid #000;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 2px #fff;
+  }
 }
 
 @layer components {
@@ -26,7 +50,7 @@
   /* Page Layout */
   .inventory-container {
     padding: 40px;
-    background: #f8f9fa;
+    background: var(--canvas);
     min-height: 100%;
     max-width: 1400px;
     margin: 0 auto;
@@ -46,7 +70,7 @@
 
   .page-header p {
     margin: 0;
-    color: #777;
+    color: var(--muted);
     font-size: 13px;
   }
 
@@ -54,14 +78,14 @@
   .card {
     background: white;
     border-radius: 4px;
-    border: 1px solid #e0e0e0;
+    border: 1px solid var(--line);
     overflow: hidden;
     margin-bottom: 20px;
   }
 
   .card-header {
     padding: 14px 20px;
-    background: #1a1a1a;
+    background: var(--ink-soft);
     color: white;
   }
 
@@ -86,7 +110,7 @@
     display: block;
     margin-bottom: 5px;
     font-weight: 600;
-    color: #333;
+    color: var(--ink-soft);
     font-size: 12px;
     text-transform: uppercase;
     letter-spacing: 0.3px;
@@ -97,7 +121,7 @@
   .form-group textarea {
     width: 100%;
     padding: 9px 12px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--line-strong);
     border-radius: 3px;
     font-size: 13px;
     font-family: inherit;
@@ -137,8 +161,8 @@
   }
 
   .table thead {
-    background: #f0f0f0;
-    border-bottom: 2px solid #e0e0e0;
+    background: var(--subtle);
+    border-bottom: 2px solid var(--line);
   }
 
   .table th {
@@ -154,12 +178,13 @@
 
   .table td {
     padding: 16px 20px;
-    border-bottom: 1px solid #f0f0f0;
-    color: #333;
+    border-bottom: 1px solid var(--subtle);
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums; /* stock counts and prices align in columns */
   }
 
   .table tbody tr:hover {
-    background: #fafafa;
+    background: var(--canvas);
   }
 
   /* ---- Status Badges ---- */
@@ -174,7 +199,7 @@
   }
 
   .status.low {
-    background: #f5f5f5;
+    background: var(--subtle);
     color: #000;
     border: 1px solid #000;
   }
@@ -211,10 +236,10 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: #eee;
+    background-color: var(--line);
     transition: .3s;
     border-radius: 24px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--line-strong);
   }
 
   .slider:before {
@@ -245,8 +270,8 @@
     gap: 12px;
     margin: 20px 0;
     padding: 15px;
-    background: #fcfcfc;
-    border: 1px solid #f0f0f0;
+    background: var(--canvas);
+    border: 1px solid var(--subtle);
     border-radius: 4px;
     cursor: pointer;
   }
@@ -260,7 +285,7 @@
   }
 
   .checkbox-group label small {
-    color: #888;
+    color: var(--muted);
     font-weight: normal;
     margin-top: 2px;
   }
@@ -298,7 +323,7 @@
   }
 
   .stock-badge-none {
-    color: #999;
+    color: var(--muted);
     font-size: 0.8rem;
     font-style: italic;
   }
@@ -324,12 +349,12 @@
   }
 
   .btn-primary:hover {
-    background: #333;
+    background: var(--ink-soft);
   }
 
   .btn-primary:disabled {
-    background: #999;
-    border-color: #999;
+    background: var(--muted);
+    border-color: var(--muted);
     cursor: not-allowed;
   }
 
@@ -340,28 +365,28 @@
   }
 
   .btn-success:hover {
-    background: #333;
+    background: var(--ink-soft);
   }
 
   .btn-danger {
     background: #fff;
-    color: #000;
-    border-color: #000;
+    color: var(--danger);
+    border-color: var(--danger);
   }
 
   .btn-danger:hover {
-    background: #f0f0f0;
+    background: var(--subtle);
   }
 
   .btn-secondary {
     background: #fff;
     color: #000;
-    border-color: #ccc;
+    border-color: var(--line-strong);
   }
 
   .btn-secondary:hover {
-    background: #f5f5f5;
-    border-color: #999;
+    background: var(--subtle);
+    border-color: var(--muted);
   }
 
   .btn-small {
@@ -379,7 +404,7 @@
 
   .stat-card {
     background: white;
-    border: 1px solid #e0e0e0;
+    border: 1px solid var(--line);
     border-radius: 4px;
     padding: 18px;
     text-align: center;
@@ -394,7 +419,7 @@
 
   .stat-card .label {
     font-size: 11px;
-    color: #777;
+    color: var(--muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
@@ -403,7 +428,7 @@
   .empty-state {
     text-align: center;
     padding: 48px 20px;
-    color: #999;
+    color: var(--muted);
   }
 
   .empty-state p {
@@ -417,9 +442,9 @@
     border-radius: 3px;
     margin-bottom: 14px;
     font-size: 13px;
-    border: 1px solid #ccc;
-    background: #f9f9f9;
-    color: #333;
+    border: 1px solid var(--line-strong);
+    background: var(--canvas);
+    color: var(--ink-soft);
   }
 
   .alert-success {
@@ -429,15 +454,15 @@
   }
 
   .alert-error {
-    background: #f9f9f9;
+    background: var(--canvas);
     color: #000;
     border: 1px solid #000;
   }
 
   .alert-warning {
-    background: #f9f9f9;
+    background: var(--canvas);
     color: #000;
-    border: 1px solid #ccc;
+    border: 1px solid var(--line-strong);
   }
 
   /* ---- Modal ---- */
@@ -454,7 +479,7 @@
     align-items: center;
     justify-content: center;
     z-index: 1000;
-    animation: modalBackdropFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: modalBackdropFadeIn var(--dur-base) var(--ease-out-expo) forwards;
   }
 
   .modal {
@@ -466,16 +491,16 @@
     overflow-y: auto;
     border: 1px solid rgba(0, 0, 0, 0.08);
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-    animation: modalPopIn 0.26s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: modalPopIn var(--dur-slow) var(--ease-out-expo) forwards;
   }
 
   .modal-header {
     padding: 16px 20px;
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1px solid var(--line);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: #1a1a1a;
+    background: var(--ink-soft);
   }
 
   .modal-header h2 {
@@ -492,7 +517,7 @@
     border: none;
     font-size: 20px;
     cursor: pointer;
-    color: #ccc;
+    color: var(--line-strong);
     transition: color 0.15s ease, transform 0.15s ease;
   }
 
@@ -507,7 +532,7 @@
 
   .modal-footer {
     padding: 14px 20px;
-    border-top: 1px solid #e0e0e0;
+    border-top: 1px solid var(--line);
     display: flex;
     gap: 8px;
     justify-content: flex-end;
@@ -556,14 +581,14 @@
 
   /* Shimmer gradient helper */
   .skeleton-shimmer {
-    background: linear-gradient(90deg, #f1f3f5 25%, #e9ecef 37%, #f1f3f5 63%);
+    background: linear-gradient(90deg, var(--subtle) 25%, var(--line) 37%, var(--subtle) 63%);
     background-size: 400% 100%;
     animation: shimmerSlide 1.6s ease-in-out infinite;
   }
 
   /* Smooth tab view transitions — ends with transform: none so position: fixed modals stay fixed to the viewport */
   .tab-pane-transition {
-    animation: tabFadeSlideIn 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: tabFadeSlideIn var(--dur-slow) var(--ease-out-expo);
   }
 
   @keyframes tabFadeSlideIn {
@@ -573,6 +598,85 @@
     }
     to {
       opacity: 1;
+      transform: none;
+    }
+  }
+
+  /* Success/error banners drop in with a slight overshoot so a saved/failed update is noticed */
+  .feedback-pop {
+    animation: feedbackPop var(--dur-slow) var(--ease-spring) both;
+  }
+
+  @keyframes feedbackPop {
+    0% {
+      opacity: 0;
+      transform: translateY(-8px) scale(0.97);
+    }
+    100% {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /* Tactile press on buttons */
+  .btn {
+    transition: transform var(--dur-fast) ease, background-color var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
+  }
+
+  .btn:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+
+  /* Staggered entrance: first 8 children get an index delay, the rest appear together. Skip on big tables. */
+  .stagger-in > * {
+    animation: popupSlideUp var(--dur-slow) var(--ease-out-expo) backwards;
+    animation-delay: calc(var(--i, 8) * 40ms);
+  }
+  .stagger-in > :nth-child(1) { --i: 0; }
+  .stagger-in > :nth-child(2) { --i: 1; }
+  .stagger-in > :nth-child(3) { --i: 2; }
+  .stagger-in > :nth-child(4) { --i: 3; }
+  .stagger-in > :nth-child(5) { --i: 4; }
+  .stagger-in > :nth-child(6) { --i: 5; }
+  .stagger-in > :nth-child(7) { --i: 6; }
+  .stagger-in > :nth-child(8) { --i: 7; }
+
+  /* Skeleton -> content swap (opacity only) */
+  .fade-in {
+    animation: modalBackdropFadeIn var(--dur-base) ease-out;
+  }
+
+  /* Hover lift; transform only on hover so fixed modals inside are never offset at rest */
+  .stat-card,
+  .hover-lift {
+    transition: transform var(--dur-base) var(--ease-out-expo), box-shadow var(--dur-base) var(--ease-out-expo);
+  }
+  @media (hover: hover) {
+    .stat-card:hover,
+    .hover-lift:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px -6px rgba(0, 0, 0, 0.18);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .feedback-pop,
+    .modal,
+    .modal-overlay,
+    .tab-pane-transition,
+    .stagger-in > *,
+    .fade-in {
+      animation: none;
+    }
+
+    .btn,
+    .stat-card,
+    .hover-lift {
+      transition: none;
+    }
+
+    .stat-card:hover,
+    .hover-lift:hover {
       transform: none;
     }
   }
@@ -608,7 +712,7 @@
     width: 60px;
     padding: 4px;
     font-size: 11px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--line-strong);
     border-radius: 3px;
   }
 
@@ -625,6 +729,13 @@
   }
 
   .receive-stock-mini button:hover {
-    background: #333;
+    background: var(--ink-soft);
+  }
+}
+
+/* Unlayered so it beats Tailwind's utilities layer: stops arbitrary animate-[...] classes for reduced-motion users */
+@media (prefers-reduced-motion: reduce) {
+  [class*="animate-["] {
+    animation: none;
   }
 }

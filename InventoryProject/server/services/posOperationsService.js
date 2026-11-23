@@ -7,7 +7,7 @@ import { logAudit } from "../utils/auditHelper.js";
 import { LIMITS, validateNumberBound, validateTextLength } from "../utils/validationHelper.js";
 import * as batchService from "./batchService.js";
 import * as recipesService from "./recipesService.js";
-import { getSugarScaleMultiplier, resolvePackagingIngredientIds } from "./posService.js";
+import { adjustProductStock, getSugarScaleMultiplier, resolvePackagingIngredientIds } from "./posService.js";
 
 const IDEMPOTENCY_STORE_KEY = "pos_idempotency_store";
 const SHIFTS_STORE_KEY = "pos_shifts_store";
@@ -436,6 +436,10 @@ export const calculateCartPricingFromCatalog = (cart = [], productMap = new Map(
       ? product.add_ons
       : (Array.isArray(catSetting?.add_ons) ? catSetting.add_ons : []);
 
+    // Server-side size/add-on objects replace client ones so stock deduction never trusts the payload.
+    let catalogSizeObj = null;
+    const catalogAddOnsForItem = [];
+
     const cupSizeName = item.cup_size || item.cup_size_obj?.name || "";
     if (cupSizeName) {
       const normTarget = String(cupSizeName).trim().toLowerCase();
@@ -443,6 +447,7 @@ export const calculateCartPricingFromCatalog = (cart = [], productMap = new Map(
         (s) => String(s?.name || "").trim().toLowerCase() === normTarget
       );
       if (matchedSize) {
+        catalogSizeObj = matchedSize;
         unitPrice += Math.max(0, parseFloat(matchedSize.price_add) || 0);
       } else if (catalogSizes.length === 0) {
         if (normTarget === "16 oz") unitPrice += 10;
@@ -461,10 +466,15 @@ export const calculateCartPricingFromCatalog = (cart = [], productMap = new Map(
         const matchedAddon = catalogAddons.find(
           (a) => String(a?.name || "").trim().toLowerCase() === normAddonName
         );
-        const addonUnitPrice = matchedAddon
-          ? Math.max(0, parseFloat(matchedAddon.price) || 0)
-          : Math.max(0, parseFloat(ao.price) || 0);
-        unitPrice += addonUnitPrice * aoQty;
+        if (matchedAddon) {
+          unitPrice += Math.max(0, parseFloat(matchedAddon.price) || 0) * aoQty;
+          catalogAddOnsForItem.push({ ...matchedAddon, customer_qty: aoQty });
+        } else if ((parseFloat(ao.price) || 0) > 0 || ao.ingredient_id) {
+          throw createHttpError(400, `Add-on "${ao.name || "unknown"}" is not available for ${product.name}.`);
+        } else {
+          // Legacy free label add-on (POS DEFAULT_ADDONS): no price, no inventory link.
+          catalogAddOnsForItem.push({ name: String(ao.name || "Add-on").slice(0, 100), price: 0, customer_qty: aoQty });
+        }
       }
     }
 
@@ -477,7 +487,9 @@ export const calculateCartPricingFromCatalog = (cart = [], productMap = new Map(
       id: item.id,
       qty,
       unit_price: netUnitPrice,
-      line_total: lineTotal
+      line_total: lineTotal,
+      cup_size_obj: catalogSizeObj,
+      add_ons: catalogAddOnsForItem
     });
   }
 
@@ -856,7 +868,13 @@ export const runWithIdempotency = async (key, userId, executor) => {
     const again = await checkIdempotencyKey(cleanKey, userId);
     if (again) return again;
     const sale = await executor();
-    await recordIdempotencyKey(cleanKey, userId, sale);
+    try {
+      await recordIdempotencyKey(cleanKey, userId, sale);
+    } catch (recErr) {
+      // The sale is committed; returning success stops the client retrying. shortcut: a retry after this
+      // failure is not deduplicated, upgrade by storing the key on the sales row once a column exists.
+      console.error("[POS] Idempotency record failed for committed sale", sale?.id, recErr);
+    }
     return sale;
   })();
 
@@ -1146,6 +1164,10 @@ export const voidOrRefundSale = async ({
     throw createHttpError(409, "This transaction has already been voided or refunded.");
   }
 
+  // Applied restocks, so a failure after the claim can be undone before the status is reverted.
+  const appliedProductRestocks = [];
+  const appliedRestockBatches = [];
+  try {
   const saleItems = sale.sale_items || [];
   const productIds = [...new Set(saleItems.map((si) => si.product_id).filter(Boolean))];
   const orderType = parseOrderTypeFromSale(sale, metaMap[sale.id]);
@@ -1256,29 +1278,21 @@ export const voidOrRefundSale = async ({
 
   if (policy === "RESTOCK") {
     for (const [pid, qty] of Object.entries(productRestocks)) {
-      const { data: pRow } = await supabase.from("products").select("stock_quantity").eq("id", pid).single();
-      if (pRow) {
-        const nextStock = Math.min(LIMITS.STOCK_QTY_MAX, round6((parseFloat(pRow.stock_quantity) || 0) + qty));
-        const { error: pUpdErr } = await supabase.from("products").update({ stock_quantity: nextStock }).eq("id", pid);
-        if (pUpdErr) throw pUpdErr;
-      }
+      // Relative compare-and-set increment (same path as sale deduction), clamped to the stock cap.
+      const { prev, next } = await adjustProductStock(pid, qty, { max: LIMITS.STOCK_QTY_MAX });
+      appliedProductRestocks.push({ pid, qty: round6(next - prev) });
     }
 
     for (const [iid, entry] of Object.entries(resolvedIngredients)) {
-      const { data: iRow } = await supabase.from("ingredients").select("stock_quantity").eq("id", iid).single();
-      if (iRow) {
-        const priorStock = parseFloat(iRow.stock_quantity) || 0;
-        const nextStock = Math.min(LIMITS.STOCK_QTY_MAX, round6(priorStock + entry.qty));
-        const { error: iUpdErr } = await supabase.from("ingredients").update({ stock_quantity: nextStock }).eq("id", iid);
-        if (iUpdErr) throw iUpdErr;
-        await batchService.createBatch({
-          ingredient_id: iid,
-          source: "VOID_RESTOCK",
-          initial_quantity: entry.qty,
-          notes: `${actionType} of ${sale.receipt_number || sale.id}: ${cleanReason}`,
-          prior_stock: priorStock
-        });
-      }
+      // Stock raise + batch insert run together under the batch lock with a fresh stock read.
+      const batch = await batchService.createBatch({
+        ingredient_id: iid,
+        source: "VOID_RESTOCK",
+        initial_quantity: entry.qty,
+        notes: `${actionType} of ${sale.receipt_number || sale.id}: ${cleanReason}`,
+        stock_increment: entry.qty
+      });
+      appliedRestockBatches.push({ iid, batch_id: batch.id, qty: entry.qty });
     }
   } else {
     // WASTAGE policy: record wastage entries without restoring usable stock
@@ -1293,6 +1307,27 @@ export const voidOrRefundSale = async ({
       const { error: wasteErr } = await supabase.from("wastage").insert(wastageRows);
       if (wasteErr) throw wasteErr;
     }
+  }
+  } catch (restockErr) {
+    // Compensate: undo applied restocks, then release the claim so the void can be retried.
+    const undo = await Promise.allSettled([
+      ...appliedProductRestocks.map((r) => adjustProductStock(r.pid, -r.qty)),
+      ...appliedRestockBatches.map((b) =>
+        batchService.deductStockFEFO(b.iid, b.qty, { targetBatchId: b.batch_id, allowExpired: true })
+      )
+    ]);
+    const undoFailed = undo.filter((r) => r.status === "rejected");
+    undoFailed.forEach((r) => console.error("[POS Void] Restock compensation failed for sale", sale.id, r.reason));
+    if (undoFailed.length === 0) {
+      const { error: revertErr } = await supabase
+        .from("sales")
+        .update({ status: sale.status })
+        .eq("id", sale.id)
+        .eq("status", claimedStatus);
+      if (revertErr) console.error("[POS Void] Failed to revert claimed status for sale", sale.id, revertErr);
+    }
+    // If an undo failed, the sale stays claimed so a retry cannot restock twice; stock needs a manual check.
+    throw restockErr;
   }
 
   const nextSaleStatus = actionType === "VOID" ? "VOIDED" : actionType === "REFUND" ? "REFUNDED" : "RETURNED";
@@ -1567,6 +1602,16 @@ export const openShift = async ({ opening_cash = 0, notes = "", user }) => {
   return shift;
 };
 
+const SHIFT_MANAGER_ROLES = ["Admin", "Owner"];
+const isShiftManager = (user) => SHIFT_MANAGER_ROLES.includes(user?.role);
+
+// Only the shift's own cashier, or Admin/Owner, may read or close it.
+export const assertCanAccessShift = (shift, user) => {
+  if (shift && !isShiftManager(user) && String(shift.cashier_id) !== String(user?.id)) {
+    throw createHttpError(403, "You can only access your own shift.");
+  }
+};
+
 export const computeXReading = async ({ shift_id = null, user = null } = {}) => {
   const store = await readCmsStore(SHIFTS_STORE_KEY, { shifts: [] });
   const shifts = Array.isArray(store.shifts) ? store.shifts : [];
@@ -1577,9 +1622,10 @@ export const computeXReading = async ({ shift_id = null, user = null } = {}) => 
   } else if (user?.id) {
     targetShift = shifts.find((s) => s.status === "OPEN" && String(s.cashier_id) === String(user.id)) || null;
   }
-  if (!targetShift && !shift_id) {
+  if (!targetShift && !shift_id && isShiftManager(user)) {
     targetShift = shifts.find((s) => s.status === "OPEN") || null;
   }
+  assertCanAccessShift(targetShift, user);
 
   const windowStart = targetShift?.opened_at || toManilaStartOfDay(getManilaDateOnly());
   const windowEnd = targetShift?.closed_at || null;
@@ -1590,6 +1636,11 @@ export const computeXReading = async ({ shift_id = null, user = null } = {}) => 
     .gte("created_at", windowStart);
   if (windowEnd) {
     query = query.lte("created_at", windowEnd);
+  }
+  // A reading covers only its cashier's sales (sales.staff_id is set by createSale); managers without a shift see the store.
+  const staffFilter = targetShift?.cashier_id || (isShiftManager(user) ? null : user?.id);
+  if (staffFilter) {
+    query = query.eq("staff_id", staffFilter);
   }
 
   const [{ data: sales, error }, voidsMap, metaMap] = await Promise.all([
@@ -1630,11 +1681,12 @@ export const closeShiftZReading = async ({ shift_id = null, actual_cash_counted,
   const targetShift = shift_id
     ? shifts.find((s) => String(s.id) === String(shift_id))
     : shifts.find((s) => s.status === "OPEN" && String(s.cashier_id) === String(user?.id)) ||
-      shifts.find((s) => s.status === "OPEN");
+      (isShiftManager(user) ? shifts.find((s) => s.status === "OPEN") : null);
 
   if (!targetShift) {
     throw createHttpError(404, "No open shift found to close.");
   }
+  assertCanAccessShift(targetShift, user);
   if (targetShift.status === "CLOSED") {
     throw createHttpError(409, "This shift has already been closed.");
   }
@@ -1648,6 +1700,10 @@ export const closeShiftZReading = async ({ shift_id = null, actual_cash_counted,
     const latestShifts = Array.isArray(latestStore.shifts) ? latestStore.shifts : [];
     const idx = latestShifts.findIndex((s) => String(s.id) === String(targetShift.id));
     if (idx === -1) throw createHttpError(404, "Shift not found.");
+    // Re-check under the lock so two concurrent Z-closes cannot both close (and overwrite) the shift.
+    if (latestShifts[idx].status !== "OPEN") {
+      throw createHttpError(409, "This shift has already been closed.");
+    }
 
     const updatedShift = {
       ...latestShifts[idx],
@@ -1684,7 +1740,8 @@ export const closeShiftZReading = async ({ shift_id = null, actual_cash_counted,
           short_over: shortOver,
           summary: closedShift.summary
         })
-        .eq("id", closedShift.id);
+        .eq("id", closedShift.id)
+        .eq("status", "OPEN");
       if (error && isMissingTableError(error)) {
         hasNativePosShiftsTable = false;
       }

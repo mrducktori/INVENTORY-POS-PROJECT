@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getAuditLogs } from '../../api/auditApi';
 import { getCurrentUser } from '../../api/authApi';
-import { getManilaDateOnly } from '../../utils/dateUtils';
+import { getManilaDateOnly, addDaysManila } from '../../utils/dateUtils';
 import { getActionCategory, formatActionLabel, formatAuditDescription } from '../../utils/auditFormatter';
 import { TableSkeleton } from '../../components/shared/SkeletonLoader';
 import InfoTip from '../../components/shared/InfoTip';
@@ -84,9 +84,7 @@ const TransactionLogs = () => {
     } else if (preset === 'TODAY') {
       setFilters(prev => ({ ...prev, start_date: todayStr, end_date: todayStr }));
     } else if (preset === '7D') {
-      const d = new Date();
-      d.setDate(d.getDate() - 6);
-      setFilters(prev => ({ ...prev, start_date: d.toISOString().split('T')[0], end_date: todayStr }));
+      setFilters(prev => ({ ...prev, start_date: addDaysManila(todayStr, -6), end_date: todayStr }));
     } else if (preset === 'MONTH') {
       setFilters(prev => ({ ...prev, start_date: todayStr.substring(0, 8) + '01', end_date: todayStr }));
     }

@@ -317,7 +317,7 @@ export default function SupplierCatalogSection() {
 
       {/* Notifications */}
       {error && (
-        <div className="p-4 rounded-xl text-sm font-semibold bg-red-50 text-red-800 border border-red-200 flex items-center justify-between">
+        <div role="alert" className="feedback-pop p-4 rounded-xl text-sm font-semibold bg-red-50 text-red-800 border border-red-200 flex items-center justify-between">
           <span>{error}</span>
           <button onClick={() => setError('')} className="text-red-600 hover:text-red-900 font-bold text-xs uppercase cursor-pointer">
             Dismiss
@@ -326,7 +326,7 @@ export default function SupplierCatalogSection() {
       )}
 
       {successMsg && (
-        <div className="p-4 rounded-xl text-sm font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center justify-between">
+        <div role="status" className="feedback-pop p-4 rounded-xl text-sm font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center justify-between">
           <span>{successMsg}</span>
           <button onClick={() => setSuccessMsg('')} className="text-emerald-600 hover:text-emerald-900 font-bold text-xs uppercase cursor-pointer">
             Dismiss

@@ -228,7 +228,7 @@ const TopSalesGrid = ({
             <CardGridSkeleton count={6} />
           </div>
         ) : isEmpty ? (
-          <div className="py-16 px-6 rounded-xl bg-zinc-50 border border-dashed border-zinc-200 flex flex-col items-center justify-center text-center">
+          <div className="fade-in py-16 px-6 rounded-xl bg-zinc-50 border border-dashed border-zinc-200 flex flex-col items-center justify-center text-center">
             <h4 className="text-base font-bold text-zinc-800 m-0 mb-1">
               No Sales Recorded for This Window
             </h4>

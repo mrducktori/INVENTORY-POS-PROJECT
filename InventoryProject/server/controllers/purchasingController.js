@@ -298,7 +298,7 @@ export const updateSupplierOrderStatus = async (req, res) => {
 
     res.json(data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 };
 
@@ -335,7 +335,7 @@ export const submitSupplierItemResponses = async (req, res) => {
     const data = await purchasingService.submitSupplierItemResponses(id, items, req.user.id);
     res.json(data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 };
 

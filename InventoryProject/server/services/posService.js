@@ -10,6 +10,44 @@ const STOCK_EPSILON = 1e-9;
 
 const roundStock = (value) => Math.max(0, Math.round(value * 1e6) / 1e6);
 
+// Pure: next stock after applying delta, or null when a decrement would go negative.
+export const computeNextProductStock = (current, delta, max = Infinity) => {
+  const cur = parseFloat(current) || 0;
+  if (cur + delta + STOCK_EPSILON < 0) return null;
+  return Math.min(max, roundStock(cur + delta));
+};
+
+/**
+ * Relative, race-safe change to products.stock_quantity via optimistic compare-and-set
+ * (supabase-js has no transactions; the write only lands if stock is unchanged since the read).
+ */
+export const adjustProductStock = async (pid, delta, { max = Infinity, attempts = 8 } = {}) => {
+  for (let i = 0; i < attempts; i++) {
+    const { data: row, error } = await supabase
+      .from("products")
+      .select("name, stock_quantity")
+      .eq("id", pid)
+      .single();
+    if (error) throw error;
+
+    const next = computeNextProductStock(row.stock_quantity, delta, max);
+    if (next === null) {
+      const err = new Error(`Insufficient stock for: ${row.name} (Requires ${-delta}, Has ${parseFloat(row.stock_quantity) || 0})`);
+      err.status = 409;
+      throw err;
+    }
+
+    let q = supabase.from("products").update({ stock_quantity: next }).eq("id", pid);
+    q = row.stock_quantity == null ? q.is("stock_quantity", null) : q.eq("stock_quantity", row.stock_quantity);
+    const { data: updated, error: updErr } = await q.select("id");
+    if (updErr) throw updErr;
+    if (updated && updated.length > 0) return { prev: parseFloat(row.stock_quantity) || 0, next };
+  }
+  const err = new Error("Product stock is changing too quickly; please retry.");
+  err.status = 409;
+  throw err;
+};
+
 const computeOrderableForSize = (prodRecipes = [], ingMap = {}, cupSizeObj = null) => {
   let minOrderable = Infinity;
   for (const recipe of prodRecipes) {
@@ -588,6 +626,7 @@ export const createSale = async ({
 
     // 2b + 2c + 2d. Insert Sale Items and deduct Product/Ingredient Stocks concurrently
     const insertSaleItems = async () => {
+      // eslint-disable-next-line no-unused-vars
       const stripModifiers = baseSaleItems.map(({ _modifiers, ...rest }) => ({
         ...rest,
         sale_id: createdSaleId
@@ -619,13 +658,9 @@ export const createSale = async ({
       insertSaleItems(),
       ...pIds.map(async (pid) => {
         const pData = requiredProducts[pid];
-        const { error: prodUpdateError } = await supabase
-          .from("products")
-          .update({ stock_quantity: pData.newStock })
-          .eq("id", pid);
-
-        if (prodUpdateError) throw prodUpdateError;
-        appliedProductDeductions.push({ pid, restoreStock: pData.newStock + pData.qty });
+        const { next } = await adjustProductStock(pid, -pData.qty);
+        pData.newStock = next;
+        appliedProductDeductions.push({ pid, qty: pData.qty });
       }),
       ...iIds.map(async (iid) => {
         const iData = requiredIngredients[iid];
@@ -640,7 +675,10 @@ export const createSale = async ({
       })
     ];
 
-    await Promise.all(parallelOps);
+    // allSettled: rollback must only run once every sibling has finished, so all applied deductions are recorded.
+    const settled = await Promise.allSettled(parallelOps);
+    const firstFailure = settled.find((r) => r.status === "rejected");
+    if (firstFailure) throw firstFailure.reason;
   } catch (atomicError) {
     // ROLLBACK COMPENSATION: Undo all partial operations concurrently
     console.error('[POS Transaction Rollback] An error occurred during checkout, rolling back:', atomicError);
@@ -649,10 +687,8 @@ export const createSale = async ({
       await supabase.from("sale_items").delete().eq("sale_id", createdSaleId);
     }
 
-    await Promise.allSettled([
-      ...appliedProductDeductions.map((item) =>
-        supabase.from("products").update({ stock_quantity: item.restoreStock }).eq("id", item.pid)
-      ),
+    const rollbackResults = await Promise.allSettled([
+      ...appliedProductDeductions.map((item) => adjustProductStock(item.pid, item.qty)),
       ...appliedIngredientDeductions.map((item) =>
         batchService.restoreDeductedBatches(item.iid, item.deductedBatches)
       ),
@@ -660,6 +696,9 @@ export const createSale = async ({
         ? [supabase.from("sales").delete().eq("id", createdSaleId)]
         : [])
     ]);
+    rollbackResults
+      .filter((r) => r.status === "rejected")
+      .forEach((r) => console.error("[POS Transaction Rollback] Compensation step failed:", r.reason));
 
     const abortErr = new Error(`Transaction aborted: ${atomicError.message}`, { cause: atomicError });
     if (atomicError?.status) abortErr.status = atomicError.status;

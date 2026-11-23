@@ -26,7 +26,7 @@ const ICONS = {
 
 const StatCards = ({ cards, loading }) => {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div className="stagger-in grid grid-cols-1 md:grid-cols-3 gap-6">
       {cards.map((card) => {
         const isLowStock = card.label === 'Low Stock Items';
         const lowStockCount = parseInt(card.value, 10) || 0;
@@ -36,7 +36,7 @@ const StatCards = ({ cards, loading }) => {
           <div
             key={card.label}
             onClick={card.onClick}
-            className={`bg-white border rounded-2xl p-6 md:p-8 flex flex-col justify-between transition-all duration-200 shadow-xs ${
+            className={`hover-lift bg-white border rounded-2xl p-6 md:p-8 flex flex-col justify-between transition-all duration-200 shadow-xs ${
               card.clickable
                 ? 'cursor-pointer hover:border-zinc-500 hover:shadow-md'
                 : 'hover:border-zinc-300'

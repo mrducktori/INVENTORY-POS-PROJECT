@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { formatDisplayDate } from '../../../../utils/dateUtils';
+import { formatDisplayDate, getManilaDateOnly, addDaysManila } from '../../../../utils/dateUtils';
 
 const SupplierReviewPOModal = ({ isOpen, onClose, order, onSubmit }) => {
   const [itemsState, setItemsState] = useState({});
@@ -109,9 +109,7 @@ const SupplierReviewPOModal = ({ isOpen, onClose, order, onSubmit }) => {
   const unavailableCount = Object.values(itemsState).filter((s) => s.status === 'UNAVAILABLE').length;
 
   // Tomorrow for min date on proposal
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const minDateStr = tomorrow.toISOString().split('T')[0];
+  const minDateStr = addDaysManila(getManilaDateOnly(), 1);
 
   return (
     <div className="fixed inset-0 z-[9999] overflow-y-auto bg-black/60 backdrop-blur-xs flex justify-center items-start pt-6 sm:pt-10 md:pt-14 pb-12 p-4 animate-[modalBackdropFadeIn_0.2s_ease-out]">

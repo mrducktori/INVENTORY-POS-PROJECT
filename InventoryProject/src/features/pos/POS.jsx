@@ -170,7 +170,7 @@ const POS = ({ subTab = null, onSubTabChange = null }) => {
       </div>
       {saleComplete &&
         createPortal(
-          <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg z-[100001] animate-[fadeIn_0.3s_ease-out] font-semibold tracking-wide">
+          <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg z-[100001] animate-[popupSlideUp_var(--dur-slow)_var(--ease-out-expo)] font-semibold tracking-wide">
             Transaction completed successfully!
           </div>,
           document.body
@@ -178,7 +178,7 @@ const POS = ({ subTab = null, onSubTabChange = null }) => {
 
       {stockNotice &&
         createPortal(
-          <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-4 py-3 rounded-xl shadow-xl z-[100002] animate-[fadeIn_0.2s_ease-out] flex items-center gap-3 max-w-md border border-amber-400/50">
+          <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-4 py-3 rounded-xl shadow-xl z-[100002] animate-[popupSlideUp_var(--dur-slow)_var(--ease-out-expo)] flex items-center gap-3 max-w-md border border-amber-400/50">
             <svg
               className="w-5 h-5 text-amber-400 shrink-0"
               fill="none"

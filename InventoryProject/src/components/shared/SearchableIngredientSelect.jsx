@@ -250,7 +250,7 @@ const SearchableIngredientSelect = ({
 
       {/* Popover Dropdown */}
       {isOpen && !disabled && (
-        <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden animate-[fadeIn_0.15s_ease-out]">
+        <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden fade-in">
           {/* Category Chips Bar */}
           {showCategoryFilters && (
             <div className="p-2 border-b border-gray-100 bg-gray-50/80 flex items-center gap-1.5 overflow-x-auto scrollbar-none text-xs">
