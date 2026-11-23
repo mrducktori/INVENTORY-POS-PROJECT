@@ -212,7 +212,7 @@ const ProductOptionsModal = ({
                 {sizesList.map((size) => {
                   const sizeInfo = sizeAvailability.find((s) => s.name === size);
                   const hasCupLimit = Boolean(sizeInfo?.ingredientId);
-                  const isSizeOut = hasCupLimit && (sizeInfo?.cupRemaining ?? 0) <= 0;
+                  const isSizeOut = (hasCupLimit && (sizeInfo?.cupRemaining ?? 0) <= 0) || (sizeInfo?.maxForSizeRemaining ?? 1) <= 0;
                   const isSelected = productOptions.cupSize === size;
 
                   return (

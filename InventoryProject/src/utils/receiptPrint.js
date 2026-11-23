@@ -1,3 +1,5 @@
+import { escapeHtml } from './escapeHtml';
+
 const PAPER_WIDTH_STORAGE_KEY = 'coftea_receipt_paper_width';
 const VALID_PAPER_WIDTHS = ['80mm', '58mm'];
 const PRINT_ROOT_ID = 'coftea-print-root';
@@ -101,14 +103,6 @@ export const savePaperWidth = (width) => {
     // ignore storage errors
   }
 };
-
-const escapeHtml = (value) =>
-  String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 
 /**
  * Normalizes a sale_items add-on entry (handles Postgres text[] JSON strings or plain objects).

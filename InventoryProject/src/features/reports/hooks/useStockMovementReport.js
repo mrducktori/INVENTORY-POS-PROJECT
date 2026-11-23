@@ -3,7 +3,8 @@ import { getInventoryStatusReport, getWastageReport } from '../../../api/reports
 import { getAllProducts } from '../../../api/productsApi';
 import { getAuditLogs } from '../../../api/auditApi';
 import { downloadCSV, printReport } from '../utils/reportUtils';
-import { getPeriodDateRange } from '../../../utils/dateUtils';
+import { getPeriodDateRange, getManilaDateOnly } from '../../../utils/dateUtils';
+import { escapeHtml } from '../../../utils/escapeHtml';
 
 const STATUS_GROUPS = [
   {
@@ -403,7 +404,7 @@ export const useStockMovementReport = () => {
       ),
     ];
 
-    downloadCSV(exportRows, `CofTea_Stock_Movement_Report_${period}_${new Date().toISOString().split('T')[0]}.csv`);
+    downloadCSV(exportRows, `CofTea_Stock_Movement_Report_${period}_${getManilaDateOnly()}.csv`);
   }, [summary, periodLabel, movements, groupedSnapshot, period]);
 
   // Export PDF / Print (Executive Layout)
@@ -419,13 +420,13 @@ export const useStockMovementReport = () => {
       return `
         <tr>
           <td style="font-size:10px;color:#4b5563;white-space:nowrap">${new Date(m.timestamp).toLocaleString('en-PH')}</td>
-          <td><span class="badge ${badgeClass}">${m.directionLabel}</span></td>
-          <td style="font-size:10px;color:#6b7280">${m.itemType}</td>
-          <td><strong>${m.name}</strong></td>
-          <td class="text-right ${qtyClass}">${formattedQty} ${m.unit}</td>
-          <td class="text-right" style="font-family:monospace">${m.newStock !== null ? `${m.newStock} ${m.unit}` : '—'}</td>
-          <td style="font-size:10px;color:#4b5563">${m.reason}</td>
-          <td style="font-size:10.5px">${m.recordedBy}</td>
+          <td><span class="badge ${badgeClass}">${escapeHtml(m.directionLabel)}</span></td>
+          <td style="font-size:10px;color:#6b7280">${escapeHtml(m.itemType)}</td>
+          <td><strong>${escapeHtml(m.name)}</strong></td>
+          <td class="text-right ${qtyClass}">${formattedQty} ${escapeHtml(m.unit)}</td>
+          <td class="text-right" style="font-family:monospace">${m.newStock !== null ? `${m.newStock} ${escapeHtml(m.unit)}` : '—'}</td>
+          <td style="font-size:10px;color:#4b5563">${escapeHtml(m.reason)}</td>
+          <td style="font-size:10.5px">${escapeHtml(m.recordedBy)}</td>
         </tr>
       `;
     }).join('');
@@ -434,7 +435,7 @@ export const useStockMovementReport = () => {
       const groupHeader = `
         <tr class="section-header-row">
           <td colspan="6">
-            ${group.label.toUpperCase()} (${group.items.length} ${group.items.length === 1 ? 'item' : 'items'})
+            ${escapeHtml(group.label.toUpperCase())} (${group.items.length} ${group.items.length === 1 ? 'item' : 'items'})
           </td>
         </tr>
       `;
@@ -442,12 +443,12 @@ export const useStockMovementReport = () => {
         const badgeClass = r.statusKey === 'normal' ? 'badge-in' : r.statusKey === 'low' ? 'badge-warning' : 'badge-danger';
         return `
           <tr>
-            <td style="color:#6b7280">${r.type}</td>
-            <td><strong>${r.name}</strong></td>
-            <td class="text-right" style="font-weight:bold;font-family:monospace">${r.currentStock}</td>
-            <td class="text-right" style="color:#6b7280;font-family:monospace">${r.lowAlert}</td>
-            <td>${r.unit}</td>
-            <td class="text-right"><span class="badge ${badgeClass}">${r.status}</span></td>
+            <td style="color:#6b7280">${escapeHtml(r.type)}</td>
+            <td><strong>${escapeHtml(r.name)}</strong></td>
+            <td class="text-right" style="font-weight:bold;font-family:monospace">${escapeHtml(r.currentStock)}</td>
+            <td class="text-right" style="color:#6b7280;font-family:monospace">${escapeHtml(r.lowAlert)}</td>
+            <td>${escapeHtml(r.unit)}</td>
+            <td class="text-right"><span class="badge ${badgeClass}">${escapeHtml(r.status)}</span></td>
           </tr>
         `;
       }).join('');
@@ -462,7 +463,7 @@ export const useStockMovementReport = () => {
             <div class="brand-subtitle">Point of Sale &amp; Inventory Management System</div>
           </div>
           <div class="report-timestamp">
-            <div>Period: <strong>${periodLabel}</strong></div>
+            <div>Period: <strong>${escapeHtml(periodLabel)}</strong></div>
             <div>Generated: <strong>${new Date().toLocaleString('en-PH')}</strong></div>
           </div>
         </div>

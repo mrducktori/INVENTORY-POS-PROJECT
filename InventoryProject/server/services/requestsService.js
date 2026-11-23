@@ -1,6 +1,7 @@
 import { supabase } from "../config/supabaseClient.js";
 import { logAudit } from "../utils/auditHelper.js";
 import { getManilaISOString } from "../utils/dateUtils.js";
+import { fetchAllRows } from "../utils/costUtils.js";
 
 let hasRequestsTable = null; // null = unknown, true = exists, false = use audit_logs fallback
 
@@ -10,8 +11,7 @@ const isMissingTableError = (error) => {
   return (
     error.code === "42P01" ||
     error.code === "PGRST205" ||
-    msg.includes("could not find the table") ||
-    msg.includes("relation")
+    msg.includes("could not find the table")
   );
 };
 
@@ -38,6 +38,11 @@ const parseAuditRequestRow = (row) => {
 };
 
 export const createRequest = async ({ type, details, requested_by }) => {
+  if (typeof type !== "string" || !type.trim()) {
+    const err = new Error("Request type is required");
+    err.status = 400;
+    throw err;
+  }
   if (hasRequestsTable !== false) {
     const { data, error } = await supabase
       .from("requests")
@@ -98,33 +103,33 @@ export const getRequests = async (filters = {}) => {
         *,
         users(id, name, username, role)
       `)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .order("id");
 
     if (filters.status) query = query.eq("status", filters.status);
     if (filters.type) query = query.eq("type", filters.type);
     if (filters.requested_by) query = query.eq("requested_by", filters.requested_by);
 
-    const { data, error } = await query;
-    if (!error) {
+    try {
+      const data = await fetchAllRows(() => query);
       hasRequestsTable = true;
       return data;
+    } catch (error) {
+      if (!isMissingTableError(error)) throw error;
+      hasRequestsTable = false;
     }
-    if (!isMissingTableError(error)) throw error;
-    hasRequestsTable = false;
   }
 
-  let fallbackQuery = supabase
-    .from("audit_logs")
-    .select(`*, users(id, name, username, role)`)
-    .eq("action", "STAFF_REQUEST")
-    .order("created_at", { ascending: false });
-
-  if (filters.requested_by) {
-    fallbackQuery = fallbackQuery.eq("user_id", filters.requested_by);
-  }
-
-  const { data: rows, error: fbErr } = await fallbackQuery;
-  if (fbErr) throw fbErr;
+  const rows = await fetchAllRows(() => {
+    let q = supabase
+      .from("audit_logs")
+      .select(`*, users(id, name, username, role)`)
+      .eq("action", "STAFF_REQUEST")
+      .order("created_at", { ascending: false })
+      .order("id");
+    if (filters.requested_by) q = q.eq("user_id", filters.requested_by);
+    return q;
+  });
 
   return (rows || [])
     .map(parseAuditRequestRow)
@@ -197,23 +202,34 @@ export const updateRequestStatus = async (id, status, updatedBy = null) => {
 };
 
 export const getRequestStats = async () => {
+  const stats = { total: 0, pending: 0, approved: 0, rejected: 0, byType: {} };
+
+  if (hasRequestsTable !== false) {
+    const counts = await Promise.all(["PENDING", "APPROVED", "REJECTED"].map((s) =>
+      supabase.from("requests").select("id", { count: "exact", head: true }).eq("status", s)
+    ));
+    const missing = counts.find((c) => c.error && isMissingTableError(c.error));
+    const failed = counts.find((c) => c.error && !isMissingTableError(c.error));
+    if (failed) throw failed.error;
+    if (!missing) {
+      hasRequestsTable = true;
+      ["pending", "approved", "rejected"].forEach((k, i) => { stats[k] = counts[i].count || 0; });
+      stats.total = stats.pending + stats.approved + stats.rejected;
+      // byType needs a group-by; only the type column is fetched
+      const types = await fetchAllRows(() => supabase.from("requests").select("type").order("id"));
+      types.forEach((r) => { stats.byType[r.type] = (stats.byType[r.type] || 0) + 1; });
+      return stats;
+    }
+    hasRequestsTable = false;
+  }
+
+  // audit_logs fallback stores status inside JSON, so rows must be parsed
   const data = await getRequests({});
-
-  const stats = {
-    total: data.length,
-    pending: 0,
-    approved: 0,
-    rejected: 0,
-    byType: {}
-  };
-
+  stats.total = data.length;
   data.forEach(req => {
     const key = String(req.status || "PENDING").toLowerCase();
     if (stats[key] !== undefined) stats[key]++;
-    if (!stats.byType[req.type]) {
-      stats.byType[req.type] = 0;
-    }
-    stats.byType[req.type]++;
+    stats.byType[req.type] = (stats.byType[req.type] || 0) + 1;
   });
 
   return stats;

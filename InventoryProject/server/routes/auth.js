@@ -17,28 +17,40 @@ import {
 
 const router = express.Router();
 
-// ─── In-memory lockout store 
-// { username_lowercase: { attempts: number, lockedUntil: Date|null } }
-const loginAttempts = {};
+// ─── In-memory lockout store, keyed by `${ip}|${username_lowercase}` so one IP cannot lock the owner out for everyone.
+// Map<string, { attempts: number, lockedUntil: number|null, last: number }>
+const loginAttempts = new Map();
 const MAX_ATTEMPTS  = 3;
 const LOCK_DURATION = 5 * 60 * 1000; // 5 minutes in ms
+const MAX_TRACKED   = 1000;
+// Compared against when the user is missing/unverifiable so response timing does not reveal account existence.
+const DUMMY_HASH = bcrypt.hashSync(crypto.randomBytes(16).toString("hex"), 10);
 
-function getLockout(username) {
-  const key = username.toLowerCase();
-  if (!loginAttempts[key]) loginAttempts[key] = { attempts: 0, lockedUntil: null };
-  return loginAttempts[key];
+function getLockout(key) {
+  const now = Date.now();
+  if (loginAttempts.size > MAX_TRACKED) {
+    for (const [k, v] of loginAttempts) {
+      if (now - v.last > LOCK_DURATION) loginAttempts.delete(k);
+    }
+  }
+  let record = loginAttempts.get(key);
+  if (!record) {
+    record = { attempts: 0, lockedUntil: null, last: now };
+    loginAttempts.set(key, record);
+  }
+  return record;
 }
 
-function resetLockout(username) {
-  const key = username.toLowerCase();
-  loginAttempts[key] = { attempts: 0, lockedUntil: null };
+function resetLockout(key) {
+  loginAttempts.delete(key);
 }
 
-function recordFailedAttempt(username) {
-  const record = getLockout(username);
+function recordFailedAttempt(key) {
+  const record = getLockout(key);
   record.attempts += 1;
+  record.last = Date.now();
   if (record.attempts >= MAX_ATTEMPTS) {
-    record.lockedUntil = new Date(Date.now() + LOCK_DURATION);
+    record.lockedUntil = Date.now() + LOCK_DURATION;
   }
 }
 
@@ -47,15 +59,17 @@ function recordFailedAttempt(username) {
 // LOGIN — Public route (no auth required)
 router.post("/login", authLimiter, async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, password } = req.body || {};
 
-    if (!username || !password) {
+    if (typeof username !== "string" || typeof password !== "string" || !username || !password) {
       return res.status(400).json({ error: "Username and password required" });
     }
 
+    const key = `${req.ip}|${username.toLowerCase()}`;
+
     // ── Lockout check ──────────────────────────────────────────────────────────
-    const record = getLockout(username);
-    if (record.lockedUntil && record.lockedUntil > new Date()) {
+    const record = getLockout(key);
+    if (record.lockedUntil && record.lockedUntil > Date.now()) {
       const secondsLeft = Math.ceil((record.lockedUntil - Date.now()) / 1000);
       return res.status(429).json({
         error: `Account temporarily locked. Try again in ${secondsLeft} seconds.`,
@@ -64,8 +78,8 @@ router.post("/login", authLimiter, async (req, res) => {
       });
     }
     // Reset expired lockout so fresh attempts start from 0
-    if (record.lockedUntil && record.lockedUntil <= new Date()) {
-      resetLockout(username);
+    if (record.lockedUntil && record.lockedUntil <= Date.now()) {
+      resetLockout(key);
     }
 
     const { data, error } = await supabase
@@ -74,40 +88,25 @@ router.post("/login", authLimiter, async (req, res) => {
       .eq("username", username)
       .single();
 
-    if (error || !data) {
-      recordFailedAttempt(username);
-      const rec = getLockout(username);
-      void logAudit("LOGIN_FAILED", null, { username, reason: "User not found" });
-      if (rec.lockedUntil) {
-        return res.status(429).json({
-          error: `Too many failed attempts. Account locked for 5 minutes.`,
-          locked: true,
-          secondsLeft: Math.ceil(LOCK_DURATION / 1000)
-        });
-      }
-      return res.status(401).json({
-        error: "Invalid username or password",
-        attemptsLeft: MAX_ATTEMPTS - rec.attempts
-      });
+    if (error && error.code !== "PGRST116") {
+      console.error("[login] user lookup failed:", error);
+      return res.status(503).json({ error: "Service temporarily unavailable. Please retry." });
     }
 
-    if (data.status !== "ACTIVE") {
-      void logAudit("LOGIN_FAILED", data.id, { username, reason: "Account inactive" });
-      return res.status(401).json({ error: "User account is not active" });
-    }
+    // FIX #9: No plaintext fallback. Only bcrypt hashes are verifiable; anything else compares against the dummy hash.
+    const hashOk = !!data && typeof data.password_hash === "string" && data.password_hash.startsWith("$2");
+    const passwordMatches = await bcrypt.compare(password, hashOk ? data.password_hash : DUMMY_HASH);
 
-    // FIX #9: Removed plaintext password fallback. All passwords MUST be bcrypt hashed.
-    if (!data.password_hash || !data.password_hash.startsWith('$2')) {
-      void logAudit("LOGIN_FAILED", data.id, { username, reason: "Password not hashed — requires admin reset" });
-      return res.status(401).json({ error: "Your account requires a password reset. Please contact an administrator." });
-    }
+    const failReason = !data ? "User not found"
+      : !hashOk ? "Password not hashed — requires admin reset"
+      : !passwordMatches ? "Wrong password"
+      : data.status !== "ACTIVE" ? "Account inactive"
+      : null;
 
-    const isPasswordValid = await bcrypt.compare(password, data.password_hash);
-
-    if (!isPasswordValid) {
-      recordFailedAttempt(username);
-      const rec = getLockout(username);
-      void logAudit("LOGIN_FAILED", data.id, { username, reason: "Wrong password" });
+    if (failReason) {
+      recordFailedAttempt(key);
+      const rec = getLockout(key);
+      void logAudit("LOGIN_FAILED", data?.id ?? null, { username, reason: failReason });
       if (rec.lockedUntil) {
         return res.status(429).json({
           error: `Too many failed attempts. Account locked for 5 minutes.`,
@@ -122,7 +121,7 @@ router.post("/login", authLimiter, async (req, res) => {
     }
 
     // Successful login — clear any previous failure record
-    resetLockout(username);
+    resetLockout(key);
 
     // Check only this user's previous session activity without blocking login on a full-table reap scan
     let hadActiveSession = false;
@@ -186,7 +185,8 @@ router.post("/login", authLimiter, async (req, res) => {
     res.json({ token, ...userWithoutPassword });
 
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[login] error:", err);
+    res.status(500).json({ error: "Login failed. Please try again." });
   }
 });
 

@@ -4,6 +4,7 @@ import { checkCompositeDuplicate } from "../utils/stringHelper.js";
 import { LIMITS, validateNumberBound, validateTextLength } from "../utils/validationHelper.js";
 import { invalidateCmsCache } from "./cmsService.js";
 import * as batchService from "./batchService.js";
+import { resolveUnitCost } from "../utils/costUtils.js";
 
 export const getIngredients = async ({ includeArchived = false } = {}) => {
   let query = supabase
@@ -162,22 +163,8 @@ const assertNoIngredientDuplicate = async ({ name, category, excludeId = null, f
   }
 };
 
-const computeUnitCost = ({ unit, unit_cost, cost_per_purchase_unit, conversion_factor }) => {
-  const purchaseCost = parseFloat(cost_per_purchase_unit);
-  const conv = parseFloat(conversion_factor) || 1;
-  if (!isNaN(purchaseCost) && purchaseCost > 0 && conv > 0) {
-    return Math.round((purchaseCost / conv) * 10000) / 10000;
-  }
-  const explicitUnitCost = parseFloat(unit_cost);
-  if (!isNaN(explicitUnitCost) && explicitUnitCost > 0) {
-    return Math.round(explicitUnitCost * 10000) / 10000;
-  }
-  const u = String(unit || '').toUpperCase();
-  if (u === 'KG' || u === 'L') return 180;
-  if (u === 'PCS') return 2.5;
-  if (u === 'G' || u === 'ML') return 0.22;
-  return 1.0;
-};
+// unit_cost column is written as 0 when no real cost is known (never an invented default).
+const computeUnitCost = (ing) => resolveUnitCost(ing) ?? 0;
 
 export const createIngredient = async ({
   name,
@@ -314,11 +301,18 @@ export const updateIngredient = async (id, { name, unit, category, low_stock_ale
   if (validated.conversion_factor !== undefined) updatePayload.conversion_factor = validated.conversion_factor;
   if (validated.cost_per_purchase_unit !== undefined) updatePayload.cost_per_purchase_unit = validated.cost_per_purchase_unit;
   if (validated.cost_per_purchase_unit !== undefined || validated.conversion_factor !== undefined || validated.unit_cost !== undefined) {
+    // Merge stored values so a partial update (e.g. only conversion_factor) can't wipe a real cost.
+    const { data: stored } = await supabase
+      .from("ingredients")
+      .select("unit_cost, cost_per_purchase_unit, conversion_factor")
+      .eq("id", id)
+      .single();
+    const v = validated;
+    const explicitOnly = v.unit_cost !== undefined && v.cost_per_purchase_unit === undefined && v.conversion_factor === undefined;
     updatePayload.unit_cost = computeUnitCost({
-      unit,
-      unit_cost: validated.unit_cost,
-      cost_per_purchase_unit: validated.cost_per_purchase_unit,
-      conversion_factor: validated.conversion_factor
+      unit_cost: v.unit_cost ?? stored?.unit_cost,
+      cost_per_purchase_unit: explicitOnly ? null : (v.cost_per_purchase_unit ?? stored?.cost_per_purchase_unit),
+      conversion_factor: v.conversion_factor ?? stored?.conversion_factor
     });
   }
 
@@ -348,37 +342,6 @@ export const updateIngredient = async (id, { name, unit, category, low_stock_ale
 
   const [enriched] = await batchService.enrichIngredientsWithBatches([data]);
   return enriched || data;
-};
-
-// FIX #4: Added floor guard — will throw if the result would go below 0.
-export const updateStock = async (id, quantity, operation = "add", { maxLimit = null } = {}) => {
-  const ingredient = await getIngredientById(id);
-  const newStock = operation === "add"
-    ? parseFloat(ingredient.stock_quantity) + quantity
-    : parseFloat(ingredient.stock_quantity) - quantity;
-
-  if (newStock < 0) {
-    throw new Error(
-      `Insufficient stock for "${ingredient.name}". ` +
-      `Has: ${ingredient.stock_quantity}, Requires: ${quantity}`
-    );
-  }
-
-  if (maxLimit !== null && operation === "add" && newStock > maxLimit) {
-    const err = new Error(`Resulting stock quantity cannot exceed ${maxLimit.toLocaleString()}.`);
-    err.status = 400;
-    throw err;
-  }
-
-  const { data, error } = await supabase
-    .from("ingredients")
-    .update({ stock_quantity: newStock })
-    .eq("id", id)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
 };
 
 export const getLowStockAlerts = async () => {
@@ -454,10 +417,15 @@ export const deleteIngredient = async (id) => {
 
   // 2. Check 30 days elapsed
   const archiveMap = await getArchiveTimestampsMap(true);
-  const archivedAt = archiveMap.ingredients[id] || ingredient.created_at;
+  const archivedAt = archiveMap.ingredients[id];
+  if (!archivedAt) {
+    const err = new Error("Archive date unknown; cannot verify the 30-day hold");
+    err.status = 409;
+    throw err;
+  }
   const daysElapsed = getDaysSinceArchived(archivedAt);
 
-  if (!archivedAt || daysElapsed < 30) {
+  if (daysElapsed < 30) {
     const remaining = Math.max(1, 30 - daysElapsed);
     throw new Error(`Cannot permanently delete raw material yet. Must be archived for at least 30 days (${remaining} day(s) remaining).`);
   }
@@ -481,9 +449,14 @@ export const deleteIngredient = async (id) => {
     throw new Error(`Cannot delete raw material "${ingredient.name}" because it is referenced in ${wastageCount} wastage record(s). For auditing integrity, it must remain archived.`);
   }
 
-  // 4. Remove dependent recipes & supplier links
-  await supabase.from("recipes").delete().eq("ingredient_id", id);
-  await supabase.from("supplier_ingredients").delete().eq("ingredient_id", id);
+  // 4. supplier_ingredients cascades; recipes.ingredient_id is ON DELETE RESTRICT (supabase_schema.sql),
+  // so snapshot recipes, delete them, delete the ingredient, and restore the snapshot if that fails.
+  const { data: recipeRows, error: snapErr } = await supabase.from("recipes").select("*").eq("ingredient_id", id);
+  if (snapErr) throw snapErr;
+  if (recipeRows?.length) {
+    const { error: recDelErr } = await supabase.from("recipes").delete().eq("ingredient_id", id);
+    if (recDelErr) throw recDelErr;
+  }
 
   // 5. Delete ingredient
   const { error } = await supabase
@@ -491,7 +464,13 @@ export const deleteIngredient = async (id) => {
     .delete()
     .eq("id", id);
 
-  if (error) throw error;
+  if (error) {
+    if (recipeRows?.length) {
+      const { error: restoreErr } = await supabase.from("recipes").insert(recipeRows);
+      if (restoreErr) console.error("[deleteIngredient] Failed to restore recipes:", restoreErr.message);
+    }
+    throw error;
+  }
   invalidateArchiveMap();
   return { success: true, name: ingredient.name };
 };

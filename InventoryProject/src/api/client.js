@@ -78,7 +78,15 @@ export async function apiCall(endpoint, options = {}) {
   };
 
   try {
-    const response = await fetch(url, defaultOptions);
+    let response;
+    try {
+      response = await fetch(url, { ...defaultOptions, signal: options.signal ?? AbortSignal.timeout(20000) });
+    } catch (netErr) {
+      if (netErr?.name === "AbortError" || netErr?.name === "TimeoutError" || netErr instanceof TypeError) {
+        throw new Error("Network problem. Check the connection and tap Pay again — the same receipt will be used.", { cause: netErr });
+      }
+      throw netErr;
+    }
     const text = await response.text();
     let data;
     try {

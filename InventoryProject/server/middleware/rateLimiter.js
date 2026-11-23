@@ -11,7 +11,7 @@ export const generalLimiter = rateLimit({
   skip: (req) => {
     // Never throttle local development traffic
     const ip = req.ip || req.connection?.remoteAddress || '';
-    if (ip === '127.0.0.1' || ip === '::1' || ip.includes('127.0.0.1') || process.env.NODE_ENV !== 'production') {
+    if (ip === '127.0.0.1' || ip === '::1' || ip.includes('127.0.0.1') || process.env.NODE_ENV === 'development') {
       return true;
     }
     // Never throttle public visual menu browsing or CMS content reads
@@ -26,7 +26,7 @@ const isLocalOrDev = (req) => {
     ip === '127.0.0.1' ||
     ip === '::1' ||
     ip.includes('127.0.0.1') ||
-    process.env.NODE_ENV !== 'production'
+    process.env.NODE_ENV === 'development'
   );
 };
 

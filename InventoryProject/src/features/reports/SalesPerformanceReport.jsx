@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { getSalesPerformanceReport } from '../../api/reportsApi';
 import { downloadCSV, printReport } from './utils/reportUtils';
 import { getManilaDateOnly } from '../../utils/dateUtils';
+import { escapeHtml } from '../../utils/escapeHtml';
 import { TableSkeleton, StatCardsSkeleton } from '../../components/shared/SkeletonLoader';
 import Pagination from '../../components/shared/Pagination';
 
@@ -207,7 +208,7 @@ const SalesPerformanceReport = () => {
         ];
       }),
     ];
-    downloadCSV(rows, `CofTea_Sales_Report_${period}_${new Date().toISOString().split('T')[0]}.csv`);
+    downloadCSV(rows, `CofTea_Sales_Report_${period}_${getManilaDateOnly()}.csv`);
   };
 
   const handlePrint = () => {
@@ -216,7 +217,7 @@ const SalesPerformanceReport = () => {
       const share = totalSales > 0 ? (s.total_sales / totalSales) * 100 : 0;
       return `<tr>
         <td class="text-center" style="font-family:monospace;font-weight:700">${i + 1}</td>
-        <td><strong>${s.name}</strong></td>
+        <td><strong>${escapeHtml(s.name)}</strong></td>
         <td class="text-right num-pos">₱${(s.total_sales || 0).toFixed(2)}</td>
         <td class="text-center" style="font-family:monospace">${s.transactions}</td>
         <td class="text-right" style="font-family:monospace">₱${avg.toFixed(2)}</td>
@@ -232,7 +233,7 @@ const SalesPerformanceReport = () => {
             <div class="brand-subtitle">Point of Sale &amp; Inventory Management System</div>
           </div>
           <div class="report-timestamp">
-            <div>Period: <strong>${periodLabel}</strong></div>
+            <div>Period: <strong>${escapeHtml(periodLabel)}</strong></div>
             <div>Generated: <strong>${new Date().toLocaleString('en-PH')}</strong></div>
           </div>
         </div>

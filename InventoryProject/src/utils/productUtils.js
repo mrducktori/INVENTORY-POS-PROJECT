@@ -32,7 +32,9 @@ export const filterProducts = (products, category, searchTerm = "", knownCategor
     const term = (searchTerm || "").trim().toLowerCase();
     const matchSearch = !term || (p.name || "").toLowerCase().includes(term);
     return matchCategory && matchSearch;
-  }).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  }).sort((a, b) =>
+    (a.is_available === false) - (b.is_available === false) || (a.name || "").localeCompare(b.name || "")
+  );
 };
 
 const LEGACY_DRINK_CATEGORIES = ["COFFEE", "FRAPPE", "MILK TEA", "FRUIT DRINKS"];

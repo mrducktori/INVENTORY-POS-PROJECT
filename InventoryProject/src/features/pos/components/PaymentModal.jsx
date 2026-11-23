@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { createPaymentIntent, getPosSettings } from '../../../api/posApi';
 import { round2 } from '../../../utils/money';
@@ -103,7 +103,9 @@ const PaymentModal = ({ order, posSettings = null, onConfirm, onClose }) => {
     return list.filter((p) => p && p.active !== false);
   }, [effectiveSettings]);
 
-  const [idempotencyKey] = useState(generateIdempotencyKey);
+  const [fallbackKey] = useState(generateIdempotencyKey);
+  const idempotencyKey = order?.idempotencyKey || fallbackKey;
+  const busyRef = useRef(false);
   const [method, setMethod] = useState('CASH');
   const [discountType, setDiscountType] = useState(() => {
     const raw = order?.discountType || 'NONE';
@@ -284,7 +286,7 @@ const PaymentModal = ({ order, posSettings = null, onConfirm, onClose }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (submitting) return;
+    if (busyRef.current || submitting) return;
     setError('');
 
     if (discountError) {
@@ -364,6 +366,7 @@ const PaymentModal = ({ order, posSettings = null, onConfirm, onClose }) => {
       payloadReference = cleanRef;
     }
 
+    busyRef.current = true;
     setSubmitting(true);
     try {
       await onConfirm({
@@ -386,6 +389,8 @@ const PaymentModal = ({ order, posSettings = null, onConfirm, onClose }) => {
     } catch (err) {
       setSubmitting(false);
       setError('Payment failed: ' + (err.message || 'Please try again.'));
+    } finally {
+      busyRef.current = false;
     }
   };
 

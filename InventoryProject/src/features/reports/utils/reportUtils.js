@@ -4,6 +4,7 @@
  *  - downloadCSV: RFC-4180 compliant CSV export with Excel UTF-8 BOM (\uFEFF)
  *  - printReport: Dedicated, executive-grade print & PDF layout with Cof/Tea Cafe branding
  */
+import { escapeHtml } from '../../../utils/escapeHtml';
 
 /**
  * Downloads a CSV file from a 2D array of rows.
@@ -74,7 +75,7 @@ export const printReport = (title, html) => {
     <head>
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <title>${reportTitle}</title>
+      <title>${escapeHtml(reportTitle)}</title>
       <style>
         *, *::before, *::after {
           box-sizing: border-box;

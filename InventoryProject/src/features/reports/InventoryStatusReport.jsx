@@ -1,6 +1,8 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { getInventoryStatusReport } from '../../api/reportsApi';
 import { downloadCSV, printReport } from './utils/reportUtils';
+import { escapeHtml } from '../../utils/escapeHtml';
+import { getManilaDateOnly } from '../../utils/dateUtils';
 import { TableSkeleton, StatCardsSkeleton } from '../../components/shared/SkeletonLoader';
 import Pagination from '../../components/shared/Pagination';
 
@@ -162,7 +164,7 @@ const InventoryStatusReport = () => {
       ])
     ];
 
-    downloadCSV(rows, `CofTea_Inventory_Status_${new Date().toISOString().split('T')[0]}.csv`);
+    downloadCSV(rows, `CofTea_Inventory_Status_${getManilaDateOnly()}.csv`);
   };
 
   const handlePrint = () => {
@@ -171,10 +173,10 @@ const InventoryStatusReport = () => {
       const badgeClass = statusKey === 'out' ? 'badge-danger' : 'badge-warning';
       return `<tr>
         <td class="text-center" style="font-family:monospace;font-weight:700">${idx + 1}</td>
-        <td><strong>${i.name}</strong></td>
-        <td>${i.category || 'General'}</td>
-        <td class="text-right num-neg">${i.stock_quantity} ${i.unit}</td>
-        <td class="text-right" style="font-family:monospace;color:#6b7280">${i.low_stock_alert} ${i.unit}</td>
+        <td><strong>${escapeHtml(i.name)}</strong></td>
+        <td>${escapeHtml(i.category || 'General')}</td>
+        <td class="text-right num-neg">${escapeHtml(i.stock_quantity)} ${escapeHtml(i.unit)}</td>
+        <td class="text-right" style="font-family:monospace;color:#6b7280">${escapeHtml(i.low_stock_alert)} ${escapeHtml(i.unit)}</td>
         <td class="text-right"><span class="badge ${badgeClass}">${getStatusLabel(statusKey)}</span></td>
       </tr>`;
     }).join('');
@@ -183,11 +185,11 @@ const InventoryStatusReport = () => {
       const statusKey = getStatus(i.stock_quantity, i.low_stock_alert);
       const badgeClass = statusKey === 'healthy' ? 'badge-in' : statusKey === 'out' ? 'badge-danger' : 'badge-warning';
       return `<tr>
-        <td><strong>${i.name}</strong></td>
-        <td style="color:#6b7280">${i.category || 'General'}</td>
-        <td class="text-right" style="font-family:monospace;font-weight:700">${i.stock_quantity}</td>
-        <td class="text-right" style="font-family:monospace;color:#6b7280">${i.low_stock_alert}</td>
-        <td>${i.unit}</td>
+        <td><strong>${escapeHtml(i.name)}</strong></td>
+        <td style="color:#6b7280">${escapeHtml(i.category || 'General')}</td>
+        <td class="text-right" style="font-family:monospace;font-weight:700">${escapeHtml(i.stock_quantity)}</td>
+        <td class="text-right" style="font-family:monospace;color:#6b7280">${escapeHtml(i.low_stock_alert)}</td>
+        <td>${escapeHtml(i.unit)}</td>
         <td class="text-right"><span class="badge ${badgeClass}">${getStatusLabel(statusKey)}</span></td>
       </tr>`;
     }).join('');

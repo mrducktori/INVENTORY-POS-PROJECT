@@ -1,6 +1,7 @@
 import { supabase } from "../config/supabaseClient.js";
 import { convertToBaseUnit } from "../utils/unitUtils.js";
 import { LIMITS, validateNumberBound, validateTextLength } from "../utils/validationHelper.js";
+import { resolveUnitCost, fetchAllRows } from "../utils/costUtils.js";
 
 const RECIPE_SIZE_OVERRIDES_KEY = "recipe_size_overrides_store";
 let hasNativeRecipeSizeCols = null;
@@ -194,16 +195,7 @@ export const recalculateProductEstimatedCost = async (productId) => {
       if (/CUP/i.test(ing.name || "")) hasCupInRecipe = true;
 
       const baseQty = convertToBaseUnit(parseFloat(r.quantity_used) || 0, r.recipe_unit || ing.unit, ing.unit);
-      const purchaseCost = parseFloat(ing.cost_per_purchase_unit) || 0;
-      const conv = parseFloat(ing.conversion_factor) || 1;
-      const unitCost =
-        parseFloat(ing.unit_cost) > 0
-          ? parseFloat(ing.unit_cost)
-          : purchaseCost > 0 && conv > 0
-            ? purchaseCost / conv
-            : 0.22;
-
-      recipeCost += baseQty * unitCost;
+      recipeCost += baseQty * (resolveUnitCost(ing) ?? 0);
     }
 
     if (!hasCupInRecipe && recipeCost > 0) {
@@ -225,20 +217,20 @@ export const recalculateProductEstimatedCost = async (productId) => {
 };
 
 export const getRecipes = async () => {
-  const [{ data, error }, overridesMap] = await Promise.all([
-    supabase
+  const [data, overridesMap] = await Promise.all([
+    fetchAllRows(() => supabase
       .from("recipes")
       .select(`
         *,
         products(id, name),
         ingredients(id, name, unit)
       `)
-      .order("products(name)"),
+      .order("products(name)")
+      .order("id")),
     getRecipeSizeOverridesMap()
   ]);
 
-  if (error) throw error;
-  return attachSizeOverrides(data || [], overridesMap);
+  return attachSizeOverrides(data, overridesMap);
 };
 
 export const getRecipesByProduct = async (product_id) => {

@@ -1,6 +1,7 @@
 import express from "express";
 import * as purchasingController from "../controllers/purchasingController.js";
 import { requireAuth, requireRole } from "../middleware/authMiddleware.js";
+import { requirePermission } from "../middleware/permissionMiddleware.js";
 
 const router = express.Router();
 const requireCafeRole = requireRole("Owner", "Admin", "Staff", "Custom");
@@ -8,21 +9,21 @@ const requireCafeRole = requireRole("Owner", "Admin", "Staff", "Custom");
 // Suppliers
 router.get("/suppliers", requireAuth, requireCafeRole, purchasingController.getSuppliers);
 router.get("/price-updates", requireAuth, requireCafeRole, purchasingController.getSupplierPriceUpdates);
-router.post("/suppliers", requireAuth, requireCafeRole, purchasingController.createSupplier);
-router.post("/suppliers/:id/acknowledge-prices", requireAuth, requireRole("Owner", "Admin", "Custom"), purchasingController.acknowledgeSupplierPriceUpdates);
-router.put("/suppliers/:id", requireAuth, requireCafeRole, purchasingController.updateSupplier);
-router.put("/suppliers/:id/archive", requireAuth, requireRole("Owner", "Admin", "Custom"), purchasingController.archiveSupplier);
-router.put("/suppliers/:id/restore", requireAuth, requireRole("Owner", "Admin", "Custom"), purchasingController.restoreSupplier);
+router.post("/suppliers", requireAuth, requireCafeRole, requirePermission("ManageSuppliers"), purchasingController.createSupplier);
+router.post("/suppliers/:id/acknowledge-prices", requireAuth, requireRole("Owner", "Admin", "Custom"), requirePermission("ManageSuppliers"), purchasingController.acknowledgeSupplierPriceUpdates);
+router.put("/suppliers/:id", requireAuth, requireCafeRole, requirePermission("ManageSuppliers"), purchasingController.updateSupplier);
+router.put("/suppliers/:id/archive", requireAuth, requireRole("Owner", "Admin", "Custom"), requirePermission("ManageSuppliers"), purchasingController.archiveSupplier);
+router.put("/suppliers/:id/restore", requireAuth, requireRole("Owner", "Admin", "Custom"), requirePermission("ManageSuppliers"), purchasingController.restoreSupplier);
 router.delete("/suppliers/:id", requireAuth, requireRole("Admin", "Owner"), purchasingController.deleteSupplier);
 
 // Purchase Orders
 router.get("/", requireAuth, requireCafeRole, purchasingController.getPurchaseOrders);
-router.post("/", requireAuth, requireCafeRole, purchasingController.createPurchaseOrder);
-router.put("/:id/status", requireAuth, requireCafeRole, purchasingController.updatePurchaseOrderStatus);
-router.patch("/:id/status", requireAuth, requireCafeRole, purchasingController.updatePurchaseOrderStatus);
-router.patch("/:id", requireAuth, requireCafeRole, purchasingController.updatePurchaseOrderStatus);
-router.patch("/purchase-orders/:id", requireAuth, requireCafeRole, purchasingController.updatePurchaseOrderStatus);
-router.put("/:id/proposals/respond", requireAuth, requireCafeRole, purchasingController.respondToSupplierProposal);
+router.post("/", requireAuth, requireCafeRole, requirePermission("PurchaseOrders", "Forecasting"), purchasingController.createPurchaseOrder);
+router.put("/:id/status", requireAuth, requireCafeRole, requirePermission("PurchaseOrders"), purchasingController.updatePurchaseOrderStatus);
+router.patch("/:id/status", requireAuth, requireCafeRole, requirePermission("PurchaseOrders"), purchasingController.updatePurchaseOrderStatus);
+router.patch("/:id", requireAuth, requireCafeRole, requirePermission("PurchaseOrders"), purchasingController.updatePurchaseOrderStatus);
+router.patch("/purchase-orders/:id", requireAuth, requireCafeRole, requirePermission("PurchaseOrders"), purchasingController.updatePurchaseOrderStatus);
+router.put("/:id/proposals/respond", requireAuth, requireCafeRole, requirePermission("PurchaseOrders"), purchasingController.respondToSupplierProposal);
 
 // === Supplier Portal Routes ===
 // Suppliers can only see their own POs

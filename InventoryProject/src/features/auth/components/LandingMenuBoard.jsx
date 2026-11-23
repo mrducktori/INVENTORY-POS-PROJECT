@@ -38,7 +38,7 @@ function LandingMenuBoard({
             title="Collapse Menu"
           >
             <span>Collapse</span>
-            <span className="text-sm">▴</span>
+            <svg className="w-3.5 h-3.5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 15l7-7 7 7" /></svg>
           </button>
         )}
       </div>
@@ -108,40 +108,54 @@ function LandingMenuBoard({
                     {catProducts.map(product => {
                       const imageKey = `${product.id}:${product.image_url || ''}`;
                       const showImage = Boolean(product.image_url) && !brokenImages[imageKey];
+                      const soldOut = product.is_available === false;
+                      const statusLabel = product.track_stock ? 'Sold out' : 'Unavailable';
 
                       return (
-                        <div key={product.id} className="bg-black/60 border border-white/10 rounded-xl p-2.5 sm:p-4 flex flex-col h-full items-center hover:bg-white/10 transition-all duration-300 hover:border-white/25 group">
+                        <div key={product.id} className={`bg-black/60 border border-white/10 rounded-xl p-2.5 sm:p-4 flex flex-col h-full items-center transition-all duration-300 group ${soldOut ? '' : 'hover:bg-white/10 hover:border-white/25'}`}>
+                          <div className="relative w-full mb-2 sm:mb-3">
+                          {soldOut && (
+                            <span className="absolute top-1.5 right-1.5 z-10 bg-white text-zinc-950 text-[9px] sm:text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full shadow-md">
+                              {statusLabel}
+                            </span>
+                          )}
+                          <div className={soldOut ? 'grayscale opacity-50' : ''}>
                           {showImage ? (
                             <img
                               src={product.image_url}
-                              alt={product.name}
+                              alt={soldOut ? `${product.name} (${statusLabel.toLowerCase()})` : product.name}
                               loading="lazy"
                               decoding="async"
                               onError={() => setBrokenImages(prev => (prev[imageKey] ? prev : { ...prev, [imageKey]: true }))}
-                              className="w-full aspect-square object-cover rounded-lg mb-2 sm:mb-3 drop-shadow-lg transition-opacity"
+                              className="w-full aspect-square object-cover rounded-lg drop-shadow-lg transition-opacity"
                             />
                           ) : (
-                            <div className="w-full aspect-square bg-white/5 rounded-lg flex flex-col items-center justify-center mb-2 sm:mb-3 border border-white/10 text-gray-500">
+                            <div className="w-full aspect-square bg-white/5 rounded-lg flex flex-col items-center justify-center border border-white/10 text-gray-500">
                               <svg className="w-8 h-8 sm:w-10 sm:h-10 mb-1 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                               <span className="text-[9px] sm:text-[10px] md:text-xs uppercase tracking-wider text-center px-1">Image<br />Coming Soon</span>
                             </div>
                           )}
+                          </div>
+                          </div>
                           <h4 className="text-xs sm:text-base font-bold text-white text-center mb-2 sm:mb-3 uppercase tracking-wide leading-tight flex-1 line-clamp-2">
                             {product.name}
                           </h4>
 
                           <div className="flex flex-wrap justify-center gap-1 sm:gap-2 w-full mt-auto pt-2 border-t border-white/10">
                             {product.sizes && product.sizes.length > 0 ? (
-                              product.sizes.map((sz, i) => (
+                              product.sizes.map((sz, i) => {
+                                const sizeOut = soldOut || sz.is_available === false;
+                                return (
                                 <div key={i} className="flex flex-col items-center bg-white/10 px-1.5 py-1 sm:px-2.5 sm:py-1.5 rounded-md border border-white/5 flex-1 min-w-[50px] sm:min-w-[65px]">
-                                  <span className="text-[9px] sm:text-[10px] md:text-xs text-gray-400 uppercase font-bold tracking-wide truncate max-w-[60px] sm:max-w-none">{sz.name || sz.size}</span>
-                                  <span className="text-xs sm:text-sm md:text-base text-green-400 font-black">₱{((parseFloat(product.price) || 0) + (parseFloat(sz.price_add) || 0)).toFixed(0)}</span>
+                                  <span className="text-[9px] sm:text-[10px] md:text-xs text-gray-400 uppercase font-bold tracking-wide truncate max-w-[60px] sm:max-w-none">{sz.name || sz.size}{sizeOut && !soldOut && <span className="ml-1 text-[8px] text-gray-300">Out</span>}</span>
+                                  <span className={`text-xs sm:text-sm md:text-base font-black ${sizeOut ? 'text-zinc-500' : 'text-green-400'}`}>₱{((parseFloat(product.price) || 0) + (parseFloat(sz.price_add) || 0)).toFixed(0)}</span>
                                 </div>
-                              ))
+                                );
+                              })
                             ) : (
                               <div className="flex flex-col items-center bg-white/10 px-2 py-1 sm:px-4 sm:py-1.5 rounded-md border border-white/5 w-full">
                                 <span className="text-[10px] sm:text-xs text-gray-400 uppercase font-bold tracking-wide mb-0.5">Price</span>
-                                <span className="text-xs sm:text-sm md:text-base text-green-400 font-black">₱{(parseFloat(product.price) || 0).toFixed(0)}</span>
+                                <span className={`text-xs sm:text-sm md:text-base font-black ${soldOut ? 'text-zinc-500' : 'text-green-400'}`}>₱{(parseFloat(product.price) || 0).toFixed(0)}</span>
                               </div>
                             )}
                           </div>

@@ -1,13 +1,14 @@
 import express from 'express';
 import { supabase } from '../config/supabaseClient.js';
 import { toManilaStartOfDay, toManilaEndOfDay } from '../utils/dateUtils.js';
-import { logAudit } from '../utils/auditLogger.js';
+import { logAudit } from '../utils/auditHelper.js';
 import { requireRole } from '../middleware/authMiddleware.js';
+import { requirePermission } from '../middleware/permissionMiddleware.js';
 
 const router = express.Router();
 
 // Get audit logs with optional filters
-router.get('/', requireRole('Owner', 'Admin', 'Staff', 'Custom'), async (req, res) => {
+router.get('/', requireRole('Owner', 'Admin', 'Staff', 'Custom'), requirePermission('AuditLogs', 'Reports'), async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 100, 2000);
     const offset = parseInt(req.query.offset) || 0;

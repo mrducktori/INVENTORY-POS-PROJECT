@@ -181,7 +181,11 @@ export const requireAuth = async (req, res, next) => {
       }
     }
 
-    if (error || !data) {
+    if (error && error.code !== 'PGRST116') {
+      console.error('[requireAuth] user lookup failed:', error);
+      return res.status(503).json({ error: 'Service temporarily unavailable. Please retry.' });
+    }
+    if (!data) {
       return res.status(401).json({ error: 'Invalid session. Please log in again.' });
     }
 
@@ -217,8 +221,12 @@ export const requireAuth = async (req, res, next) => {
     const { current_session_id: _sid, ...user } = data;
     req.user = user;
     next();
-  } catch {
-    return res.status(401).json({ error: 'Session expired or invalid. Please log in again.' });
+  } catch (err) {
+    if (err?.name === 'JsonWebTokenError' || err?.name === 'TokenExpiredError' || err?.name === 'NotBeforeError') {
+      return res.status(401).json({ error: 'Session expired or invalid. Please log in again.' });
+    }
+    console.error('[requireAuth] unexpected error:', err);
+    return res.status(503).json({ error: 'Service temporarily unavailable. Please retry.' });
   }
 };
 

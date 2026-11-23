@@ -6,7 +6,9 @@ import { LIMITS, validateNumberBound, validateTextLength } from "../utils/valida
 import { recalculateProductEstimatedCost, createRecipe, validateSizeOverridesInput } from "../services/recipesService.js";
 import { invalidateAnalyticsCache } from "./analytics.js";
 import { requireRole } from "../middleware/authMiddleware.js";
+import { requirePermission } from "../middleware/permissionMiddleware.js";
 import { getArchiveTimestampsMap, getDaysSinceArchived, invalidateArchiveMap } from "../utils/archiveHelper.js";
+import { adjustProductStock } from "../services/posService.js";
 
 const router = express.Router();
 router.use(requireRole('Owner', 'Admin', 'Staff', 'Custom'));
@@ -248,7 +250,7 @@ router.get('/', async (req, res) => {
 });
 
 // Create new product
-router.post('/', async (req, res) => {
+router.post('/', requirePermission('ManageProducts'), async (req, res) => {
   try {
     const { track_stock, image_url, force_create } = req.body;
     const validated = validateProductInput(req.body);
@@ -325,7 +327,7 @@ router.post('/', async (req, res) => {
 // Update product (price, name, category, description, etc.)
 // FIX #1: stock_quantity is intentionally excluded from this endpoint.
 // Stock can only be changed through POST /:id/receive (add) or the POS/wastage flow (subtract).
-router.put('/:id', async (req, res) => {
+router.put('/:id', requirePermission('ManageProducts'), async (req, res) => {
   try {
     const { track_stock, image_url, force_update } = req.body;
     const validated = validateProductInput(req.body, { isUpdate: true });
@@ -383,7 +385,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // Archive product
-router.put('/:id/archive', async (req, res) => {
+router.put('/:id/archive', requirePermission('ManageProducts'), async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('products')
@@ -408,7 +410,7 @@ router.put('/:id/archive', async (req, res) => {
 });
 
 // Restore archived product
-router.put('/:id/restore', async (req, res) => {
+router.put('/:id/restore', requirePermission('ManageProducts'), async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('products')
@@ -453,10 +455,13 @@ router.delete('/:id', requireRole('Owner', 'Admin'), async (req, res) => {
 
     // Check 30 days elapsed
     const archiveMap = await getArchiveTimestampsMap(true);
-    const archivedAt = archiveMap.products[id] || product.created_at;
+    const archivedAt = archiveMap.products[id];
+    if (!archivedAt) {
+      return res.status(409).json({ error: 'Archive date unknown; cannot verify the 30-day hold' });
+    }
     const daysElapsed = getDaysSinceArchived(archivedAt);
 
-    if (!archivedAt || daysElapsed < 30) {
+    if (daysElapsed < 30) {
       const remaining = Math.max(1, 30 - daysElapsed);
       return res.status(400).json({
         error: `Cannot permanently delete product yet. Product must be archived for at least 30 days (${remaining} day(s) remaining).`
@@ -476,10 +481,7 @@ router.delete('/:id', requireRole('Owner', 'Admin'), async (req, res) => {
       });
     }
 
-    // Remove dependent recipes
-    await supabase.from('recipes').delete().eq('product_id', id);
-
-    // Delete product
+    // Delete product (recipes.product_id is ON DELETE CASCADE, see supabase_schema.sql)
     const { error: delErr } = await supabase
       .from('products')
       .delete()
@@ -503,7 +505,7 @@ router.delete('/:id', requireRole('Owner', 'Admin'), async (req, res) => {
 
 // Receive stock for product (Direct Stock Tracking)
 // FIX #11: Validates that quantity is a positive number within bounds before adding to stock.
-router.post('/:id/receive', async (req, res) => {
+router.post('/:id/receive', requirePermission('ManageProducts', 'ProductStockTracker', 'StockReceived'), async (req, res) => {
   try {
     const { quantity } = req.body;
     const productId = req.params.id;
@@ -515,27 +517,16 @@ router.post('/:id/receive', async (req, res) => {
       allowZero: false
     });
 
-    const { data: product, error: fetchError } = await supabase
-      .from('products')
-      .select('stock_quantity, name')
-      .eq('id', productId)
-      .single();
-    if (fetchError) throw fetchError;
-
-    const newStock = (parseFloat(product.stock_quantity) || 0) + parsedQty;
-    validateNumberBound(newStock, {
-      label: 'Resulting stock quantity',
-      min: LIMITS.STOCK_QTY_MIN,
-      max: LIMITS.STOCK_QTY_MAX
-    });
+    // shortcut: stock above STOCK_QTY_MAX is clamped, not rejected (CAS write can't pre-check), reject if it matters
+    const { next: newStock } = await adjustProductStock(productId, parsedQty, { max: LIMITS.STOCK_QTY_MAX });
 
     const { data, error: updateError } = await supabase
       .from('products')
-      .update({ stock_quantity: newStock })
-      .eq('id', productId)
       .select()
+      .eq('id', productId)
       .single();
     if (updateError) throw updateError;
+    const product = data;
 
     invalidateAnalyticsCache();
 

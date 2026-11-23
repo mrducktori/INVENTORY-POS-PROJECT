@@ -210,7 +210,7 @@ export const calculateReservedStock = ({
 
 export const getProductStockSummary = (
   product,
-  { recipesByProduct = {}, ingredientsMap = {}, reserved = null, virtualProduct = null } = {}
+  { recipesByProduct = {}, ingredientsMap = {}, reserved = null, virtualProduct = null, orderType = "DINE_IN" } = {}
 ) => {
   if (!product) {
     return {
@@ -326,7 +326,20 @@ export const getProductStockSummary = (
       if (!Number.isFinite(sizeRecipeRemaining)) sizeRecipeRemaining = baseRecipeRemainingOrderable;
     }
 
-    const ingredientId = sz?.ingredient_id || null;
+    // Same packaging rules as getMaxQtyForConfiguredItem: no cup for dine-in-no-cup, lid/straw for take-out/delivery.
+    const normOrderType = String(orderType || "DINE_IN").toUpperCase();
+    const skipCup = normOrderType === "DINE_IN" && Boolean(sz?.dine_in_no_cup);
+    const extraIds = normOrderType === "TAKE_OUT" || normOrderType === "DELIVERY"
+      ? [sz?.lid_ingredient_id, sz?.straw_ingredient_id].filter(Boolean)
+      : [];
+    for (const id of extraIds) {
+      const raw = getUsableStock(ingredientsMap[id]);
+      const res = ingredientsMap[id] ? reserved?.reservedIngredients?.[id] || 0 : 0;
+      sizeRecipeTotal = Math.min(sizeRecipeTotal, Math.max(0, Math.floor(raw + STOCK_EPSILON)));
+      sizeRecipeRemaining = Math.min(sizeRecipeRemaining, Math.max(0, Math.floor(Math.max(0, raw - res) + STOCK_EPSILON)));
+    }
+
+    const ingredientId = skipCup ? null : (sz?.ingredient_id || null);
     if (!ingredientId) {
       return {
         name: sizeName,

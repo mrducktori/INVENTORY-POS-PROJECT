@@ -2,11 +2,13 @@ import express from 'express';
 import { supabase } from "../config/supabaseClient.js";
 import { toManilaStartOfDay, toManilaEndOfDay, getManilaDateOnly, getManilaDateString } from "../utils/dateUtils.js";
 import { requireRole } from "../middleware/authMiddleware.js";
+import { requirePermission } from "../middleware/permissionMiddleware.js";
 import * as posOperationsService from "../services/posOperationsService.js";
 import { allocateDiscount } from "../utils/allocateDiscount.js";
 
 const router = express.Router();
 router.use(requireRole('Owner', 'Admin', 'Staff', 'Custom'));
+router.use(requirePermission('POS', 'SalesReceiptJournal', 'SalesSummaryReport', 'Reports'));
 
 const pad2 = (n) => String(n).padStart(2, '0');
 const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;

@@ -1,12 +1,5 @@
 import { apiCall } from './client.js';
 
-/**
- * Fetches predictive inventory depletion data from the backend.
- */
-export const getInventoryDepletion = async () => {
-  return apiCall('/analytics/inventory-depletion', { method: 'GET' });
-};
-
 export const getDemandForecast = async (refresh = false) => {
   return apiCall(`/analytics/demand-forecast${refresh ? '?refresh=true' : ''}`, { method: 'GET' });
 };

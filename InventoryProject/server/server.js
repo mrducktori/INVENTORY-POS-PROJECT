@@ -43,6 +43,9 @@ if (!process.env.JWT_SECRET) {
   console.error('[FATAL] JWT_SECRET environment variable is required. Refusing to start.');
   process.exit(1);
 }
+if (process.env.NODE_ENV !== 'development' && process.env.JWT_SECRET.length < 32) {
+  throw new Error('JWT_SECRET must be at least 32 characters outside development.');
+}
 
 const app = express();
 
@@ -90,7 +93,7 @@ const corsOptions = {
     }
 
     // In local development or if CORS_ALLOW_ALL is set, allow all
-    if (process.env.NODE_ENV !== 'production' || process.env.CORS_ALLOW_ALL === 'true') {
+    if (process.env.NODE_ENV === 'development' || process.env.CORS_ALLOW_ALL === 'true') {
       return callback(null, true);
     }
 
@@ -112,7 +115,9 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
-app.use(express.json({ limit: '10mb' }));
+// Base64 image upload routes need a larger body; already-parsed bodies are skipped by the global parser below.
+app.use(['/api/cms/upload-image', '/api/inventory/ocr-scan'], express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '1mb' }));
 
 // ==========================================
 // HEALTH CHECKS — Used by Render & monitoring
@@ -174,7 +179,7 @@ app.use((err, req, res, next) => {
   }
 
   console.error('[Unhandled Server Error]', err);
-  const isDev = process.env.NODE_ENV !== 'production';
+  const isDev = process.env.NODE_ENV === 'development';
   const statusCode = typeof err.status === 'number' && err.status >= 400 && err.status < 600 ? err.status : 500;
   res.status(statusCode).json({
     error: isDev ? (err.message || 'Internal server error') : 'An unexpected internal server error occurred'

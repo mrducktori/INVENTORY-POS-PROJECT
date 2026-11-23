@@ -93,19 +93,40 @@ const resolveConfiguredItemDetails = (product, options, categorySettings) => {
   };
 };
 
+const newIdempotencyKey = () =>
+  typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `pos-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+// Unpaid work is stored per logged-in user so another cashier never sees it.
+const storeKey = (name) => `pos_${name}:${getCurrentUser()?.id ?? "anon"}`;
+const loadStored = (name, fallback) => {
+  try {
+    const saved = localStorage.getItem(storeKey(name));
+    return saved ? JSON.parse(saved) : fallback;
+  } catch {
+    return fallback;
+  }
+};
+const saveStored = (name, value) => {
+  try {
+    localStorage.setItem(storeKey(name), JSON.stringify(value));
+  } catch {
+    /* storage full/blocked: keep working in memory */
+  }
+};
+
 export const usePOS = () => {
   const [products, setProducts] = useState([]);
   const [recipes, setRecipes] = useState([]);
   const [ingredients, setIngredients] = useState([]);
   const [catalogLoaded, setCatalogLoaded] = useState(false);
 
+  // Direct-checkout receipt key; reused while the cart is unchanged, dropped after a successful sale.
+  const directKeyRef = useRef(loadStored("cartKey", null));
   const [cart, setCart] = useState(() => {
-    try {
-      const saved = localStorage.getItem("pos_cart");
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
+    const saved = loadStored("cart", []);
+    return Array.isArray(saved) ? saved : [];
   });
   const [searchTerm, setSearchTerm] = useState("");
   const [category, setCategory] = useState("ALL");
@@ -116,12 +137,8 @@ export const usePOS = () => {
   const [saleComplete, setSaleComplete] = useState(false);
   const [recipeProduct, setRecipeProduct] = useState(null);
   const [ongoingOrders, setOngoingOrders] = useState(() => {
-    try {
-      const saved = localStorage.getItem("pos_ongoingOrders");
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
+    const saved = loadStored("ongoingOrders", []);
+    return Array.isArray(saved) ? saved : [];
   });
   const [activeTab, setActiveTab] = useState("cart");
   const [orderType, setOrderType] = useState("DINE_IN");
@@ -247,11 +264,16 @@ export const usePOS = () => {
 
   // PERSIST STATE
   useEffect(() => {
-    localStorage.setItem("pos_cart", JSON.stringify(cart));
+    saveStored("cart", cart);
+    // Cart changed: its receipt key no longer matches the payload.
+    if (directKeyRef.current && directKeyRef.current.sig !== JSON.stringify(cart)) {
+      directKeyRef.current = null;
+      saveStored("cartKey", null);
+    }
   }, [cart]);
 
   useEffect(() => {
-    localStorage.setItem("pos_ongoingOrders", JSON.stringify(ongoingOrders));
+    saveStored("ongoingOrders", ongoingOrders);
   }, [ongoingOrders]);
 
   const getVirtualProduct = useCallback(
@@ -324,11 +346,12 @@ export const usePOS = () => {
         recipesByProduct,
         ingredientsMap,
         reserved: globalReserved,
-        virtualProduct: getVirtualProduct(product)
+        virtualProduct: getVirtualProduct(product),
+        orderType
       });
     });
     return map;
-  }, [products, recipesByProduct, ingredientsMap, globalReserved, getVirtualProduct]);
+  }, [products, recipesByProduct, ingredientsMap, globalReserved, getVirtualProduct, orderType]);
 
   const maxQtyByCartItemId = useMemo(() => {
     const map = {};
@@ -485,7 +508,8 @@ export const usePOS = () => {
       recipesByProduct,
       ingredientsMap,
       reserved: globalReserved,
-      virtualProduct: getVirtualProduct(activeRecipeProduct)
+      virtualProduct: getVirtualProduct(activeRecipeProduct),
+      orderType
     });
   }, [
     activeRecipeProduct,
@@ -493,7 +517,8 @@ export const usePOS = () => {
     recipesByProduct,
     ingredientsMap,
     globalReserved,
-    getVirtualProduct
+    getVirtualProduct,
+    orderType
   ]);
 
   const [showOptions, setShowOptions] = useState(false);
@@ -555,7 +580,8 @@ export const usePOS = () => {
       recipesByProduct,
       ingredientsMap,
       reserved: reservedForModal,
-      virtualProduct: selectedProduct
+      virtualProduct: selectedProduct,
+      orderType
     });
 
     const addonsList =
@@ -620,7 +646,8 @@ export const usePOS = () => {
         recipesByProduct,
         ingredientsMap,
         reserved: globalReserved,
-        virtualProduct: getVirtualProduct(liveProduct)
+        virtualProduct: getVirtualProduct(liveProduct),
+        orderType
       });
 
     if ((summary?.remainingOrderable ?? 0) <= 0) {
@@ -830,7 +857,13 @@ export const usePOS = () => {
     }
 
     const total = calculateTotal();
+    const sig = JSON.stringify(cart);
+    if (directKeyRef.current?.sig !== sig) {
+      directKeyRef.current = { key: newIdempotencyKey(), sig };
+      saveStored("cartKey", directKeyRef.current);
+    }
     const directOrder = {
+      idempotencyKey: directKeyRef.current.key,
       id: Date.now(),
       items: [...cart],
       order_type: orderType,
@@ -855,6 +888,7 @@ export const usePOS = () => {
     try {
       const total = calculateTotal();
       const newOrder = {
+        idempotencyKey: newIdempotencyKey(),
         id: Date.now(),
         items: [...cart],
         order_type: orderType,
@@ -1079,6 +1113,8 @@ export const usePOS = () => {
     };
 
     if (paymentOrder.isDirectCartCheckout) {
+      directKeyRef.current = null;
+      saveStored("cartKey", null);
       setCart([]);
       setOrderType("DINE_IN");
     } else {

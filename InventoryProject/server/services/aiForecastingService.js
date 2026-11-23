@@ -298,68 +298,6 @@ export const extractProductForecastingFeatures = async (productId, targetYear, t
     return item;
   });
 
-  // 4. Compute rolling lags and growth rates matching classmate's time-series model
-  for (let i = 0; i < dailySales.length; i++) {
-    const current = dailySales[i];
-
-    // Previous day (t - 1)
-    current.previousDayUnitsSold = i >= 1 ? dailySales[i - 1].unitsSold : 0;
-
-    // Same day last week (t - 7)
-    current.sameDayLastWeekUnitsSold = i >= 7 ? dailySales[i - 7].unitsSold : 0;
-
-    // Same day last month (t - 30)
-    current.sameDayLastMonthUnitsSold = i >= 30 ? dailySales[i - 30].unitsSold : 0;
-
-    // Same day 3 months ago (t - 90)
-    current.sameDay3MonthsAgoUnitsSold = i >= 90 ? dailySales[i - 90].unitsSold : 0;
-
-    // Rolling 7-day average
-    if (i >= 6) {
-      const slice7 = dailySales.slice(i - 6, i + 1);
-      current.averageUnitsSoldLast7Days = slice7.reduce((s, x) => s + x.unitsSold, 0) / slice7.length;
-    } else {
-      current.averageUnitsSoldLast7Days = 0;
-    }
-
-    // Rolling 30-day average
-    if (i >= 29) {
-      const slice30 = dailySales.slice(i - 29, i + 1);
-      current.averageUnitsSoldLast30Days = slice30.reduce((s, x) => s + x.unitsSold, 0) / slice30.length;
-    } else {
-      current.averageUnitsSoldLast30Days = 0;
-    }
-
-    // Rolling 90-day (3-month) average
-    if (i >= 89) {
-      const slice90 = dailySales.slice(i - 89, i + 1);
-      current.averageUnitsSoldLast90Days = slice90.reduce((s, x) => s + x.unitsSold, 0) / slice90.length;
-    } else if (dailySales.length > 0) {
-      const sliceWindow = dailySales.slice(0, i + 1);
-      current.averageUnitsSoldLast90Days = sliceWindow.reduce((s, x) => s + x.unitsSold, 0) / sliceWindow.length;
-    } else {
-      current.averageUnitsSoldLast90Days = 0;
-    }
-
-    // 7-day velocity growth: (Current 7d avg - Prior 7d avg) / Prior
-    if (i >= 13) {
-      const currAvg = dailySales.slice(i - 6, i + 1).reduce((s, x) => s + x.unitsSold, 0) / 7;
-      const prevAvg = dailySales.slice(i - 13, i - 6).reduce((s, x) => s + x.unitsSold, 0) / 7;
-      current.unitsSoldGrowth7Days = prevAvg === 0 ? 0 : (currAvg - prevAvg) / prevAvg;
-    } else {
-      current.unitsSoldGrowth7Days = 0;
-    }
-
-    // 30-day velocity growth: (Current 30d avg - Prior 30d avg) / Prior
-    if (i >= 59) {
-      const currAvg = dailySales.slice(i - 29, i + 1).reduce((s, x) => s + x.unitsSold, 0) / 30;
-      const prevAvg = dailySales.slice(i - 59, i - 29).reduce((s, x) => s + x.unitsSold, 0) / 30;
-      current.unitsSoldGrowth30Days = prevAvg === 0 ? 0 : (currAvg - prevAvg) / prevAvg;
-    } else {
-      current.unitsSoldGrowth30Days = 0;
-    }
-  }
-
   // 5. Aggregate Monthly Sales
   const monthlyGroup = {};
   dailySales.forEach(d => {
@@ -579,10 +517,7 @@ export const runDeterministicEnsembleForecast = (forecastingData) => {
     : seasonallyShiftedShortTerm;
 
   // Growth velocity multiplier (true calendar 7-day growth)
-  const lastDay = dailySales.length > 0 ? dailySales[dailySales.length - 1] : null;
-  const growthRate = typeof recentSummary.growth7Days === 'number'
-    ? recentSummary.growth7Days
-    : (lastDay?.unitsSoldGrowth7Days || 0);
+  const growthRate = recentSummary.growth7Days || 0;
   const clampedGrowth = Math.max(-0.25, Math.min(0.35, growthRate));
 
   // Weekend & Payday lift calculation (normalized around 1.0 so calendar simulation doesn't double-count)
@@ -742,10 +677,8 @@ export const forecastStockUsingAI = async (dto) => {
     throw new Error("productId is required for stock forecasting.");
   }
 
-  // 1. Build comprehensive time-series dataset
-  const forecastingData = await extractProductForecastingFeatures(productId, targetYear, targetMonth);
-
-  const cacheKey = `${productId}_${targetYear}_${targetMonth}_${forecastingData.product.currentStock}`;
+  // Cache lookup happens before the heavy feature extraction (stock changes are covered by the TTL / invalidateAiForecastCache)
+  const cacheKey = `${productId}_${targetYear}_${targetMonth}`;
   const cached = aiForecastCache.get(cacheKey);
   if (cached && (Date.now() - cached.at < AI_CACHE_TTL_MS)) {
     return cached.result;
@@ -760,6 +693,8 @@ export const forecastStockUsingAI = async (dto) => {
   runForecastPromise = (async () => {
     await Promise.resolve();
     try {
+      // 1. Build comprehensive time-series dataset
+      const forecastingData = await extractProductForecastingFeatures(productId, targetYear, targetMonth);
       const isHistorical = isHistoricalManilaMonth(targetYear, targetMonth);
       const trackStock = forecastingData.product.track_stock !== false;
 
@@ -929,6 +864,17 @@ Do not include markdown backticks.
                   };
                   if (typeof result.reasoning !== 'string' || !result.reasoning.trim()) {
                     result.reasoning = ensembleBaseline.reasoning;
+                  } else {
+                    // Use Gemini's numbers (clamped to ensemble +/-20%) so they match its reasoning text
+                    const clampTo = (v, base) => (v != null && v !== '' && Number.isFinite(Number(v)))
+                      ? Math.min(Math.round(base * 1.2), Math.max(Math.round(base * 0.8), Math.round(Number(v))))
+                      : base;
+                    result.predictedUnitsSold = clampTo(parsed.predictedUnitsSold, ensembleBaseline.predictedUnitsSold);
+                    result.recommendedOrderQuantity = clampTo(parsed.recommendedOrderQuantity, ensembleBaseline.recommendedOrderQuantity);
+                    result.factors = {
+                      ...ensembleBaseline.factors,
+                      averageDailyUnitsSold: parseFloat((result.predictedUnitsSold / forecastingData.forecastTarget.daysInMonth).toFixed(2))
+                    };
                   }
                   if (!trackStock) {
                     result.recommendedOrderQuantity = 0;

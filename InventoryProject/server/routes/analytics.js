@@ -2,6 +2,7 @@ import express from 'express';
 import { supabase } from '../config/supabaseClient.js';
 import { convertToBaseUnit } from '../utils/unitUtils.js';
 import { requireRole } from '../middleware/authMiddleware.js';
+import { requirePermission } from '../middleware/permissionMiddleware.js';
 import * as batchService from '../services/batchService.js';
 import * as recipesService from '../services/recipesService.js';
 import * as posOperationsService from '../services/posOperationsService.js';
@@ -15,6 +16,7 @@ import {
 
 const router = express.Router();
 router.use(requireRole('Owner', 'Admin', 'Staff', 'Custom'));
+router.use(requirePermission('Dashboard', 'Forecasting', 'Reports'));
 
 let cached90DaySales = null;
 let cached90DayAt = 0;
@@ -188,22 +190,33 @@ async function fetchSalesSince(sinceIso) {
         return [];
       }
 
-      const CHUNK = 350;
+      // 100 ids per chunk, each chunk paged past PostgREST's 1000-row cap.
+      const CHUNK = 100;
       const chunks = [];
       for (let i = 0; i < validSales.length; i += CHUNK) {
         chunks.push(validSales.slice(i, i + CHUNK).map(s => s.id));
       }
 
-      const itemPages = await Promise.all(
-        chunks.map(ids =>
-          supabase.from('sale_items').select('sale_id, product_id, quantity, unit_price, cup_size, add_ons').in('sale_id', ids)
-        )
-      );
+      const fetchChunkItems = async (ids) => {
+        const rows = [];
+        for (let from = 0; ; from += 1000) {
+          const { data, error } = await supabase
+            .from('sale_items')
+            .select('sale_id, product_id, quantity, unit_price, cup_size, add_ons')
+            .in('sale_id', ids)
+            .order('id', { ascending: true })
+            .range(from, from + 999);
+          if (error) throw error;
+          rows.push(...(data || []));
+          if (!data || data.length < 1000) break;
+        }
+        return rows;
+      };
+      const itemPages = await Promise.all(chunks.map(fetchChunkItems));
 
       const itemsBySale = new Map();
-      for (const page of itemPages) {
-        if (page.error) throw page.error;
-        for (const item of page.data || []) {
+      for (const rows of itemPages) {
+        for (const item of rows) {
           let arr = itemsBySale.get(item.sale_id);
           if (!arr) {
             arr = [];
@@ -233,51 +246,6 @@ async function fetchSalesSince(sinceIso) {
   inflight90DayPromise = promise;
   return promise;
 }
-
-/**
- * GET /api/analytics/inventory-depletion
- * Computes predictive inventory depletion data using usable non-expired stock.
- */
-router.get('/inventory-depletion', async (req, res) => {
-  try {
-    // 1. Fetch current ingredients
-    const { data: ingredients, error: ingError } = await supabase
-      .from('ingredients')
-      .select('*')
-      .eq('is_archived', false);
-
-    if (ingError) throw ingError;
-
-    const enrichedIngredients = await batchService.enrichIngredientsWithBatches(ingredients || []);
-
-    // 2. Compute depletion from usable stock
-    const insights = enrichedIngredients.map(item => {
-      const baseUsage = (parseFloat(item.low_stock_alert) || 1) / 10;
-      const avgDailyUsage = Math.max(0.1, baseUsage);
-      const usableStock = parseFloat(item.usable_stock ?? item.stock_quantity) || 0;
-
-      const daysRemaining = Math.floor(usableStock / avgDailyUsage);
-      const depletionPercentage = Math.min(Math.round((((parseFloat(item.low_stock_alert) || 1) * 1.2) / Math.max(1, usableStock)) * 100), 100);
-
-      return {
-        id: item.id,
-        name: item.name,
-        stock_quantity: item.stock_quantity,
-        usable_stock: usableStock,
-        expired_stock: item.expired_stock || 0,
-        nearest_expiry_date: item.nearest_expiry_date || null,
-        unit: item.unit,
-        daysRemaining: daysRemaining > 45 ? null : daysRemaining,
-        depletionPercentage
-      };
-    }).sort((a, b) => (a.daysRemaining ?? 100) - (b.daysRemaining ?? 100));
-
-    res.json(insights);
-  } catch (err) {
-    console.error("Depletion Analytics Error:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
 
 /**
  * GET /api/analytics/ingredient-forecast
@@ -515,8 +483,17 @@ router.post('/ai-forecast', async (req, res) => {
     if (!productId) {
       return res.status(400).json({ error: 'productId is required' });
     }
+    const manilaYear = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' })).getFullYear();
+    const m = month == null || month === '' ? null : Number(month);
+    const y = year == null || year === '' ? null : Number(year);
+    if (m !== null && !(Number.isInteger(m) && m >= 1 && m <= 12)) {
+      return res.status(400).json({ error: 'month must be an integer 1-12' });
+    }
+    if (y !== null && !(Number.isInteger(y) && Math.abs(y - manilaYear) <= 1)) {
+      return res.status(400).json({ error: `year must be within ${manilaYear - 1}-${manilaYear + 1}` });
+    }
 
-    const forecast = await forecastStockUsingAI({ productId, year, month });
+    const forecast = await forecastStockUsingAI({ productId, year: y, month: m });
     res.json(forecast);
   } catch (err) {
     console.error('AI Stock Forecasting Error:', err);
@@ -590,24 +567,7 @@ router.get('/demand-forecast', async (req, res) => {
 
       (s.sale_items || []).forEach(si => {
         const pid = si.product_id;
-        if (!productMap[pid]) {
-          const matchedProd = (allProducts || []).find(p => p.id === pid);
-          productMap[pid] = {
-            id: pid,
-            name: matchedProd?.name || 'Product',
-            category: matchedProd?.category || 'General',
-            track_stock: matchedProd?.track_stock !== false,
-            currentStock: parseFloat(matchedProd?.stock_quantity) || 0,
-            price: parseFloat(si.unit_price) || 0,
-            totalQty: 0,
-            qty30: 0,
-            recentQty: 0,
-            priorQty: 0,
-            weekendQty: 0,
-            paydayQty: 0,
-            holidayQty: 0
-          };
-        }
+        if (!productMap[pid]) return; // archived/unknown product: not forecastable
 
         const qty = parseFloat(si.quantity) || 0;
         productMap[pid].totalQty += qty;

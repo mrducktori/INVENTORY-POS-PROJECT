@@ -86,19 +86,32 @@ export const useLandingPage = () => {
   const [isPromoHovered, setIsPromoHovered] = useState(false);
   const [expandedPromo, setExpandedPromo] = useState(null);
 
-  const fetchProducts = useCallback(async () => {
+  const fetchProducts = useCallback(async ({ silent = false } = {}) => {
     try {
-      setProductsLoading(true);
-      setProductsError(null);
+      if (!silent) {
+        setProductsLoading(true);
+        setProductsError(null);
+      }
       const data = await getProducts();
       setProducts(data || []);
+      if (silent) setProductsError(null);
     } catch (err) {
       console.error('Failed to load products for menu board:', err);
-      setProductsError(err?.message || 'Unable to load menu items right now.');
+      if (!silent) setProductsError(err?.message || 'Unable to load menu items right now.');
     } finally {
-      setProductsLoading(false);
+      if (!silent) setProductsLoading(false);
     }
   }, []);
+
+  // Keep availability fresh while the menu is open: refresh on open, then every 60s while the tab is visible.
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    fetchProducts({ silent: true });
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') fetchProducts({ silent: true });
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [isMenuOpen, fetchProducts]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -157,12 +170,17 @@ export const useLandingPage = () => {
   }, [products]);
 
   const groupedProducts = useMemo(() => {
-    return products.reduce((acc, product) => {
+    const groups = products.reduce((acc, product) => {
       const cat = product.category?.toUpperCase() || 'UNCATEGORIZED';
       if (!acc[cat]) acc[cat] = [];
       acc[cat].push(product);
       return acc;
     }, {});
+    // Available first, then A-Z within each group.
+    Object.values(groups).forEach((list) => list.sort((a, b) =>
+      (a.is_available === false) - (b.is_available === false) || (a.name || '').localeCompare(b.name || '')
+    ));
+    return groups;
   }, [products]);
 
   const categoriesToDisplay = useMemo(() => {

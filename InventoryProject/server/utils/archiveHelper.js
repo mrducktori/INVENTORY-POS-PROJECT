@@ -34,7 +34,10 @@ export const getArchiveTimestampsMap = async (forceRefresh = false) => {
     const users = {};
 
     for (const log of logs || []) {
-      const details = typeof log.details === 'string' ? JSON.parse(log.details) : log.details;
+      let details = log.details;
+      if (typeof details === 'string') {
+        try { details = JSON.parse(details); } catch { continue; }
+      }
       if (!details) continue;
 
       if (log.action === 'PRODUCT_ARCHIVED' && details.product_id && !products[details.product_id]) {
@@ -58,6 +61,8 @@ export const getArchiveTimestampsMap = async (forceRefresh = false) => {
     return cachedArchiveMap;
   } catch (err) {
     console.error('Error fetching archive timestamps map:', err);
+    // Deletion callers pass forceRefresh; an empty map must never be mistaken for "no archive date".
+    if (forceRefresh) throw err;
     return cachedArchiveMap || { products: {}, ingredients: {}, users: {} };
   }
 };

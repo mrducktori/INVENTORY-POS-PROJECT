@@ -34,7 +34,7 @@ const ProductCard = ({ product, stockSummary, onClick, onViewRecipe }) => {
   return (
     <div
       className={`relative bg-white border border-gray-200 rounded-xl overflow-hidden flex flex-col transition-all duration-200 shadow-sm hover:shadow-md ${
-        isUnavailable ? 'opacity-65 grayscale select-none' : 'hover:-translate-y-1'
+        isUnavailable ? 'select-none' : 'hover:-translate-y-1'
       }`}
     >
       <div
@@ -50,8 +50,8 @@ const ProductCard = ({ product, stockSummary, onClick, onViewRecipe }) => {
         }
       />
 
-      <div className="flex-1 p-5 pb-3 flex flex-col">
-        <h4 className="m-0 text-sm md:text-base font-bold text-gray-900 leading-tight mb-1">
+      <div className={`flex-1 p-5 pb-3 flex flex-col ${isUnavailable ? 'opacity-65 grayscale' : ''}`}>
+        <h4 className={`m-0 text-sm md:text-base font-bold text-gray-900 leading-tight mb-1 ${isUnavailable ? 'pr-20' : ''}`}>
           {product.name}
         </h4>
         <p className="m-0 text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-3">
@@ -67,16 +67,17 @@ const ProductCard = ({ product, stockSummary, onClick, onViewRecipe }) => {
           </span>
         </div>
 
-        {isUnavailable && (
-          <p
-            className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white px-3 py-1.5 rounded text-xs md:text-sm font-bold uppercase tracking-wider whitespace-nowrap shadow-md z-20 ${
-              isAllInCart ? 'bg-amber-600/95' : 'bg-red-600/90'
-            }`}
-          >
-            {isAllInCart ? 'LIMIT REACHED' : isDirectOut ? 'OUT OF STOCK' : 'UNAVAILABLE'}
-          </p>
-        )}
       </div>
+
+      {isUnavailable && (
+        <span
+          className={`absolute top-3 right-2 z-20 text-white px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider whitespace-nowrap shadow-sm ${
+            isAllInCart ? 'bg-amber-600' : 'bg-red-600'
+          }`}
+        >
+          {isAllInCart ? 'Limit reached' : isDirectOut ? 'Out of stock' : 'Unavailable'}
+        </span>
+      )}
 
       <div className="flex border-t border-gray-100 bg-gray-50/50 mt-auto">
         <button

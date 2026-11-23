@@ -48,7 +48,14 @@ export const adjustProductStock = async (pid, delta, { max = Infinity, attempts 
   throw err;
 };
 
-const computeOrderableForSize = (prodRecipes = [], ingMap = {}, cupSizeObj = null) => {
+// orderType null = public menu: a size counts as orderable if it is in ANY order type.
+const computeOrderableForSize = (prodRecipes = [], ingMap = {}, cupSizeObj = null, orderType = null) => {
+  if (!orderType) {
+    return Math.max(
+      computeOrderableForSize(prodRecipes, ingMap, cupSizeObj, "DINE_IN"),
+      computeOrderableForSize(prodRecipes, ingMap, cupSizeObj, "TAKE_OUT")
+    );
+  }
   let minOrderable = Infinity;
   for (const recipe of prodRecipes) {
     const ing = ingMap[recipe.ingredient_id];
@@ -69,11 +76,11 @@ const computeOrderableForSize = (prodRecipes = [], ingMap = {}, cupSizeObj = nul
     }
   }
 
-  if (cupSizeObj?.ingredient_id) {
-    const cupIng = ingMap[cupSizeObj.ingredient_id];
-    if (!cupIng) return 0;
-    const usableCup = cupIng.usable_stock !== undefined ? parseFloat(cupIng.usable_stock) : parseFloat(cupIng.stock_quantity);
-    minOrderable = Math.min(minOrderable, Math.max(0, Math.floor((usableCup || 0) + STOCK_EPSILON)));
+  for (const { ingredient_id } of resolvePackagingIngredientIds(cupSizeObj, orderType)) {
+    const pkgIng = ingMap[ingredient_id];
+    if (!pkgIng) return 0;
+    const usablePkg = pkgIng.usable_stock !== undefined ? parseFloat(pkgIng.usable_stock) : parseFloat(pkgIng.stock_quantity);
+    minOrderable = Math.min(minOrderable, Math.max(0, Math.floor((usablePkg || 0) + STOCK_EPSILON)));
   }
 
   return Number.isFinite(minOrderable) ? minOrderable : 0;
@@ -149,7 +156,32 @@ const buildCatalogMaps = (products = [], recipes = [], ingredients = [], categor
 const normalizeCategoryKey = (category) =>
   String(category || "").trim().replace(/\s+/g, " ").toUpperCase();
 
+const buildCategorySizesMap = (categorySettings = []) => {
+  const map = new Map();
+  (categorySettings || []).forEach((row) => {
+    const key = normalizeCategoryKey(row.category);
+    if (key && Array.isArray(row.sizes) && row.sizes.length > 0) map.set(key, row.sizes);
+  });
+  return map;
+};
+
+const projectAddOn = (raw) => {
+  let ao = raw;
+  if (typeof raw === "string") {
+    try { ao = JSON.parse(raw); } catch { return null; }
+  }
+  return ao && typeof ao === "object" ? { name: ao.name, price: ao.price } : null;
+};
+
+// shortcut: per-process cache, fine for one instance
+const PUBLIC_PRODUCTS_TTL_MS = 15000;
+let publicProductsCache = { at: 0, data: null };
+
 export const getProducts = async () => {
+  if (publicProductsCache.data && Date.now() - publicProductsCache.at < PUBLIC_PRODUCTS_TTL_MS) {
+    return publicProductsCache.data;
+  }
+
   // 1. Fetch active products, recipes, ingredients, category settings, and size overrides concurrently
   const [
     { data: products, error: prodError },
@@ -170,24 +202,30 @@ export const getProducts = async () => {
   if (ingError) throw ingError;
   if (catError) throw catError;
 
-  const categorySizesMap = new Map();
-  (categorySettings || []).forEach((row) => {
-    const key = normalizeCategoryKey(row.category);
-    if (key && Array.isArray(row.sizes) && row.sizes.length > 0) {
-      categorySizesMap.set(key, row.sizes);
-    }
-  });
+  const categorySizesMap = buildCategorySizesMap(categorySettings);
 
   const enrichedRecipes = attachOverridesToRecipes(recipes || [], recipeOverridesMap);
-  const enrichedIngredients = await batchService.enrichIngredientsWithBatches(ingredients || []);
+  const enrichedIngredients = await batchService.enrichIngredientsWithBatches(
+    (ingredients || []).filter((i) => !i.is_archived)
+  );
   const catalog = buildCatalogMaps(products || [], enrichedRecipes, enrichedIngredients, categorySizesMap);
 
-  return catalog.map((product) => {
+  const ingMap = {};
+  enrichedIngredients.forEach((i) => { ingMap[i.id] = i; });
+  const recMap = {};
+  enrichedRecipes.forEach((r) => {
+    if (!recMap[r.product_id]) recMap[r.product_id] = [];
+    recMap[r.product_id].push(r);
+  });
+
+  const result = catalog.map((product) => {
     const ownSizes = Array.isArray(product.sizes) ? product.sizes : [];
     const resolvedSizes =
       ownSizes.length > 0
         ? ownSizes
         : (categorySizesMap.get(normalizeCategoryKey(product.category)) || []);
+    const prodRecipes = recMap[product.id] || [];
+    const direct = product.track_stock || prodRecipes.length === 0;
 
     return {
       id: product.id,
@@ -196,8 +234,14 @@ export const getProducts = async () => {
       price: product.price,
       description: product.description ?? null,
       image_url: product.image_url ?? null,
-      sizes: resolvedSizes,
-      add_ons: Array.isArray(product.add_ons) ? product.add_ons : [],
+      sizes: resolvedSizes.map((sz) => ({
+        name: sz.name,
+        price_add: sz.price_add,
+        is_available: direct
+          ? Boolean(product.is_available)
+          : computeOrderableForSize(prodRecipes, ingMap, sz) > 0
+      })),
+      add_ons: (Array.isArray(product.add_ons) ? product.add_ons : []).map(projectAddOn).filter(Boolean),
       track_stock: Boolean(product.track_stock),
       is_available: Boolean(product.is_available),
       is_out_of_stock:
@@ -206,6 +250,9 @@ export const getProducts = async () => {
           : !product.is_available
     };
   });
+
+  publicProductsCache = { at: Date.now(), data: result };
+  return result;
 };
 
 export const getPosCatalog = async () => {
@@ -213,21 +260,31 @@ export const getPosCatalog = async () => {
     { data: products, error: prodError },
     { data: recipes, error: recError },
     { data: ingredients, error: ingError },
+    { data: categorySettings, error: catError },
     recipeOverridesMap
   ] = await Promise.all([
     supabase.from("products").select("*").eq("is_archived", false),
     supabase.from("recipes").select("id, product_id, ingredient_id, quantity_used, recipe_unit"),
     supabase.from("ingredients").select("id, name, category, unit, stock_quantity, low_stock_alert, max_stock, is_archived, created_at"),
+    supabase.from("category_settings").select("category, sizes"),
     recipesService.getRecipeSizeOverridesMap()
   ]);
 
   if (prodError) throw prodError;
   if (recError) throw recError;
   if (ingError) throw ingError;
+  if (catError) throw catError;
 
   const enrichedRecipes = attachOverridesToRecipes(recipes || [], recipeOverridesMap);
-  const enrichedIngredients = await batchService.enrichIngredientsWithBatches(ingredients || []);
-  const productsWithAvailability = buildCatalogMaps(products || [], enrichedRecipes, enrichedIngredients);
+  const enrichedIngredients = await batchService.enrichIngredientsWithBatches(
+    (ingredients || []).filter((i) => !i.is_archived)
+  );
+  const productsWithAvailability = buildCatalogMaps(
+    products || [],
+    enrichedRecipes,
+    enrichedIngredients,
+    buildCategorySizesMap(categorySettings)
+  );
 
   return {
     products: productsWithAvailability,

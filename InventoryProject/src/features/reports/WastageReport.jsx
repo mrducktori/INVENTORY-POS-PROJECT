@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { getWastageReport, getWastageStats } from '../../api/reportsApi';
 import { downloadCSV, printReport } from './utils/reportUtils';
-import { getPeriodDateRange } from '../../utils/dateUtils';
+import { getPeriodDateRange, getManilaDateOnly } from '../../utils/dateUtils';
+import { escapeHtml } from '../../utils/escapeHtml';
 import { TableSkeleton, StatCardsSkeleton } from '../../components/shared/SkeletonLoader';
 import Pagination from '../../components/shared/Pagination';
 
@@ -205,7 +206,7 @@ const WastageReport = () => {
         e.users?.name || e.reported_by_name || '—'
       ])
     ];
-    downloadCSV(exportRows, `CofTea_Wastage_Report_${new Date().toISOString().split('T')[0]}.csv`);
+    downloadCSV(exportRows, `CofTea_Wastage_Report_${getManilaDateOnly()}.csv`);
   };
 
   const handlePrint = () => {
@@ -213,16 +214,16 @@ const WastageReport = () => {
     const tableRows = filtered.map(e => `
       <tr>
         <td style="font-size:10px;color:#4b5563;white-space:nowrap">${new Date(e.created_at).toLocaleString('en-PH')}</td>
-        <td><strong>${e.ingredients?.name || e.ingredient_name || '—'}</strong></td>
-        <td class="text-right" style="font-weight:700;font-family:monospace">${parseFloat(e.quantity || 0).toFixed(2)} ${e.ingredients?.unit || e.unit || ''}</td>
-        <td><span class="badge badge-waste">${e.reason || '—'}</span></td>
+        <td><strong>${escapeHtml(e.ingredients?.name || e.ingredient_name || '—')}</strong></td>
+        <td class="text-right" style="font-weight:700;font-family:monospace">${parseFloat(e.quantity || 0).toFixed(2)} ${escapeHtml(e.ingredients?.unit || e.unit || '')}</td>
+        <td><span class="badge badge-waste">${escapeHtml(e.reason || '—')}</span></td>
         <td class="text-right num-neg">₱${getEntryCost(e).toFixed(2)}</td>
-        <td style="font-size:10px">${e.users?.name || e.reported_by_name || '—'}</td>
+        <td style="font-size:10px">${escapeHtml(e.users?.name || e.reported_by_name || '—')}</td>
       </tr>`).join('');
 
     const reasonRows = byReason.map(([reason, data]) =>
       `<tr>
-        <td><strong>${reason}</strong></td>
+        <td><strong>${escapeHtml(reason)}</strong></td>
         <td class="text-center" style="font-family:monospace;font-weight:700">${data.count}</td>
         <td class="text-right num-neg">₱${data.cost.toFixed(2)}</td>
       </tr>`
@@ -236,7 +237,7 @@ const WastageReport = () => {
             <div class="brand-subtitle">Point of Sale &amp; Inventory Management System</div>
           </div>
           <div class="report-timestamp">
-            <div>Period: <strong>${periodLabel}</strong></div>
+            <div>Period: <strong>${escapeHtml(periodLabel)}</strong></div>
             <div>Generated: <strong>${new Date().toLocaleString('en-PH')}</strong></div>
           </div>
         </div>
@@ -514,14 +515,16 @@ const WastageReport = () => {
                     <div className="flex flex-col divide-y divide-gray-100">
                       {Object.entries(stats).map(([k, v]) => {
                         const labelMap = {
-                          totalWastage: 'Total Wastage Volume',
+                          totalsByUnit: 'Total Wastage Volume',
                           totalEstimatedCost: 'Estimated Total Loss',
                           wastageByIngredient: 'Affected Ingredients',
                           recordCount: 'Total Records Logged',
                         };
                         const label = labelMap[k] || k.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ');
                         let formattedVal = v;
-                        if (k === 'wastageByIngredient' && v && typeof v === 'object') {
+                        if (k === 'totalsByUnit' && v && typeof v === 'object') {
+                          formattedVal = Object.entries(v).map(([u, q]) => `${Number(q).toLocaleString('en-PH', { maximumFractionDigits: 2 })} ${u}`).join(', ') || '0';
+                        } else if (k === 'wastageByIngredient' && v && typeof v === 'object') {
                           formattedVal = `${Object.keys(v).length} items`;
                         } else if (typeof v === 'number' && k.toLowerCase().includes('cost')) {
                           formattedVal = `₱${Number(v).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

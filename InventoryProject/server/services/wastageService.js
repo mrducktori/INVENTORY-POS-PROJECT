@@ -5,6 +5,7 @@ import { logAudit } from "../utils/auditHelper.js";
 import { toManilaStartOfDay, toManilaEndOfDay } from "../utils/dateUtils.js";
 import { invalidateAnalyticsCache } from "../routes/analytics.js";
 import { LIMITS, validateNumberBound, validateTextLength } from "../utils/validationHelper.js";
+import { resolveUnitCost, fetchAllRows } from "../utils/costUtils.js";
 
 const computeWastageEntryCost = (entry) => {
   if (entry.estimated_cost !== undefined && entry.estimated_cost !== null && Number(entry.estimated_cost) > 0) {
@@ -12,22 +13,7 @@ const computeWastageEntryCost = (entry) => {
   }
   const qty = parseFloat(entry.quantity) || 0;
   const ing = entry.ingredients || entry.ingredient || {};
-  const explicitUnitCost = parseFloat(ing.unit_cost) || 0;
-  if (explicitUnitCost > 0) {
-    return Math.round(explicitUnitCost * qty * 100) / 100;
-  }
-  const purchaseCost = parseFloat(ing.cost_per_purchase_unit) || 0;
-  const conv = parseFloat(ing.conversion_factor) || 1;
-  if (purchaseCost > 0 && conv > 0) {
-    return Math.round((purchaseCost / conv) * qty * 100) / 100;
-  }
-  // Fallback unit cost estimate based on standard raw material unit (G, ML, PCS, KG, L)
-  const unit = String(ing.unit || '').toUpperCase();
-  const defaultUnitRate =
-    unit === 'KG' || unit === 'L' ? 180 :
-    unit === 'PCS' ? 2.5 :
-    unit === 'G' || unit === 'ML' ? 0.22 : 1.0;
-  return Math.round(qty * defaultUnitRate * 100) / 100;
+  return Math.round(qty * (resolveUnitCost(ing) ?? 0) * 100) / 100;
 };
 
 // FIX #3 & #13: Added a stock sufficiency check BEFORE logging the wastage record.
@@ -121,7 +107,8 @@ export const getWastageHistory = async (filters = {}) => {
       ingredients(id, name, unit, unit_cost, cost_per_purchase_unit, conversion_factor),
       users(id, name, username)
     `)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .order("id");
 
   if (filters.ingredient_id) {
     query = query.eq("ingredient_id", filters.ingredient_id);
@@ -139,26 +126,26 @@ export const getWastageHistory = async (filters = {}) => {
     query = query.lte("created_at", toManilaEndOfDay(filters.end_date || filters.endDate));
   }
 
-  const { data, error } = await query;
-
-  if (error) throw error;
-  return (data || []).map(row => ({
+  const data = await fetchAllRows(() => query);
+  return data.map(row => ({
     ...row,
     estimated_cost: computeWastageEntryCost(row),
   }));
 };
 
 export const getWastageStats = async () => {
-  const { data, error } = await supabase
+  const data = await fetchAllRows(() => supabase
     .from("wastage")
-    .select("ingredient_id, quantity, estimated_cost, created_at, ingredients(id, name, unit, unit_cost, cost_per_purchase_unit, conversion_factor)")
+    .select("id, ingredient_id, quantity, estimated_cost, created_at, ingredients(id, name, unit, unit_cost, cost_per_purchase_unit, conversion_factor)")
     .order("created_at", { ascending: false })
-    .limit(500);
+    .order("id"));
 
-  if (error) throw error;
-
-  // Calculate stats
-  const totalWastage = Math.round(data.reduce((sum, w) => sum + (parseFloat(w.quantity) || 0), 0) * 100) / 100;
+  // Quantities in different units must not be summed together (kg + ml), so group by unit.
+  const totalsByUnit = {};
+  data.forEach(w => {
+    const u = String(w.ingredients?.unit || "UNKNOWN").toUpperCase();
+    totalsByUnit[u] = Math.round(((totalsByUnit[u] || 0) + (parseFloat(w.quantity) || 0)) * 100) / 100;
+  });
   const totalEstimatedCost = Math.round(data.reduce((sum, w) => sum + computeWastageEntryCost(w), 0) * 100) / 100;
   const wastageByIngredient = {};
 
@@ -170,7 +157,7 @@ export const getWastageStats = async () => {
   });
 
   return {
-    totalWastage,
+    totalsByUnit,
     totalEstimatedCost,
     wastageByIngredient,
     recordCount: data.length

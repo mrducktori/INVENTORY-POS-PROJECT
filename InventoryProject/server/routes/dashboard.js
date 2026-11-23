@@ -2,6 +2,7 @@ import express from 'express';
 import { supabase } from '../config/supabaseClient.js';
 import * as inventoryService from '../services/inventoryService.js';
 import * as batchService from '../services/batchService.js';
+import * as posOperationsService from '../services/posOperationsService.js';
 import { toManilaStartOfDay, toManilaEndOfDay, getManilaDateOnly } from '../utils/dateUtils.js';
 import { requireRole } from '../middleware/authMiddleware.js';
 
@@ -23,6 +24,7 @@ async function fetchBoundedSales(boundStart, boundEnd, selectCols) {
       .gte('created_at', boundStart)
       .lte('created_at', boundEnd)
       .order('created_at', { ascending: true })
+      .order('id', { ascending: true })
       .range(pageIdx * PAGE_SIZE, (pageIdx + 1) * PAGE_SIZE - 1);
 
     if (error) throw error;
@@ -32,8 +34,17 @@ async function fetchBoundedSales(boundStart, boundEnd, selectCols) {
     pageIdx += 1;
   }
 
-  return rows;
+  // Exclude voided/refunded/returned sales (by status or void/refund map) from revenue.
+  const voidsMap = await posOperationsService.getVoidRefundMap();
+  return rows.filter((s) =>
+    !voidsMap[s.id] && !['VOIDED', 'REFUNDED', 'RETURNED'].includes(String(s.status || '').toUpperCase())
+  );
 }
+
+const VALID_PERIODS = new Set(['day', 'week', '7d', '14d', '30d', 'month']);
+const MAX_RANGE_DAYS = 366;
+const pad2 = (n) => String(n).padStart(2, '0');
+const isoKey = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 
 /**
  * GET /api/dashboard/stats
@@ -47,6 +58,10 @@ router.get('/stats', async (req, res) => {
     const reqEnd = req.query.endDate || req.query.end_date;
     const period = req.query.period || 'day';
 
+    if (!reqStart && !reqEnd && !VALID_PERIODS.has(period)) {
+      return res.status(400).json({ error: `Invalid period '${period}'. Use one of: ${[...VALID_PERIODS].join(', ')}` });
+    }
+
     // 1. Determine strict bounding timestamps (Asia/Manila +08:00)
     let boundStart;
     let boundEnd;
@@ -54,6 +69,10 @@ router.get('/stats', async (req, res) => {
     if (reqStart || reqEnd) {
       boundStart = toManilaStartOfDay(reqStart || reqEnd);
       boundEnd = toManilaEndOfDay(reqEnd || reqStart || todayStr);
+      const spanDays = (new Date(boundEnd) - new Date(boundStart)) / 86400000;
+      if (!(spanDays >= 0) || spanDays > MAX_RANGE_DAYS) {
+        return res.status(400).json({ error: `Date range must be valid and at most ${MAX_RANGE_DAYS} days` });
+      }
     } else if (period === 'day') {
       boundStart = `${todayStr}T00:00:00+08:00`;
       boundEnd = `${todayStr}T23:59:59.999+08:00`;
@@ -71,9 +90,6 @@ router.get('/stats', async (req, res) => {
       const my = now.getFullYear();
       const mm = String(now.getMonth() + 1).padStart(2, '0');
       boundStart = `${my}-${mm}-01T00:00:00+08:00`;
-      boundEnd = `${todayStr}T23:59:59.999+08:00`;
-    } else {
-      boundStart = '2020-01-01T00:00:00+08:00';
       boundEnd = `${todayStr}T23:59:59.999+08:00`;
     }
 
@@ -95,7 +111,7 @@ router.get('/stats', async (req, res) => {
       fetchBoundedSales(
         salesQueryStart,
         boundEnd,
-        'id, total_amount, created_at, sale_items(quantity, unit_price, products(id, name, category))'
+        'id, total_amount, created_at, status, sale_items(quantity, unit_price, products(id, name, category))'
       ),
       supabase
         .from('products')
@@ -174,16 +190,12 @@ router.get('/stats', async (req, res) => {
       for (let i = 6; i >= 0; i--) {
         const d = new Date(endDateObj);
         d.setDate(d.getDate() - i);
-        const mm = String(d.getMonth() + 1).padStart(2, '0');
-        const dd = String(d.getDate()).padStart(2, '0');
-        trendMap[`${mm}/${dd}`] = { revenue: 0, categories: {} };
+        trendMap[isoKey(d)] = { revenue: 0, categories: {} };
       }
 
       (trendHistory || []).forEach(s => {
         const localDateObj = new Date(new Date(s.created_at).toLocaleString("en-US", { timeZone: "Asia/Manila" }));
-        const sm = String(localDateObj.getMonth() + 1).padStart(2, '0');
-        const sd = String(localDateObj.getDate()).padStart(2, '0');
-        const dateKey = `${sm}/${sd}`;
+        const dateKey = isoKey(localDateObj);
 
         if (trendMap[dateKey] !== undefined) {
           trendMap[dateKey].revenue += parseFloat(s.total_amount) || 0;
@@ -198,17 +210,13 @@ router.get('/stats', async (req, res) => {
       // Dynamic daily bins between boundStart and boundEnd
       const cur = new Date(startDateObj);
       while (cur <= endDateObj) {
-        const mm = String(cur.getMonth() + 1).padStart(2, '0');
-        const dd = String(cur.getDate()).padStart(2, '0');
-        trendMap[`${mm}/${dd}`] = { revenue: 0, categories: {} };
+        trendMap[isoKey(cur)] = { revenue: 0, categories: {} };
         cur.setDate(cur.getDate() + 1);
       }
 
       salesList.forEach(s => {
         const localDateObj = new Date(new Date(s.created_at).toLocaleString("en-US", { timeZone: "Asia/Manila" }));
-        const sm = String(localDateObj.getMonth() + 1).padStart(2, '0');
-        const sd = String(localDateObj.getDate()).padStart(2, '0');
-        const dateKey = `${sm}/${sd}`;
+        const dateKey = isoKey(localDateObj);
 
         if (trendMap[dateKey] !== undefined) {
           trendMap[dateKey].revenue += parseFloat(s.total_amount) || 0;
@@ -222,7 +230,8 @@ router.get('/stats', async (req, res) => {
     }
 
     const salesTrend = Object.keys(trendMap).map(dateKey => ({
-      date: dateKey,
+      date: dateKey.slice(5).replace('-', '/'), // MM/DD label (frontend parses this)
+      isoDate: dateKey,
       revenue: trendMap[dateKey].revenue,
       categories: trendMap[dateKey].categories
     }));
