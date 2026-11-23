@@ -838,6 +838,16 @@ export const usePOS = () => {
       STUDENT: { label: "Student", rate: presets.student_rate ?? 0.10 },
       STAFF: { label: "Employee / Staff", rate: presets.staff_rate ?? 0.15 }
     };
+    if (Array.isArray(posSettings?.discount_types)) {
+      posSettings.discount_types.forEach((d) => {
+        if (d?.id) {
+          rates[String(d.id).toUpperCase()] = {
+            label: d.label || d.id,
+            rate: (Number(d.rate_percent) || 0) / 100
+          };
+        }
+      });
+    }
 
     let disc = 0;
     let label = "";

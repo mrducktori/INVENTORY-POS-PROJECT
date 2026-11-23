@@ -133,6 +133,15 @@ const parseAddOnEntry = (raw) => {
   }
 };
 
+export const DEFAULT_DISCOUNT_TYPES = [
+  { id: "SENIOR", label: "Senior Citizen", rate_percent: 20, requires_id: true, vat_exempt: true, active: true },
+  { id: "PWD", label: "PWD", rate_percent: 20, requires_id: true, vat_exempt: true, active: true },
+  { id: "STUDENT", label: "Student", rate_percent: 10, requires_id: false, vat_exempt: false, active: true },
+  { id: "STAFF", label: "Employee / Staff", rate_percent: 15, requires_id: false, vat_exempt: false, active: true }
+];
+
+const RESERVED_DISCOUNT_IDS = new Set(["NONE", "PROMO", "PROMO_CODE", "CUSTOM"]);
+
 export const DEFAULT_POS_SETTINGS = {
   promo_codes: [
     { code: "COFTEA10", type: "PERCENT", value: 10, min_subtotal: 0, active: true, description: "10% off order" },
@@ -146,6 +155,7 @@ export const DEFAULT_POS_SETTINGS = {
     student_rate: 0.10,
     staff_rate: 0.15
   },
+  discount_types: DEFAULT_DISCOUNT_TYPES,
   ewallet_accounts: {
     GCASH: {
       account_name: "CofTea Cafe",
@@ -244,7 +254,7 @@ export const normalizePosSettings = (raw = {}, { strict = false } = {}) => {
     });
   }
 
-  // 2. Discount presets
+  // 2. Discount presets & itemized discount_types
   const rawPresets = src.discount_presets && typeof src.discount_presets === "object"
     ? src.discount_presets
     : {};
@@ -257,11 +267,85 @@ export const normalizePosSettings = (raw = {}, { strict = false } = {}) => {
     }
     return Math.round(n * 10000) / 10000;
   };
-  const discount_presets = {
+  const legacyPresets = {
     senior_rate: clampRate(rawPresets.senior_rate, DEFAULT_POS_SETTINGS.discount_presets.senior_rate, "Senior Citizen"),
     pwd_rate: clampRate(rawPresets.pwd_rate, DEFAULT_POS_SETTINGS.discount_presets.pwd_rate, "PWD"),
     student_rate: clampRate(rawPresets.student_rate, DEFAULT_POS_SETTINGS.discount_presets.student_rate, "Student"),
     staff_rate: clampRate(rawPresets.staff_rate, DEFAULT_POS_SETTINGS.discount_presets.staff_rate, "Staff")
+  };
+
+  let discount_types = [];
+  if (Array.isArray(src.discount_types)) {
+    const seenDiscIds = new Set();
+    for (const entry of src.discount_types.slice(0, 30)) {
+      const rawId = String(entry?.id || entry?.label || "")
+        .trim()
+        .toUpperCase()
+        .replace(/[^A-Z0-9_-]+/g, "_")
+        .replace(/^_+|_+$/g, "");
+      if (!rawId) {
+        if (strict) throw createHttpError(400, "Each discount type must have a valid identifier or name.");
+        continue;
+      }
+      if (RESERVED_DISCOUNT_IDS.has(rawId)) {
+        if (strict) throw createHttpError(400, `Discount ID "${rawId}" is reserved.`);
+        continue;
+      }
+      if (!/^[A-Z0-9_-]{2,30}$/.test(rawId)) {
+        if (strict) throw createHttpError(400, `Discount ID "${rawId}" must be 2-30 alphanumeric characters.`);
+        continue;
+      }
+      if (seenDiscIds.has(rawId)) {
+        if (strict) throw createHttpError(400, `Duplicate discount ID "${rawId}" is not allowed.`);
+        continue;
+      }
+      seenDiscIds.add(rawId);
+
+      const label = String(entry?.label || rawId).trim().slice(0, 60);
+      if (!label) {
+        if (strict) throw createHttpError(400, `Discount "${rawId}" requires a label.`);
+        continue;
+      }
+      let ratePct = Number(entry?.rate_percent);
+      if (!Number.isFinite(ratePct) || ratePct <= 0 || ratePct > 100) {
+        if (strict) throw createHttpError(400, `Discount "${label}" percentage must be between 0.1% and 100%.`);
+        ratePct = Math.min(100, Math.max(0.1, Number.isFinite(ratePct) ? ratePct : 10));
+      }
+
+      discount_types.push({
+        id: rawId,
+        label,
+        rate_percent: round2(ratePct),
+        requires_id: Boolean(entry?.requires_id),
+        vat_exempt: Boolean(entry?.vat_exempt),
+        active: entry?.active !== false
+      });
+    }
+  } else {
+    discount_types = DEFAULT_DISCOUNT_TYPES.map((def) => {
+      const ratePct =
+        def.id === "SENIOR"
+          ? round2(legacyPresets.senior_rate * 100)
+          : def.id === "PWD"
+          ? round2(legacyPresets.pwd_rate * 100)
+          : def.id === "STUDENT"
+          ? round2(legacyPresets.student_rate * 100)
+          : def.id === "STAFF"
+          ? round2(legacyPresets.staff_rate * 100)
+          : def.rate_percent;
+      return { ...def, rate_percent: ratePct };
+    });
+  }
+
+  const findTypeRate = (id, fallback) => {
+    const match = discount_types.find((d) => d.id === id);
+    return match ? Math.round((match.rate_percent / 100) * 10000) / 10000 : fallback;
+  };
+  const discount_presets = {
+    senior_rate: findTypeRate("SENIOR", legacyPresets.senior_rate),
+    pwd_rate: findTypeRate("PWD", legacyPresets.pwd_rate),
+    student_rate: findTypeRate("STUDENT", legacyPresets.student_rate),
+    staff_rate: findTypeRate("STAFF", legacyPresets.staff_rate)
   };
 
   // 3. E-wallet accounts
@@ -303,6 +387,7 @@ export const normalizePosSettings = (raw = {}, { strict = false } = {}) => {
   return {
     promo_codes,
     discount_presets,
+    discount_types,
     ewallet_accounts,
     takeout_packaging
   };
@@ -441,7 +526,6 @@ export const validateAndComputeDiscount = ({
   posSettings = null
 }) => {
   const settings = normalizePosSettings(posSettings || DEFAULT_POS_SETTINGS);
-  const presets = settings.discount_presets || DEFAULT_POS_SETTINGS.discount_presets;
   const safeSubtotal = Math.max(0, round2(subtotal));
   let type = String(discount_type || "NONE").trim().toUpperCase();
   if (type === "PROMO") type = "PROMO_CODE";
@@ -455,38 +539,6 @@ export const validateAndComputeDiscount = ({
   if (type === "NONE") {
     discountAmount = 0;
     discountLabel = "";
-  } else if (type === "SENIOR" || type === "PWD") {
-    const cleanName = validateTextLength(customer_name, {
-      label: "Customer name",
-      min: 2,
-      max: 100,
-      required: true
-    });
-    const cleanId = validateTextLength(discount_id_number, {
-      label: `${type === "SENIOR" ? "Senior Citizen" : "PWD"} ID number`,
-      min: 3,
-      max: 40,
-      required: true
-    });
-
-    const rate = type === "SENIOR" ? (presets.senior_rate ?? 0.2) : (presets.pwd_rate ?? 0.2);
-    discountAmount = round2(safeSubtotal * rate);
-    const vatExemptSales = round2(safeSubtotal / 1.12);
-    const vatDeducted = round2(safeSubtotal - vatExemptSales);
-    const pctText = `${Math.round(rate * 100)}%`;
-    discountLabel = type === "SENIOR" ? `Senior Citizen (${pctText})` : `PWD (${pctText})`;
-    discountDetails.customer_name = cleanName;
-    discountDetails.discount_id_number = cleanId;
-    discountDetails.vat_exempt_sales = vatExemptSales;
-    discountDetails.vat_deducted = vatDeducted;
-  } else if (type === "STUDENT") {
-    const rate = presets.student_rate ?? 0.1;
-    discountAmount = round2(safeSubtotal * rate);
-    discountLabel = `Student (${Math.round(rate * 100)}%)`;
-  } else if (type === "STAFF") {
-    const rate = presets.staff_rate ?? 0.15;
-    discountAmount = round2(safeSubtotal * rate);
-    discountLabel = `Employee / Staff (${Math.round(rate * 100)}%)`;
   } else if (type === "PROMO_CODE") {
     const code = String(promo_code || "").trim().toUpperCase();
     if (!code) {
@@ -551,7 +603,39 @@ export const validateAndComputeDiscount = ({
     discountDetails.custom_discount_mode = mode;
     discountDetails.custom_discount_value = val;
   } else {
-    throw createHttpError(400, `Unsupported discount_type "${discount_type}".`);
+    const matchedDiscount = (settings.discount_types || []).find(
+      (d) => String(d.id || "").trim().toUpperCase() === type && d.active !== false
+    );
+    if (!matchedDiscount) {
+      throw createHttpError(400, `Unsupported or inactive discount type "${discount_type}".`);
+    }
+
+    if (matchedDiscount.requires_id) {
+      const cleanName = validateTextLength(customer_name, {
+        label: "Customer name",
+        min: 2,
+        max: 100,
+        required: true
+      });
+      const cleanId = validateTextLength(discount_id_number, {
+        label: `${matchedDiscount.label} ID number`,
+        min: 3,
+        max: 40,
+        required: true
+      });
+      discountDetails.customer_name = cleanName;
+      discountDetails.discount_id_number = cleanId;
+    }
+
+    const rate = Number(matchedDiscount.rate_percent || 0) / 100;
+    discountAmount = round2(safeSubtotal * rate);
+    if (matchedDiscount.vat_exempt) {
+      const vatExemptSales = round2(safeSubtotal / 1.12);
+      const vatDeducted = round2(safeSubtotal - vatExemptSales);
+      discountDetails.vat_exempt_sales = vatExemptSales;
+      discountDetails.vat_deducted = vatDeducted;
+    }
+    discountLabel = `${matchedDiscount.label} (${matchedDiscount.rate_percent}%)`;
   }
 
   discountAmount = Math.min(safeSubtotal, Math.max(0, round2(discountAmount)));

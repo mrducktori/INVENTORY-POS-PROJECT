@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getAuditLogs } from '../../api/auditApi';
+import { formatActionLabel, formatAuditDescription } from '../../utils/auditFormatter';
 import { TableSkeleton } from '../../components/shared/SkeletonLoader';
 import Pagination from '../../components/shared/Pagination';
 
@@ -38,8 +39,10 @@ const AdminLogs = () => {
     return logs.filter(log => {
       const user = String(log.users?.name || log.users?.username || 'System').toLowerCase();
       const action = String(log.action || '').toLowerCase();
+      const actionLabel = formatActionLabel(log.action).toLowerCase();
       const details = typeof log.details === 'string' ? log.details.toLowerCase() : JSON.stringify(log.details || '').toLowerCase();
-      return user.includes(term) || action.includes(term) || details.includes(term);
+      const humanDesc = formatAuditDescription(log.action, log.details).toLowerCase();
+      return user.includes(term) || action.includes(term) || actionLabel.includes(term) || details.includes(term) || humanDesc.includes(term);
     });
   }, [logs, searchTerm]);
 
@@ -129,12 +132,15 @@ const AdminLogs = () => {
                         <span className="text-[10px] text-zinc-400 font-medium">({log.users?.role || 'System'})</span>
                       </td>
                       <td className="py-3.5 px-4 text-center">
-                        <span className="inline-flex px-2 py-0.5 rounded-md text-[11px] font-mono font-bold uppercase tracking-wider bg-zinc-100 text-zinc-800 border border-zinc-200">
-                          {log.action}
+                        <span
+                          title={log.action}
+                          className="inline-flex px-2.5 py-0.5 rounded-md text-xs font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200"
+                        >
+                          {formatActionLabel(log.action)}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 font-mono text-xs text-zinc-600 max-w-xl truncate">
-                        {typeof log.details === 'object' ? JSON.stringify(log.details) : String(log.details || '—')}
+                      <td className="py-3.5 px-4 text-xs sm:text-sm text-zinc-700 whitespace-normal leading-relaxed max-w-xl">
+                        {formatAuditDescription(log.action, log.details)}
                       </td>
                     </tr>
                   ))

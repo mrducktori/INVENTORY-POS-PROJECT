@@ -2,90 +2,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { getAuditLogs } from '../../api/auditApi';
 import { getCurrentUser } from '../../api/authApi';
 import { getManilaDateOnly } from '../../utils/dateUtils';
+import { getActionCategory, formatActionLabel, formatAuditDescription } from '../../utils/auditFormatter';
 import { TableSkeleton } from '../../components/shared/SkeletonLoader';
 import InfoTip from '../../components/shared/InfoTip';
-
-// ── Helpers ──────────────────────────────────────────────────
-
-/** Map action string → human-readable category for badges */
-const getCategory = (action) => {
-  if (!action) return { label: 'System', css: 'system' };
-  const a = action.toUpperCase();
-  if (a.startsWith('SALE')) return { label: 'Sale', css: 'sale' };
-  if (a.startsWith('PURCHASE_ORDER')) return { label: 'Purchase Order', css: 'po' };
-  if (a.startsWith('PRODUCT_STOCK')) return { label: 'Stock (Product)', css: 'stock' };
-  if (a.startsWith('RAW_MATERIAL_STOCK')) return { label: 'Stock (Raw)', css: 'stock' };
-  return { label: 'System', css: 'system' };
-};
-
-/** Format audit details into a readable sentence */
-const formatDescription = (action, rawDetails) => {
-  let d;
-  try {
-    d = typeof rawDetails === 'string' ? JSON.parse(rawDetails) : (rawDetails || {});
-  } catch { d = {}; }
-
-  switch (action) {
-    case 'SALE':
-    case 'SALE_CANCELLED':
-    case 'SALE_COMPLETED': {
-      if (typeof rawDetails === 'string' && !rawDetails.startsWith('{')) return rawDetails;
-      if (d.items && Array.isArray(d.items)) {
-        const itemNames = d.items.map(i => `${i.qty}x ${i.name}`).join(', ');
-        return `Receipt #${d.receipt_number || 'N/A'} — Total: ₱${d.total} (${itemNames})`;
-      }
-      return Object.entries(d).map(([k, v]) => `${k}: ${v}`).join(' | ');
-    }
-    case 'WASTAGE':
-      return `Reported wastage of ${d.quantity} units for ${d.ingredient_name || 'Ingredient ID: ' + d.ingredient_id}. Reason: ${d.reason}.`;
-    case 'LOGIN':
-      return `${d.username || 'Unknown'} (${d.role || '?'}) logged in.`;
-    case 'LOGOUT':
-      return `${d.username || 'Unknown'} (${d.role || '?'}) logged out.`;
-    case 'LOGIN_FAILED':
-      return `Failed login for "${d.username || 'unknown'}". Reason: ${d.reason || 'Unknown'}.`;
-    case 'PRODUCT_CREATED':
-      return `Created product "${d.name}" — ${d.category} @ ₱${d.price}.`;
-    case 'PRODUCT_UPDATED':
-      return `Updated product "${d.name}" — ${d.category}, ₱${d.price}.`;
-    case 'PRODUCT_ARCHIVED':
-      return `Archived product "${d.name}".`;
-    case 'PRODUCT_RESTORED':
-      return `Restored product "${d.name}".`;
-    case 'PRODUCT_STOCK_RECEIVED':
-      return `Received ${d.quantity_added} units of "${d.name}". New stock: ${d.new_stock}.`;
-    case 'RAW_MATERIAL_CREATED':
-      return `Added raw material "${d.name}" (${d.unit}).`;
-    case 'RAW_MATERIAL_UPDATED':
-      return `Updated raw material "${d.name}" — ${d.unit}, alert: ${d.low_stock_alert}.`;
-    case 'RAW_MATERIAL_DELETED':
-      return `Deleted raw material "${d.name}".`;
-    case 'RAW_MATERIAL_ARCHIVED':
-      return `Archived raw material "${d.name}".`;
-    case 'RAW_MATERIAL_RESTORED':
-      return `Restored raw material "${d.name}".`;
-    case 'RAW_MATERIAL_STOCK_RECEIVED':
-      return `Received ${d.quantity_added} ${d.unit || ''} of "${d.name}". New stock: ${d.new_stock} ${d.unit || ''}.`;
-    case 'USER_CREATED':
-      return `Created account for "${d.name}" (${d.username}) — Role: ${d.role}.`;
-    case 'USER_UPDATED':
-      return `Updated account "${d.username}" — name: ${d.name}, role: ${d.role}.`;
-    case 'USER_STATUS_CHANGED':
-      return `Changed status of "${d.name}" to ${d.new_status}.`;
-    case 'CATEGORY_SETTINGS_UPDATED':
-      return `Updated category settings for ${d.category}.`;
-    case 'PURCHASE_ORDER_CREATED':
-      return `Created Purchase Order (PO #${(d.po_id || '').substring(0, 8).toUpperCase()}) — Total: ₱${d.total_amount || 0}.`;
-    case 'PURCHASE_ORDER_STATUS_UPDATED':
-      return `PO #${(d.po_id || '').substring(0, 8).toUpperCase()} status changed to ${d.new_status}.`;
-    default:
-      if (Object.keys(d).length === 0) return (action || '').replace(/_/g, ' ');
-      return Object.entries(d)
-        .filter(([k]) => !['id', 'product_id', 'ingredient_id', 'new_user_id', 'target_user_id'].includes(k))
-        .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${typeof v === 'object' ? JSON.stringify(v) : v}`)
-        .join(', ');
-  }
-};
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
 
@@ -188,14 +107,16 @@ const TransactionLogs = () => {
       result = result.filter(log => {
         const staffName = String(log.users?.name || log.users?.username || 'System').toLowerCase();
         const actionName = String(log.action || '').toLowerCase();
+        const actionLabel = formatActionLabel(log.action).toLowerCase();
         const rawDetailsStr = typeof log.details === 'string'
           ? log.details.toLowerCase()
           : JSON.stringify(log.details || '').toLowerCase();
-        const humanDesc = formatDescription(log.action, log.details).toLowerCase();
+        const humanDesc = formatAuditDescription(log.action, log.details).toLowerCase();
 
         return (
           staffName.includes(term) ||
           actionName.includes(term) ||
+          actionLabel.includes(term) ||
           rawDetailsStr.includes(term) ||
           humanDesc.includes(term)
         );
@@ -510,7 +431,7 @@ const TransactionLogs = () => {
               <tbody className="divide-y divide-zinc-100">
                 {paginatedLogs.length > 0 ? (
                   paginatedLogs.map((log) => {
-                    const cat = getCategory(log.action);
+                    const cat = getActionCategory(log.action);
                     const userRole = (log.users?.role || '').toLowerCase();
                     return (
                       <tr key={log.id} className="hover:bg-zinc-50/60 transition-colors">
@@ -533,13 +454,16 @@ const TransactionLogs = () => {
                           </span>
                         </td>
                         <td className="py-3.5 px-4 text-center">
-                          <span className="inline-flex px-2 py-0.5 rounded-md text-[11px] font-mono font-bold uppercase tracking-wider bg-zinc-100 text-zinc-800 border border-zinc-200">
-                            {log.action}
+                          <span
+                            title={log.action}
+                            className="inline-flex px-2.5 py-0.5 rounded-md text-xs font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200"
+                          >
+                            {formatActionLabel(log.action)}
                           </span>
                         </td>
                         <td className="py-3.5 px-4">
                           <p className="m-0 text-zinc-800 whitespace-normal leading-relaxed text-xs sm:text-sm">
-                            {formatDescription(log.action, log.details)}
+                            {formatAuditDescription(log.action, log.details)}
                           </p>
                         </td>
                       </tr>

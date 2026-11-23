@@ -2,6 +2,13 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { createPaymentIntent, getPosSettings } from '../../../api/posApi';
 
+const DEFAULT_DISCOUNT_TYPES = [
+  { id: 'SENIOR', label: 'Senior Citizen', rate_percent: 20, requires_id: true, vat_exempt: true, active: true },
+  { id: 'PWD', label: 'PWD', rate_percent: 20, requires_id: true, vat_exempt: true, active: true },
+  { id: 'STUDENT', label: 'Student', rate_percent: 10, requires_id: false, vat_exempt: false, active: true },
+  { id: 'STAFF', label: 'Employee / Staff', rate_percent: 15, requires_id: false, vat_exempt: false, active: true }
+];
+
 const DEFAULT_PROMOS = [
   { code: 'COFTEA10', type: 'PERCENT', value: 10, min_subtotal: 0, active: true, description: '10% off' },
   { code: 'COFTEA20', type: 'PERCENT', value: 20, min_subtotal: 0, active: true, description: '20% off' },
@@ -51,18 +58,42 @@ const PaymentModal = ({ order, posSettings = null, onConfirm, onClose }) => {
 
   const discountOptions = useMemo(() => {
     const presets = effectiveSettings?.discount_presets || {};
-    const seniorRate = presets.senior_rate ?? 0.20;
-    const pwdRate = presets.pwd_rate ?? 0.20;
-    const studentRate = presets.student_rate ?? 0.10;
-    const staffRate = presets.staff_rate ?? 0.15;
+    const itemizedList = Array.isArray(effectiveSettings?.discount_types) && effectiveSettings.discount_types.length > 0
+      ? effectiveSettings.discount_types.filter((d) => d && d.active !== false)
+      : DEFAULT_DISCOUNT_TYPES.map((def) => ({
+          ...def,
+          rate_percent:
+            def.id === 'SENIOR' && presets.senior_rate !== undefined
+              ? Math.round(presets.senior_rate * 10000) / 100
+              : def.id === 'PWD' && presets.pwd_rate !== undefined
+              ? Math.round(presets.pwd_rate * 10000) / 100
+              : def.id === 'STUDENT' && presets.student_rate !== undefined
+              ? Math.round(presets.student_rate * 10000) / 100
+              : def.id === 'STAFF' && presets.staff_rate !== undefined
+              ? Math.round(presets.staff_rate * 10000) / 100
+              : def.rate_percent
+        }));
+
     return [
-      { id: 'NONE', label: 'No Discount', rate: 0, badge: '0%' },
-      { id: 'SENIOR', label: 'Senior Citizen', rate: seniorRate, badge: `${Math.round(seniorRate * 100)}% OFF + ID` },
-      { id: 'PWD', label: 'PWD', rate: pwdRate, badge: `${Math.round(pwdRate * 100)}% OFF + ID` },
-      { id: 'STUDENT', label: 'Student', rate: studentRate, badge: `${Math.round(studentRate * 100)}% OFF` },
-      { id: 'STAFF', label: 'Employee / Staff', rate: staffRate, badge: `${Math.round(staffRate * 100)}% OFF` },
-      { id: 'PROMO_CODE', label: 'Promo Code / B1T1', rate: null, badge: 'Code' },
-      { id: 'CUSTOM', label: 'Custom', rate: null, badge: 'Custom' }
+      { id: 'NONE', label: 'No Discount', rate: 0, rate_percent: 0, requires_id: false, vat_exempt: false, badge: '0%' },
+      ...itemizedList.map((d) => {
+        const pct = Number(d.rate_percent || 0);
+        const flags = [
+          d.requires_id ? '+ ID' : null,
+          d.vat_exempt ? 'VAT-Ex' : null
+        ].filter(Boolean).join(' • ');
+        return {
+          id: d.id,
+          label: d.label,
+          rate: pct / 100,
+          rate_percent: pct,
+          requires_id: Boolean(d.requires_id),
+          vat_exempt: Boolean(d.vat_exempt),
+          badge: flags ? `${pct}% OFF (${flags})` : `${pct}% OFF`
+        };
+      }),
+      { id: 'PROMO_CODE', label: 'Promo Code / B1T1', rate: null, requires_id: false, vat_exempt: false, badge: 'Code' },
+      { id: 'CUSTOM', label: 'Custom', rate: null, requires_id: false, vat_exempt: false, badge: 'Custom' }
     ];
   }, [effectiveSettings]);
 
@@ -101,9 +132,13 @@ const PaymentModal = ({ order, posSettings = null, onConfirm, onClose }) => {
   const subtotal = round2(parseFloat(order?.total) || 0);
   const isQrProvider = method === 'GCASH' || method === 'MAYA' || method === 'QRPH';
   const activeWalletConfig = isQrProvider ? effectiveSettings?.ewallet_accounts?.[method] || null : null;
+  const selectedDiscountOption = useMemo(
+    () => discountOptions.find((d) => d.id === discountType) || discountOptions[0],
+    [discountOptions, discountType]
+  );
 
   const { discountAmount, discountLabel, finalTotal, discountError } = useMemo(() => {
-    const selected = discountOptions.find((d) => d.id === discountType) || discountOptions[0];
+    const selected = selectedDiscountOption;
     let disc = 0;
     let label = '';
     let dErr = '';
@@ -164,7 +199,7 @@ const PaymentModal = ({ order, posSettings = null, onConfirm, onClose }) => {
       }
     } else if (selected.rate) {
       disc = subtotal * selected.rate;
-      label = `${selected.label} (${Math.round(selected.rate * 100)}%)`;
+      label = `${selected.label} (${selected.rate_percent}%)`;
     }
 
     const roundedDisc = Math.min(subtotal, Math.max(0, round2(disc)));
@@ -176,7 +211,7 @@ const PaymentModal = ({ order, posSettings = null, onConfirm, onClose }) => {
       finalTotal: netTotal,
       discountError: dErr
     };
-  }, [subtotal, discountType, customMode, customValue, promoCode, order?.items, discountOptions, activePromoCodes]);
+  }, [subtotal, discountType, customMode, customValue, promoCode, order?.items, selectedDiscountOption, activePromoCodes]);
 
   const maxCashAllowed = Math.min(100000, Math.max(finalTotal + 5000, 50000));
   const received = parseFloat(amountReceived) || 0;
@@ -252,13 +287,13 @@ const PaymentModal = ({ order, posSettings = null, onConfirm, onClose }) => {
       return;
     }
 
-    if (discountType === 'SENIOR' || discountType === 'PWD') {
+    if (selectedDiscountOption?.requires_id) {
       if (customerName.trim().length < 2) {
-        setError('Customer full name is required for Senior / PWD discounts.');
+        setError(`Customer full name is required for ${selectedDiscountOption.label} discounts.`);
         return;
       }
       if (discountIdNumber.trim().length < 3) {
-        setError('OSCA / PWD ID number (at least 3 characters) is required.');
+        setError(`${selectedDiscountOption.label} ID number (at least 3 characters) is required.`);
         return;
       }
     }
@@ -436,7 +471,7 @@ const PaymentModal = ({ order, posSettings = null, onConfirm, onClose }) => {
                 })}
               </div>
 
-              {(discountType === 'SENIOR' || discountType === 'PWD') && (
+              {selectedDiscountOption?.requires_id && (
                 <div className="mt-2.5 grid grid-cols-1 sm:grid-cols-2 gap-2.5 bg-zinc-50 p-3 rounded-xl border border-zinc-200">
                   <div className="flex flex-col gap-1">
                     <label className="text-[11px] font-bold text-zinc-700 uppercase">Customer Name *</label>
@@ -451,7 +486,9 @@ const PaymentModal = ({ order, posSettings = null, onConfirm, onClose }) => {
                     />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[11px] font-bold text-zinc-700 uppercase">OSCA / PWD ID # *</label>
+                    <label className="text-[11px] font-bold text-zinc-700 uppercase">
+                      {selectedDiscountOption.label} ID # *
+                    </label>
                     <input
                       type="text"
                       maxLength={40}

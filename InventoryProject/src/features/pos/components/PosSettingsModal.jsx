@@ -10,21 +10,50 @@ const PROVIDERS = [
   { id: 'QRPH', label: 'QRPH' }
 ];
 
-const buildDefaultSettings = (initial = null) => ({
-  promo_codes: Array.isArray(initial?.promo_codes)
-    ? initial.promo_codes.map((p) => ({ ...p }))
-    : [
-        { code: 'COFTEA10', type: 'PERCENT', value: 10, min_subtotal: 0, active: true, description: '10% off order' },
-        { code: 'COFTEA20', type: 'PERCENT', value: 20, min_subtotal: 0, active: true, description: '20% off order' },
-        { code: 'WELCOME50', type: 'FIXED', value: 50, min_subtotal: 200, active: true, description: '₱50 off min ₱200' },
-        { code: 'B1T1', type: 'B1T1', value: 0, min_subtotal: 0, active: true, description: 'Buy 1 Take 1 (free lowest item)' }
-      ],
-  discount_presets: {
-    senior_rate: initial?.discount_presets?.senior_rate ?? 0.20,
-    pwd_rate: initial?.discount_presets?.pwd_rate ?? 0.20,
-    student_rate: initial?.discount_presets?.student_rate ?? 0.10,
-    staff_rate: initial?.discount_presets?.staff_rate ?? 0.15
-  },
+const BUILTIN_DISCOUNT_IDS = new Set(['SENIOR', 'PWD', 'STUDENT', 'STAFF']);
+const RESERVED_DISCOUNT_IDS = new Set(['NONE', 'PROMO', 'PROMO_CODE', 'CUSTOM']);
+
+const DEFAULT_DISCOUNT_TYPES = [
+  { id: 'SENIOR', label: 'Senior Citizen', rate_percent: 20, requires_id: true, vat_exempt: true, active: true },
+  { id: 'PWD', label: 'PWD', rate_percent: 20, requires_id: true, vat_exempt: true, active: true },
+  { id: 'STUDENT', label: 'Student', rate_percent: 10, requires_id: false, vat_exempt: false, active: true },
+  { id: 'STAFF', label: 'Employee / Staff', rate_percent: 15, requires_id: false, vat_exempt: false, active: true }
+];
+
+const buildDefaultSettings = (initial = null) => {
+  const presets = initial?.discount_presets || {};
+  const discountTypes = Array.isArray(initial?.discount_types) && initial.discount_types.length > 0
+    ? initial.discount_types.map((d) => ({ ...d }))
+    : DEFAULT_DISCOUNT_TYPES.map((def) => ({
+        ...def,
+        rate_percent:
+          def.id === 'SENIOR' && presets.senior_rate !== undefined
+            ? Math.round(presets.senior_rate * 10000) / 100
+            : def.id === 'PWD' && presets.pwd_rate !== undefined
+            ? Math.round(presets.pwd_rate * 10000) / 100
+            : def.id === 'STUDENT' && presets.student_rate !== undefined
+            ? Math.round(presets.student_rate * 10000) / 100
+            : def.id === 'STAFF' && presets.staff_rate !== undefined
+            ? Math.round(presets.staff_rate * 10000) / 100
+            : def.rate_percent
+      }));
+
+  return {
+    promo_codes: Array.isArray(initial?.promo_codes)
+      ? initial.promo_codes.map((p) => ({ ...p }))
+      : [
+          { code: 'COFTEA10', type: 'PERCENT', value: 10, min_subtotal: 0, active: true, description: '10% off order' },
+          { code: 'COFTEA20', type: 'PERCENT', value: 20, min_subtotal: 0, active: true, description: '20% off order' },
+          { code: 'WELCOME50', type: 'FIXED', value: 50, min_subtotal: 200, active: true, description: '₱50 off min ₱200' },
+          { code: 'B1T1', type: 'B1T1', value: 0, min_subtotal: 0, active: true, description: 'Buy 1 Take 1 (free lowest item)' }
+        ],
+    discount_types: discountTypes,
+    discount_presets: {
+      senior_rate: presets.senior_rate ?? 0.20,
+      pwd_rate: presets.pwd_rate ?? 0.20,
+      student_rate: presets.student_rate ?? 0.10,
+      staff_rate: presets.staff_rate ?? 0.15
+    },
   ewallet_accounts: {
     GCASH: {
       account_name: initial?.ewallet_accounts?.GCASH?.account_name ?? 'CofTea Cafe',
@@ -51,7 +80,8 @@ const buildDefaultSettings = (initial = null) => ({
     apply_to_takeout: initial?.takeout_packaging?.apply_to_takeout !== false,
     apply_to_delivery: initial?.takeout_packaging?.apply_to_delivery !== false
   }
-});
+  };
+};
 
 const PosSettingsModal = ({ allIngredients = [], initialSettings = null, onSaved, onClose }) => {
   const [activeTab, setActiveTab] = useState('PROMOS');
@@ -67,6 +97,13 @@ const PosSettingsModal = ({ allIngredients = [], initialSettings = null, onSaved
     value: '',
     min_subtotal: '0',
     description: ''
+  });
+
+  const [newDiscount, setNewDiscount] = useState({
+    label: '',
+    rate_percent: '',
+    requires_id: false,
+    vat_exempt: false
   });
 
   useEffect(() => {
@@ -151,6 +188,64 @@ const PosSettingsModal = ({ allIngredients = [], initialSettings = null, onSaved
       ...prev,
       promo_codes: prev.promo_codes.filter((_, i) => i !== idx)
     }));
+  };
+
+  const handleDiscountFieldChange = (idx, field, value) => {
+    setSettings((prev) => ({
+      ...prev,
+      discount_types: prev.discount_types.map((d, i) => (i === idx ? { ...d, [field]: value } : d))
+    }));
+  };
+
+  const handleRemoveDiscountType = (idx) => {
+    setSettings((prev) => ({
+      ...prev,
+      discount_types: prev.discount_types.filter((_, i) => i !== idx)
+    }));
+  };
+
+  const handleAddDiscountType = (e) => {
+    e.preventDefault();
+    setNotice({ type: '', text: '' });
+    const cleanLabel = newDiscount.label.trim();
+    if (!cleanLabel) {
+      setNotice({ type: 'error', text: 'Discount name is required.' });
+      return;
+    }
+    const cleanId = cleanLabel
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .slice(0, 30);
+    if (cleanId.length < 2 || RESERVED_DISCOUNT_IDS.has(cleanId)) {
+      setNotice({ type: 'error', text: 'Please enter a distinct discount name (at least 2 characters).' });
+      return;
+    }
+    if (settings.discount_types.some((d) => d.id === cleanId || d.label.toLowerCase() === cleanLabel.toLowerCase())) {
+      setNotice({ type: 'error', text: `Discount type "${cleanLabel}" already exists.` });
+      return;
+    }
+    const rateVal = parseFloat(newDiscount.rate_percent);
+    if (!Number.isFinite(rateVal) || rateVal <= 0 || rateVal > 100) {
+      setNotice({ type: 'error', text: 'Discount percentage must be between 0.1% and 100%.' });
+      return;
+    }
+
+    setSettings((prev) => ({
+      ...prev,
+      discount_types: [
+        ...prev.discount_types,
+        {
+          id: cleanId,
+          label: cleanLabel.slice(0, 60),
+          rate_percent: Math.round(rateVal * 100) / 100,
+          requires_id: Boolean(newDiscount.requires_id),
+          vat_exempt: Boolean(newDiscount.vat_exempt),
+          active: true
+        }
+      ]
+    }));
+    setNewDiscount({ label: '', rate_percent: '', requires_id: false, vat_exempt: false });
   };
 
   const handleWalletChange = (provider, field, value) => {
@@ -290,59 +385,143 @@ const PosSettingsModal = ({ allIngredients = [], initialSettings = null, onSaved
               {activeTab === 'PROMOS' && (
                 <div className="space-y-6">
                   <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
-                    <h3 className="m-0 text-sm font-extrabold text-gray-900 uppercase tracking-wider">
-                      Standard Discount Rates
-                    </h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      <div className="bg-white p-3 rounded-lg border border-gray-200">
-                        <span className="block text-[10px] font-bold text-gray-500 uppercase">Senior Citizen</span>
-                        <span className="text-base font-extrabold text-gray-900 font-mono">
-                          {Math.round((settings.discount_presets.senior_rate ?? 0.2) * 100)}% + ID
-                        </span>
-                      </div>
-                      <div className="bg-white p-3 rounded-lg border border-gray-200">
-                        <span className="block text-[10px] font-bold text-gray-500 uppercase">PWD</span>
-                        <span className="text-base font-extrabold text-gray-900 font-mono">
-                          {Math.round((settings.discount_presets.pwd_rate ?? 0.2) * 100)}% + ID
-                        </span>
-                      </div>
-                      <div className="bg-white p-3 rounded-lg border border-gray-200 flex flex-col gap-1">
-                        <label className="text-[10px] font-bold text-gray-600 uppercase">Student Rate (%)</label>
-                        <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          step="1"
-                          value={Math.round((settings.discount_presets.student_rate ?? 0.1) * 100)}
-                          onChange={(e) => {
-                            const pct = Math.min(100, Math.max(0, Number(e.target.value) || 0));
-                            setSettings((prev) => ({
-                              ...prev,
-                              discount_presets: { ...prev.discount_presets, student_rate: pct / 100 }
-                            }));
-                          }}
-                          className="w-full px-2.5 py-1 border border-gray-300 rounded text-sm font-bold font-mono bg-white"
-                        />
-                      </div>
-                      <div className="bg-white p-3 rounded-lg border border-gray-200 flex flex-col gap-1">
-                        <label className="text-[10px] font-bold text-gray-600 uppercase">Staff Rate (%)</label>
-                        <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          step="1"
-                          value={Math.round((settings.discount_presets.staff_rate ?? 0.15) * 100)}
-                          onChange={(e) => {
-                            const pct = Math.min(100, Math.max(0, Number(e.target.value) || 0));
-                            setSettings((prev) => ({
-                              ...prev,
-                              discount_presets: { ...prev.discount_presets, staff_rate: pct / 100 }
-                            }));
-                          }}
-                          className="w-full px-2.5 py-1 border border-gray-300 rounded text-sm font-bold font-mono bg-white"
-                        />
-                      </div>
+                    <div>
+                      <h3 className="m-0 text-sm font-extrabold text-gray-900 uppercase tracking-wider">
+                        Itemized Discount Types ({settings.discount_types.length})
+                      </h3>
+                      <p className="m-0 text-xs text-gray-500 mt-0.5">
+                        Configure percentages, ID verification, and VAT-exempt status for statutory and store discounts. Changes apply immediately at POS checkout if laws or store policies change.
+                      </p>
                     </div>
+
+                    <div className="border border-gray-200 rounded-xl overflow-hidden divide-y divide-gray-100 bg-white">
+                      {settings.discount_types.map((d, idx) => {
+                        const isBuiltIn = BUILTIN_DISCOUNT_IDS.has(d.id);
+                        return (
+                          <div
+                            key={d.id}
+                            className="p-3 flex flex-col lg:flex-row lg:items-center justify-between gap-3 hover:bg-gray-50/70"
+                          >
+                            <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-0">
+                              <input
+                                type="text"
+                                maxLength={60}
+                                value={d.label}
+                                onChange={(e) => handleDiscountFieldChange(idx, 'label', e.target.value)}
+                                className="flex-1 min-w-[160px] px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-bold text-gray-900 bg-white"
+                              />
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="number"
+                                  min="0.1"
+                                  max="100"
+                                  step="0.5"
+                                  value={d.rate_percent}
+                                  onChange={(e) =>
+                                    handleDiscountFieldChange(
+                                      idx,
+                                      'rate_percent',
+                                      e.target.value === '' ? '' : Math.min(100, Math.max(0.1, Number(e.target.value)))
+                                    )
+                                  }
+                                  className="w-20 px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs font-bold font-mono bg-white text-right"
+                                />
+                                <span className="text-xs font-bold text-gray-600">%</span>
+                              </div>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-3 shrink-0">
+                              <label className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-700 cursor-pointer select-none">
+                                <input
+                                  type="checkbox"
+                                  checked={Boolean(d.requires_id)}
+                                  onChange={(e) => handleDiscountFieldChange(idx, 'requires_id', e.target.checked)}
+                                  className="w-3.5 h-3.5 accent-gray-900"
+                                />
+                                Requires ID #
+                              </label>
+                              <label className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-700 cursor-pointer select-none">
+                                <input
+                                  type="checkbox"
+                                  checked={Boolean(d.vat_exempt)}
+                                  onChange={(e) => handleDiscountFieldChange(idx, 'vat_exempt', e.target.checked)}
+                                  className="w-3.5 h-3.5 accent-gray-900"
+                                />
+                                VAT-Exempt
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => handleDiscountFieldChange(idx, 'active', d.active === false)}
+                                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold uppercase border cursor-pointer ${
+                                  d.active !== false
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                    : 'bg-gray-100 text-gray-500 border-gray-200'
+                                }`}
+                              >
+                                {d.active !== false ? 'Active' : 'Disabled'}
+                              </button>
+                              {!isBuiltIn && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveDiscountType(idx)}
+                                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 cursor-pointer"
+                                >
+                                  Remove
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <form onSubmit={handleAddDiscountType} className="pt-2 grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-center">
+                      <input
+                        type="text"
+                        maxLength={60}
+                        placeholder="New Discount Name (e.g. Solo Parent, VIP)"
+                        value={newDiscount.label}
+                        onChange={(e) => setNewDiscount({ ...newDiscount, label: e.target.value })}
+                        className="sm:col-span-4 px-3 py-2 border border-gray-300 rounded-lg text-xs font-semibold bg-white"
+                      />
+                      <div className="sm:col-span-2 flex items-center gap-1">
+                        <input
+                          type="number"
+                          min="0.1"
+                          max="100"
+                          step="0.5"
+                          placeholder="Rate %"
+                          value={newDiscount.rate_percent}
+                          onChange={(e) => setNewDiscount({ ...newDiscount, rate_percent: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-bold font-mono bg-white"
+                        />
+                        <span className="text-xs font-bold text-gray-600">%</span>
+                      </div>
+                      <label className="sm:col-span-2 inline-flex items-center gap-1.5 text-xs font-semibold text-gray-700 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={newDiscount.requires_id}
+                          onChange={(e) => setNewDiscount({ ...newDiscount, requires_id: e.target.checked })}
+                          className="w-3.5 h-3.5 accent-gray-900"
+                        />
+                        Requires ID
+                      </label>
+                      <label className="sm:col-span-2 inline-flex items-center gap-1.5 text-xs font-semibold text-gray-700 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={newDiscount.vat_exempt}
+                          onChange={(e) => setNewDiscount({ ...newDiscount, vat_exempt: e.target.checked })}
+                          className="w-3.5 h-3.5 accent-gray-900"
+                        />
+                        VAT-Exempt
+                      </label>
+                      <button
+                        type="submit"
+                        className="sm:col-span-2 px-3 py-2 bg-gray-900 hover:bg-black text-white rounded-lg text-xs font-bold uppercase tracking-wider cursor-pointer border-none"
+                      >
+                        + Add Type
+                      </button>
+                    </form>
                   </div>
 
                   <div className="space-y-3">

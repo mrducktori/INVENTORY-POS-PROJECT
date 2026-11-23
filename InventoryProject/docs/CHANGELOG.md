@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Itemized Configurable Discounts & Human-Readable Logs - 2026-11-23]
+- **Itemized Statutory & Store Discount Types (`server/services/posOperationsService.js`, `src/features/pos/components/PosSettingsModal.jsx`, `PaymentModal.jsx`, `usePOS.js`)**:
+  - Added `DEFAULT_DISCOUNT_TYPES` and full `discount_types` validation/normalization inside `posOperationsService.js` (`label`, `rate_percent` `0.1–100`, `requires_id`, `vat_exempt`, `active`) synced with legacy `discount_presets`, and generalized `validateAndComputeDiscount()` so any active discount type (`SENIOR`, `PWD`, `STUDENT`, `STAFF`, or client-added types like `SOLO_PARENT` / `VIP`) computes rates, optional customer/ID checks, and optional VAT-exemption dynamically.
+  - Replaced the static `Senior Citizen (20% + ID)` / `PWD (20% + ID)` read-only cards in `PosSettingsModal.jsx` with editable itemized discount rows and an inline **Add Discount Type** form; updated `PaymentModal.jsx` and `usePOS.js` to render and validate itemized discounts dynamically.
+- **Human-Readable Audit & Transaction Logs (`src/utils/auditFormatter.js`, `src/features/logs/TransactionLogs.jsx`, `AuditLogs.jsx`, `AdminLogs.jsx`, `server/controllers/purchasingController.js`)**:
+  - Created shared `auditFormatter.js` (`formatActionLabel`, `getActionCategory`, `formatEntityReference`, `formatAuditDescription`) translating raw action codes and JSON payloads into clean sentences while stripping UUIDs (`*_id`) and redundant reason keys.
+  - Wired `auditFormatter.js` across `TransactionLogs.jsx`, `AuditLogs.jsx`, and `AdminLogs.jsx`, and removed duplicate `decline_reason`/`cancellation_reason`/`reschedule_reason` payload repetition in `purchasingController.js`.
+
 ## [Navigation Overhaul: Organized Sidebar & Direct Sub-Feature Access - 2026-11-23]
 - **Organized Role-Based Sidebar & Sub-Links (`src/components/Navbar.jsx`, `src/features/dashboard/Dashboard.jsx`)**:
   - Reorganized `MENU_CONFIG` and `buildPermissionMenu` into intuitive operational sections: `Dashboard Overview`, `POS & Register` (`Cashier Register`, `Order Queue / KDS`, `Void & Refund`, `Shift X / Z Reading`, `Promos & QR Setup`), `Products & Recipes` (`Menu Catalog`, `Add & Modify Products`, `Categories & Cup Sizes`), `Inventory & Batches` (`Raw Material Batches`, `Physical Stocktake`, `Low-Stock & Expiry Alerts`, `Receive Stock & OCR`, `Manage Raw Materials`, `Direct Product Stock`, `Report Wastage`), `Purchasing & Suppliers`, `Analytics & Reports` (adding direct access to `Sales Summary (D/W/M/Y)`), `Staff & Security` (adding direct links to `Manager Approval PINs` and `Staff Shift Logs`), and `Website Management`.

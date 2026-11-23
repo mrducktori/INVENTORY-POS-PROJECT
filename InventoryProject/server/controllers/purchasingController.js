@@ -160,12 +160,7 @@ export const updatePurchaseOrderStatus = async (req, res) => {
       po_id: data.id,
       new_status: status || data.status,
       ...(expected_date ? { expected_date } : {}),
-      ...(reason ? { 
-        reason, 
-        decline_reason: reason, 
-        cancellation_reason: reason,
-        reschedule_reason: reason 
-      } : {})
+      ...(reason ? { reason } : {})
     });
 
     // Log individual stock receipts for each received item so they show in

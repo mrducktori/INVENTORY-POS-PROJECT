@@ -1,93 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getAuditLogs } from '../../api/auditApi';
 import { getManilaDateOnly } from '../../utils/dateUtils';
+import { formatActionLabel, formatEntityReference, formatAuditDescription } from '../../utils/auditFormatter';
 import { TableSkeleton } from '../../components/shared/SkeletonLoader';
-
-// Converts raw action + details into a human-readable sentence
-const formatAuditDescription = (action, rawDetails) => {
-  let d;
-  try {
-    d = typeof rawDetails === 'string' ? JSON.parse(rawDetails) : (rawDetails || {});
-  } catch { d = {}; }
-
-  switch (action) {
-    // Sales
-    case 'SALE':
-    case 'SALE_CANCELLED':
-    case 'SALE_COMPLETED': {
-      if (typeof rawDetails === 'string' && !rawDetails.startsWith('{')) return rawDetails;
-      if (d.items && Array.isArray(d.items)) {
-        const itemNames = d.items.map(i => `${i.qty}x ${i.name}`).join(', ');
-        return `Receipt #${d.receipt_number || 'N/A'} — Total: ₱${d.total} (${itemNames})`;
-      }
-      return Object.entries(d).map(([k, v]) => `${k}: ${v}`).join(' | ');
-    }
-
-    // Wastage
-    case 'WASTAGE':
-      return `Reported wastage of ${d.quantity} units for ${d.ingredient_name || 'Ingredient ID: ' + d.ingredient_id}. Reason: ${d.reason}.`;
-
-    // Auth
-    case 'LOGIN':
-      return `${d.username || 'Unknown user'} (${d.role || 'Unknown role'}) logged in successfully.`;
-    case 'LOGOUT':
-    case 'LOGOUT_INACTIVE':
-      if (action === 'LOGOUT_INACTIVE' || (d.reason && d.reason.toLowerCase().includes('inactivity'))) {
-        return `${d.username || 'Unknown user'} (${d.role || 'Unknown role'}) was automatically logged out due to inactivity.`;
-      }
-      return `${d.username || 'Unknown user'} (${d.role || 'Unknown role'}) logged out${d.reason ? ` (${d.reason})` : ''}.`;
-    case 'SESSION_REPLACED':
-      return `${d.username || 'Unknown user'} signed in on a new device; previous active session was terminated.`;
-    case 'LOGIN_FAILED':
-      return `Failed login attempt for "${d.username || 'unknown'}". Reason: ${d.reason || 'Unknown'}.`;
-
-    // Products
-    case 'PRODUCT_CREATED':
-      return `Created product "${d.name}" under ${d.category} at ₱${d.price}.`;
-    case 'PRODUCT_UPDATED':
-      return `Updated product "${d.name}" — category: ${d.category}, price: ₱${d.price}.`;
-    case 'PRODUCT_ARCHIVED':
-      return `Archived product "${d.name}".`;
-    case 'PRODUCT_RESTORED':
-      return `Restored product "${d.name}" back to active.`;
-    case 'PRODUCT_STOCK_RECEIVED':
-      return `Received ${d.quantity_added} units of product "${d.name}". New stock: ${d.new_stock} units.`;
-
-    // Raw Materials
-    case 'RAW_MATERIAL_CREATED':
-      return `Added new raw material "${d.name}" (Unit: ${d.unit}).`;
-    case 'RAW_MATERIAL_UPDATED':
-      return `Updated raw material "${d.name}" — unit: ${d.unit}, low stock alert: ${d.low_stock_alert}.`;
-    case 'RAW_MATERIAL_DELETED':
-      return `Deleted raw material "${d.name}".`;
-    case 'RAW_MATERIAL_ARCHIVED':
-      return `Archived raw material "${d.name}".`;
-    case 'RAW_MATERIAL_RESTORED':
-      return `Restored raw material "${d.name}" back to active.`;
-    case 'RAW_MATERIAL_STOCK_RECEIVED':
-      return `Received ${d.quantity_added} ${d.unit || ''} of "${d.name}". New stock: ${d.new_stock} ${d.unit || ''}.`;
-
-    // Users
-    case 'USER_CREATED':
-      return `Created account for "${d.name}" (${d.username}) with role ${d.role}.`;
-    case 'USER_UPDATED':
-      return `Updated account "${d.username}" — name: ${d.name}, role: ${d.role}.`;
-    case 'USER_STATUS_CHANGED':
-      return `Changed status of "${d.name}" to ${d.new_status}.`;
-
-    // Category Settings
-    case 'CATEGORY_SETTINGS_UPDATED':
-      return `Updated global category settings for ${d.category}.`;
-
-    // Fallback — format nicely but still readable
-    default:
-      if (Object.keys(d).length === 0) return (action || '').replace(/_/g, ' ');
-      return Object.entries(d)
-        .filter(([k]) => !['id', 'product_id', 'ingredient_id', 'new_user_id', 'target_user_id'].includes(k))
-        .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${typeof v === 'object' ? JSON.stringify(v) : v}`)
-        .join(', ');
-  }
-};
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
 
@@ -170,7 +85,9 @@ const AuditLogs = () => {
       result = result.filter(log => {
         const staffName = String(log.users?.name || log.users?.username || 'System').toLowerCase();
         const actionName = String(log.action_type || log.action || '').toLowerCase();
+        const actionLabel = formatActionLabel(log.action_type || log.action).toLowerCase();
         const entityName = String(log.entity_type || '').toLowerCase();
+        const entityRef = formatEntityReference(log).toLowerCase();
         const rawDetailsStr = typeof log.details === 'string'
           ? log.details.toLowerCase()
           : JSON.stringify(log.details || '').toLowerCase();
@@ -179,7 +96,9 @@ const AuditLogs = () => {
         return (
           staffName.includes(term) ||
           actionName.includes(term) ||
+          actionLabel.includes(term) ||
           entityName.includes(term) ||
+          entityRef.includes(term) ||
           rawDetailsStr.includes(term) ||
           humanDesc.includes(term)
         );
@@ -499,12 +418,15 @@ const AuditLogs = () => {
                         </span>
                       </td>
                       <td className="py-3.5 px-4 text-center">
-                        <span className="inline-flex px-2 py-0.5 rounded-md text-[11px] font-mono font-bold uppercase tracking-wider bg-zinc-100 text-zinc-800 border border-zinc-200">
-                          {log.action_type || log.action}
+                        <span
+                          title={log.action_type || log.action}
+                          className="inline-flex px-2.5 py-0.5 rounded-md text-xs font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200"
+                        >
+                          {formatActionLabel(log.action_type || log.action)}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 text-center font-mono text-xs text-zinc-500">
-                        {log.entity_type ? `${log.entity_type} #${String(log.entity_id || '').substring(0, 8)}` : '—'}
+                      <td className="py-3.5 px-4 text-center text-xs font-medium text-zinc-600">
+                        {formatEntityReference(log)}
                       </td>
                       <td className="py-3.5 px-4">
                         <p className="m-0 text-zinc-800 whitespace-normal leading-relaxed text-xs sm:text-sm">
