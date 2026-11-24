@@ -1,3 +1,4 @@
+import { formatQty, formatCurrency } from '../../../analytics/utils/forecastUtils';
 import React, { useState, useEffect } from 'react';
 import { formatDisplayDate, getManilaDateOnly, addDaysManila } from '../../../../utils/dateUtils';
 
@@ -206,7 +207,7 @@ const SupplierReviewPOModal = ({ isOpen, onClose, order, onSubmit }) => {
                         </h4>
                       </div>
                       <span className="text-xs text-zinc-500 font-medium">
-                        Ordered: <strong className="text-zinc-800">{item.quantity} {item.purchase_unit}</strong> • ₱{Number(item.unit_price).toFixed(2)} / unit • Total: <strong>₱{Number(item.subtotal).toFixed(2)}</strong>
+                        Ordered: <strong className="text-zinc-800">{formatQty(item.quantity)} × {item.purchase_unit}</strong> • {formatCurrency(item.unit_price)} each • Total: <strong>{formatCurrency(item.subtotal)}</strong>
                       </span>
                     </div>
 

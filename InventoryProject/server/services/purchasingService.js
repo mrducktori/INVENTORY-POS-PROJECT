@@ -139,8 +139,21 @@ export const getSuppliers = async () => {
 // Helper to build supplier ingredient mappings with prices, units, and conversion factors
 const buildSupplierIngredientMappings = async (supplierId, ingredientItems, ingredientIds, existingPriceMap = new Map()) => {
   if (Array.isArray(ingredientItems) && ingredientItems.length > 0) {
+    // A blank pack size must inherit the ingredient's own unit/factor, not 1 (1 = "1 gram per pack" and mis-sizes POs).
+    const missingIds = ingredientItems
+      .filter(i => (i.default_conversion_factor ?? i.conversion_factor ?? '') === '')
+      .map(i => i.ingredient_id);
+    const ingDefaults = new Map();
+    if (missingIds.length > 0) {
+      const { data: defs } = await supabase
+        .from('ingredients')
+        .select('id, purchase_unit, conversion_factor')
+        .in('id', missingIds);
+      (defs || []).forEach(d => ingDefaults.set(String(d.id), d));
+    }
     return ingredientItems.map(item => {
-      const rawFactor = item.default_conversion_factor ?? item.conversion_factor;
+      const def = ingDefaults.get(String(item.ingredient_id));
+      const rawFactor = item.default_conversion_factor ?? item.conversion_factor ?? def?.conversion_factor;
       const hasFactor = rawFactor !== undefined && rawFactor !== null && rawFactor !== '';
       const conversionFactor = hasFactor
         ? validateNumberBound(rawFactor, {
@@ -170,7 +183,7 @@ const buildSupplierIngredientMappings = async (supplierId, ingredientItems, ingr
       return {
         supplier_id: supplierId,
         ingredient_id: item.ingredient_id,
-        default_purchase_unit: item.default_purchase_unit || item.purchase_unit || 'Unit',
+        default_purchase_unit: item.default_purchase_unit || item.purchase_unit || def?.purchase_unit || 'Unit',
         default_conversion_factor: conversionFactor,
         default_price: finalPrice
       };

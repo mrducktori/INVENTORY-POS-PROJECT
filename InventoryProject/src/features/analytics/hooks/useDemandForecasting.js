@@ -351,12 +351,21 @@ export const useDemandForecasting = () => {
   // One PO per supplier: each supplier accepts/declines/proposes a date on its own PO.
   const createPurchaseOrders = async (items) => {
     const groups = new Map();
+    const unsized = [];
     items.filter(hasSupplier).forEach((item) => {
       const sup = getChosenSupplier(item);
+      // Never send a PO whose quantity unit is unknown (it would be priced per pack but counted in grams).
+      if (suggestedPurchase(item, sup).needsSetup) {
+        unsized.push(item.name);
+        return;
+      }
       const key = String(sup.supplier_id);
       if (!groups.has(key)) groups.set(key, { sup, items: [] });
       groups.get(key).items.push(item);
     });
+    if (unsized.length > 0) {
+      showToast('error', `Skipped ${unsized.join(', ')}: set the supplier's pack size first.`);
+    }
     if (groups.size === 0) return;
     // POs go straight to the suppliers, so show what will be sent (in a modal) before creating anything.
     setPoConfirm([...groups.values()]);

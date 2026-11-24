@@ -377,6 +377,10 @@ const IngredientRestockTab = ({
                         <td className="py-3.5 px-4 sticky left-0 z-10 bg-white group-hover:bg-zinc-50 transition-colors shadow-[1px_0_0_0_#f4f4f5] whitespace-nowrap">
                           <div className="font-semibold text-zinc-900">{item.name}</div>
                           <div className="text-xs text-zinc-400">{item.category}</div>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            <UsageBadge usageStatus={item.usage_status} />
+                            <ExpiryLevelBadge level={item.expiry_level} qtyByLevel={item.expiring_qty_by_level} unit={item.unit} />
+                          </div>
                           {firstBlocked && (
                             <div className="text-[11px] font-medium text-red-700">
                               Needs {formatQty(firstBlocked.needs)} {item.unit} for {firstBlocked.name}
@@ -430,10 +434,6 @@ const IngredientRestockTab = ({
                             {item.days_of_cover == null ? '—' : `${formatQty(item.days_of_cover)} days`}
                           </div>
                           <IngredientAlertBadge alert={item.alert} daysOfCover={item.days_of_cover} blockedProducts={item.blocked_products} />
-                          <div className="mt-1 flex flex-wrap justify-end gap-1">
-                            <UsageBadge usageStatus={item.usage_status} />
-                            <ExpiryLevelBadge level={item.expiry_level} qtyByLevel={item.expiring_qty_by_level} unit={item.unit} />
-                          </div>
                         </td>
 
                         <td className="py-3.5 px-4 text-right font-mono whitespace-nowrap text-zinc-700">
@@ -453,6 +453,16 @@ const IngredientRestockTab = ({
                           {Number(item.suggested_order_qty) > 0 ? (
                             (() => {
                               const buy = suggestedPurchase(item, chosen);
+                              if (buy.needsSetup) {
+                                return (
+                                  <span
+                                    title={`Pack size for "${buy.unit}" is not set. Edit this supplier and enter how many ${item.unit} are in one ${buy.unit}.`}
+                                    className="inline-flex px-2 py-0.5 rounded bg-red-50 border border-red-200 text-[11px] font-bold text-red-700"
+                                  >
+                                    Set pack size
+                                  </span>
+                                );
+                              }
                               return (
                                 <>
                                   <div className="font-semibold text-zinc-900">
@@ -483,7 +493,7 @@ const IngredientRestockTab = ({
                           <button
                             type="button"
                             onClick={() => onOpenSingleItemPO(item)}
-                            disabled={orderBlocked || submittingPO}
+                            disabled={orderBlocked || submittingPO || (!noSupplier && suggestedPurchase(item, chosen).needsSetup)}
                             title={orderBlocked ? blockedTitle : `Create a PO for ${item.name}`}
                             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
                               needsOrder ? 'bg-zinc-900 hover:bg-black text-white' : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700'

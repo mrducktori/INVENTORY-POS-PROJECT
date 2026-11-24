@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getForecast } from '../../../api/analyticsApi';
 import { getReorderPlan } from '../../../api/inventoryApi';
+import { formatQty } from '../../analytics/utils/forecastUtils';
 import { InfoTip } from '../../../components/shared/InfoTip';
 
 const OpenButton = ({ onClick, label, title }) => (
@@ -140,10 +141,10 @@ const PredictiveInsights = ({ onNavigate }) => {
                       </span>
                     </div>
                     <div className="flex justify-between text-[11px] text-zinc-400 font-medium">
-                      <span>Usable: {item.usable_stock} {item.unit}</span>
+                      <span>Usable: {formatQty(item.usable_stock)} {item.unit}</span>
                       <span>
-                        {item.days_of_cover == null ? 'No recent use' : `Lasts about ${item.days_of_cover} days`}
-                        {item.suggested_order_qty > 0 ? ` · order ${item.suggested_order_qty} ${item.unit}` : ''}
+                        {item.days_of_cover == null ? 'No recent use' : `Lasts about ${formatQty(item.days_of_cover)} days`}
+                        {item.suggested_order_qty > 0 ? ` · order ${formatQty(item.suggested_order_qty)} ${item.unit}` : ''}
                       </span>
                     </div>
                     {item.alert === 'CANNOT_MAKE' && blockedNames && (

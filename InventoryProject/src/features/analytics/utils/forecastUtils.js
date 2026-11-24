@@ -22,10 +22,13 @@ export const suggestedPurchase = (item, sup) => {
   const conversionFactor = Number(sup?.default_conversion_factor) > 0 ? Number(sup.default_conversion_factor) : 1;
   const stockQty = Number(item.suggested_order_qty) || 0;
   const qty = stockQty > 0 ? Math.ceil(stockQty / conversionFactor) : 0;
+  const unit = sup?.default_purchase_unit || item.purchase_unit || item.unit;
   return {
     qty,
     conversionFactor,
-    unit: sup?.default_purchase_unit || item.purchase_unit || item.unit,
+    unit,
     totalStock: qty * conversionFactor,
+    // Factor 1 with a different unit (e.g. "kg") means no pack size was set: the PO would be in grams but priced per kg.
+    needsSetup: conversionFactor === 1 && String(unit).trim().toLowerCase() !== String(item.unit).trim().toLowerCase(),
   };
 };
