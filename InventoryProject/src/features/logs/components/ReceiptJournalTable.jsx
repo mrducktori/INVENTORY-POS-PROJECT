@@ -2,7 +2,8 @@ import React from 'react';
 import { formatDateTime } from '../hooks/useSalesReceiptJournal.js';
 
 /**
- * Displays the receipt journal loading skeleton, empty filter state, sortable transaction table, and pagination bar.
+ * Receipt journal body: loading skeleton, empty-filter state, sortable transaction table and
+ * pagination bar.
  */
 const ReceiptJournalTable = ({
   loading,

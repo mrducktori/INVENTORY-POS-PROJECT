@@ -1,7 +1,7 @@
 import React from 'react';
 
 /**
- * Clean, reusable Pagination component adhering to Rule 16 (No emojis, clean semantic SVGs).
+ * Numbered pagination with ellipsis and an optional items-per-page dropdown.
  */
 const Pagination = ({
   currentPage = 1,

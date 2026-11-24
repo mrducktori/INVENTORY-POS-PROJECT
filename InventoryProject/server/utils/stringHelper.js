@@ -1,16 +1,13 @@
 /**
- * Normalizes a string by converting it to lowercase and removing all non-alphanumeric characters.
- * E.g., "Blue berry" -> "blueberry", "Blueberryy" -> "blueberryy"
+ * Lowercases and strips all non-alphanumeric characters so spacing and punctuation do not matter.
+ * Example: "Blue berry" -> "blueberry"
  */
 export const normalizeName = (name) => {
   if (!name) return '';
   return name.toLowerCase().replace(/[^a-z0-9]/g, '');
 };
 
-/**
- * Calculates the Levenshtein distance between two strings.
- * Used for fuzzy matching to detect typos.
- */
+/** Levenshtein edit distance between two strings, used to detect typos. */
 const getLevenshteinDistance = (a, b) => {
   const matrix = [];
 
@@ -43,10 +40,7 @@ const collapseRepeats = (str) => {
   return str.replace(/(.)\1+/g, '$1');
 };
 
-/**
- * Checks if a new name is too similar to any of the existing names.
- * Returns the existing name if a match is found, otherwise null.
- */
+/** Returns the existing name that is too similar to `newName`, or null when none is. */
 export const findSimilarName = (newName, existingNames) => {
   const normalizedNew = normalizeName(newName);
   const collapsedNew = collapseRepeats(normalizedNew);
@@ -54,23 +48,21 @@ export const findSimilarName = (newName, existingNames) => {
   for (const existing of existingNames) {
     const normalizedExisting = normalizeName(existing);
     
-    // 1. Exact match after normalization (handles spacing and casing: "Blue berry" vs "blueberry")
+    // Same name after normalization ("Blue berry" vs "blueberry").
     if (normalizedNew === normalizedExisting) {
       return existing;
     }
     
-    // 2. Exact match after collapsing repeated characters (handles "Blueberryyyyy" vs "Blueberry")
+    // Same name after collapsing repeated characters ("Blueberryyyyy" vs "Blueberry").
     const collapsedExisting = collapseRepeats(normalizedExisting);
     if (collapsedNew === collapsedExisting) {
       return existing;
     }
     
-    // 3. Levenshtein distance for typos (e.g. "Blueberryy" vs "Blueberry")
-    // If the words are reasonably long, allow a typo of 1-2 characters
+    // Typos: names under 5 characters must match exactly, 5-7 characters allow 1 edit, 8+ allow 2.
     const distance = getLevenshteinDistance(normalizedNew, normalizedExisting);
     const maxLength = Math.max(normalizedNew.length, normalizedExisting.length);
     
-    // Allow 1 typo for words of length 5-7, 2 typos for 8+
     let maxAllowedDistance = 0;
     if (maxLength >= 5 && maxLength <= 7) maxAllowedDistance = 1;
     if (maxLength > 7) maxAllowedDistance = 2;
@@ -83,9 +75,7 @@ export const findSimilarName = (newName, existingNames) => {
   return null;
 };
 
-/**
- * Normalizes a category label for case- and whitespace-insensitive comparison.
- */
+/** Normalizes a category label for case- and whitespace-insensitive comparison. */
 const normalizeCategory = (cat) => {
   const cleaned = String(cat ?? '').trim().replace(/\s+/g, ' ');
   return (cleaned || 'GENERAL').toUpperCase();
@@ -104,16 +94,15 @@ const isSameNormalizedName = (a, b) => {
 };
 
 /**
- * Checks for composite (name + category) duplicates across existing items.
- * Pass 1: Same normalized name + same normalized category -> hard block.
- * Pass 2: Same normalized name in a different category -> soft warning.
- * Pass 3: Fuzzy-similar name -> soft warning.
+ * Checks for duplicates by name and category across existing items.
+ * Same name and category is a hard block; same name in another category, or a similar name in
+ * the same category, is a soft warning.
  */
 export const checkCompositeDuplicate = (newName, newCategory, existingItems, excludeId = null) => {
   const candidates = (existingItems || []).filter(
     (item) => item && (excludeId === null || excludeId === undefined || String(item.id) !== String(excludeId))
   );
-  // Prefer active items over archived items if both happen to exist
+  // Active items win over archived ones when both match.
   const ordered = [
     ...candidates.filter((item) => !item.is_archived),
     ...candidates.filter((item) => item.is_archived)

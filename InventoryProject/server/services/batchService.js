@@ -121,9 +121,8 @@ export const validateOptionalBatchCode = (rawCode) => {
   });
 };
 
-// ---------------------------------------------------------------------------
-// Shelf life: ingredient override → raw-material category default → perishable, no default.
-// ---------------------------------------------------------------------------
+// Shelf life: ingredient override, then raw-material category default, else perishable with no
+// default.
 
 /** Map of UPPERCASE category → { is_perishable, default_shelf_life_days }. */
 export const getPerishabilityMetaMap = async () => {
@@ -207,9 +206,6 @@ export const setCategoryShelfLife = async (category, { is_perishable = true, def
   return data;
 };
 
-// ---------------------------------------------------------------------------
-// Reads
-// ---------------------------------------------------------------------------
 
 const loadBatches = async (ingredientIds = null) => {
   const rows = [];
@@ -319,9 +315,6 @@ export const enrichIngredientsWithBatches = async (ingredients = []) => {
   );
 };
 
-// ---------------------------------------------------------------------------
-// Writes
-// ---------------------------------------------------------------------------
 
 /** Adds a new lot. The DB trigger raises ingredients.stock_quantity by the same amount. */
 export const createBatch = async ({
@@ -498,9 +491,6 @@ export const getExpiryAlerts = async () => {
   };
 };
 
-// ---------------------------------------------------------------------------
-// Stocktake (physical count)
-// ---------------------------------------------------------------------------
 
 const readCmsJsonStore = async (sectionKey, fallback) => {
   const { data, error } = await supabase.from("cms_content").select("description").eq("section_key", sectionKey).maybeSingle();

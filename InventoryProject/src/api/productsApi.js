@@ -1,4 +1,3 @@
-// Products management API (admin/owner actions)
 import { apiCall } from './client.js';
 
 export const getAllProducts = async () => {

@@ -2,8 +2,7 @@ import React from 'react';
 import { evaluatePassword } from '../../../utils/passwordRules';
 
 /**
- * PasswordRulesList - Displays live password strength and security rule status.
- * Adheres strictly to Rule 16 (No emojis, clean semantic inline SVGs, minimal clutter).
+ * PasswordRulesList - live password strength bar and checklist of the security rules.
  */
 const PasswordRulesList = ({ password = '', isEditing = false }) => {
   const { results, metCount, total, isValid, strengthLabel, strengthColor, barColor } =

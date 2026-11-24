@@ -1,4 +1,3 @@
-// Audit logs API
 import { apiCall } from './client.js';
 
 export const getAuditLogs = async (filters = {}) => {

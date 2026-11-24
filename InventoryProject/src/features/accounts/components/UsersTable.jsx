@@ -14,7 +14,8 @@ const accessSummary = (user) => {
 
 /**
  * UsersTable - searchable list of accounts with edit / status actions.
- * Separates active and archived accounts cleanly and provides a 30-day delete option.
+ * Active and archived accounts are listed separately; an archived account can be deleted after
+ * 30 days (90 for Admin).
  */
 const UsersTable = ({ users, loading, currentUser, onEdit, onToggleStatus, onDeleteUser }) => {
   const [search, setSearch] = useState('');

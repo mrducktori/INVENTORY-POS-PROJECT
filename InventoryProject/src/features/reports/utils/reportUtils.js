@@ -1,8 +1,8 @@
 /**
  * reportUtils.js
- * Centralized reporting utilities for all report and log modules:
- *  - downloadCSV: RFC-4180 compliant CSV export with Excel UTF-8 BOM (\uFEFF)
- *  - printReport: Dedicated, executive-grade print & PDF layout with Cof/Tea Cafe branding
+ * Shared export helpers for the report and log modules:
+ *  - downloadCSV: RFC-4180 CSV export with an Excel UTF-8 BOM (\uFEFF)
+ *  - printReport: print and PDF layout with Cof/Tea Cafe branding
  */
 import { escapeHtml } from '../../../utils/escapeHtml';
 
@@ -47,8 +47,7 @@ export const downloadCSV = (rows, filename = 'report.csv') => {
 };
 
 /**
- * Opens an executive-grade print/PDF window with unified Cof/Tea Cafe branding.
- * Supports auto-print and print-preview styling.
+ * Opens a print/PDF window with Cof/Tea Cafe branding.
  * 
  * @param {string} title - Document title displayed in browser tab and print header
  * @param {string} html - HTML body content

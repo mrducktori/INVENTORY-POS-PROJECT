@@ -1,7 +1,8 @@
 import React from 'react';
 
 /**
- * Reference modal explaining receipt serial numbering, statutory 12% VAT, discount classes, and payment archiving.
+ * Reference modal explaining receipt serial numbering, statutory 12% VAT, discount classes and
+ * payment archiving.
  */
 const ReceiptGuideModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;

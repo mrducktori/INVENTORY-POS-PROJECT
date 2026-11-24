@@ -1,4 +1,3 @@
-// Authentication API endpoints
 import { apiCall, API_BASE_URL } from "./client.js";
 import {
   getCurrentUser,
@@ -46,7 +45,7 @@ export async function loginUser(username, password) {
 }
 
 /**
- * Logout user — notifies server for audit log, then clears localStorage session
+ * Logs out: notifies the server for the audit log, then clears the local session.
  */
 export async function logoutUser() {
   try {
@@ -67,7 +66,7 @@ export async function logoutUser() {
 }
 
 /**
- * Save user to local storage and activate session activity timestamp
+ * Stores the user in localStorage and starts the session activity timestamp.
  */
 export function saveUser(user) {
   localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));

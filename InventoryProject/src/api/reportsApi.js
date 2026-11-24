@@ -1,4 +1,3 @@
-// Reports Module — Centralized API helpers
 import { apiCall } from './client.js';
 
 /**

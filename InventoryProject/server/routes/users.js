@@ -11,7 +11,6 @@ import { getArchiveTimestampsMap, getDaysSinceArchived, invalidateArchiveMap } f
 
 const router = express.Router();
 
-// Allowed roles in the system
 const ALLOWED_ROLES = ['Admin', 'Owner', 'Staff', 'Supplier', 'Custom'];
 const PRIVILEGED_ROLES = ['Admin', 'Owner'];
 
@@ -59,7 +58,7 @@ router.get('/', requireAuth, requireRole('Owner', 'Admin', 'Staff', 'Custom'), a
   }
 });
 
-// Create a new user — FIX #6: requires Admin or Owner role
+// Only Admin/Owner may create users.
 router.post('/', requireAuth, requireRole('Admin', 'Owner'), userManagementLimiter, async (req, res) => {
   try {
     const { name, username, password, role, supplier_id, permissions, custom_role_name } = req.body;
@@ -67,17 +66,14 @@ router.post('/', requireAuth, requireRole('Admin', 'Owner'), userManagementLimit
       return res.status(400).json({ error: 'All fields required' });
     }
 
-    // FIX #6: Validate the role is one of the allowed values
     if (!ALLOWED_ROLES.includes(role)) {
       return res.status(400).json({ error: `Invalid role. Must be one of: ${ALLOWED_ROLES.join(', ')}` });
     }
 
-    // Supplier role requires a linked supplier
     if (role === 'Supplier' && !supplier_id) {
       return res.status(400).json({ error: 'Supplier role requires a linked supplier.' });
     }
 
-    // Password security validation
     const passwordValidation = validatePasswordRules(password);
     if (!passwordValidation.valid) {
       return res.status(400).json({ error: passwordValidation.error });
@@ -143,7 +139,7 @@ router.post('/', requireAuth, requireRole('Admin', 'Owner'), userManagementLimit
   }
 });
 
-// Update user status (activate/deactivate) — requires Admin or Owner
+// Only Admin/Owner may activate or deactivate users.
 router.put('/:id/status', requireAuth, requireRole('Admin', 'Owner'), userManagementLimiter, async (req, res) => {
   try {
     const { status } = req.body;
@@ -151,7 +147,6 @@ router.put('/:id/status', requireAuth, requireRole('Admin', 'Owner'), userManage
       return res.status(400).json({ error: 'Invalid status' });
     }
 
-    // Prevent deactivating yourself
     if (req.params.id === req.user.id && status === 'INACTIVE') {
       return res.status(400).json({ error: 'You cannot deactivate your own account.' });
     }
@@ -195,7 +190,8 @@ router.put('/:id/status', requireAuth, requireRole('Admin', 'Owner'), userManage
   }
 });
 
-// Permanently delete archived user account (Owner/Admin only, >= 90 days for Admin, >= 30 days for others, 0 sales)
+// Permanently delete an archived user: Owner/Admin only, archived 90+ days for Admin accounts and
+// 30+ days for others, and the user must have 0 sales.
 router.delete('/:id', requireAuth, requireRole('Admin', 'Owner'), userManagementLimiter, async (req, res) => {
   try {
     const { id } = req.params;
@@ -222,7 +218,6 @@ router.delete('/:id', requireAuth, requireRole('Admin', 'Owner'), userManagement
       return res.status(403).json({ error: PRIVILEGED_ERROR });
     }
 
-    // Account must be archived (INACTIVE)
     if (targetUser.status !== 'INACTIVE') {
       return res.status(400).json({ error: 'Only archived (inactive) user accounts can be permanently deleted.' });
     }
@@ -230,7 +225,6 @@ router.delete('/:id', requireAuth, requireRole('Admin', 'Owner'), userManagement
     // Threshold: 90 days for Admin accounts, 30 days for other roles
     const requiredDays = targetUser.role === 'Admin' ? 90 : 30;
 
-    // Check days elapsed
     const archiveMap = await getArchiveTimestampsMap(true);
     const archivedAt = archiveMap.users[id] || targetUser.created_at;
     const daysElapsed = getDaysSinceArchived(archivedAt);
@@ -242,7 +236,7 @@ router.delete('/:id', requireAuth, requireRole('Admin', 'Owner'), userManagement
       });
     }
 
-    // Check foreign key integrity (sales receipts)
+    // A user with sales receipts cannot be deleted.
     const { count: salesCount, error: salesErr } = await supabase
       .from('sales')
       .select('id', { count: 'exact', head: true })
@@ -255,7 +249,6 @@ router.delete('/:id', requireAuth, requireRole('Admin', 'Owner'), userManagement
       });
     }
 
-    // Delete user
     const { error: delErr } = await supabase
       .from('users')
       .delete()
@@ -280,7 +273,7 @@ router.delete('/:id', requireAuth, requireRole('Admin', 'Owner'), userManagement
   }
 });
 
-// Update a user (name, username, password, role) — FIX #7: requires Admin or Owner
+// Only Admin/Owner may update users.
 router.put('/:id', requireAuth, requireRole('Admin', 'Owner'), userManagementLimiter, async (req, res) => {
   try {
     const { name, username, password, role, status, supplier_id, permissions, custom_role_name } = req.body;
@@ -288,7 +281,6 @@ router.put('/:id', requireAuth, requireRole('Admin', 'Owner'), userManagementLim
       return res.status(400).json({ error: 'Name, username, and role are required' });
     }
 
-    // FIX #7: Validate the target role is one of the allowed values
     if (!ALLOWED_ROLES.includes(role)) {
       return res.status(400).json({ error: `Invalid role. Must be one of: ${ALLOWED_ROLES.join(', ')}` });
     }

@@ -1,9 +1,8 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 
 /**
- * Modern Searchable Ingredient Select Component
- * Replaces tedious native HTML <select> dropdowns with a search-as-you-type combobox.
- * Strictly adheres to Rule 16 (No emojis, clean semantic SVG icons).
+ * Search-as-you-type combobox for picking an ingredient, with category chips and keyboard
+ * navigation. Used instead of a native <select> because ingredient lists are long.
  */
 const SearchableIngredientSelect = ({
   ingredients = [],

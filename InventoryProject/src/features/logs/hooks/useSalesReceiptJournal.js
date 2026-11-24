@@ -54,7 +54,8 @@ export const DATE_PRESETS = [
 ];
 
 /**
- * Manages state, receipt fetching, filtering, sorting, pagination, KPIs, and CSV export for SalesReceiptJournal.
+ * State, receipt fetching, filtering, sorting, pagination, KPIs and CSV export for
+ * SalesReceiptJournal.
  */
 export const useSalesReceiptJournal = () => {
   const [sales, setSales] = useState([]);

@@ -74,12 +74,6 @@ html.dark :is([data-no-invert], [class~="bg-black"], [class~="bg-zinc-950"], [cl
 }
 
 @layer components {
-  /* ============================================
-    INVENTORY & SHARED COMPONENT STYLES
-    Theme: Black & White
-    ============================================ */
-
-  /* Page Layout */
   .inventory-container {
     padding: 40px;
     background: var(--canvas);
@@ -106,7 +100,6 @@ html.dark :is([data-no-invert], [class~="bg-black"], [class~="bg-zinc-950"], [cl
     font-size: 13px;
   }
 
-  /* ---- Cards ---- */
   .card {
     background: white;
     border-radius: 4px;
@@ -133,7 +126,6 @@ html.dark :is([data-no-invert], [class~="bg-black"], [class~="bg-zinc-950"], [cl
     padding: 20px;
   }
 
-  /* ---- Forms ---- */
   .form-group {
     margin-bottom: 14px;
   }
@@ -170,7 +162,6 @@ html.dark :is([data-no-invert], [class~="bg-black"], [class~="bg-zinc-950"], [cl
     box-shadow: 0 0 0 2px rgba(0,0,0,0.1);
   }
 
-  /* ---- Grid Layouts ---- */
   .form-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -181,7 +172,6 @@ html.dark :is([data-no-invert], [class~="bg-black"], [class~="bg-zinc-950"], [cl
     grid-template-columns: 1fr 1fr 1fr;
   }
 
-  /* ---- Tables ---- */
   .table-container {
     overflow-x: auto;
   }
@@ -219,7 +209,6 @@ html.dark :is([data-no-invert], [class~="bg-black"], [class~="bg-zinc-950"], [cl
     background: var(--canvas);
   }
 
-  /* ---- Status Badges ---- */
   .status {
     display: inline-block;
     padding: 3px 10px;
@@ -247,7 +236,6 @@ html.dark :is([data-no-invert], [class~="bg-black"], [class~="bg-zinc-950"], [cl
     border: 2px solid #000;
   }
 
-  /* Modern Toggle Switch */
   .switch {
     position: relative;
     display: inline-block;
@@ -360,7 +348,6 @@ html.dark :is([data-no-invert], [class~="bg-black"], [class~="bg-zinc-950"], [cl
     font-style: italic;
   }
 
-  /* ---- Buttons ---- */
   .btn {
     padding: 9px 16px;
     border: 1px solid #000;
@@ -426,7 +413,6 @@ html.dark :is([data-no-invert], [class~="bg-black"], [class~="bg-zinc-950"], [cl
     font-size: 11px;
   }
 
-  /* ---- Stats Grid ---- */
   .stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -456,7 +442,6 @@ html.dark :is([data-no-invert], [class~="bg-black"], [class~="bg-zinc-950"], [cl
     letter-spacing: 0.5px;
   }
 
-  /* ---- Empty States ---- */
   .empty-state {
     text-align: center;
     padding: 48px 20px;
@@ -468,7 +453,6 @@ html.dark :is([data-no-invert], [class~="bg-black"], [class~="bg-zinc-950"], [cl
     font-size: 14px;
   }
 
-  /* ---- Alerts ---- */
   .alert {
     padding: 10px 14px;
     border-radius: 3px;
@@ -497,7 +481,6 @@ html.dark :is([data-no-invert], [class~="bg-black"], [class~="bg-zinc-950"], [cl
     border: 1px solid var(--line-strong);
   }
 
-  /* ---- Modal ---- */
   .modal-overlay {
     position: fixed;
     top: 0;
@@ -570,7 +553,6 @@ html.dark :is([data-no-invert], [class~="bg-black"], [class~="bg-zinc-950"], [cl
     justify-content: flex-end;
   }
 
-  /* Keyframes for seamless popups & transitions */
   @keyframes modalBackdropFadeIn {
     from {
       opacity: 0;
@@ -611,7 +593,6 @@ html.dark :is([data-no-invert], [class~="bg-black"], [class~="bg-zinc-950"], [cl
     }
   }
 
-  /* Shimmer gradient helper */
   .skeleton-shimmer {
     background: linear-gradient(90deg, var(--subtle) 25%, var(--line) 37%, var(--subtle) 63%);
     background-size: 400% 100%;
@@ -650,7 +631,6 @@ html.dark :is([data-no-invert], [class~="bg-black"], [class~="bg-zinc-950"], [cl
     }
   }
 
-  /* Tactile press on buttons */
   .btn {
     transition: transform var(--dur-fast) ease, background-color var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
   }
@@ -713,7 +693,6 @@ html.dark :is([data-no-invert], [class~="bg-black"], [class~="bg-zinc-950"], [cl
     }
   }
 
-  /* ---- Responsive ---- */
   @media (max-width: 768px) {
     .form-row,
     .form-row.three {

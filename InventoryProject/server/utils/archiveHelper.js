@@ -2,17 +2,14 @@ import { supabase } from '../config/supabaseClient.js';
 
 let cachedArchiveMap = null;
 let lastCacheTime = 0;
-const CACHE_TTL_MS = 15000; // 15 seconds
+const CACHE_TTL_MS = 15000;
 
 export const invalidateArchiveMap = () => {
   cachedArchiveMap = null;
   lastCacheTime = 0;
 };
 
-/**
- * Returns maps of latest archived_at ISO timestamps for products, ingredients, and users
- * based on audit logs.
- */
+/** Returns the latest archived_at ISO timestamp per id for products, ingredients and users. */
 export const getArchiveTimestampsMap = async (forceRefresh = false) => {
   const now = Date.now();
   if (!forceRefresh && cachedArchiveMap && (now - lastCacheTime < CACHE_TTL_MS)) {
@@ -67,9 +64,6 @@ export const getArchiveTimestampsMap = async (forceRefresh = false) => {
   }
 };
 
-/**
- * Calculate days elapsed since archived_at date.
- */
 export const getDaysSinceArchived = (archivedAt) => {
   if (!archivedAt) return 0;
   const diffMs = Date.now() - new Date(archivedAt).getTime();

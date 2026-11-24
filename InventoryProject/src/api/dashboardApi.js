@@ -1,4 +1,3 @@
-// Dashboard stats API - aggregates from existing tables
 import { apiCall } from './client.js';
 
 const inFlightRequests = new Map();
@@ -10,7 +9,7 @@ export const getDashboardStats = async (period = 'day', startDate = '', endDate 
   if (endDate) params.append('endDate', endDate);
   const queryKey = params.toString();
 
-  // Deduplicate simultaneous identical dashboard stats requests (e.g. Navbar + DashboardOverview on load)
+  // Share one in-flight request between simultaneous callers (Navbar and DashboardOverview on load).
   if (inFlightRequests.has(queryKey)) {
     return inFlightRequests.get(queryKey);
   }

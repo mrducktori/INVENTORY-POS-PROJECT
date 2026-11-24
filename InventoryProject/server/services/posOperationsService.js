@@ -194,7 +194,6 @@ const isSafeOptionalUrl = (val) => {
 export const normalizePosSettings = (raw = {}, { strict = false } = {}) => {
   const src = raw && typeof raw === "object" ? raw : {};
 
-  // 1. Promo codes
   const rawPromos = Array.isArray(src.promo_codes) ? src.promo_codes : DEFAULT_POS_SETTINGS.promo_codes;
   const seenCodes = new Set();
   const promo_codes = [];
@@ -254,7 +253,6 @@ export const normalizePosSettings = (raw = {}, { strict = false } = {}) => {
     });
   }
 
-  // 2. Discount presets & itemized discount_types
   const rawPresets = src.discount_presets && typeof src.discount_presets === "object"
     ? src.discount_presets
     : {};
@@ -348,7 +346,6 @@ export const normalizePosSettings = (raw = {}, { strict = false } = {}) => {
     staff_rate: findTypeRate("STAFF", legacyPresets.staff_rate)
   };
 
-  // 3. E-wallet accounts
   const rawWallets = src.ewallet_accounts && typeof src.ewallet_accounts === "object"
     ? src.ewallet_accounts
     : {};
@@ -368,7 +365,6 @@ export const normalizePosSettings = (raw = {}, { strict = false } = {}) => {
     };
   }
 
-  // 4. Take-out packaging defaults
   const rawPkg = src.takeout_packaging && typeof src.takeout_packaging === "object"
     ? src.takeout_packaging
     : {};
@@ -771,7 +767,6 @@ export const validateAndNormalizePayments = ({
     };
   }
 
-  // CASH
   const received = validateNumberBound(amount_received, {
     label: "Cash received",
     min: 0,
@@ -823,7 +818,8 @@ export const generateQrPaymentIntent = ({ provider, amount }) => {
   };
 };
 
-// Stable sha256 of the checkout fields that decide what is sold and paid, so a reused key can't replay a changed cart.
+// Stable sha256 of the checkout fields that decide what is sold and paid, so a reused key
+// cannot replay a changed cart.
 export const hashCheckoutPayload = (body = {}) => {
   const canon = {
     cart: (Array.isArray(body.cart) ? body.cart : []).map((i) => ({
@@ -1294,7 +1290,6 @@ export const voidOrRefundSale = async ({
     }
   }
 
-  // Fetch all referenced ingredients cleanly
   const allIngIds = [...new Set([...Object.keys(ingredientAmounts), ...Object.keys(pendingAddonsByIng)])];
   const ingLookup = new Map();
   for (const r of recipesRows || []) {
@@ -1361,7 +1356,7 @@ export const voidOrRefundSale = async ({
       appliedRestockBatches.push({ iid, batch_id: batch.id, qty: entry.qty });
     }
   } else {
-    // WASTAGE policy: record wastage entries without restoring usable stock
+    // Wastage policy: record wastage entries without restoring usable stock.
     const wastageRows = Object.entries(resolvedIngredients).map(([iid, entry]) => ({
       ingredient_id: iid,
       quantity: entry.qty,
@@ -1449,7 +1444,7 @@ export const voidOrRefundSale = async ({
     }
   }
 
-  // Cancel any matching KDS ticket (non-fatal: the sale is already voided)
+  // Cancel any matching KDS ticket; non-fatal because the sale is already voided.
   try {
   await withStoreLock(KDS_STORE_KEY, async () => {
     const store = await readCmsStore(KDS_STORE_KEY, { tickets: [] });
@@ -1703,7 +1698,8 @@ export const computeXReading = async ({ shift_id = null, user = null } = {}) => 
   if (windowEnd) {
     query = query.lte("created_at", windowEnd);
   }
-  // A reading covers only its cashier's sales (sales.staff_id is set by createSale); managers without a shift see the store.
+  // A reading covers only its cashier's sales (sales.staff_id is set by createSale); managers
+  // without a shift see the whole store.
   const staffFilter = targetShift?.cashier_id || (isShiftManager(user) ? null : user?.id);
   if (staffFilter) {
     query = query.eq("staff_id", staffFilter);

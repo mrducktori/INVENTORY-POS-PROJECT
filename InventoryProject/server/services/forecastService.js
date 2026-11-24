@@ -28,7 +28,8 @@ const AI_MIN_FACTOR = 0.9; // the AI may nudge a forecast by at most +/-10%, nev
 const AI_MAX_FACTOR = 1.1;
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-// Fixed-date Philippine holidays the AI is told about (paydays left out: the customers are mostly students).
+// Fixed-date Philippine holidays the AI is told about (paydays are left out: customers are mostly
+// students).
 // shortcut: moving holidays (Holy Week, National Heroes Day) are not listed; add them if the shop's sales show it.
 const PH_HOLIDAYS = [[1, 1, "New Year's Day"], [2, 25, "EDSA Revolution Day"], [4, 9, "Araw ng Kagitingan"], [5, 1, "Labor Day"],
   [6, 12, "Independence Day"], [8, 21, "Ninoy Aquino Day"], [11, 1, "All Saints' Day"], [11, 2, "All Souls' Day"],
@@ -55,9 +56,7 @@ const sumRange = (unitsByDate, from, to) => {
   return total;
 };
 
-// ---------------------------------------------------------------------------
-// Pure engine (unit-tested in test/forecastEngine.test.js)
-// ---------------------------------------------------------------------------
+// Pure engine (unit-tested in test/forecastEngine.test.js).
 
 /**
  * @param {Map<string, number>} unitsByDate  Manila date → units (missing date = 0 sold)
@@ -180,9 +179,7 @@ export const quantityAtRiskOfExpiry = (fefoBatches, dailyUsage) => {
   return Math.round(atRisk * 1000) / 1000;
 };
 
-// ---------------------------------------------------------------------------
-// Owner-entered special dates (exam week, class suspension, school break...)
-// ---------------------------------------------------------------------------
+// Owner-entered special dates (exam week, class suspension, school break...).
 
 const EFFECTS = ["BUSIER", "SLOWER", "UNSURE"];
 const isRealDate = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v || "")) && !Number.isNaN(Date.parse(`${v}T00:00:00Z`)) && new Date(`${v}T00:00:00Z`).toISOString().slice(0, 10) === v;
@@ -221,9 +218,6 @@ export const deleteSpecialDate = async (id) => {
   if (error) throw error;
 };
 
-// ---------------------------------------------------------------------------
-// End-of-day rollup
-// ---------------------------------------------------------------------------
 
 let lastEnsureAt = 0;
 let ensureInflight = null;
@@ -288,9 +282,6 @@ export const refreshDailySummaryForDate = async (dateStr = getManilaDateOnly()) 
   forecastCache = null;
 };
 
-// ---------------------------------------------------------------------------
-// Forecast overview
-// ---------------------------------------------------------------------------
 
 let forecastCache = null; // { key, at, value }
 
@@ -402,9 +393,7 @@ export const getForecastOverview = async ({ horizon = 14 } = {}) => {
   return value;
 };
 
-// ---------------------------------------------------------------------------
-// Ingredient reorder plan (drives low-stock alerts)
-// ---------------------------------------------------------------------------
+// Ingredient reorder plan (drives low-stock alerts).
 
 // shortcut: daily_product_sales has no cup size, so size-specific recipe rows are averaged per
 // ingredient; store size in the rollup if per-size accuracy is ever needed.
@@ -504,7 +493,8 @@ export const getIngredientReorderPlan = async () => {
     const usable = Number(ing.usable_stock) || 0;
     const reorderPoint = Math.round(usage * (lead + SAFETY_DAYS) * 1000) / 1000;
     const daysOfCover = usage > 0 ? Math.round((usable / usage) * 10) / 10 : null;
-    // A perishable lot must be used before it expires: cover days can't exceed shelf life minus delivery time.
+    // A perishable lot must be used before it expires: cover days cannot exceed shelf life minus
+    // delivery time.
     const shelfDays = ing.is_perishable && ing.default_shelf_life_days ? Number(ing.default_shelf_life_days) : null;
     const coverDays = shelfDays ? Math.min(ORDER_COVER_DAYS, Math.max(0, shelfDays - lead - SAFETY_DAYS)) : ORDER_COVER_DAYS;
     const suggestedOrder = usage > 0 ? Math.max(0, Math.ceil(usage * (lead + SAFETY_DAYS + coverDays) - usable)) : 0;
@@ -546,9 +536,6 @@ export const getIngredientReorderPlan = async () => {
   });
 };
 
-// ---------------------------------------------------------------------------
-// Nightly explanations (Gemini optional) + scheduler
-// ---------------------------------------------------------------------------
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 

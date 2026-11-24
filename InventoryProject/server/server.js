@@ -6,7 +6,6 @@ import fs from 'fs';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 
-// Resolve __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -80,7 +79,6 @@ const corsOptions = {
     // Allow non-browser requests (curl, Postman, server-to-server, Render health checks)
     if (!origin) return callback(null, true);
 
-    // Allow explicitly configured origins
     if (allowedOrigins.includes(origin)) return callback(null, true);
 
     // In local development or if CORS_ALLOW_ALL is set, allow all
@@ -88,7 +86,6 @@ const corsOptions = {
       return callback(null, true);
     }
 
-    // Reject unknown origins in production
     return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
@@ -106,13 +103,12 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
-// Base64 image upload routes need a larger body; already-parsed bodies are skipped by the global parser below.
+// Base64 image upload routes need a larger body limit; already-parsed bodies are skipped by
+// the global parser below.
 app.use(['/api/cms/upload-image', '/api/inventory/ocr-scan'], express.json({ limit: '10mb' }));
 app.use(express.json({ limit: '1mb' }));
 
-// ==========================================
-// HEALTH CHECKS — Used by Render & monitoring
-// ==========================================
+// Health checks used by Render and uptime monitoring.
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', service: 'coftea-backend', timestamp: new Date().toISOString() });
 });
@@ -120,15 +116,10 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok', service: 'coftea-backend', timestamp: new Date().toISOString() });
 });
 
-// ==========================================
-// PUBLIC ROUTES — No authentication required
-// ==========================================
+// Public routes: no authentication required.
 app.use('/api', generalLimiter);
 app.use('/api/auth', authRoutes);
 
-// ==========================================
-// PROTECTED ROUTES
-// ==========================================
 app.use('/api/pos', looseLimiter, posRoutes); // pos.js applies its own auth for protected routes like sales
 app.use('/api/inventory', requireAuth, inventoryRoutes);
 app.use('/api/recipes', requireAuth, recipesRoutes);
@@ -151,20 +142,15 @@ app.use('/api', (req, res) => {
   res.status(404).json({ error: 'API endpoint not found' });
 });
 
-// ==========================================
-// ERROR HANDLER — Intercept unhandled errors & malformed JSON
-// ==========================================
 app.use((err, req, res, next) => {
   if (res.headersSent) {
     return next(err);
   }
 
-  // Handle malformed JSON body from client requests
   if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
     return res.status(400).json({ error: 'Malformed JSON payload in request body' });
   }
 
-  // Handle CORS blocked requests
   if (err.message && err.message.includes('CORS')) {
     return res.status(403).json({ error: 'CORS request blocked' });
   }
@@ -177,11 +163,8 @@ app.use((err, req, res, next) => {
   });
 });
 
-// ==========================================
-// STATIC FILES & SPA FALLBACK (or Headless API)
-// ==========================================
-// In monolithic mode (e.g. cPanel or local build), dist/ exists.
-// In decoupled mode (Render backend only), dist/ does not exist.
+// Monolithic mode (cPanel or local build) serves dist/; decoupled mode (Render backend only)
+// has no dist/.
 let distPath = path.resolve(__dirname, '../dist'); // Local dev: InventoryProject/dist
 if (!fs.existsSync(distPath)) {
   distPath = path.resolve(__dirname, 'dist'); // cPanel: nodeapp/dist

@@ -139,7 +139,6 @@ router.get('/', requireRole('Owner', 'Admin', 'Staff', 'Custom'), async (req, re
   }
 });
 
-// Create new category (rejects duplicates cleanly)
 router.post('/', requireCategoryWriteAccess, async (req, res) => {
   try {
     const { category, sizes, add_ons, prep_station } = req.body;
@@ -323,7 +322,6 @@ router.patch('/:category/rename', requireCategoryWriteAccess, async (req, res) =
   }
 });
 
-// Delete an unused category
 router.delete('/:category', requireCategoryWriteAccess, async (req, res) => {
   try {
     const target = normalizeCategoryName(req.params.category);
@@ -380,7 +378,6 @@ router.delete('/:category', requireCategoryWriteAccess, async (req, res) => {
   }
 });
 
-// Upsert category settings (Update if exists, insert if not)
 router.put('/:category', requireCategoryWriteAccess, async (req, res) => {
   try {
     const validation = validateCategoryName(req.params.category);

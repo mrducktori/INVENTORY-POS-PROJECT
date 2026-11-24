@@ -272,8 +272,8 @@ export const createIngredient = async ({
   return fresh || data;
 };
 
-// FIX #2: stock_quantity is intentionally excluded — stock must only be changed
-// through receiveStock() (add) or the POS/wastage flow (subtract).
+// stock_quantity is excluded: stock changes only via receiveStock() (add) or the POS/wastage flow
+// (subtract).
 export const updateIngredient = async (id, { name, unit, category, low_stock_alert, image_url, purchase_unit, conversion_factor, cost_per_purchase_unit, unit_cost, is_perishable, default_shelf_life_days, force_update }) => {
   const validated = validateIngredientInput(
     { name, category, low_stock_alert, conversion_factor, cost_per_purchase_unit, unit_cost },
@@ -307,7 +307,7 @@ export const updateIngredient = async (id, { name, unit, category, low_stock_ale
   if (validated.low_stock_alert !== undefined) updatePayload.low_stock_alert = validated.low_stock_alert;
   if (validated.category !== undefined) updatePayload.category = validated.category;
 
-  // Include PO defaults if provided and keep unit_cost synced
+  // Purchase-order defaults, when provided, also keep unit_cost in sync.
   if (purchase_unit !== undefined) updatePayload.purchase_unit = purchase_unit;
   if (validated.conversion_factor !== undefined) updatePayload.conversion_factor = validated.conversion_factor;
   if (validated.cost_per_purchase_unit !== undefined) updatePayload.cost_per_purchase_unit = validated.cost_per_purchase_unit;
@@ -385,7 +385,7 @@ export const getLowStockAlerts = async () => {
 
 export { getIngredientReorderPlan };
 
-// FIX #12: Validates that quantity is within allowed bounds before adding to stock & recording batch.
+// Quantity must be within bounds before stock is added and a batch is recorded.
 export const receiveStock = async (id, quantity, options = {}) => {
   const parsedQty = validateNumberBound(quantity, {
     label: 'Quantity received',
@@ -414,7 +414,6 @@ export const receiveStock = async (id, quantity, options = {}) => {
 };
 
 export const deleteIngredient = async (id) => {
-  // 1. Fetch existing
   const { data: ingredient, error: fetchErr } = await supabase
     .from("ingredients")
     .select("id, name, is_archived, created_at")
@@ -429,7 +428,7 @@ export const deleteIngredient = async (id) => {
     throw new Error("Only archived raw materials can be permanently deleted.");
   }
 
-  // 2. Check 30 days elapsed
+  // Must have been archived for 30+ days.
   const archiveMap = await getArchiveTimestampsMap(true);
   const archivedAt = archiveMap.ingredients[id];
   if (!archivedAt) {
@@ -444,7 +443,7 @@ export const deleteIngredient = async (id) => {
     throw new Error(`Cannot permanently delete raw material yet. Must be archived for at least 30 days (${remaining} day(s) remaining).`);
   }
 
-  // 3. Check purchase orders and wastage
+  // Referenced by purchase orders or wastage records: it must stay archived for audit integrity.
   const { count: poCount } = await supabase
     .from("purchase_order_items")
     .select("id", { count: "exact", head: true })
@@ -463,7 +462,7 @@ export const deleteIngredient = async (id) => {
     throw new Error(`Cannot delete raw material "${ingredient.name}" because it is referenced in ${wastageCount} wastage record(s). For auditing integrity, it must remain archived.`);
   }
 
-  // 4. supplier_ingredients cascades; recipes.ingredient_id is ON DELETE RESTRICT (supabase_schema.sql),
+  // supplier_ingredients cascades; recipes.ingredient_id is ON DELETE RESTRICT (supabase_schema.sql),
   // so snapshot recipes, delete them, delete the ingredient, and restore the snapshot if that fails.
   const { data: recipeRows, error: snapErr } = await supabase.from("recipes").select("*").eq("ingredient_id", id);
   if (snapErr) throw snapErr;
@@ -472,7 +471,6 @@ export const deleteIngredient = async (id) => {
     if (recDelErr) throw recDelErr;
   }
 
-  // 5. Delete ingredient
   const { error } = await supabase
     .from("ingredients")
     .delete()
@@ -515,9 +513,6 @@ export const restoreIngredient = async (id) => {
   return data;
 };
 
-// ==========================================
-// RAW MATERIAL CATEGORY MANAGEMENT
-// ==========================================
 
 const RAW_MATERIAL_CATEGORIES_KEY = "raw_material_categories";
 const MAX_CATEGORY_LENGTH = 40;
@@ -648,9 +643,7 @@ const savePersistedCategories = async (categories) => {
   return uniqueSorted;
 };
 
-/**
- * Fetch all raw material categories with their ingredient counts.
- */
+/** Fetches all raw material categories with their ingredient counts. */
 export const getRawMaterialCategories = async () => {
   const { categoryMap } = await loadCategoryState();
   return Array.from(categoryMap.entries())
@@ -658,9 +651,7 @@ export const getRawMaterialCategories = async () => {
     .sort((a, b) => a.category.localeCompare(b.category));
 };
 
-/**
- * Create a new raw material category in CMS persistence.
- */
+/** Creates a raw material category in CMS persistence. */
 export const createRawMaterialCategory = async (rawName) => {
   const validation = validateCategoryName(rawName);
   if (!validation.ok) {
@@ -681,9 +672,7 @@ export const createRawMaterialCategory = async (rawName) => {
   return { category: name, ingredient_count: 0 };
 };
 
-/**
- * Rename an existing raw material category across ingredients and CMS persistence.
- */
+/** Renames a raw material category across ingredients and CMS persistence. */
 export const renameRawMaterialCategory = async (rawOldName, rawNewName) => {
   const oldName = normalizeCategoryName(rawOldName);
   if (!oldName || RESERVED_CATEGORIES.has(oldName)) {
@@ -737,9 +726,7 @@ export const renameRawMaterialCategory = async (rawOldName, rawNewName) => {
   };
 };
 
-/**
- * Delete an unused raw material category from CMS persistence.
- */
+/** Deletes an unused raw material category from CMS persistence. */
 export const deleteRawMaterialCategory = async (rawName) => {
   const targetName = normalizeCategoryName(rawName);
   if (!targetName || RESERVED_CATEGORIES.has(targetName)) {

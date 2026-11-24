@@ -1,17 +1,12 @@
 /**
- * Date Utilities for Philippine Timezone (Asia/Manila)
- */
-
-/**
- * Returns a Date object adjusted to Manila time
+ * Returns a Date whose local-time fields show Manila wall-clock time. Use it only to read
+ * those fields; its epoch value is shifted and must not be used as an instant.
  */
 export const getManilaDate = () => {
   return new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
 };
 
-/**
- * Returns an ISO string with +08:00 offset representing current Manila time
- */
+/** Returns the current Manila time as an ISO string with a +08:00 offset. */
 export const getManilaISOString = () => {
   const now = getManilaDate();
   const pad = (n) => String(n).padStart(2, '0');
@@ -26,18 +21,13 @@ export const getManilaISOString = () => {
   return `${yyyy}-${mm}-${dd}T${hh}:${min}:${sec}+08:00`;
 };
 
-/**
- * Returns YYYY-MM-DD string for Manila today
- */
 export const getManilaDateOnly = () => {
   const d = getManilaDate();
   const pad = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
 
-/**
- * Formats any date string to local string
- */
+/** Formats a date for display in Manila time, or an em dash when empty. */
 export const formatDisplayDate = (dateStr) => {
   if (!dateStr) return '—';
   return new Date(dateStr).toLocaleString('en-PH', {
@@ -47,9 +37,7 @@ export const formatDisplayDate = (dateStr) => {
   });
 };
 
-/**
- * Returns YYYY-MM-DD string in Asia/Manila timezone for a given Date or date-like input.
- */
+/** Returns YYYY-MM-DD in Asia/Manila for a Date or date-like value. */
 export const getManilaDateString = (dateInput = new Date()) => {
   const parsed = dateInput instanceof Date ? dateInput : new Date(dateInput);
   if (isNaN(parsed.getTime())) {
@@ -59,9 +47,9 @@ export const getManilaDateString = (dateInput = new Date()) => {
 };
 
 /**
- * Returns an ISO-formatted start of day in Manila timezone (+08:00)
+ * Returns the start of a Manila day as an ISO string with +08:00.
+ * Accepts plain YYYY-MM-DD or a full ISO string.
  * Example: "2026-10-23" -> "2026-10-23T00:00:00.000+08:00"
- * Handles both plain YYYY-MM-DD and full ISO strings with timezone
  */
 export const toManilaStartOfDay = (dateInput) => {
   if (!dateInput) return null;
@@ -73,9 +61,9 @@ export const toManilaStartOfDay = (dateInput) => {
 };
 
 /**
- * Returns an ISO-formatted end of day in Manila timezone (+08:00)
+ * Returns the end of a Manila day as an ISO string with +08:00.
+ * Accepts plain YYYY-MM-DD or a full ISO string.
  * Example: "2026-10-23" -> "2026-10-23T23:59:59.999+08:00"
- * Handles both plain YYYY-MM-DD and full ISO strings with timezone
  */
 export const toManilaEndOfDay = (dateInput) => {
   if (!dateInput) return null;

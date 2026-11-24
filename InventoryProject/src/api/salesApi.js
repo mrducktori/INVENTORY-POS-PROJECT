@@ -1,4 +1,3 @@
-// Sales & transaction log API
 import { apiCall } from './client.js';
 
 export const getSales = async (filters = {}, pageSize = 50, page = 1) => {

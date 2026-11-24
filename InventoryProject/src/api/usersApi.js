@@ -1,4 +1,3 @@
-// Users and employee tracking API
 import { apiCall } from './client.js';
 import { getCurrentUser } from '../utils/authUtils.js';
 

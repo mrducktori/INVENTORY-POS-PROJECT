@@ -92,7 +92,6 @@ export const resolveSalesDateWindow = ({ period, start_date, end_date, date, yea
     };
   }
 
-  // Default: daily (or explicit date)
   const targetDate = date ? toManilaStartOfDay(date).slice(0, 10) : todayStr;
   return {
     period: 'daily',
@@ -263,7 +262,6 @@ const enrichSalesWithMetadata = (rows = [], voidsMap = {}, metaMap = {}) =>
     };
   });
 
-// Get all sales with filters
 router.get('/', async (req, res) => {
   try {
     // Parse pagination & fetch parameters (supports numbers up to 20,000 or 'all')
@@ -328,7 +326,8 @@ router.get('/', async (req, res) => {
     let filteredData = data || [];
     let total = skipCount ? filteredData.length : Math.max(count || 0, filteredData.length);
 
-    // If requested > 1000 rows (or in-memory filter needs up to 5000 rows), paginate past PostgREST 1000-row cap
+    // Paginate past the PostgREST 1000-row cap when more rows are requested, or when the in-memory
+    // filter needs up to 5000 rows.
     const baseOffset = needsInMemoryFilter ? 0 : offset;
     const shouldFetchMore = skipCount || needsInMemoryFilter
       ? filteredData.length === firstBatchLimit
@@ -390,7 +389,6 @@ router.get('/', async (req, res) => {
 
         if (matchesTopLevel) return true;
 
-        // Check items, cup size, and add-ons inside the receipt
         return (sale.sale_items || []).some(item => {
           const prodName = String(item.products?.name || item.name || '').toLowerCase();
           const prodCat = String(item.products?.category || item.category || '').toLowerCase();
@@ -469,7 +467,6 @@ const fetchBoundedReportSales = async (startStr, endStr) => {
   return rows;
 };
 
-// Sales summary by period (daily / weekly / monthly / yearly / custom)
 const handleSalesSummaryReport = async (req, res) => {
   try {
     const windowInfo = resolveSalesDateWindow({
@@ -504,7 +501,6 @@ const handleSalesSummaryReport = async (req, res) => {
 router.get('/summary/report', handleSalesSummaryReport);
 router.get('/reports/summary', handleSalesSummaryReport);
 
-// Get single sale detail (Receipt)
 router.get('/:id', async (req, res) => {
   try {
     const [{ data, error }, voidsMap, metaMap] = await Promise.all([

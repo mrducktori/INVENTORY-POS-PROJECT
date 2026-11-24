@@ -223,7 +223,6 @@ const findProductDuplicateConflict = async ({ name, category, excludeId = null, 
   return null;
 };
 
-// Get all products (active and archived)
 router.get('/', async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -249,7 +248,6 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Create new product
 router.post('/', requirePermission('ManageProducts'), async (req, res) => {
   try {
     const { track_stock, image_url, force_create } = req.body;
@@ -266,7 +264,7 @@ router.post('/', requirePermission('ManageProducts'), async (req, res) => {
 
     const estimated_cost = Math.round(validated.price * 0.38 * 100) / 100;
 
-    // Validate everything that can fail BEFORE inserting, so we rarely leave a half-made product.
+    // Validate everything that can fail before inserting, so a half-made product is rare.
     const recipeIds = validated.initial_recipes.map((r) => r.ingredient_id);
     if (new Set(recipeIds).size !== recipeIds.length) {
       return res.status(400).json({ error: 'Duplicate ingredient in initial recipes.' });
@@ -347,16 +345,15 @@ router.post('/', requirePermission('ManageProducts'), async (req, res) => {
   }
 });
 
-// Update product (price, name, category, description, etc.)
-// FIX #1: stock_quantity is intentionally excluded from this endpoint.
-// Stock can only be changed through POST /:id/receive (add) or the POS/wastage flow (subtract).
+// stock_quantity is excluded: stock changes only via POST /:id/receive (add) or the POS/wastage
+// flow (subtract).
 router.put('/:id', requirePermission('ManageProducts'), async (req, res) => {
   try {
     const { track_stock, image_url, force_update } = req.body;
     const validated = validateProductInput(req.body, { isUpdate: true });
 
-    // Only check for duplicates when the name or category actually changes; an unchanged product must stay editable
-    // even if an archived twin with the same name exists.
+    // Check for duplicates only when the name or category changes, so an unchanged product stays
+    // editable even if an archived twin with the same name exists.
     const { data: current } = await supabase
       .from('products')
       .select('name, category')
@@ -419,7 +416,6 @@ router.put('/:id', requirePermission('ManageProducts'), async (req, res) => {
   }
 });
 
-// Archive product
 router.put('/:id/archive', requirePermission('ManageProducts'), async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -444,7 +440,6 @@ router.put('/:id/archive', requirePermission('ManageProducts'), async (req, res)
   }
 });
 
-// Restore archived product
 router.put('/:id/restore', requirePermission('ManageProducts'), async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -488,7 +483,6 @@ router.delete('/:id', requireRole('Owner', 'Admin'), async (req, res) => {
       return res.status(400).json({ error: 'Only archived products can be permanently deleted.' });
     }
 
-    // Check 30 days elapsed
     const archiveMap = await getArchiveTimestampsMap(true);
     const archivedAt = archiveMap.products[id];
     if (!archivedAt) {
@@ -503,7 +497,7 @@ router.delete('/:id', requireRole('Owner', 'Admin'), async (req, res) => {
       });
     }
 
-    // Check foreign key integrity (sale_items)
+    // A product that appears on sales cannot be deleted.
     const { count: salesCount, error: salesErr } = await supabase
       .from('sale_items')
       .select('id', { count: 'exact', head: true })
@@ -538,8 +532,7 @@ router.delete('/:id', requireRole('Owner', 'Admin'), async (req, res) => {
   }
 });
 
-// Receive stock for product (Direct Stock Tracking)
-// FIX #11: Validates that quantity is a positive number within bounds before adding to stock.
+// Adds stock directly (direct stock tracking); quantity must be positive and within bounds.
 router.post('/:id/receive', requirePermission('ManageProducts', 'ProductStockTracker', 'StockReceived'), async (req, res) => {
   try {
     const { quantity } = req.body;

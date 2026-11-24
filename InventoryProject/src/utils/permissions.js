@@ -1,5 +1,5 @@
-// Page-level permissions
-// Permission keys are the same values used for Dashboard tabs. Staff and
+// Page-level permissions.
+// Keys are the same values used for Dashboard tabs. Staff and
 // Custom accounts are restricted to their `permissions` list; Admin, Owner and
 // Supplier keep their fixed built-in access.
 //

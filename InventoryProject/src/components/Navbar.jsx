@@ -132,7 +132,7 @@ const EXPANDED_PAGE_LINKS = {
   ],
 };
 
-// Builds a sidebar menu from a Staff/Custom account's page permissions
+// Builds the sidebar menu from a Staff/Custom account's page permissions.
 const buildPermissionMenu = (user) => {
   const allowed = getUserPermissions(user);
   return PERMISSION_GROUPS

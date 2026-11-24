@@ -1,8 +1,8 @@
 import React from 'react';
 
 /**
- * InfoTip - Minimalist info indicator ('i' inside a circle)
- * Replaces noisy inline explanatory paragraphs with an unobtrusive hover/focus tooltip.
+ * InfoTip - small 'i' icon that shows an explanation on hover or focus, instead of an inline
+ * paragraph.
  */
 export const InfoTip = ({ text, children, className = '', position = 'top' }) => {
   const content = text || children;

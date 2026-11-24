@@ -1,7 +1,8 @@
 import React from 'react';
 
 /**
- * Executive KPI summary cards for StockMovementReport (Inflow, Outflow, Wastage, Net Movement, Restock Attention).
+ * KPI summary cards for StockMovementReport (Inflow, Outflow, Wastage, Net Movement, Restock
+ * Attention).
  */
 const StockMovementSummaryCards = ({ summary }) => {
   const {

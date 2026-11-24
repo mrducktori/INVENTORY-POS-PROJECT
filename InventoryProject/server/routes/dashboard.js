@@ -9,9 +9,7 @@ import { requireRole } from '../middleware/authMiddleware.js';
 const router = express.Router();
 router.use(requireRole('Owner', 'Admin', 'Staff', 'Custom'));
 
-/**
- * Fetches bounded sales records bypassing PostgREST's 1,000-row single-query limit when needed.
- */
+/** Fetches sales in bounded pages to get past PostgREST's 1,000-row single-query limit. */
 async function fetchBoundedSales(boundStart, boundEnd, selectCols) {
   const PAGE_SIZE = 1000;
   const rows = [];
@@ -62,7 +60,7 @@ router.get('/stats', async (req, res) => {
       return res.status(400).json({ error: `Invalid period '${period}'. Use one of: ${[...VALID_PERIODS].join(', ')}` });
     }
 
-    // 1. Determine strict bounding timestamps (Asia/Manila +08:00)
+    // Bounds are Asia/Manila (+08:00).
     let boundStart;
     let boundEnd;
 
@@ -100,7 +98,7 @@ router.get('/stats', async (req, res) => {
       ? toManilaStartOfDay(new Date(new Date(`${todayStr}T00:00:00+08:00`).getTime() - 6 * 86400000))
       : boundStart;
 
-    // 2. Execute all independent dashboard queries concurrently (single bounded sales scan covers both today & 7-day trend)
+    // Independent queries run concurrently; one bounded sales scan covers today and the 7-day trend.
     const [
       fetchedSales,
       { count: productCount },
@@ -126,7 +124,6 @@ router.get('/stats', async (req, res) => {
       batchService.getExpiryAlerts()
     ]);
 
-    // 3. Basic metrics from bounded sales
     const boundStartMs = new Date(boundStart).getTime();
     const boundEndMs = new Date(boundEnd).getTime();
     const trendHistory = needsTrendHistory ? (fetchedSales || []) : null;
@@ -140,7 +137,8 @@ router.get('/stats', async (req, res) => {
     const transactionsCount = salesList.length;
     const avgTransactionValue = transactionsCount > 0 ? (totalRevenue / transactionsCount) : 0;
 
-    // 4. Products count & Configurable Threshold Low Stock Alerts (using usable non-expired stock)
+    // An item is low at or below half its max stock; with no max set, max defaults to twice its alert
+    // level (10 if unset). Ingredients use usable (non-expired) stock.
     const lowStockIngredients = (ingredients || [])
       .filter(i => {
         const currentStock = parseFloat(i.usable_stock ?? i.stock_quantity) || 0;
@@ -184,7 +182,6 @@ router.get('/stats', async (req, res) => {
     const lowStockItemsDetails = [...lowStockIngredients, ...lowStockProducts];
     const lowStockCount = lowStockItemsDetails.length;
 
-    // 5. Build Sales Trend (Daily bins across bounding date range)
     const trendMap = {};
     if (needsTrendHistory) {
       for (let i = 6; i >= 0; i--) {
@@ -207,7 +204,6 @@ router.get('/stats', async (req, res) => {
         }
       });
     } else {
-      // Dynamic daily bins between boundStart and boundEnd
       const cur = new Date(startDateObj);
       while (cur <= endDateObj) {
         trendMap[isoKey(cur)] = { revenue: 0, categories: {} };
@@ -236,7 +232,6 @@ router.get('/stats', async (req, res) => {
       categories: trendMap[dateKey].categories
     }));
 
-    // 6. Top Products & Categories within Bounded Date Range
     const productMap = {};
     const productCategoryMap = {};
     const categoryMap = {};
@@ -275,7 +270,6 @@ router.get('/stats', async (req, res) => {
     const categoryData = Object.entries(categoryMap)
       .map(([name, value]) => ({ name, value }));
 
-    // 7. Return complete metrics matching bounded dates
     res.json({
       totalRevenueToday: totalRevenue,
       totalRevenue,

@@ -1,21 +1,4 @@
-/**
- * unitUtils.js — Server-side unit conversion helpers
- *
- * Converts a recipe quantity from its recipe_unit into the
- * ingredient's storage unit before deducting from stock.
- *
- * Supported conversions:
- *   Volume : ML ↔ L
- *   Weight : G  ↔ KG
- *   Same unit → no-op
- */
-
-/**
- * @param {number} quantity   - Amount used per recipe item
- * @param {string} recipeUnit - Unit the recipe quantity is expressed in  (e.g. "ML")
- * @param {string} stockUnit  - Unit the ingredient stock is stored in     (e.g. "L")
- * @returns {number}          - Equivalent quantity in stockUnit
- */
+// Conversion factors keyed by "FROM>TO".
 const FACTORS = { 'ML>L': 1 / 1000, 'L>ML': 1000, 'G>KG': 1 / 1000, 'KG>G': 1000 };
 const norm = (u) => (u || '').toUpperCase().trim();
 
@@ -26,6 +9,10 @@ export const canConvertUnit = (recipeUnit, stockUnit) => {
   return !from || !to || from === to || `${from}>${to}` in FACTORS;
 };
 
+/**
+ * Converts a recipe quantity into the ingredient's stock unit before deducting stock.
+ * Supports ML/L and G/KG; the same unit is a no-op.
+ */
 export const convertToBaseUnit = (quantity, recipeUnit, stockUnit) => {
   const from = norm(recipeUnit);
   const to = norm(stockUnit);

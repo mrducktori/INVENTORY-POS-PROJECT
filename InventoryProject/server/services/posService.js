@@ -182,7 +182,7 @@ export const getProducts = async () => {
     return publicProductsCache.data;
   }
 
-  // 1. Fetch active products, recipes, ingredients, category settings, and size overrides concurrently
+  // Fetch products, recipes, ingredients, category settings and size overrides concurrently.
   const [
     { data: products, error: prodError },
     { data: recipes, error: recError },
@@ -376,7 +376,7 @@ export const createSale = async ({
   const normalizedOrderType = normalizeOrderType(order_type);
   const packagingItemsList = Array.isArray(order_packaging_items) ? order_packaging_items : [];
 
-  // --- 1. BATCH PRE-FLIGHT INVENTORY CHECK (Single parallel DB round-trip) ---
+  // Pre-flight stock check: all lookups run in one parallel batch.
   const productIds = [...new Set(cart.map(item => item.id).filter(Boolean))];
   const extraIngredientIds = [
     ...new Set([
@@ -494,7 +494,7 @@ export const createSale = async ({
         requiredIngredients[recipe.ingredient_id].qty += totalDeduction;
       }
 
-      // Order-Type Packaging Deduction (cup, lid, straw)
+      // Cup, lid and straw packaging for this order type.
       if (item.cup_size_obj) {
         const pkgTargets = resolvePackagingIngredientIds(item.cup_size_obj, normalizedOrderType);
         for (const pkg of pkgTargets) {
@@ -511,7 +511,6 @@ export const createSale = async ({
         }
       }
 
-      // Add-ons Deduction
       if (item.add_ons && item.add_ons.length > 0) {
         for (const addon of item.add_ons) {
           if (!addon.ingredient_id) continue;
@@ -556,7 +555,6 @@ export const createSale = async ({
     }
   }
 
-  // Verify against fetched DB stock
   const pIds = Object.keys(requiredProducts);
   for (const pid of pIds) {
     const prod = productMap.get(pid);
@@ -581,14 +579,14 @@ export const createSale = async ({
     }
   }
 
-  // IF THERE IS ANY INSUFFICIENT STOCK, ABORT SALE
+  // Abort before any write when stock is short.
   if (insufficient.length > 0) {
     const stockErr = new Error(`Insufficient stock for: ${insufficient.join(', ')}`);
     stockErr.status = 409;
     throw stockErr;
   }
 
-  // --- 2. ATOMIC EXECUTION (Single Database Transaction) ---
+  // Writes are not one DB transaction: the catch block below undoes every step on failure.
   const parsedReceived = (amount_received !== undefined && amount_received !== null && amount_received !== '')
     ? Number(amount_received)
     : resolvedTotal;
@@ -644,7 +642,7 @@ export const createSale = async ({
   const appliedIngredientDeductions = [];
 
   try {
-    // 2a. Insert Sale Record (attempt optional native order_type column, fallback safely)
+    // Use the native order_type column when it exists; otherwise insert without it.
     if (hasNativeSalesOrderTypeCol !== false) {
       const resWithOrderType = await supabase
         .from("sales")
@@ -673,7 +671,7 @@ export const createSale = async ({
     }
     createdSaleId = sale.id;
 
-    // 2b + 2c + 2d. Insert Sale Items and deduct Product/Ingredient Stocks concurrently
+    // Sale items and stock deductions run concurrently.
     const insertSaleItems = async () => {
       // eslint-disable-next-line no-unused-vars
       const stripModifiers = baseSaleItems.map(({ _modifiers, ...rest }) => ({
@@ -724,12 +722,13 @@ export const createSale = async ({
       })
     ];
 
-    // allSettled: rollback must only run once every sibling has finished, so all applied deductions are recorded.
+    // allSettled: rollback runs only after every sibling has finished, so all applied deductions
+    // are recorded.
     const settled = await Promise.allSettled(parallelOps);
     const firstFailure = settled.find((r) => r.status === "rejected");
     if (firstFailure) throw firstFailure.reason;
   } catch (atomicError) {
-    // ROLLBACK COMPENSATION: Undo all partial operations concurrently
+    // Compensate: undo every partial write.
     console.error('[POS Transaction Rollback] An error occurred during checkout, rolling back:', atomicError);
 
     if (createdSaleId) {
@@ -773,7 +772,7 @@ export const createSale = async ({
     throw abortErr;
   }
 
-  // --- 3. NON-BLOCKING BATCH AUDIT LOGGING (Post-commit) ---
+  // Audit logging after commit is non-blocking.
   const auditEntries = [
     ...pIds.map((pid) => {
       const pData = requiredProducts[pid];

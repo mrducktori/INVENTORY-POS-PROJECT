@@ -3,7 +3,7 @@ import { safeHref } from '../hooks/useLandingPage';
 
 const linkClass = 'text-amber-300 hover:text-amber-200 underline underline-offset-2 font-semibold';
 
-// Placeholder policy wording: have the owner review it before launch.
+// Placeholder policy wording; the owner must review it before launch.
 const buildSections = (cmsData) => ({
   privacy: {
     title: 'Privacy Policy',

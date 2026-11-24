@@ -42,7 +42,7 @@ const getStatusLabel = (statusKey) => {
 };
 
 /**
- * Manages stock movement report fetching, filtering, summary metrics, pagination, CSV export, and printing.
+ * Stock movement report fetching, filtering, summary metrics, pagination, CSV export and printing.
  */
 export const useStockMovementReport = () => {
   const [period, setPeriod] = useState('weekly');

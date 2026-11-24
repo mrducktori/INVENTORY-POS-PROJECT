@@ -131,7 +131,7 @@ const validateImageInput = (base64Image, mimeType) => {
     throw createHttpError(400, "Uploaded image exceeds the 8MB maximum limit.");
   }
 
-  // Validate image header magic bytes
+  // Check the real file type from its magic bytes; the declared MIME type is not trusted.
   const isPng = buffer.length >= 4 && buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47;
   const isJpeg = buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
   const isWebp =
@@ -193,7 +193,6 @@ const parseReceiptText = (rawText) => {
     let expiry_date = null;
     let unit_price = null;
 
-    // 1. Extract Batch / Lot code
     const batchMatch = work.match(
       /(?:batch|lot)(?:\s*(?:no\.?|code|#))?\s*:\s*([A-Z0-9][A-Z0-9\-_]{1,59})|\b((?:LOT|BATCH)[-_][A-Z0-9\-_]{2,55})\b|(?:batch|lot)\s+(?:no\.?|code|#)\s*-?\s*([A-Z0-9][A-Z0-9\-_]{1,59})/i
     );
@@ -202,7 +201,6 @@ const parseReceiptText = (rawText) => {
       work = work.replace(batchMatch[0], " ");
     }
 
-    // 2. Extract Expiry date
     const expMatch = work.match(
       /(?:exp(?:iry)?(?:\s*date)?|best\s*before|bb|use\s*by)\s*[:-]?\s*(\d{4}[/-]\d{1,2}[/-]\d{1,2}|\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|[A-Za-z]{3,9}\s+\d{1,2},?\s+\d{4}|\d{1,2}\s+[A-Za-z]{3,9},?\s+\d{4})/i
     );
@@ -211,14 +209,12 @@ const parseReceiptText = (rawText) => {
       work = work.replace(expMatch[0], " ");
     }
 
-    // 3. Extract Unit Price
     const priceMatch = work.match(/(?:@\s*(?:₱|PHP|P)?|(?:₱|PHP))\s*([\d,]+(?:\.\d+)?)/i);
     if (priceMatch) {
       unit_price = Number(priceMatch[1].replace(/,/g, ""));
       work = work.replace(priceMatch[0], " ");
     }
 
-    // 4. Extract Quantity and Unit
     let quantity = null;
     let unit = null;
 
@@ -353,7 +349,6 @@ const matchExtractedItemsToIngredients = (extractedItems = [], ingredients = [])
       warnings.push(`Line ${idx + 1}: Could not match "${rawName || "Unknown item"}" to an active raw material.`);
     }
 
-    // Validate quantity bounds
     let validatedQty;
     try {
       validatedQty = validateNumberBound(rawItem?.quantity, {
@@ -372,7 +367,6 @@ const matchExtractedItemsToIngredients = (extractedItems = [], ingredients = [])
       }
     }
 
-    // Validate unit price bounds if supplied
     let validatedUnitPrice = null;
     if (rawItem?.unit_price !== undefined && rawItem?.unit_price !== null && rawItem?.unit_price !== "") {
       try {
@@ -386,7 +380,6 @@ const matchExtractedItemsToIngredients = (extractedItems = [], ingredients = [])
       }
     }
 
-    // Validate expiry date
     let normalizedExpiry = null;
     if (rawItem?.expiry_date) {
       normalizedExpiry = normalizeOcrDate(rawItem.expiry_date);
@@ -397,7 +390,6 @@ const matchExtractedItemsToIngredients = (extractedItems = [], ingredients = [])
       }
     }
 
-    // Validate batch code
     let cleanBatchCode = null;
     if (rawItem?.batch_code) {
       const trimmedCode = String(rawItem.batch_code).trim();

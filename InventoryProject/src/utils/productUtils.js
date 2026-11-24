@@ -146,7 +146,8 @@ export const checkDuplicateOrSimilar = (newName, existingItems, excludeId = null
     const normExisting = normalizeName(item.name);
     if (!normExisting) continue;
 
-    // "Blueberry Cheesecake" (Pastries) is not a lookalike of "Blueberry" (Fruit Drinks): only compare names within one category.
+    // Only compare names within one category: "Blueberry Cheesecake" (Pastries) is not a lookalike
+    // of "Blueberry" (Fruit Drinks).
     if (newCategory != null && String(item.category || 'GENERAL').trim().replace(/\s+/g, ' ').toUpperCase() !== normNewCat) continue;
 
     if (normNew.length > 3 && normExisting.length > 3 && (normNew.includes(normExisting) || normExisting.includes(normNew))) {

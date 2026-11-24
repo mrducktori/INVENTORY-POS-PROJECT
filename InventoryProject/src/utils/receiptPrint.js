@@ -549,7 +549,7 @@ export const printThermalReceipt = (receipt, options = {}) => {
 
   window.addEventListener('afterprint', cleanup, { once: true });
 
-  // Wait two animation frames so Chromium commits the updated @page dimensions before print preview opens
+  // Wait two animation frames so Chromium commits the updated @page size before the preview opens.
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       try {

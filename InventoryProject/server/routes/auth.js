@@ -18,11 +18,12 @@ import {
 
 const router = express.Router();
 
-// ─── In-memory lockout store, keyed by `${ip}|${username_lowercase}` so one IP cannot lock the owner out for everyone.
+// In-memory lockout store keyed by `${ip}|${username_lowercase}` so one IP cannot lock the owner out
+// for everyone.
 // Map<string, { attempts: number, lockedUntil: number|null, last: number }>
 const loginAttempts = new Map();
 const MAX_ATTEMPTS  = 3;
-const LOCK_DURATION = 5 * 60 * 1000; // 5 minutes in ms
+const LOCK_DURATION = 5 * 60 * 1000;
 const MAX_TRACKED   = 1000;
 // Compared against when the user is missing/unverifiable so response timing does not reveal account existence.
 const DUMMY_HASH = bcrypt.hashSync(crypto.randomBytes(16).toString("hex"), 10);
@@ -55,9 +56,7 @@ function recordFailedAttempt(key) {
   }
 }
 
-// FIX #8: Removed the /test endpoint that publicly dumped all users and password_hash fields.
 
-// LOGIN — Public route (no auth required)
 router.post("/login", authLimiter, async (req, res) => {
   try {
     const { username, password } = req.body || {};
@@ -68,7 +67,6 @@ router.post("/login", authLimiter, async (req, res) => {
 
     const key = `${req.ip}|${username.toLowerCase()}`;
 
-    // ── Lockout check ──────────────────────────────────────────────────────────
     const record = getLockout(key);
     if (record.lockedUntil && record.lockedUntil > Date.now()) {
       const secondsLeft = Math.ceil((record.lockedUntil - Date.now()) / 1000);
@@ -94,7 +92,8 @@ router.post("/login", authLimiter, async (req, res) => {
       return res.status(503).json({ error: "Service temporarily unavailable. Please retry." });
     }
 
-    // FIX #9: No plaintext fallback. Only bcrypt hashes are verifiable; anything else compares against the dummy hash.
+    // Only bcrypt hashes are verifiable; anything else compares against the dummy hash so the
+    // response time stays the same.
     const hashOk = !!data && typeof data.password_hash === "string" && data.password_hash.startsWith("$2");
     const passwordMatches = await bcrypt.compare(password, hashOk ? data.password_hash : DUMMY_HASH);
 
@@ -121,7 +120,6 @@ router.post("/login", authLimiter, async (req, res) => {
       });
     }
 
-    // Successful login — clear any previous failure record
     resetLockout(key);
 
     // Check only this user's previous session activity without blocking login on a full-table reap scan
@@ -191,14 +189,14 @@ router.post("/login", authLimiter, async (req, res) => {
   }
 });
 
-// ACTIVITY — Lightweight heartbeat that updates the user's server-side last-active timestamp.
+// Lightweight heartbeat that updates the user's server-side last-active timestamp.
 // requireAuth validates session id/status so a replaced or deactivated session cannot stay "active".
 router.post("/activity", requireAuth, (req, res) => {
   touchUserServerActivity(req.user.id);
   res.json({ ok: true });
 });
 
-// LOGOUT — identity comes from the token, never from the request body.
+// Identity comes from the token, never from the request body.
 // Always responds 200 so the client can finish signing out locally.
 router.post("/logout", async (req, res) => {
   try {

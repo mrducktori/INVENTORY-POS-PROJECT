@@ -1,7 +1,7 @@
 import React from 'react';
 
 /**
- * TableSkeleton — Renders an executive-grade table skeleton with shimmering pulse rows.
+ * TableSkeleton - table placeholder with pulsing rows.
  * @param {number} rows - Number of skeleton rows to render (default 6)
  * @param {number} cols - Number of columns to simulate (default 5)
  */
@@ -38,7 +38,7 @@ export const TableSkeleton = ({ rows = 6 }) => {
 };
 
 /**
- * CardGridSkeleton — Renders product/catalog grid card skeletons.
+ * CardGridSkeleton - product/catalog card placeholders.
  * @param {number} count - Number of cards (default 8)
  */
 export const CardGridSkeleton = ({ count = 8 }) => {
@@ -66,7 +66,7 @@ export const CardGridSkeleton = ({ count = 8 }) => {
 };
 
 /**
- * StatCardsSkeleton — Renders KPI summary stat card skeletons.
+ * StatCardsSkeleton - KPI stat card placeholders.
  * @param {number} count - Number of KPI cards (default 4)
  */
 export const StatCardsSkeleton = ({ count = 4 }) => {
@@ -90,7 +90,7 @@ export const StatCardsSkeleton = ({ count = 4 }) => {
 };
 
 /**
- * FullModuleSkeleton — Renders a full module view with header, filter bar, and table.
+ * FullModuleSkeleton - full page placeholder: header, filter bar and table.
  */
 export const FullModuleSkeleton = ({ showCards = true }) => {
   return (

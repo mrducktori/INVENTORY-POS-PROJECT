@@ -1,7 +1,4 @@
-// Centralized API client for all backend calls
-// Using a relative path so this works in both:
-//   - Development: Vite proxy forwards /api → http://localhost:5000
-//   - Production:  Same domain, /api is served by the Node.js app
+// Central API client: every backend call goes through apiCall.
 import {
   isSessionExpired,
   clearUserSession,
@@ -55,7 +52,7 @@ export async function apiCall(endpoint, options = {}) {
   const isPublic = PUBLIC_ENDPOINTS.some(p => endpoint.startsWith(p)) || 
     ((endpoint.startsWith("/cms") || endpoint.startsWith("/pos/products")) && isGet);
 
-  // If this is a protected request and the session timed out (2h inactivity)
+  // Protected request past the 2h inactivity timeout: clear the session and send the user to login.
   if (!isPublic && endpoint !== "/auth/logout" && isSessionExpired()) {
     clearUserSession("expired");
     if (window.location.pathname !== "/coftealoginpageforstaff") {
@@ -110,7 +107,8 @@ export async function apiCall(endpoint, options = {}) {
       throw err;
     }
 
-    // Refresh activity timestamp on explicit user-initiated mutating actions (not background GET polls)
+    // Only user-initiated mutations refresh the activity timestamp; background GET polls must not
+    // keep an idle session alive.
     const method = (options.method || "GET").toUpperCase();
     if (!isPublic && method !== "GET" && endpoint !== "/auth/logout") {
       touchSessionActivity();
@@ -123,8 +121,8 @@ export async function apiCall(endpoint, options = {}) {
   }
 }
 
-// Automatically notify the backend whenever a session expires due to inactivity
-// so users.current_session_id is cleared (Offline in Account Manager) and LOGOUT is recorded in audit_logs.
+// When a session expires from inactivity, tell the backend so users.current_session_id is cleared
+// (shows Offline in Account Manager) and a LOGOUT row is written to audit_logs.
 registerSessionExpiredCallback((expiringUser) => {
   if (!expiringUser) return;
   apiCall("/auth/logout", {

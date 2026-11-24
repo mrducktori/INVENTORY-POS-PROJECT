@@ -82,7 +82,6 @@ export const getUnacknowledgedPriceUpdateLogs = async () => {
   return unacknowledgedLogs;
 };
 
-// === Suppliers ===
 export const getSuppliers = async () => {
   const { data, error } = await supabase
     .from("suppliers")
@@ -136,10 +135,11 @@ export const getSuppliers = async () => {
   }
 };
 
-// Helper to build supplier ingredient mappings with prices, units, and conversion factors
+// Builds supplier ingredient mappings with prices, units and conversion factors.
 const buildSupplierIngredientMappings = async (supplierId, ingredientItems, ingredientIds, existingPriceMap = new Map()) => {
   if (Array.isArray(ingredientItems) && ingredientItems.length > 0) {
-    // A blank pack size must inherit the ingredient's own unit/factor, not 1 (1 = "1 gram per pack" and mis-sizes POs).
+    // A blank pack size must inherit the ingredient's own unit/factor, not 1 (1 means "1 gram per pack"
+    // and mis-sizes POs).
     const missingIds = ingredientItems
       .filter(i => (i.default_conversion_factor ?? i.conversion_factor ?? '') === '')
       .map(i => i.ingredient_id);
@@ -166,7 +166,7 @@ const buildSupplierIngredientMappings = async (supplierId, ingredientItems, ingr
 
       let finalPrice;
       if (existingPriceMap.has(item.ingredient_id)) {
-        // If supplier already set an agreed price, preserve it from admin overwrites!
+        // If the supplier already set an agreed price, keep it so admin edits do not overwrite it.
         finalPrice = parseFloat(existingPriceMap.get(item.ingredient_id)) || 0;
       } else {
         const rawPrice = item.default_price ?? item.price ?? item.unit_price;
@@ -298,7 +298,7 @@ export const updateSupplier = async (id, supplierData) => {
   const { ingredient_ids, ingredient_items, ...details } = supplierData;
   const payload = sanitizeSupplierDetails(details);
 
-  // Preserve existing supplier prices so admin edits do not overwrite prices set by supplier!
+  // Keep existing supplier prices so admin edits do not overwrite prices set by the supplier.
   const { data: existingSupplierItems } = await supabase
     .from("supplier_ingredients")
     .select("ingredient_id, default_price")
@@ -316,7 +316,6 @@ export const updateSupplier = async (id, supplierData) => {
   if (res.error) throw res.error;
   const data = res.data;
 
-  // Delete existing mappings
   await supabase
     .from("supplier_ingredients")
     .delete()
@@ -364,7 +363,7 @@ export const deleteSupplier = async (id) => {
   return archiveSupplier(id);
 };
 
-// Cache schema capabilities so we don't repeat failed fallback queries on every request
+// Schema capability flags are cached so failed fallback queries are not repeated on every request.
 let hasPoReceiptHistoryCol = true;
 
 const PO_AUDIT_ACTIONS = [
@@ -378,7 +377,7 @@ const PO_AUDIT_ACTIONS = [
   'PURCHASE_ORDER_RESCHEDULED'
 ];
 
-// Fetch all PO-related audit logs in paginated batches (bypassing PostgREST 1,000-row cap)
+// Fetch all PO-related audit logs in pages to get past PostgREST's 1,000-row cap.
 const fetchPoAuditLogs = async () => {
   try {
     const PAGE_SIZE = 1000;
@@ -404,7 +403,7 @@ const fetchPoAuditLogs = async () => {
   }
 };
 
-// Helper to enrich PO items with actual multi-receive batch events from audit logs
+// Enriches PO items with the actual multi-receive batch events from audit logs.
 const enrichPOsWithReceiptHistory = async (pos, preloadedLogs = null) => {
   if (!pos || pos.length === 0) return pos;
 
@@ -454,7 +453,7 @@ const enrichPOsWithReceiptHistory = async (pos, preloadedLogs = null) => {
   return pos;
 };
 
-// Helper to enrich POs with decline reasons, cancellation reasons, and overdue metrics
+// Enriches POs with decline reasons, cancellation reasons and overdue metrics.
 const enrichPOsWithMetadata = async (pos, preloadedLogs = null) => {
   if (!pos || pos.length === 0) return pos;
 
@@ -488,19 +487,16 @@ const enrichPOsWithMetadata = async (pos, preloadedLogs = null) => {
           const poId = d?.po_id;
           if (!poId) continue;
 
-          // Decline reason
           const decReason = d?.decline_reason || d?.declineReason;
           if (decReason && !declineMap[poId]) {
             declineMap[poId] = decReason;
           }
 
-          // Cancellation reason
           const canReason = d?.cancellation_reason || d?.cancellationReason || (log.action === 'PURCHASE_ORDER_CANCELLED' ? d?.reason : null);
           if (canReason && !cancellationMap[poId]) {
             cancellationMap[poId] = canReason;
           }
 
-          // Reschedule history
           if (log.action === 'PURCHASE_ORDER_RESCHEDULED' || (d?.expected_date && d?.reschedule_reason)) {
             if (!rescheduleMap[poId]) rescheduleMap[poId] = [];
             rescheduleMap[poId].push({
@@ -510,7 +506,6 @@ const enrichPOsWithMetadata = async (pos, preloadedLogs = null) => {
             });
           }
 
-          // Notes
           if (log.action === 'PURCHASE_ORDER_CREATED' && d?.notes && !notesMap[poId]) {
             notesMap[poId] = d.notes;
           }
@@ -521,7 +516,6 @@ const enrichPOsWithMetadata = async (pos, preloadedLogs = null) => {
     }
 
     for (const po of pos) {
-      // 1. Decline reasons
       if (!po.decline_reason && declineMap[po.id]) {
         po.decline_reason = declineMap[po.id];
       }
@@ -529,7 +523,6 @@ const enrichPOsWithMetadata = async (pos, preloadedLogs = null) => {
         po.declineReason = po.decline_reason;
       }
 
-      // 2. Cancellation reasons
       if (!po.cancellation_reason && cancellationMap[po.id]) {
         po.cancellation_reason = cancellationMap[po.id];
       }
@@ -537,17 +530,14 @@ const enrichPOsWithMetadata = async (pos, preloadedLogs = null) => {
         po.cancellationReason = po.cancellation_reason;
       }
 
-      // 3. Reschedule history
       if (rescheduleMap[po.id]) {
         po.reschedule_history = rescheduleMap[po.id];
       }
 
-      // 4. Notes
       if (!po.notes && notesMap[po.id]) {
         po.notes = notesMap[po.id];
       }
 
-      // 5. Overdue detection
       const isTerminal = ['Received', 'Cancelled', 'Declined', 'DECLINED'].includes(po.status);
       const isOverdue = !isTerminal && Boolean(po.expected_date && po.expected_date < todayManila);
       let daysOverdue = 0;
@@ -565,7 +555,7 @@ const enrichPOsWithMetadata = async (pos, preloadedLogs = null) => {
   return pos;
 };
 
-// Helper to enrich PO items with supplier proposals & shop decisions from audit logs
+// Enriches PO items with supplier proposals and shop decisions from audit logs.
 const enrichPOsWithSupplierProposals = async (pos, preloadedLogs = null) => {
   if (!pos || pos.length === 0) return pos;
 
@@ -720,10 +710,8 @@ const fetchPurchaseOrders = async (supplierId = null) => {
   return enrichPOsWithIngredientPerishability(withMeta, metaMap);
 };
 
-// === Purchase Orders ===
 export const getPurchaseOrders = async () => fetchPurchaseOrders(null);
 
-// Get purchase orders for a specific supplier (Supplier Portal)
 export const getPurchaseOrdersBySupplier = async (supplierId) => fetchPurchaseOrders(supplierId);
 
 export const createPurchaseOrder = async (poData) => {
@@ -789,7 +777,6 @@ export const createPurchaseOrder = async (poData) => {
     };
   });
 
-  // Calculate total amount
   // Sum in integer centavos to avoid float drift.
   const total_amount = validatedItems.reduce((sum, item) => sum + Math.round(item.quantity * item.unit_price * 100), 0) / 100;
   
@@ -801,7 +788,7 @@ export const createPurchaseOrder = async (poData) => {
     status: 'Pending'
   };
 
-  // 1. Insert PO (attempt with notes if provided; if column is missing from schema cache, fallback gracefully)
+  // Notes are optional: retry without them if the column is missing from the schema cache.
   let po;
   let poError;
 
@@ -836,7 +823,6 @@ export const createPurchaseOrder = async (poData) => {
 
   if (poError) throw poError;
 
-  // 2. Insert items
   const itemsToInsert = validatedItems.map(item => ({
     purchase_order_id: po.id,
     ingredient_id: item.ingredient_id,
@@ -1125,7 +1111,6 @@ export const submitSupplierItemResponses = async (poId, items, supplierUserId) =
   }
   if (poErr) throw poErr;
 
-  // Log audit event to capture item breakdown & proposals
   await logAudit('SUPPLIER_PO_ITEM_RESPONSE', supplierUserId, {
     po_id: poId,
     items,
@@ -1155,7 +1140,6 @@ export const respondToSupplierProposal = async (poId, itemId, decision, splitInt
   let backorderPO = null;
 
   if (decision === 'ACCEPTED') {
-    // Fetch original PO and items
     const { data: origPO } = await supabase
       .from('purchase_orders')
       .select('*, purchase_order_items(*)')
@@ -1164,7 +1148,6 @@ export const respondToSupplierProposal = async (poId, itemId, decision, splitInt
 
     const targetItem = origPO?.purchase_order_items?.find(i => i.id === itemId);
 
-    // Retrieve proposed date from audit log
     // shortcut: bounded to the newest 500 proposal logs (no DB-side JSON filter), raise if POs outlive that window
     const { data: recentLogs } = await supabase
       .from('audit_logs')
@@ -1189,7 +1172,6 @@ export const respondToSupplierProposal = async (poId, itemId, decision, splitInt
       }
     }
 
-    // If split into a new backorder PO is enabled
     if (splitIntoBackorder && targetItem && origPO) {
       const boTotal = Number(targetItem.quantity) * Number(targetItem.unit_price);
       const { data: createdPO, error: boErr } = await supabase
@@ -1260,7 +1242,6 @@ export const respondToSupplierProposal = async (poId, itemId, decision, splitInt
     split_into_backorder: splitIntoBackorder
   });
 
-  // Check if all proposals for this PO are now resolved
   const { data: checkPO } = await supabase
     .from('purchase_orders')
     .select('*, purchase_order_items(*)')

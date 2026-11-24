@@ -1,4 +1,3 @@
-// Point of Sale API endpoints
 import { apiCall } from "./client.js";
 
 /**

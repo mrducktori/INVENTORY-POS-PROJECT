@@ -1,8 +1,7 @@
 import React from 'react';
 
 /**
- * React Error Boundary to catch runtime errors in child components
- * and prevent the dreaded "white screen of death" (WSOD).
+ * Catches render errors in child components and shows a recovery screen instead of a blank page.
  */
 export default class ErrorBoundary extends React.Component {
   constructor(props) {

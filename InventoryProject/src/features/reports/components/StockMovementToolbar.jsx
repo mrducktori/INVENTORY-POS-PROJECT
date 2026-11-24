@@ -1,7 +1,8 @@
 import React from 'react';
 
 /**
- * Filter and action toolbar for StockMovementReport (period selector, search, movement/snapshot filters, CSV/generate/print).
+ * Filter and action toolbar for StockMovementReport (period, search, movement/snapshot filters,
+ * CSV/generate/print).
  */
 const StockMovementToolbar = ({
   period,

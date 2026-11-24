@@ -1,4 +1,4 @@
-// Session timeout configuration: 2 hours in milliseconds
+// Inactivity timeout: 2 hours.
 export const SESSION_TIMEOUT_MS = 2 * 60 * 60 * 1000;
 export const USER_STORAGE_KEY = "user";
 export const LAST_ACTIVITY_KEY = "session_last_activity";
@@ -36,7 +36,7 @@ export const isSessionExpired = () => {
 
     const lastActive = localStorage.getItem(LAST_ACTIVITY_KEY);
     if (!lastActive) {
-      // Legacy session without timestamp — treat as expired to force fresh timed session
+      // A session with no timestamp predates the timeout; treat it as expired.
       return true;
     }
 
