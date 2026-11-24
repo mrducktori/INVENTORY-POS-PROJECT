@@ -18,6 +18,25 @@
   --dur-slow: 320ms;
 }
 
+/* Dark mode: invert the whole page, then un-invert media so photos keep true colors.
+   shortcut: filter-based, not a real palette; swap to per-token vars if pixel-perfect dark is needed.
+   0.92 (not 1) keeps blacks off-black. */
+html.dark {
+  filter: invert(0.92) hue-rotate(180deg);
+  color-scheme: light;
+  background: #fff; /* inverts to the dark page color; avoids white edge flashes */
+}
+html.dark img,
+html.dark video,
+html.dark canvas,
+html.dark picture,
+html.dark [data-no-invert] {
+  filter: invert(1) hue-rotate(180deg);
+}
+@media print {
+  html.dark, html.dark img, html.dark video, html.dark canvas { filter: none; }
+}
+
 @layer base {
   body {
     margin: 0;

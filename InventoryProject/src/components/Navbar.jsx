@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { logoutUser, getCurrentUser } from '../api/authApi';
 import { useNotifications, EMPTY_LOW_STOCK } from '../features/dashboard/hooks/useNotifications';
 import { getCmsMap } from '../api/cmsApi';
+import ThemeToggle from './ThemeToggle';
 import NotificationInbox from '../features/dashboard/components/NotificationInbox';
 import { PERMISSION_GROUPS, getUserPermissions, usesPagePermissions, getRoleLabel, canStocktake } from '../utils/permissions';
 
@@ -204,6 +205,16 @@ const Navbar = ({ activeTab, onTabChange }) => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isMobileOpen]);
+
+  // Dark mode lives only in the authenticated shell so landing/login (photo backgrounds) stay untouched.
+  const [dark, setDark] = useState(() => {
+    try { return localStorage.getItem('theme') === 'dark'; } catch { return false; }
+  });
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', dark);
+    try { localStorage.setItem('theme', dark ? 'dark' : 'light'); } catch { /* ignore */ }
+  }, [dark]);
+  useEffect(() => () => document.documentElement.classList.remove('dark'), []);
 
   const toggleDesktopCollapse = () => {
     setIsCollapsed((prev) => {
@@ -460,6 +471,7 @@ const Navbar = ({ activeTab, onTabChange }) => {
         {renderNavList(false)}
 
         <div className="p-4 border-t border-zinc-800 bg-zinc-950">
+          <ThemeToggle dark={dark} onToggle={() => setDark((d) => !d)} />
           <button
             className="w-full py-3 px-4 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-2 cursor-pointer border border-zinc-800"
             onClick={handleLogout}
@@ -532,6 +544,7 @@ const Navbar = ({ activeTab, onTabChange }) => {
 
         {/* Logout button */}
         <div className={`border-t border-zinc-800 bg-zinc-950 ${isCollapsed ? 'p-2.5' : 'p-4'}`}>
+          <ThemeToggle collapsed={isCollapsed} dark={dark} onToggle={() => setDark((d) => !d)} />
           <button
             title={isCollapsed ? 'Logout Session' : undefined}
             className={`w-full bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-2 cursor-pointer border border-zinc-800 ${
