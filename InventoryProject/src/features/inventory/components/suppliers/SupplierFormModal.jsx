@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { INPUT_LIMITS, validateAmountInput } from '../../../../utils/validationUtils';
+import { useEscapeGuard } from '../../../../components/shared/useEscapeGuard';
+import UnsavedNotice from '../../../../components/shared/UnsavedNotice';
 
 const CATEGORIES = ['All', 'Coffee & Tea', 'Dairy', 'Syrups & Powders', 'Packaging'];
 
@@ -58,6 +60,17 @@ const SupplierFormModal = ({
       items: {}
     };
   });
+
+  // Modal is mounted fresh on each open, so the first formData is the baseline.
+  const [initialJson] = useState(() => JSON.stringify(formData));
+  const isDirty = JSON.stringify(formData) !== initialJson;
+  const lockTitle = isDirty ? 'Save or reset your changes first' : undefined;
+  const guardedClose = () => { if (!isDirty) onClose(); };
+  const escWarn = useEscapeGuard({ active: Boolean(isOpen), dirty: isDirty, onClose });
+  const handleReset = () => {
+    setFormData(JSON.parse(initialJson));
+    setValidationError('');
+  };
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCat, setSelectedCat] = useState('All');
@@ -239,10 +252,12 @@ const SupplierFormModal = ({
   if (!isOpen) return null;
 
   return (
+    <>
+    <UnsavedNotice show={escWarn} />
     <div
       className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[9999] p-4 flex justify-center items-start pt-6 sm:pt-10 md:pt-14 pb-12 animate-[modalBackdropFadeIn_0.2s_ease-out]"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) guardedClose();
       }}
     >
       <div
@@ -261,8 +276,10 @@ const SupplierFormModal = ({
           </div>
           <button
             type="button"
-            className="text-zinc-400 hover:text-white transition-colors cursor-pointer text-xl leading-none p-1"
+            className="text-zinc-400 hover:text-white transition-colors cursor-pointer text-xl leading-none p-1 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-zinc-400"
             onClick={onClose}
+            disabled={isDirty}
+            title={lockTitle}
            aria-label="Close"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
         </div>
 
@@ -544,15 +561,27 @@ const SupplierFormModal = ({
           <div className="px-6 py-4 border-t border-zinc-200 bg-zinc-50 flex justify-between items-center shrink-0">
             <span className="text-xs text-zinc-500 font-medium">
               {selectedCount} ingredients will be linked to this supplier.
+              {isDirty && <span className="ml-2 font-semibold text-amber-600">Unsaved changes</span>}
             </span>
             <div className="flex gap-3">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-5 py-2.5 bg-white border border-zinc-300 text-zinc-700 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-zinc-100 transition-colors cursor-pointer"
+                disabled={isDirty}
+                title={lockTitle}
+                className="px-5 py-2.5 bg-white border border-zinc-300 text-zinc-700 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-zinc-100 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
               >
                 Cancel
               </button>
+              {isDirty && (
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  className="px-5 py-2.5 bg-white border border-amber-400 text-amber-700 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-amber-50 transition-colors cursor-pointer"
+                >
+                  Reset
+                </button>
+              )}
               <button
                 type="submit"
                 className="px-5 py-2.5 bg-zinc-900 text-white rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-black transition-colors shadow-sm cursor-pointer"
@@ -564,6 +593,7 @@ const SupplierFormModal = ({
         </form>
       </div>
     </div>
+    </>
   );
 };
 

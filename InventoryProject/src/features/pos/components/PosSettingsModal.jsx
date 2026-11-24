@@ -320,9 +320,6 @@ const PosSettingsModal = ({ allIngredients = [], initialSettings = null, onSaved
   const modalContent = (
     <div
       className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[99990] p-4 flex justify-center items-start pt-6 sm:pt-10 pb-12 animate-[modalBackdropFadeIn_0.2s_ease-out]"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget && !saving) onClose();
-      }}
     >
       <div
         className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[calc(100vh-4rem)] animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)]"

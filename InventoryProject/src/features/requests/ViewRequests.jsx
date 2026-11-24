@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getRequests, updateRequestStatus } from '../../api/requestsApi';
 import Pagination from '../../components/shared/Pagination';
+import RefreshButton from '../../components/shared/RefreshButton';
 
 const ViewRequests = () => {
   const [requests, setRequests] = useState([]);
@@ -61,16 +62,19 @@ const ViewRequests = () => {
       <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden w-full mb-8">
         <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <h2 className="m-0 text-lg font-bold text-gray-900 tracking-tight">Staff Requests</h2>
-          <select 
-            value={filter} 
-            onChange={e => setFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer md:w-auto w-full"
-          >
-            <option value="ALL">All Requests</option>
-            <option value="PENDING">Pending</option>
-            <option value="APPROVED">Approved</option>
-            <option value="REJECTED">Rejected</option>
-          </select>
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            <select
+              value={filter}
+              onChange={e => setFilter(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer flex-1 md:flex-none md:w-auto min-w-0"
+            >
+              <option value="ALL">All Requests</option>
+              <option value="PENDING">Pending</option>
+              <option value="APPROVED">Approved</option>
+              <option value="REJECTED">Rejected</option>
+            </select>
+            <RefreshButton onRefresh={fetchRequests} loading={loading} className="shrink-0" />
+          </div>
         </div>
         <div className="p-0">
           {loading ? (

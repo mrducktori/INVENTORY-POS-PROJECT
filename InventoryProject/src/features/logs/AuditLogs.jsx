@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import RefreshButton from '../../components/shared/RefreshButton';
 import { getAuditLogs } from '../../api/auditApi';
 import { getManilaDateOnly, addDaysManila } from '../../utils/dateUtils';
 import { formatActionLabel, formatEntityReference, formatAuditDescription } from '../../utils/auditFormatter';
@@ -21,27 +22,28 @@ const AuditLogs = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'desc' });
 
-  useEffect(() => {
-    const fetchLogs = async () => {
-      try {
-        setLoading(true);
-        const adjustedFilters = {
-          ...filters,
-          end_date: filters.end_date ? filters.end_date + 'T23:59:59' : undefined,
-          limit: 200, // Fetch up to 200 for responsive client-side search & filtering
-          offset: 0
-        };
-        const result = await getAuditLogs(adjustedFilters);
-        const list = result?.data || (Array.isArray(result) ? result : []);
-        setLogs(list);
-      } catch (error) {
-        console.error("Failed to fetch audit logs:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchLogs();
+  const fetchLogs = useCallback(async () => {
+    try {
+      setLoading(true);
+      const adjustedFilters = {
+        ...filters,
+        end_date: filters.end_date ? filters.end_date + 'T23:59:59' : undefined,
+        limit: 200, // Fetch up to 200 for responsive client-side search & filtering
+        offset: 0
+      };
+      const result = await getAuditLogs(adjustedFilters);
+      const list = result?.data || (Array.isArray(result) ? result : []);
+      setLogs(list);
+    } catch (error) {
+      console.error("Failed to fetch audit logs:", error);
+    } finally {
+      setLoading(false);
+    }
   }, [filters]);
+
+  useEffect(() => {
+    fetchLogs();
+  }, [fetchLogs]);
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -194,6 +196,7 @@ const AuditLogs = () => {
             Immutable system activity log, administrative changes, and operator event records.
           </p>
         </div>
+        <RefreshButton onRefresh={fetchLogs} loading={loading} className="self-start md:self-auto" />
       </div>
 
       {/* KPI Summary Cards */}

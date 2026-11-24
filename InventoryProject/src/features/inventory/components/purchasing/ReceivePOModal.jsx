@@ -3,9 +3,11 @@ import InfoTip from '../../../../components/shared/InfoTip';
 import OcrScannerPanel from '../../../../components/shared/OcrScannerPanel';
 import { getManilaDateOnly, addDaysManila } from '../../../../utils/dateUtils';
 import { INPUT_LIMITS } from '../../../../utils/validationUtils';
+import { useEscapeGuard } from '../../../../components/shared/useEscapeGuard';
+import UnsavedNotice from '../../../../components/shared/UnsavedNotice';
 
 const ReceivePOModal = ({ po, onClose, onSubmit }) => {
-  const [items, setItems] = useState(() => {
+  const [initialItems] = useState(() => {
     const todayManila = getManilaDateOnly();
     return (po.purchase_order_items || []).map(item => {
       const rawPerishable = item.ingredients?.is_perishable;
@@ -20,6 +22,7 @@ const ReceivePOModal = ({ po, onClose, onSubmit }) => {
       };
     });
   });
+  const [items, setItems] = useState(initialItems);
   const [saving, setSaving] = useState(false);
   const [isReviewStep, setIsReviewStep] = useState(false);
   const [ocrFeedback, setOcrFeedback] = useState('');
@@ -147,8 +150,21 @@ const ReceivePOModal = ({ po, onClose, onSubmit }) => {
 
   const poRef = po.id ? po.id.substring(0, 8).toUpperCase() : '';
 
+  const isDirty = items.some((item, i) => {
+    const init = initialItems[i];
+    return item.received_now !== init.received_now
+      || (item.expiry_date || '') !== (init.expiry_date || '')
+      || (item.batch_code || '') !== (init.batch_code || '');
+  });
+  const closeBlocked = saving || isDirty;
+  const handleReset = () => { setItems(initialItems); setOcrFeedback(''); };
+
+  const escWarn = useEscapeGuard({ active: !saving, dirty: isDirty, onClose });
+
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[9999] p-4 flex justify-center items-start pt-6 sm:pt-10 md:pt-14 pb-12 animate-[modalBackdropFadeIn_0.2s_ease-out]" onMouseDown={(e) => { if (e.target === e.currentTarget && !saving) onClose(); }}>
+    <>
+    <UnsavedNotice show={escWarn} />
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[9999] p-4 flex justify-center items-start pt-6 sm:pt-10 md:pt-14 pb-12 animate-[modalBackdropFadeIn_0.2s_ease-out]" onMouseDown={(e) => { if (e.target === e.currentTarget && !closeBlocked) onClose(); }}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[calc(100vh-5rem)] md:max-h-[calc(100vh-6rem)] overflow-hidden flex flex-col animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)]" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="bg-zinc-900 text-white px-6 py-4 flex justify-between items-center shrink-0">
@@ -170,7 +186,7 @@ const ReceivePOModal = ({ po, onClose, onSubmit }) => {
               </div>
             </div>
           </div>
-          <button className="text-zinc-400 hover:text-white transition-colors bg-transparent border-none text-xl leading-none cursor-pointer p-0" onClick={onClose} disabled={saving} aria-label="Close"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
+          <button className="text-zinc-400 hover:text-white transition-colors bg-transparent border-none text-xl leading-none cursor-pointer p-0 disabled:opacity-40 disabled:cursor-not-allowed" onClick={onClose} disabled={closeBlocked} title={isDirty ? 'Save or reset your changes first' : undefined} aria-label="Close"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
         </div>
 
         {/* Form Body */}
@@ -296,7 +312,13 @@ const ReceivePOModal = ({ po, onClose, onSubmit }) => {
             </div>
             
             <div className="px-6 py-4 border-t border-zinc-100 bg-zinc-50 flex justify-end gap-3 shrink-0">
-              <button type="button" className="px-5 py-2.5 bg-white border border-zinc-300 text-zinc-700 rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-zinc-100 transition-colors cursor-pointer" onClick={onClose} disabled={saving}>Cancel</button>
+              {isDirty && (
+                <>
+                  <span className="mr-auto text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">Unsaved changes</span>
+                  <button type="button" className="px-5 py-2.5 bg-zinc-100 text-zinc-700 rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-zinc-200 transition-colors cursor-pointer" onClick={handleReset} disabled={saving}>Reset</button>
+                </>
+              )}
+              <button type="button" className="px-5 py-2.5 bg-white border border-zinc-300 text-zinc-700 rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-zinc-100 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white" onClick={onClose} disabled={closeBlocked} title={isDirty ? 'Save or reset your changes first' : undefined}>Cancel</button>
               <button 
                 type="submit" 
                 disabled={itemsToSubmit.length === 0 || hasExpiryErrors}
@@ -407,6 +429,7 @@ const ReceivePOModal = ({ po, onClose, onSubmit }) => {
         )}
       </div>
     </div>
+    </>
   );
 };
 

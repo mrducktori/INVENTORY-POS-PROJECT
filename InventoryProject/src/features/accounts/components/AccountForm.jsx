@@ -44,6 +44,16 @@ const AccountForm = ({
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formError, setFormError] = useState(null);
+  // Parent remounts this form (key) per account, so the first formData is the baseline.
+  const [initialJson] = useState(() => JSON.stringify(formData));
+  const isDirty = isEditing && (JSON.stringify(formData) !== initialJson || confirmPassword !== '');
+  const lockTitle = isDirty ? 'Save or reset your changes first' : undefined;
+
+  const handleReset = () => {
+    setFormData(JSON.parse(initialJson));
+    setConfirmPassword('');
+    setFormError(null);
+  };
 
   const roleOptions = useMemo(() => {
     const opts = ['Staff', 'Custom', 'Admin', 'Supplier'];
@@ -338,14 +348,26 @@ const AccountForm = ({
         </div>
       )}
 
-      <div className="flex gap-3 pt-2 border-t border-zinc-100">
+      <div className="flex items-center gap-3 pt-2 border-t border-zinc-100">
+        {isDirty && <span className="text-xs font-semibold text-amber-600 whitespace-nowrap">Unsaved changes</span>}
         {isEditing && (
           <button
             type="button"
             onClick={onCancel}
-            className="px-6 py-3 bg-white border border-zinc-300 text-zinc-700 rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-zinc-50 transition-colors cursor-pointer"
+            disabled={isDirty}
+            title={lockTitle}
+            className="px-6 py-3 bg-white border border-zinc-300 text-zinc-700 rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-zinc-50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
           >
             Cancel
+          </button>
+        )}
+        {isDirty && (
+          <button
+            type="button"
+            onClick={handleReset}
+            className="px-6 py-3 bg-white border border-amber-400 text-amber-700 rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-amber-50 transition-colors cursor-pointer"
+          >
+            Reset
           </button>
         )}
         <button

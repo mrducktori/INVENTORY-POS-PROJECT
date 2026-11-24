@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import RefreshButton from '../../components/shared/RefreshButton';
 import { getAuditLogs } from '../../api/auditApi';
 import { getCurrentUser } from '../../api/authApi';
 import { getManilaDateOnly, addDaysManila } from '../../utils/dateUtils';
@@ -34,37 +35,37 @@ const TransactionLogs = () => {
   const [pageSize, setPageSize] = useState(50);
   const [currentPage, setCurrentPage] = useState(1);
 
-  useEffect(() => {
-    const fetchLogs = async () => {
-      if (!user || user.role !== 'Owner') return;
-      try {
-        setLoading(true);
-        const adjustedFilters = {
-          ...filters,
-          end_date: filters.end_date ? filters.end_date + 'T23:59:59' : undefined,
-          limit: 300,
-          offset: 0
-        };
-        const response = await getAuditLogs(adjustedFilters);
-        const allLogs = response?.data || response || [];
-        
-        // Filter out everything except Sales, PO, and Stock Received
-        const txLogs = allLogs.filter(log => 
-          log.action?.toUpperCase().startsWith('SALE') || 
-          log.action?.toUpperCase().startsWith('PURCHASE_ORDER') ||
-          log.action?.toUpperCase().includes('STOCK_RECEIVED')
-        );
-        
-        setLogs(txLogs);
-      } catch (error) {
-        console.error('Failed to fetch transaction logs:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchLogs = useCallback(async () => {
+    if (!user || user.role !== 'Owner') return;
+    try {
+      setLoading(true);
+      const adjustedFilters = {
+        ...filters,
+        end_date: filters.end_date ? filters.end_date + 'T23:59:59' : undefined,
+        limit: 300,
+        offset: 0
+      };
+      const response = await getAuditLogs(adjustedFilters);
+      const allLogs = response?.data || response || [];
 
-    fetchLogs();
+      // Filter out everything except Sales, PO, and Stock Received
+      const txLogs = allLogs.filter(log =>
+        log.action?.toUpperCase().startsWith('SALE') ||
+        log.action?.toUpperCase().startsWith('PURCHASE_ORDER') ||
+        log.action?.toUpperCase().includes('STOCK_RECEIVED')
+      );
+
+      setLogs(txLogs);
+    } catch (error) {
+      console.error('Failed to fetch transaction logs:', error);
+    } finally {
+      setLoading(false);
+    }
   }, [filters, user]);
+
+  useEffect(() => {
+    fetchLogs();
+  }, [fetchLogs]);
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -215,6 +216,7 @@ const TransactionLogs = () => {
             Dedicated owner audit trail of register sales, purchase orders, and stock receipts.
           </p>
         </div>
+        <RefreshButton onRefresh={fetchLogs} loading={loading} className="self-start md:self-auto" />
       </div>
 
       {/* KPI Summary Cards */}

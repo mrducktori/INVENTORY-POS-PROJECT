@@ -9,6 +9,8 @@ import {
 import { INPUT_LIMITS, validateAmountInput } from '../../../../utils/validationUtils';
 import CategoryListSidebar from './CategoryListSidebar';
 import CategoryDefaultsEditor from './CategoryDefaultsEditor';
+import { useEscapeGuard } from '../../../../components/shared/useEscapeGuard';
+import UnsavedNotice from '../../../../components/shared/UnsavedNotice';
 
 const normalizeInput = (val) => String(val || '').trim().replace(/\s+/g, ' ').toUpperCase();
 const KITCHEN_HINT_PATTERN =
@@ -268,10 +270,30 @@ const CategorySettingsModal = ({ onClose, allIngredients = [], onCategoriesChang
     Boolean(normalizeInput(renameValue)) &&
     normalizeInput(renameValue) !== selectedCategory;
 
+  // Baseline = the saved category (same values the sync effect loads into the form).
+  const basePrep = String(activeCategoryObj?.prep_station || 'BARISTA').toUpperCase() === 'KITCHEN' ? 'KITCHEN' : 'BARISTA';
+  const dirty =
+    Boolean(activeCategoryObj) &&
+    (renameValue !== selectedCategory ||
+      editPrepStation !== basePrep ||
+      JSON.stringify(editSizes) !== JSON.stringify(activeCategoryObj.sizes || []) ||
+      JSON.stringify(editAddOns) !== JSON.stringify(activeCategoryObj.add_ons || []));
+  const lockTitle = dirty ? 'Save or reset your changes first' : undefined;
+  const guardedClose = () => { if (!dirty) onClose(); };
+  const escWarn = useEscapeGuard({ active: !loading, dirty, onClose });
+  const handleReset = () => {
+    setRenameValue(selectedCategory);
+    setEditPrepStation(basePrep);
+    setEditSizes(activeCategoryObj?.sizes || []);
+    setEditAddOns(activeCategoryObj?.add_ons || []);
+  };
+
   return (
+    <>
+    <UnsavedNotice show={escWarn} />
     <div
       className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[9999] p-4 flex justify-center items-start pt-6 sm:pt-10 md:pt-14 pb-12 animate-[modalBackdropFadeIn_0.2s_ease-out]"
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onMouseDown={(e) => { if (e.target === e.currentTarget) guardedClose(); }}
     >
       <div
         className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl overflow-hidden animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)] flex flex-col max-h-[90vh]"
@@ -285,8 +307,10 @@ const CategorySettingsModal = ({ onClose, allIngredients = [], onCategoriesChang
             </p>
           </div>
           <button
-            className="text-gray-200 hover:text-white transition-colors bg-transparent border-none text-2xl leading-none cursor-pointer p-0"
-            onClick={onClose}
+            className="text-gray-200 hover:text-white transition-colors bg-transparent border-none text-2xl leading-none cursor-pointer p-0 disabled:opacity-40 disabled:cursor-not-allowed"
+            disabled={dirty}
+            title={lockTitle}
+            onClick={guardedClose}
             aria-label="Close"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -312,7 +336,7 @@ const CategorySettingsModal = ({ onClose, allIngredients = [], onCategoriesChang
             <CategoryListSidebar
               categoryList={categoryList}
               selectedCategory={selectedCategory}
-              onSelectCategory={setSelectedCategory}
+              onSelectCategory={(c) => { if (!dirty) setSelectedCategory(c); }}
               newCategoryName={newCategoryName}
               onNewCategoryNameChange={handleNewCategoryNameChange}
               newCategoryStation={newCategoryStation}
@@ -426,7 +450,18 @@ const CategorySettingsModal = ({ onClose, allIngredients = [], onCategoriesChang
                     onRemoveAddOn={handleRemoveAddOn}
                   />
 
-                  <div className="mt-6 flex justify-end">
+                  <div className="mt-6 flex justify-end items-center gap-3">
+                    {dirty && <span className="text-xs font-bold text-amber-600">Unsaved changes</span>}
+                    {dirty && (
+                      <button
+                        type="button"
+                        onClick={handleReset}
+                        disabled={loading}
+                        className="px-6 py-3 bg-amber-50 border border-amber-300 text-amber-800 rounded-xl text-sm md:text-base font-bold uppercase tracking-wider hover:bg-amber-100 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        Reset
+                      </button>
+                    )}
                     <button
                       type="button"
                       className="px-7 py-3 bg-gray-900 text-white rounded-xl text-sm md:text-base font-bold uppercase tracking-wider hover:bg-black hover:shadow-lg transition-all hover:-translate-y-0.5 disabled:bg-gray-400 disabled:hover:translate-y-0 cursor-pointer"
@@ -447,6 +482,7 @@ const CategorySettingsModal = ({ onClose, allIngredients = [], onCategoriesChang
         </div>
       </div>
     </div>
+    </>
   );
 };
 

@@ -4,6 +4,7 @@ import { getSales } from '../../api/salesApi';
 import { downloadCSV } from '../reports/utils/reportUtils';
 import { getManilaDateOnly } from '../../utils/dateUtils';
 import Pagination from '../../components/shared/Pagination';
+import RefreshButton from '../../components/shared/RefreshButton';
 
 const SalesSummaryReport = () => {
   const currentManilaYear = Number(getManilaDateOnly().slice(0, 4)) || new Date().getFullYear();
@@ -156,13 +157,16 @@ const SalesSummaryReport = () => {
           <h1 className="m-0 text-xl md:text-2xl font-bold text-gray-900 tracking-tight">Sales Summary Report</h1>
           <p className="m-0 mt-1 text-sm md:text-base text-gray-500 font-medium">Analyze revenue and performance. Click on a staff member to view detailed logs.</p>
         </div>
-        <button 
-          className="px-5 py-2.5 bg-gray-900 hover:bg-black text-white font-bold rounded-xl shadow-sm transition-all flex items-center gap-2 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-          onClick={handleExport} 
-          disabled={loading || !summary}
-        >
-          Export Analytics (CSV)
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <RefreshButton onRefresh={fetchSummary} loading={loading} className="py-2.5" />
+          <button
+            className="px-5 py-2.5 bg-gray-900 hover:bg-black text-white font-bold rounded-xl shadow-sm transition-all flex items-center gap-2 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            onClick={handleExport}
+            disabled={loading || !summary}
+          >
+            Export Analytics (CSV)
+          </button>
+        </div>
       </div>
 
       <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-5 mb-8 flex flex-wrap items-center gap-4">

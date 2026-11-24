@@ -41,12 +41,12 @@ const ManageProducts = ({ subTab = null, onSubTabChange = null }) => {
     editPrice, setEditPrice,
     editName, setEditName,
     editCategory, setEditCategory,
-    editImageUrl,
+    editImageUrl, setEditImageUrl,
     editTrackStock, setEditTrackStock,
     editStockQty,
     editThreshold, setEditThreshold,
-    editSizes,
-    editAddOns,
+    editSizes, setEditSizes,
+    editAddOns, setEditAddOns,
     handleAddSize, handleRemoveSize, handleUpdateEditSize,
     handleAddAddOn, handleRemoveAddOn,
     handleAddProduct,
@@ -284,6 +284,9 @@ const ManageProducts = ({ subTab = null, onSubTabChange = null }) => {
           editPrice={editPrice}
           setEditPrice={setEditPrice}
           editImageUrl={editImageUrl}
+          setEditImageUrl={setEditImageUrl}
+          setEditSizes={setEditSizes}
+          setEditAddOns={setEditAddOns}
           uploading={uploading}
           onImageUpload={handleImageUpload}
           editTrackStock={editTrackStock}

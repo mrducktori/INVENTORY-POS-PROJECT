@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { getAllProducts } from '../../api/productsApi';
 import { getRecipesByProduct } from '../../api/recipesApi';
 import Pagination from '../../components/shared/Pagination';
+import RefreshButton from '../../components/shared/RefreshButton';
 import { TableSkeleton, CardGridSkeleton } from '../../components/shared/SkeletonLoader';
 
 const Products = () => {
@@ -147,8 +148,10 @@ const Products = () => {
           </p>
         </div>
 
+        <div className="flex items-center gap-3 flex-wrap self-start md:self-auto">
+        <RefreshButton onRefresh={fetchProducts} className="py-2.5" />
         {/* View Switcher Controls (Table vs Grid) */}
-        <div className="flex items-center gap-2 bg-zinc-100 p-1.5 rounded-xl border border-zinc-200 self-start md:self-auto">
+        <div className="flex items-center gap-2 bg-zinc-100 p-1.5 rounded-xl border border-zinc-200">
           <button
             type="button"
             onClick={() => setViewMode('table')}
@@ -178,6 +181,7 @@ const Products = () => {
             </svg>
             Grid Cards View
           </button>
+        </div>
         </div>
       </div>
 

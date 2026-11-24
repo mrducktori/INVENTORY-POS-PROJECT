@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getEmployeeShifts } from '../../api/usersApi';
 import Pagination from '../../components/shared/Pagination';
+import RefreshButton from '../../components/shared/RefreshButton';
 import { getManilaDateOnly } from '../../utils/dateUtils';
 
 const EmployeeTracker = () => {
@@ -52,12 +53,15 @@ const EmployeeTracker = () => {
       <div className="card">
         <div className="card-header tracker-header">
           <h2>Shift Records</h2>
-          <input 
-            type="date" 
-            value={dateStr} 
-            onChange={(e) => { setDateStr(e.target.value); setCurrentPage(1); }}
-            className="tracker-date-input"
-          />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <input
+              type="date"
+              value={dateStr}
+              onChange={(e) => { setDateStr(e.target.value); setCurrentPage(1); }}
+              className="tracker-date-input"
+            />
+            <RefreshButton onRefresh={fetchShifts} loading={loading} />
+          </div>
         </div>
         <div className="card-body">
           {error && (

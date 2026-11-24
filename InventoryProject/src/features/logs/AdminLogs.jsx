@@ -3,6 +3,7 @@ import { getAuditLogs } from '../../api/auditApi';
 import { formatActionLabel, formatAuditDescription } from '../../utils/auditFormatter';
 import { TableSkeleton } from '../../components/shared/SkeletonLoader';
 import Pagination from '../../components/shared/Pagination';
+import RefreshButton from '../../components/shared/RefreshButton';
 
 const AdminLogs = () => {
   const [logs, setLogs] = useState([]);
@@ -64,6 +65,7 @@ const AdminLogs = () => {
             Comprehensive audit records of administrative actions and configuration events.
           </p>
         </div>
+        <RefreshButton onRefresh={fetchLogs} loading={loading} className="self-start md:self-auto" />
       </div>
 
       {/* Main Card */}

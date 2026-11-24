@@ -6,6 +6,8 @@ import {
   getCategoryShelfLife,
   updateCategoryShelfLife
 } from '../../../api/inventoryApi';
+import { useEscapeGuard } from '../../../components/shared/useEscapeGuard';
+import UnsavedNotice from '../../../components/shared/UnsavedNotice';
 
 const normalizeCategory = (val) =>
   String(val || '')
@@ -79,6 +81,11 @@ const RawMaterialCategoriesModal = ({
           days: savedShelf?.default_shelf_life_days ?? ''
         };
 
+  const shelfDirty =
+    shelfDraft?.category === effectiveSelectedCategory &&
+    (shelfDraft.perishable !== (savedShelf ? savedShelf.is_perishable !== false : true) ||
+      String(shelfDraft.days) !== String(savedShelf?.default_shelf_life_days ?? ''));
+
   const handleSaveShelfLife = async () => {
     const days = Math.round(Number(shelf.days));
     if (shelf.perishable && !(days >= 1 && days <= 3650)) {
@@ -111,10 +118,16 @@ const RawMaterialCategoriesModal = ({
     Boolean(effectiveSelectedCategory) &&
     Boolean(cleanedRename) &&
     cleanedRename !== effectiveSelectedCategory;
+  const dirty = shelfDirty || (renameDraft?.category === effectiveSelectedCategory && renameDraft.value !== effectiveSelectedCategory);
+  const lockTitle = dirty ? 'Save or reset your changes first' : undefined;
+  const guardedClose = () => { if (!dirty) onClose(); };
+  const escWarn = useEscapeGuard({ active: !isSubmitting, dirty, onClose });
+  const handleReset = () => { setRenameDraft(null); setShelfDraft(null); };
   const isConfirmDeleteOpen =
     confirmDeleteFor === effectiveSelectedCategory && selectedCount === 0;
 
   const handleSelectCategory = (categoryName) => {
+    if (dirty) return;
     setSelectedCategory(categoryName);
     setRenameDraft(null);
     setConfirmDeleteFor('');
@@ -198,10 +211,12 @@ const RawMaterialCategoriesModal = ({
   };
 
   return (
+    <>
+    <UnsavedNotice show={escWarn} />
     <div
       className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[9999] p-4 flex justify-center items-start pt-6 sm:pt-10 md:pt-14 pb-12 animate-[modalBackdropFadeIn_0.2s_ease-out]"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget && !isSubmitting) onClose();
+        if (e.target === e.currentTarget && !isSubmitting) guardedClose();
       }}
     >
       <div
@@ -219,9 +234,10 @@ const RawMaterialCategoriesModal = ({
           </div>
           <button
             type="button"
-            className="text-gray-200 hover:text-white transition-colors bg-transparent border-none text-2xl leading-none cursor-pointer p-0"
-            onClick={onClose}
-            disabled={isSubmitting}
+            className="text-gray-200 hover:text-white transition-colors bg-transparent border-none text-2xl leading-none cursor-pointer p-0 disabled:opacity-40 disabled:cursor-not-allowed"
+            onClick={guardedClose}
+            disabled={isSubmitting || dirty}
+            title={lockTitle}
             aria-label="Close"
           >
             <svg
@@ -491,7 +507,18 @@ const RawMaterialCategoriesModal = ({
                     Forecasting.
                   </p>
 
-                  <div className="mt-6 flex justify-end">
+                  <div className="mt-6 flex justify-end items-center gap-3">
+                    {dirty && <span className="text-xs font-bold text-amber-600">Unsaved changes</span>}
+                    {dirty && (
+                      <button
+                        type="button"
+                        onClick={handleReset}
+                        disabled={isSubmitting}
+                        className="px-6 py-3 bg-amber-50 border border-amber-300 text-amber-800 rounded-xl text-sm md:text-base font-bold uppercase tracking-wider hover:bg-amber-100 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        Reset
+                      </button>
+                    )}
                     <button
                       type="submit"
                       disabled={isSubmitting || !hasPendingRename}
@@ -511,6 +538,7 @@ const RawMaterialCategoriesModal = ({
         </div>
       </div>
     </div>
+    </>
   );
 };
 

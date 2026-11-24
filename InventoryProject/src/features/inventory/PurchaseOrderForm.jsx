@@ -3,6 +3,11 @@ import { getSuppliers, createPurchaseOrder } from '../../api/purchasingApi';
 import { getIngredients } from '../../api/inventoryApi';
 import { formatDisplayDate, getManilaDateOnly, addDaysManila } from '../../utils/dateUtils';
 import { INPUT_LIMITS, validateAmountInput } from '../../utils/validationUtils';
+import { useEscapeGuard } from '../../components/shared/useEscapeGuard';
+import UnsavedNotice from '../../components/shared/UnsavedNotice';
+
+// items: map of ingredient_id -> { selected, quantity, unit_price, purchase_unit, conversion_factor }
+const BLANK_FORM = { supplier_id: '', expected_date: '', items: {} };
 
 const PurchaseOrderForm = ({ onClose, onSuccess }) => {
   const [suppliers, setSuppliers] = useState([]);
@@ -15,11 +20,15 @@ const PurchaseOrderForm = ({ onClose, onSuccess }) => {
   const [reviewData, setReviewData] = useState(null);
   const [reviewAcknowledged, setReviewAcknowledged] = useState(false);
 
-  const [formData, setFormData] = useState({
-    supplier_id: '',
-    expected_date: '',
-    items: {} // map of ingredient_id -> { selected: boolean, quantity: number, unit_price: number }
-  });
+  const [formData, setFormData] = useState(BLANK_FORM);
+  const isDirty = JSON.stringify(formData) !== JSON.stringify(BLANK_FORM);
+  const lockTitle = isDirty ? 'Save or reset your changes first' : undefined;
+  const escWarn = useEscapeGuard({ active: !loading && !saving && !reviewData, dirty: isDirty, onClose });
+  const handleReset = () => {
+    setFormData(BLANK_FORM);
+    setSearchQuery('');
+    setError('');
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -317,11 +326,12 @@ const PurchaseOrderForm = ({ onClose, onSuccess }) => {
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[9999] p-4 flex justify-center items-start pt-6 sm:pt-10 md:pt-14 pb-12 animate-[modalBackdropFadeIn_0.2s_ease-out]" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <UnsavedNotice show={escWarn} />
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[9999] p-4 flex justify-center items-start pt-6 sm:pt-10 md:pt-14 pb-12 animate-[modalBackdropFadeIn_0.2s_ease-out]" onMouseDown={(e) => { if (e.target === e.currentTarget && !isDirty) onClose(); }}>
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[calc(100vh-5rem)] md:max-h-[calc(100vh-6rem)] overflow-hidden flex flex-col animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)]" onClick={e => e.stopPropagation()}>
           <div className="bg-gray-900 text-white px-6 py-4 flex justify-between items-center shrink-0">
             <h2 className="m-0 text-lg md:text-xl font-bold tracking-wide">Create Purchase Order</h2>
-            <button className="text-gray-400 hover:text-white transition-colors bg-transparent border-none text-xl leading-none cursor-pointer p-0" onClick={onClose} aria-label="Close"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
+            <button type="button" className="text-gray-400 hover:text-white transition-colors bg-transparent border-none text-xl leading-none cursor-pointer p-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-gray-400" onClick={onClose} disabled={isDirty} title={lockTitle} aria-label="Close"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
           </div>
 
           <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden min-h-0">
@@ -439,16 +449,28 @@ const PurchaseOrderForm = ({ onClose, onSuccess }) => {
                 ) : (
                   <span className="text-xs text-gray-400 italic">No items selected</span>
                 )}
+                {isDirty && <span className="text-xs font-semibold text-amber-600">Unsaved changes</span>}
               </div>
               <div className="flex items-center gap-3">
                 <button 
                   type="button" 
-                  className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-gray-100 transition-colors disabled:opacity-50 cursor-pointer" 
-                  onClick={onClose} 
-                  disabled={saving}
+                  className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  onClick={onClose}
+                  disabled={saving || isDirty}
+                  title={lockTitle}
                 >
                   Cancel
                 </button>
+                {isDirty && (
+                  <button
+                    type="button"
+                    onClick={handleReset}
+                    disabled={saving}
+                    className="px-5 py-2.5 bg-white border border-amber-400 text-amber-700 rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-amber-50 transition-colors disabled:opacity-50 cursor-pointer"
+                  >
+                    Reset
+                  </button>
+                )}
                 <button 
                   type="submit" 
                   className="px-5 py-2.5 bg-gray-900 text-white border-none rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm cursor-pointer" 
@@ -463,9 +485,7 @@ const PurchaseOrderForm = ({ onClose, onSuccess }) => {
       </div>
       {reviewData && (
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[10000] p-4 flex justify-center items-start pt-6 sm:pt-10 md:pt-14 pb-12 animate-[modalBackdropFadeIn_0.2s_ease-out]"
-          onMouseDown={(e) => { if (e.target === e.currentTarget && !saving) setReviewData(null); }}
-        >
+          className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[10000] p-4 flex justify-center items-start pt-6 sm:pt-10 md:pt-14 pb-12 animate-[modalBackdropFadeIn_0.2s_ease-out]"        >
           <div 
             className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border border-zinc-200 animate-[popIn_0.2s_ease-out]"
             onClick={e => e.stopPropagation()}

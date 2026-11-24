@@ -3,6 +3,8 @@ import { CATEGORIES } from '../../../../utils/constants';
 import SearchableIngredientSelect from '../../../../components/shared/SearchableIngredientSelect';
 import ProductOptionsEditor from './ProductOptionsEditor';
 import ConfirmModal from '../../../../components/shared/ConfirmModal';
+import { useEscapeGuard } from '../../../../components/shared/useEscapeGuard';
+import UnsavedNotice from '../../../../components/shared/UnsavedNotice';
 
 const ModifyProductModal = ({
   selectedProduct,
@@ -15,6 +17,9 @@ const ModifyProductModal = ({
   editPrice,
   setEditPrice,
   editImageUrl,
+  setEditImageUrl,
+  setEditSizes,
+  setEditAddOns,
   uploading,
   onImageUpload,
   editTrackStock,
@@ -46,6 +51,22 @@ const ModifyProductModal = ({
   const [sizeTab, setSizeTab] = useState('');
   const [confirmCopy, setConfirmCopy] = useState(false);
   const quantityInputRef = useRef(null);
+
+  const current = {
+    name: editName, category: editCategory, price: String(editPrice ?? ''), imageUrl: editImageUrl || '',
+    trackStock: Boolean(editTrackStock), threshold: String(editThreshold ?? ''), sizes: editSizes, addOns: editAddOns
+  };
+  // Baseline = values at first render (modal mounts fresh each time a product is opened).
+  const [base] = useState(current);
+  const dirty = JSON.stringify(current) !== JSON.stringify(base);
+  const lockTitle = dirty ? 'Save or reset your changes first' : undefined;
+  const guardedClose = () => { if (!dirty) onClose(); };
+  const escWarn = useEscapeGuard({ active: Boolean(selectedProduct) && !confirmCopy, dirty, onClose });
+  const handleReset = () => {
+    const b = base;
+    setEditName(b.name); setEditCategory(b.category); setEditPrice(b.price); setEditImageUrl(b.imageUrl);
+    setEditTrackStock(b.trackStock); setEditThreshold(b.threshold); setEditSizes(b.sizes); setEditAddOns(b.addOns);
+  };
 
   if (!selectedProduct) return null;
 
@@ -105,11 +126,12 @@ const ModifyProductModal = ({
       onConfirm={copyBaseToSize}
       onCancel={() => setConfirmCopy(false)}
     />
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[9999] p-4 flex justify-center items-start pt-6 sm:pt-10 md:pt-14 pb-12 animate-[modalBackdropFadeIn_0.2s_ease-out]" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <UnsavedNotice show={escWarn} />
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[9999] p-4 flex justify-center items-start pt-6 sm:pt-10 md:pt-14 pb-12 animate-[modalBackdropFadeIn_0.2s_ease-out]" onMouseDown={(e) => { if (e.target === e.currentTarget) guardedClose(); }}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)] flex flex-col max-h-[calc(100vh-5rem)] md:max-h-[calc(100vh-6rem)]" onClick={e => e.stopPropagation()}>
         <div className="bg-gray-900 text-white px-6 py-4 flex justify-between items-center shrink-0">
           <h2 className="m-0 text-lg md:text-xl font-bold tracking-wide">Modify Product: {selectedProduct.name}</h2>
-          <button className="text-gray-400 hover:text-white transition-colors bg-transparent border-none text-2xl leading-none cursor-pointer p-0" onClick={onClose} aria-label="Close"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
+          <button type="button" disabled={dirty} title={lockTitle} className="text-gray-400 hover:text-white transition-colors bg-transparent border-none text-2xl leading-none cursor-pointer p-0 disabled:opacity-40 disabled:cursor-not-allowed" onClick={guardedClose} aria-label="Close"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
         </div>
 
         <div className="p-6 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200">
@@ -328,6 +350,7 @@ const ModifyProductModal = ({
                                         e.preventDefault();
                                         await saveEdit(r, unitToUse);
                                       } else if (e.key === 'Escape') {
+                                        e.preventDefault();
                                         setEditingRecipeId(null);
                                       }
                                     }}
@@ -598,13 +621,25 @@ const ModifyProductModal = ({
         </div>
 
         <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-end gap-3 shrink-0">
+          {dirty && <span className="text-xs font-bold text-amber-600 mr-auto">Unsaved changes</span>}
           <button
             type="button"
-            className="px-6 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm md:text-base font-bold uppercase tracking-wider hover:bg-gray-100 transition-colors cursor-pointer"
-            onClick={onClose}
+            disabled={dirty}
+            title={lockTitle}
+            className="px-6 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm md:text-base font-bold uppercase tracking-wider hover:bg-gray-100 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
+            onClick={guardedClose}
           >
             Cancel
           </button>
+          {dirty && (
+            <button
+              type="button"
+              onClick={handleReset}
+              className="px-6 py-2.5 bg-amber-50 border border-amber-300 text-amber-800 rounded-lg text-sm md:text-base font-bold uppercase tracking-wider hover:bg-amber-100 transition-colors cursor-pointer"
+            >
+              Reset
+            </button>
+          )}
           <button
             form="modify-product-form"
             type="submit"

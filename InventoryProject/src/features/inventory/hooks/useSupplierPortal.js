@@ -170,7 +170,7 @@ export const useSupplierPortal = () => {
 
   return {
     mainView, setMainView,
-    orders, loading, error,
+    orders, loading, error, fetchOrders,
     expandedId, toggleExpand,
     tabFilter, setTabFilter,
     searchQuery, setSearchQuery,

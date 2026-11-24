@@ -441,21 +441,40 @@ export const useManageRawMaterials = () => {
     }
   };
 
+  // Snapshot of the edit fields taken when the modal opens; used for the unsaved-changes guard.
+  const [editBase, setEditBase] = useState(null);
+  const applyEdit = (v) => {
+    setEditName(v.name); setEditCategory(v.category); setEditUnit(v.unit); setEditAlert(v.alert);
+    setEditQuantity(v.quantity); setEditPurchaseUnit(v.purchaseUnit); setEditConversionFactor(v.conversionFactor);
+    setEditCost(v.cost); setEditIsPerishable(v.isPerishable); setEditShelfLifeDays(v.shelfLifeDays);
+  };
+  const editCurrent = {
+    name: editName, category: editCategory, unit: editUnit, alert: editAlert, quantity: editQuantity,
+    purchaseUnit: editPurchaseUnit, conversionFactor: editConversionFactor, cost: editCost,
+    isPerishable: editIsPerishable, shelfLifeDays: editShelfLifeDays
+  };
+  const editDirty = !!editBase && JSON.stringify(editCurrent) !== JSON.stringify(editBase);
+  const resetEdit = () => { if (editBase) applyEdit(editBase); };
+
   const handleSetModify = (ingredient) => {
     setMessage('');
     setSelectedIngredient(ingredient);
-    setEditName(ingredient.name);
-    setEditCategory(ingredient.category || '');
-    setEditUnit(ingredient.unit);
-    setEditAlert(ingredient.low_stock_alert);
-    setEditQuantity(ingredient.stock_quantity);
-    setEditPurchaseUnit(ingredient.purchase_unit || 'Unit');
-    setEditConversionFactor(ingredient.conversion_factor || 1);
-    setEditCost(ingredient.cost_per_purchase_unit || 0);
     // Only an item-level override is editable here; otherwise it follows the category default.
     const override = ingredient.shelf_life_source === 'ITEM' ? ingredient.is_perishable !== false : null;
-    setEditIsPerishable(override);
-    setEditShelfLifeDays(override ? (ingredient.default_shelf_life_days ?? 30) : 30);
+    const base = {
+      name: ingredient.name,
+      category: ingredient.category || '',
+      unit: ingredient.unit,
+      alert: ingredient.low_stock_alert,
+      quantity: ingredient.stock_quantity,
+      purchaseUnit: ingredient.purchase_unit || 'Unit',
+      conversionFactor: ingredient.conversion_factor || 1,
+      cost: ingredient.cost_per_purchase_unit || 0,
+      isPerishable: override,
+      shelfLifeDays: override ? (ingredient.default_shelf_life_days ?? 30) : 30
+    };
+    applyEdit(base);
+    setEditBase(base);
   };
 
   return {
@@ -483,6 +502,7 @@ export const useManageRawMaterials = () => {
     editIsPerishable, setEditIsPerishable,
     categoryShelfLife,
     editShelfLifeDays, setEditShelfLifeDays,
+    editDirty, resetEdit,
     UNIT_CHOICES,
     handleAddIngredient,
     handleArchiveToggle,

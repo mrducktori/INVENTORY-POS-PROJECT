@@ -5,6 +5,8 @@ import Pagination from '../../components/shared/Pagination';
 import RawMaterialCategoriesModal from './components/RawMaterialCategoriesModal';
 import { formatQuantity } from '../../utils/productUtils';
 import ExpiryLevelBadge from './components/ExpiryLevelBadge';
+import { useEscapeGuard } from '../../components/shared/useEscapeGuard';
+import UnsavedNotice from '../../components/shared/UnsavedNotice';
 
 const LEVEL_PHRASE = { EXPIRED: 'expired', CRITICAL: 'use today', WARNING: 'use first', WATCH: 'watch' };
 const expiringTitle = (ing) => {
@@ -40,6 +42,7 @@ const ManageRawMaterials = () => {
     editIsPerishable, setEditIsPerishable,
     categoryShelfLife,
     editShelfLifeDays, setEditShelfLifeDays,
+    editDirty, resetEdit,
     UNIT_CHOICES,
     handleAddIngredient,
     handleArchiveToggle,
@@ -48,6 +51,10 @@ const ManageRawMaterials = () => {
     handleSetModify,
     fetchIngredients
   } = useManageRawMaterials();
+
+  const lockTitle = editDirty ? 'Save or reset your changes first' : undefined;
+  const closeEdit = () => { if (!editDirty) { setSelectedIngredient(null); setMessage(''); } };
+  const escWarn = useEscapeGuard({ active: Boolean(selectedIngredient) && !isProcessing && !confirmConfig.isOpen, dirty: editDirty, onClose: closeEdit });
 
   const categoryDefaultLabel = (cat) => {
     const c = categoryShelfLife[cat];
@@ -635,18 +642,21 @@ const ManageRawMaterials = () => {
       )}
 
       {/* ---- EDIT MODAL ---- */}
+      <UnsavedNotice show={escWarn} />
       {selectedIngredient && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[9999] p-4 flex justify-center items-start pt-6 sm:pt-10 md:pt-14 pb-12 animate-[modalBackdropFadeIn_0.2s_ease-out]" 
-          onMouseDown={(e) => { if (e.target === e.currentTarget) { setSelectedIngredient(null); setMessage(''); } }}
+          onMouseDown={(e) => { if (e.target === e.currentTarget) closeEdit(); }}
         >
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)] flex flex-col max-h-[calc(100vh-5rem)] md:max-h-[calc(100vh-6rem)]" onClick={e => e.stopPropagation()}>
             <div className="bg-gray-900 text-white px-6 py-4 flex justify-between items-center shrink-0">
               <h2 className="m-0 text-lg md:text-xl font-bold tracking-wide">Edit: {selectedIngredient.name}</h2>
               <button 
                 type="button"
-                className="text-gray-400 hover:text-white transition-colors bg-transparent border-none text-2xl leading-none cursor-pointer p-0" 
-                onClick={() => { setSelectedIngredient(null); setMessage(''); }}
+                disabled={editDirty}
+                title={lockTitle}
+                className="text-gray-400 hover:text-white transition-colors bg-transparent border-none text-2xl leading-none cursor-pointer p-0 disabled:opacity-40 disabled:cursor-not-allowed"
+                onClick={closeEdit}
                aria-label="Clear"><svg className="w-3.5 h-3.5 text-zinc-400 hover:text-zinc-700" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
             </div>
             <div className="p-6 overflow-y-auto">
@@ -820,14 +830,26 @@ const ManageRawMaterials = () => {
                 </div>
               </form>
             </div>
-            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end gap-3">
-              <button 
+            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-end gap-3">
+              {editDirty && <span className="text-xs font-bold text-amber-600 mr-auto">Unsaved changes</span>}
+              <button
                 type="button"
-                className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm md:text-base font-bold uppercase tracking-wider hover:bg-gray-100 transition-colors cursor-pointer" 
-                onClick={() => { setSelectedIngredient(null); setMessage(''); }}
+                disabled={editDirty}
+                title={lockTitle}
+                className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm md:text-base font-bold uppercase tracking-wider hover:bg-gray-100 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
+                onClick={closeEdit}
               >
                 Cancel
               </button>
+              {editDirty && (
+                <button
+                  type="button"
+                  onClick={resetEdit}
+                  className="px-5 py-2.5 bg-amber-50 border border-amber-300 text-amber-800 rounded-lg text-sm md:text-base font-bold uppercase tracking-wider hover:bg-amber-100 transition-colors cursor-pointer"
+                >
+                  Reset
+                </button>
+              )}
               <button 
                 type="submit" 
                 form="edit-material-form" 

@@ -18,7 +18,7 @@ const COMMON_PURCHASE_UNITS = [
   'Bag', 'Box', 'Bottle', 'Can', 'Pack', 'Pouch', 'Carton', 'Sack', 'Tub', 'Roll', 'Piece', 'Kg', 'Liter'
 ];
 
-export default function SupplierCatalogSection() {
+export default function SupplierCatalogSection({ onDirtyChange }) {
   const [catalog, setCatalog] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -146,6 +146,12 @@ export default function SupplierCatalogSection() {
   };
 
   const dirtyCount = Object.keys(edits).length;
+
+  // Lets the page disable its Refresh button while there are unsaved edits.
+  useEffect(() => {
+    onDirtyChange?.(dirtyCount);
+    return () => onDirtyChange?.(0);
+  }, [dirtyCount, onDirtyChange]);
 
   const handleSaveAll = async () => {
     if (dirtyCount === 0) return;
@@ -427,6 +433,12 @@ export default function SupplierCatalogSection() {
                 );
               })}
             </div>
+
+            {dirtyCount > 0 && (
+              <span className="text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">
+                Unsaved changes ({dirtyCount})
+              </span>
+            )}
 
             {dirtyCount > 0 && (
               <button

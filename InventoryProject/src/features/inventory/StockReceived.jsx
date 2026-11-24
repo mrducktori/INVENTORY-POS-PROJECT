@@ -7,6 +7,7 @@ import { getManilaDateOnly, addDaysManila } from '../../utils/dateUtils';
 import SearchableIngredientSelect from '../../components/shared/SearchableIngredientSelect';
 import OcrScannerPanel from '../../components/shared/OcrScannerPanel';
 import Pagination from '../../components/shared/Pagination';
+import RefreshButton from '../../components/shared/RefreshButton';
 
 
 const StockReceived = () => {
@@ -181,6 +182,7 @@ const StockReceived = () => {
           <h1 className="m-0 text-xl md:text-2xl font-bold text-gray-900 tracking-tight">Stock Received</h1>
           <p className="m-0 mt-1 text-sm text-gray-500 font-medium">Log incoming deliveries for ingredients and direct-track products.</p>
         </div>
+        <RefreshButton onRefresh={fetchData} />
       </div>
 
       {message && (

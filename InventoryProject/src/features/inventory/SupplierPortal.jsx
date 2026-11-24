@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import RefreshButton from '../../components/shared/RefreshButton';
 import { useSupplierPortal } from './hooks/useSupplierPortal';
 import SupplierReviewPOModal from './components/suppliers/SupplierReviewPOModal';
 import SupplierCatalogSection from './components/suppliers/SupplierCatalogSection';
@@ -8,7 +9,7 @@ import SupplierOrdersTable from './components/suppliers/SupplierOrdersTable';
 const SupplierPortal = () => {
   const {
     mainView, setMainView,
-    orders, loading, error,
+    orders, loading, error, fetchOrders,
     expandedId, toggleExpand,
     tabFilter, setTabFilter,
     searchQuery, setSearchQuery,
@@ -25,6 +26,9 @@ const SupplierPortal = () => {
     overdueCount, pendingCount, proposalsCount, activeCount, completedCount,
     filteredOrders, paginatedOrders
   } = useSupplierPortal();
+  // Changing the key remounts the catalog section, which reloads its data.
+  const [catalogKey, setCatalogKey] = useState(0);
+  const [catalogDirty, setCatalogDirty] = useState(0);
 
   return (
     <div className="p-4 md:p-8 flex-1 bg-gray-50 overflow-y-auto w-full">
@@ -38,6 +42,12 @@ const SupplierPortal = () => {
           </p>
         </div>
 
+        <div className="flex items-center gap-3 flex-wrap">
+        <RefreshButton
+          onRefresh={() => (mainView === 'ORDERS' ? fetchOrders(true) : setCatalogKey((k) => k + 1))}
+          disabled={mainView === 'CATALOG' && catalogDirty > 0}
+          disabledReason="Save your changes first"
+        />
         {/* Top View Switcher */}
         <div className="inline-flex p-1 bg-gray-200/80 rounded-xl gap-1 shrink-0">
           <button
@@ -63,6 +73,7 @@ const SupplierPortal = () => {
             My Catalog & Pricing
           </button>
         </div>
+        </div>
       </div>
 
       {error && (
@@ -72,7 +83,7 @@ const SupplierPortal = () => {
       )}
 
       {mainView === 'CATALOG' ? (
-        <SupplierCatalogSection />
+        <SupplierCatalogSection key={catalogKey} onDirtyChange={setCatalogDirty} />
       ) : (
         <>
           {/* Summary Stats */}

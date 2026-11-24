@@ -5,6 +5,7 @@ import ReceivePOModal from './components/purchasing/ReceivePOModal';
 import CancelPOModal from './components/purchasing/CancelPOModal';
 import ReschedulePOModal from './components/purchasing/ReschedulePOModal';
 import Pagination from '../../components/shared/Pagination';
+import RefreshButton from '../../components/shared/RefreshButton';
 
 import { TableSkeleton } from '../../components/shared/SkeletonLoader';
 import InfoTip from '../../components/shared/InfoTip';
@@ -196,12 +197,15 @@ const PurchaseOrders = () => {
       <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden w-full mb-8">
         <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <h2 className="m-0 text-lg font-bold text-gray-900 tracking-tight">Current Orders</h2>
-          <button 
-            className="px-5 py-2.5 bg-gray-900 text-white rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-gray-800 transition-colors shadow-sm whitespace-nowrap cursor-pointer"
-            onClick={() => setShowModal(true)}
-          >
-            + Create Purchase Order
-          </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <RefreshButton onRefresh={() => fetchOrders(true)} className="py-2.5" />
+            <button
+              className="px-5 py-2.5 bg-gray-900 text-white rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-gray-800 transition-colors shadow-sm whitespace-nowrap cursor-pointer"
+              onClick={() => setShowModal(true)}
+            >
+              + Create Purchase Order
+            </button>
+          </div>
         </div>
 
         {/* Tab Filter Navigation Bar + Search */}
