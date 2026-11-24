@@ -392,7 +392,7 @@ const Navbar = ({ activeTab, onTabChange }) => {
   return (
     <>
       {/* Mobile / Tablet Top Header Bar (< lg) */}
-      <header className="lg:hidden bg-zinc-950 text-white border-b border-zinc-800 px-4 py-3 flex items-center justify-between shrink-0 select-none z-40">
+      <header data-no-invert className="lg:hidden bg-zinc-950 text-white border-b border-zinc-800 px-4 py-3 flex items-center justify-between shrink-0 select-none z-40">
         <div className="flex items-center gap-3 min-w-0">
           <button
             type="button"
@@ -436,6 +436,7 @@ const Navbar = ({ activeTab, onTabChange }) => {
 
       {/* Mobile Slide-Over Sidebar Drawer (< lg) */}
       <aside
+        data-no-invert
         className={`lg:hidden fixed inset-y-0 left-0 z-[9995] w-72 max-w-[85vw] bg-zinc-950 text-white flex flex-col border-r border-zinc-800 shadow-2xl transform transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] select-none ${
           isMobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
@@ -486,6 +487,7 @@ const Navbar = ({ activeTab, onTabChange }) => {
 
       {/* Desktop Smooth Collapsible Sidebar (>= lg) */}
       <nav
+        data-no-invert
         className={`hidden lg:flex bg-zinc-950 text-white flex-col border-r border-zinc-800 shrink-0 h-full overflow-hidden select-none transition-[width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
           isCollapsed ? 'w-20' : 'w-68'
         }`}

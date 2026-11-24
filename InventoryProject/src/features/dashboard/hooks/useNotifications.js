@@ -39,6 +39,8 @@ export const isNotificationAllowedForUser = (notification, user) => {
   // 1. External Suppliers: Only allowed to inspect POs specifically addressed to them
   if (role === 'Supplier') {
     if (notification.category !== 'PO') return false;
+    // Suppliers only need to act on new orders and cancellations, not on their own accept/decline replies.
+    if (notification.type !== 'PO_PENDING' && notification.type !== 'PO_CANCELLED') return false;
     if (user.supplier_id && notification.supplierId && notification.supplierId !== user.supplier_id) {
       return false;
     }
@@ -600,7 +602,7 @@ export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK, userOverride =
               ...basePoItem,
               id,
               type: 'PO_CANCELLED',
-              title: `PO #${shortId} Cancelled`,
+              title: isSupplierUser ? `Order #${shortId} was cancelled by the café` : `PO #${shortId} Cancelled`,
               message: `Purchase order #${shortId} (${itemsSummary} • ${totalFormatted}) was cancelled.${reasonText}`,
               badgeText: 'Cancelled',
               badgeVariant: 'danger',
@@ -677,8 +679,10 @@ export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK, userOverride =
               ...basePoItem,
               id,
               type: 'PO_PENDING',
-              title: `PO #${shortId} Awaiting Supplier Response`,
-              message: `Order #${shortId} (${itemsSummary} • ${totalFormatted}) sent to ${supplierName} is awaiting supplier confirmation.`,
+              title: isSupplierUser ? `New order #${shortId} from the café` : `PO #${shortId} Awaiting Supplier Response`,
+              message: isSupplierUser
+                ? `Please review and respond: ${itemsSummary} • ${totalFormatted}. Expected ${formatDisplayDate(po.expected_date)}.`
+                : `Order #${shortId} (${itemsSummary} • ${totalFormatted}) sent to ${supplierName} is awaiting supplier confirmation.`,
               badgeText: 'Pending',
               badgeVariant: 'neutral',
               actionTab: actionInfo.actionTab,
@@ -721,7 +725,7 @@ export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK, userOverride =
         const count = up.price_changes?.length || up.items_count || 1;
         const firstChange = up.price_changes?.[0];
         const detailSnippet = firstChange 
-          ? ` (${firstChange.ingredient_name}: ₱${Number(firstChange.old_price).toFixed(2)} → ₱${Number(firstChange.new_price).toFixed(2)})`
+          ? ` (${firstChange.ingredient_name}: ₱${Number(firstChange.old_price).toFixed(2)} → ₱${Number(firstChange.new_price).toFixed(2)}${firstChange.new_unit ? `, unit ${firstChange.old_unit} → ${firstChange.new_unit}` : ''})`
           : '';
 
         const actionInfo = resolveNotificationAction({ category: 'SUPPLIER' }, activeUser);
@@ -755,6 +759,7 @@ export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK, userOverride =
     canViewStock,
     canViewPOs,
     canViewSuppliers,
+    isSupplierUser,
     lowStockItems,
     internalLowStock,
     internalExpiryAlerts,

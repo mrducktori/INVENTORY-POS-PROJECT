@@ -348,13 +348,18 @@ const SupplierCatalogModal = ({ supplier, onClose, onAcknowledgePriceUpdates }) 
                         <div>₱{item.price.toFixed(2)}</div>
                         {change && (
                           <div className="text-[10px] font-sans font-semibold mt-0.5 flex items-center justify-end gap-1.5 flex-wrap">
-                            {change.difference > 0 ? (
+                            {change.difference === 0 ? null : change.difference > 0 ? (
                               <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200">
                                 <svg className="w-2.5 h-2.5 text-amber-700 inline shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" /></svg> +₱{change.difference.toFixed(2)} (Was ₱{change.old_price.toFixed(2)})
                               </span>
                             ) : (
                               <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
                                 <svg className="w-2.5 h-2.5 text-emerald-700 inline shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg> -₱{Math.abs(change.difference).toFixed(2)} (Was ₱{change.old_price.toFixed(2)})
+                              </span>
+                            )}
+                            {change.new_unit && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 border border-sky-200" title="The supplier changed the pack. Check that the pack size above is still correct.">
+                                Unit: {change.old_unit} → {change.new_unit}
                               </span>
                             )}
                             {onAcknowledgePriceUpdates && (

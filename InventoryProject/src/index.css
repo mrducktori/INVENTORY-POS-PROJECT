@@ -33,6 +33,19 @@ html.dark picture,
 html.dark [data-no-invert] {
   filter: invert(1) hue-rotate(180deg);
 }
+/* Elements that are already dark (black buttons, active tabs, headers, the sidebar) stay dark:
+   re-invert them so the page-wide invert doesn't turn them light. Elements nested inside another
+   dark element are left alone, otherwise they'd flip twice and turn light again.
+   shortcut: matches plain bg-* classes only (not hover:/opacity variants); add classes here if one still turns light. */
+html.dark :is([data-no-invert], [class~="bg-black"], [class~="bg-zinc-950"], [class~="bg-zinc-900"], [class~="bg-zinc-800"], [class~="bg-gray-900"]) {
+  filter: invert(1) hue-rotate(180deg);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14); /* keeps black-on-dark edges visible */
+}
+html.dark :is([data-no-invert], [class~="bg-black"], [class~="bg-zinc-950"], [class~="bg-zinc-900"], [class~="bg-zinc-800"], [class~="bg-gray-900"]) :is([data-no-invert], [class~="bg-black"], [class~="bg-zinc-950"], [class~="bg-zinc-900"], [class~="bg-zinc-800"], [class~="bg-gray-900"]),
+html.dark :is([data-no-invert], [class~="bg-black"], [class~="bg-zinc-950"], [class~="bg-zinc-900"], [class~="bg-zinc-800"], [class~="bg-gray-900"]) img {
+  filter: none;
+  box-shadow: none;
+}
 @media print {
   html.dark, html.dark img, html.dark video, html.dark canvas { filter: none; }
 }

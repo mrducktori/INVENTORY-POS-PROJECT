@@ -6,7 +6,8 @@ import {
 } from '../hooks/useNotifications';
 import { ADMIN_POPUP_STORAGE_PREFIX } from '../../../utils/authUtils';
 
-export const ADMIN_POPUP_DELAY_MS = 10 * 60 * 1000;
+// Shown once per login session, a few seconds after sign-in, for every role (what each sees is decided by isNotificationAllowedForUser).
+export const ADMIN_POPUP_DELAY_MS = 4 * 1000;
 export const ADMIN_POPUP_DURATION_MS = 15 * 1000;
 const MAX_VISIBLE_ITEMS = 3;
 
@@ -64,7 +65,7 @@ const AdminNotificationPopupInner = ({ user, onNavigate }) => {
   const startKey = `${ADMIN_POPUP_STORAGE_PREFIX}start_${user.id}`;
   const shownKey = `${ADMIN_POPUP_STORAGE_PREFIX}shown_${user.id}`;
 
-  // One-shot 10-minute delay for the active session
+  // One-shot short delay for the active session
   useEffect(() => {
     if (safeGet(shownKey) === '1') return undefined;
 
@@ -270,10 +271,7 @@ const AdminNotificationPopupInner = ({ user, onNavigate }) => {
 };
 
 const AdminNotificationPopup = ({ user, onNavigate }) => {
-  const role = String(user?.role || '').trim().toLowerCase();
-  if ((role !== 'admin' && role !== 'owner') || !user?.id) {
-    return null;
-  }
+  if (!user?.id) return null;
   return <AdminNotificationPopupInner user={user} onNavigate={onNavigate} />;
 };
 

@@ -484,13 +484,20 @@ export const updateSupplierOwnCatalog = async (req, res) => {
     for (const { item, existing, newPrice, convFactor } of validatedItems) {
       const oldPrice = parseFloat(existing.default_price) || 0;
 
-      if (Math.abs(oldPrice - newPrice) > 0.001) {
+      const oldUnit = String(existing.default_purchase_unit || '').trim();
+      const newUnit = String(item.default_purchase_unit || item.purchase_unit || existing.default_purchase_unit || 'Unit').trim();
+      const priceChanged = Math.abs(oldPrice - newPrice) > 0.001;
+      const unitChanged = oldUnit.toLowerCase() !== newUnit.toLowerCase();
+
+      // Cafe-side "updates" list shows both price and unit edits, so the cafe can re-check the pack size.
+      if (priceChanged || unitChanged) {
         priceChanges.push({
           ingredient_id: item.ingredient_id,
           ingredient_name: existing.ingredients?.name || 'Raw Material',
           old_price: oldPrice,
           new_price: newPrice,
           difference: newPrice - oldPrice,
+          ...(unitChanged ? { old_unit: oldUnit, new_unit: newUnit } : {}),
           updated_at: new Date().toISOString()
         });
       }
@@ -499,7 +506,7 @@ export const updateSupplierOwnCatalog = async (req, res) => {
         .from('supplier_ingredients')
         .update({
           default_price: newPrice,
-          default_purchase_unit: item.default_purchase_unit || item.purchase_unit || existing.default_purchase_unit || 'Unit'
+          default_purchase_unit: newUnit
         })
         .match({ supplier_id: supplierId, ingredient_id: item.ingredient_id });
       if (upErr) throw upErr;
