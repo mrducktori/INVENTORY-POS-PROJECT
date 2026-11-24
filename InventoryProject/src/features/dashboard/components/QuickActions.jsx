@@ -2,12 +2,6 @@ import React from 'react';
 import { getCurrentUser } from '../../../utils/authUtils';
 import { canAccess, usesPagePermissions } from '../../../utils/permissions';
 
-// ---------------------------------------------------------------------------
-// QuickActions
-// Operational shortcut tiles for rapid switching between register, inventory,
-// and analytical reports.
-// ---------------------------------------------------------------------------
-
 const ALL_LINKS = [
   {
     label: 'Open POS Register',

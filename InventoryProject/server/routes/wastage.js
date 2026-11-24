@@ -6,7 +6,6 @@ import { requirePermission } from "../middleware/permissionMiddleware.js";
 const router = express.Router();
 router.use(requireRole("Owner", "Admin", "Staff", "Custom"));
 
-// Report wastage
 router.post("/", requirePermission("ReportWastage"), async (req, res) => {
   try {
     const wastage = await wastageService.reportWastage({
@@ -19,7 +18,6 @@ router.post("/", requirePermission("ReportWastage"), async (req, res) => {
   }
 });
 
-// Get wastage history with filters
 router.get("/", requirePermission("ReportWastage", "Reports"), async (req, res) => {
   try {
     const filters = {
@@ -36,7 +34,6 @@ router.get("/", requirePermission("ReportWastage", "Reports"), async (req, res) 
   }
 });
 
-// Get wastage statistics
 router.get("/stats", requirePermission("ReportWastage", "Reports"), async (req, res) => {
   try {
     const stats = await wastageService.getWastageStats();

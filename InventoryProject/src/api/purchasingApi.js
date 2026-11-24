@@ -1,6 +1,5 @@
 import { apiCall } from "./client.js";
 
-// === Suppliers ===
 export async function getSuppliers() {
   return apiCall("/purchasing/suppliers", {
     method: "GET"
@@ -39,7 +38,6 @@ export async function updateSupplier(id, supplierData) {
   });
 }
 
-// === Purchase Orders ===
 export async function getPurchaseOrders() {
   return apiCall("/purchasing", {
     method: "GET"
@@ -87,7 +85,6 @@ export async function patchPurchaseOrder(id, payload) {
   });
 }
 
-// === Supplier Portal ===
 export async function getSupplierOwnOrders() {
   return apiCall("/purchasing/my-orders", {
     method: "GET"

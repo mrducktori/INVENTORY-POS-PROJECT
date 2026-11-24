@@ -185,7 +185,6 @@ const PosShiftReadingSection = ({ user }) => {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left: Live X-Reading Breakdown */}
         <div className="lg:col-span-7 bg-white border border-gray-200 rounded-xl shadow-xs p-5 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-gray-100">
             <div>
@@ -258,7 +257,6 @@ const PosShiftReadingSection = ({ user }) => {
           </div>
         </div>
 
-        {/* Right: Open Shift OR Close Shift Z-Reading */}
         <div className="lg:col-span-5 bg-white border border-gray-200 rounded-xl shadow-xs p-5 space-y-4">
           {!currentShift ? (
             <form onSubmit={handleOpenShift} className="space-y-4">
@@ -379,7 +377,6 @@ const PosShiftReadingSection = ({ user }) => {
         </div>
       </div>
 
-      {/* Shift History Table */}
       <div className="bg-white border border-gray-200 rounded-xl shadow-xs overflow-hidden">
         <div className="px-5 py-3.5 border-b border-gray-200">
           <h4 className="m-0 text-sm font-bold text-gray-900">Shift History</h4>

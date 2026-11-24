@@ -80,11 +80,9 @@ export const convertToBaseUnit = (quantity, recipeUnit, stockUnit) => {
 
   if (from === to) return qty;
 
-  // Volume
   if (from === 'ML' && to === 'L')  return qty / 1000;
   if (from === 'L'  && to === 'ML') return qty * 1000;
 
-  // Weight
   if (from === 'G'  && to === 'KG') return qty / 1000;
   if (from === 'KG' && to === 'G')  return qty * 1000;
 
@@ -147,6 +145,9 @@ export const checkDuplicateOrSimilar = (newName, existingItems, excludeId = null
 
     const normExisting = normalizeName(item.name);
     if (!normExisting) continue;
+
+    // "Blueberry Cheesecake" (Pastries) is not a lookalike of "Blueberry" (Fruit Drinks): only compare names within one category.
+    if (newCategory != null && String(item.category || 'GENERAL').trim().replace(/\s+/g, ' ').toUpperCase() !== normNewCat) continue;
 
     if (normNew.length > 3 && normExisting.length > 3 && (normNew.includes(normExisting) || normExisting.includes(normNew))) {
       return {

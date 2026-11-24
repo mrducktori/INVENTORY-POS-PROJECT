@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 
-// Lightbox Modal for Fullscreen Expandable Promo Picture
 function PromoLightbox({ promo, promos = [], currentIndex = 0, onSelectIndex, onClose }) {
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
@@ -58,7 +57,6 @@ function PromoLightbox({ promo, promos = [], currentIndex = 0, onSelectIndex, on
         className="w-full max-w-5xl min-h-full flex flex-col justify-between items-center my-auto py-1 sm:py-2 gap-2 sm:gap-3"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Lightbox Header */}
         <div
           className="w-full flex justify-between items-center py-1 px-1 shrink-0 z-10"
           onClick={(e) => e.stopPropagation()}
@@ -85,7 +83,6 @@ function PromoLightbox({ promo, promos = [], currentIndex = 0, onSelectIndex, on
           </button>
         </div>
 
-        {/* Main Picture Area */}
         <div
           className="relative flex-1 w-full flex items-center justify-center overflow-hidden my-1 sm:my-2 touch-pan-y"
           onClick={(e) => e.stopPropagation()}
@@ -93,7 +90,7 @@ function PromoLightbox({ promo, promos = [], currentIndex = 0, onSelectIndex, on
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
         >
-          {/* Desktop Side Arrows: Shown only on sm+ screens, placed cleanly at the outer margins */}
+          {/* Side arrows are hidden below sm; mobile uses the bottom controls. */}
           {promos.length > 1 && (
             <button
               type="button"
@@ -111,7 +108,7 @@ function PromoLightbox({ promo, promos = [], currentIndex = 0, onSelectIndex, on
             className="max-h-[50vh] sm:max-h-[76vh] max-w-full w-auto object-contain rounded-xl border border-white/20 shadow-[0_20px_60px_rgba(0,0,0,0.9)] transition-all select-none"
           />
 
-          {/* Desktop Side Arrows: Shown only on sm+ screens, placed cleanly at the outer margins */}
+          {/* Side arrows are hidden below sm; mobile uses the bottom controls. */}
           {promos.length > 1 && (
             <button
               type="button"
@@ -124,7 +121,6 @@ function PromoLightbox({ promo, promos = [], currentIndex = 0, onSelectIndex, on
           )}
         </div>
 
-        {/* Lightbox Footer Caption & Mobile Controls */}
         <div
           className="w-full max-w-4xl bg-zinc-950/85 border border-white/15 rounded-xl p-3 sm:p-4 shrink-0 backdrop-blur-md shadow-xl mb-6 sm:mb-1"
           onClick={(e) => e.stopPropagation()}
@@ -193,7 +189,6 @@ function PromoLightbox({ promo, promos = [], currentIndex = 0, onSelectIndex, on
   return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
 }
 
-// Multi-Promo Showcase Carousel with Click-to-Expand Lightbox
 function LandingPromoCarousel({
   promos = [],
   currentIndex = 0,
@@ -266,7 +261,6 @@ function LandingPromoCarousel({
                 className="w-full h-full object-cover object-center"
               />
 
-              {/* Expand Hint Badge in top-right */}
               <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-black/75 hover:bg-black/90 text-white/90 text-[10px] font-bold tracking-wider uppercase border border-white/20 backdrop-blur-md shadow-md transition-colors">
                 <svg className="w-3.5 h-3.5 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
@@ -274,7 +268,6 @@ function LandingPromoCarousel({
                 <span>Expand</span>
               </div>
 
-              {/* Bottom Gradient Overlay for typography */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent flex flex-col justify-end p-5 sm:p-6 pointer-events-none pb-12 sm:pb-6">
                 <div className="inline-flex items-center gap-1.5 self-start px-2.5 py-0.5 sm:py-1 rounded-md bg-amber-400 text-zinc-950 text-[10px] sm:text-xs font-black tracking-widest uppercase mb-1.5 shadow-sm">
                   <span>Featured Promo</span>
@@ -315,10 +308,9 @@ function LandingPromoCarousel({
             </div>
           )}
 
-          {/* Previous / Next Slide Controls (when >1 promo) */}
           {promos.length > 1 && (
             <>
-              {/* Desktop Side Arrows: Displayed only on sm+ viewports so they never obstruct poster artwork on mobile */}
+              {/* Side arrows show only on sm+ so they never cover poster art on mobile. */}
               <button
                 type="button"
                 onClick={onPrev}
@@ -336,7 +328,7 @@ function LandingPromoCarousel({
                 ›
               </button>
 
-              {/* Bottom Control Bar: Integrates Previous & Next arrows cleanly into the bottom indicator pill on mobile */}
+              {/* On mobile the arrows sit inside the bottom indicator pill. */}
               <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 flex items-center gap-2 z-10 bg-black/75 px-3 py-1 rounded-lg backdrop-blur-md border border-white/20 shadow-lg">
                 <button
                   type="button"
@@ -380,7 +372,6 @@ function LandingPromoCarousel({
         </div>
       </div>
 
-      {/* Lightbox Modal (Expandable Picture) */}
       {expandedPromo && (
         <PromoLightbox
           promo={expandedPromo}

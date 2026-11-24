@@ -11,10 +11,6 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 
-// ---------------------------------------------------------------------------
-// Date & Currency Formatters
-// ---------------------------------------------------------------------------
-
 const formatShortDay = (dateStr) => {
   if (!dateStr) return '';
   const parts = dateStr.split('/');
@@ -49,10 +45,6 @@ const formatPesoTick = (value) => {
   if (value >= 1000) return `₱${(value / 1000).toFixed(1)}k`;
   return `₱${value}`;
 };
-
-// ---------------------------------------------------------------------------
-// Custom Interactive Tooltip
-// ---------------------------------------------------------------------------
 
 const CustomRevenueTooltip = ({ active, payload, label }) => {
   if (!active || !payload || !payload.length) return null;
@@ -97,10 +89,6 @@ const CustomRevenueTooltip = ({ active, payload, label }) => {
   );
 };
 
-// ---------------------------------------------------------------------------
-// RevenueSnapshot Component
-// ---------------------------------------------------------------------------
-
 const RevenueSnapshot = ({ stats, loading, isTrendExpanded, onExpand }) => {
   const [chartMode, setChartMode] = useState('area'); // 'area' | 'bar'
 
@@ -114,7 +102,6 @@ const RevenueSnapshot = ({ stats, loading, isTrendExpanded, onExpand }) => {
   const hasTrendData = trendData.length > 0;
   const hasAnyRevenue = hasTrendData && trendData.some((d) => (d.revenue || 0) > 0);
 
-  // 7-day metric calculations
   const total7Day = trendData.reduce((sum, d) => sum + (Number(d.revenue) || 0), 0);
   const avgDaily = trendData.length > 0 ? total7Day / trendData.length : 0;
 
@@ -133,7 +120,6 @@ const RevenueSnapshot = ({ stats, loading, isTrendExpanded, onExpand }) => {
 
   return (
     <div className="bg-white border border-gray-200/90 rounded-3xl p-6 md:p-8 shadow-xs hover:border-gray-300 transition-all">
-      {/* Top Section: Revenue Header & Comparative Metrics */}
       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6 pb-6 border-b border-gray-100">
         <div>
           <div className="flex items-center gap-2 mb-2">
@@ -178,7 +164,6 @@ const RevenueSnapshot = ({ stats, loading, isTrendExpanded, onExpand }) => {
           </p>
         </div>
 
-        {/* 7-Day Performance Metric Pills */}
         <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap lg:justify-end">
           <div className="bg-zinc-50 border border-zinc-200/80 rounded-2xl px-3.5 py-2 min-w-[105px]">
             <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
@@ -214,7 +199,6 @@ const RevenueSnapshot = ({ stats, loading, isTrendExpanded, onExpand }) => {
         </div>
       </div>
 
-      {/* Controls Bar: Switch between Area Curve, Daily Bars & Category Expansion */}
       <div className="flex items-center justify-between pt-5 pb-2 flex-wrap gap-3">
         <div className="flex items-center gap-1.5 bg-zinc-100 p-1 rounded-xl">
           <button
@@ -256,7 +240,6 @@ const RevenueSnapshot = ({ stats, loading, isTrendExpanded, onExpand }) => {
         )}
       </div>
 
-      {/* Main Chart Canvas: Lush, Luminous Visual Presentation */}
       <div className="h-56 md:h-64 w-full pt-3 relative">
         {loading ? (
           <div className="h-full flex items-center justify-center text-sm font-medium text-zinc-400">
@@ -276,14 +259,12 @@ const RevenueSnapshot = ({ stats, loading, isTrendExpanded, onExpand }) => {
               {chartMode === 'area' ? (
                 <AreaChart data={trendData} margin={{ top: 12, right: 12, left: -10, bottom: 0 }}>
                   <defs>
-                    {/* Multi-stop emerald glow gradient */}
                     <linearGradient id="revenueLuminousGlow" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="#10b981" stopOpacity={0.42} />
                       <stop offset="50%" stopColor="#059669" stopOpacity={0.12} />
                       <stop offset="100%" stopColor="#047857" stopOpacity={0.0} />
                     </linearGradient>
 
-                    {/* Luminous stroke gradient */}
                     <linearGradient id="revenueStrokeGradient" x1="0" y1="0" x2="1" y2="0">
                       <stop offset="0%" stopColor="#10b981" />
                       <stop offset="60%" stopColor="#059669" />

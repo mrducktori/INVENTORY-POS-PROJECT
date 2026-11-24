@@ -79,7 +79,6 @@ const ProductOptionsEditor = ({
 
   return (
     <div className={`grid grid-cols-1 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200`}>
-      {/* CUP SIZES */}
       <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-2xs flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <h4 className="m-0 text-sm font-extrabold text-gray-900 uppercase tracking-wider">Cup Sizes</h4>
@@ -298,7 +297,6 @@ const ProductOptionsEditor = ({
         </div>
       </div>
 
-      {/* ADD-ONS */}
       <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-2xs flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <h4 className="m-0 text-sm font-extrabold text-gray-900 uppercase tracking-wider">Add-ons</h4>

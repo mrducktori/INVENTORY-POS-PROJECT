@@ -141,7 +141,6 @@ const ProductOptionsModal = ({
         </div>
 
         <div className="p-6 overflow-y-auto max-h-[65vh] scrollbar-thin scrollbar-thumb-gray-200">
-          {/* Quantity */}
           <div className="mb-6">
             <div className="flex justify-between items-center mb-2">
               <label className="block text-sm font-semibold text-gray-800">Quantity</label>
@@ -201,7 +200,6 @@ const ProductOptionsModal = ({
             )}
           </div>
 
-          {/* Cup Size - Config-driven */}
           {optionsAvailability.hasSizes && (
             <div className="mb-6">
               <label className="block text-sm font-semibold text-gray-800 mb-2">Cup Size</label>
@@ -262,7 +260,6 @@ const ProductOptionsModal = ({
             </div>
           )}
 
-          {/* Modifiers (Sugar & Ice Level) */}
           {(optionsAvailability.hasSizes || optionsAvailability.hasAddOns) && (
             <div className="mb-6 space-y-4">
               <div>
@@ -323,7 +320,6 @@ const ProductOptionsModal = ({
             </div>
           )}
 
-          {/* Add-ons - Config-driven */}
           {optionsAvailability.hasAddOns && (
             <div className="mb-2">
               <div className="flex justify-between items-center mb-2">

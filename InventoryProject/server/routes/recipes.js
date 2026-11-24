@@ -11,7 +11,6 @@ router.use(requireRole("Owner", "Admin", "Staff", "Custom"));
 // Writes need the edit permission; 'Products' only lets a user view the page.
 const requireRecipeWriteAccess = requirePermission("ManageProducts");
 
-// Get all recipes
 router.get("/", async (req, res) => {
   try {
     const recipes = await recipesService.getRecipes();
@@ -21,7 +20,6 @@ router.get("/", async (req, res) => {
   }
 });
 
-// Get recipes for a product
 router.get("/product/:product_id", async (req, res) => {
   try {
     const recipes = await recipesService.getRecipesByProduct(req.params.product_id);
@@ -31,7 +29,6 @@ router.get("/product/:product_id", async (req, res) => {
   }
 });
 
-// Create recipe
 router.post("/", requireRecipeWriteAccess, async (req, res) => {
   try {
     const recipe = await recipesService.createRecipe(req.body);
@@ -51,7 +48,6 @@ router.post("/", requireRecipeWriteAccess, async (req, res) => {
   }
 });
 
-// Update recipe
 router.put("/:id", requireRecipeWriteAccess, async (req, res) => {
   try {
     const recipe = await recipesService.updateRecipe(req.params.id, req.body);
@@ -71,7 +67,6 @@ router.put("/:id", requireRecipeWriteAccess, async (req, res) => {
   }
 });
 
-// Delete recipe
 router.delete("/:id", requireRecipeWriteAccess, async (req, res) => {
   try {
     const result = await recipesService.deleteRecipe(req.params.id);

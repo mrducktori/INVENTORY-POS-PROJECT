@@ -1,11 +1,5 @@
 import React from 'react';
 
-// ---------------------------------------------------------------------------
-// StatCards
-// Top-row operational KPI cards with tailored monochrome iconography,
-// clean status indicators, and subtle tactile hover feedback.
-// ---------------------------------------------------------------------------
-
 const ICONS = {
   'Sales Transactions': (
     <svg className="w-5 h-5 text-zinc-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -42,21 +36,18 @@ const StatCards = ({ cards, loading }) => {
                 : 'hover:border-zinc-300'
             } ${hasLowStockAlert ? 'border-amber-400 bg-amber-50/20' : 'border-gray-200'}`}
           >
-            {/* Top Row: Clear Label */}
             <div className="mb-1">
               <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
                 {card.label}
               </span>
             </div>
 
-            {/* Middle Row: Prominent, Big Numbers */}
             <div className="mb-3">
               <span className="text-3xl font-bold text-zinc-900 tracking-tight tabular-nums">
                 {loading ? '---' : card.value}
               </span>
             </div>
 
-            {/* Bottom Row: Context / Action Prompt */}
             <div className="pt-2.5 border-t border-gray-100 flex items-center justify-between text-xs">
               {isLowStock ? (
                 hasLowStockAlert ? (

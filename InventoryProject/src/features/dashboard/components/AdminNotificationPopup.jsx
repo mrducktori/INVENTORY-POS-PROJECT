@@ -6,7 +6,8 @@ import {
 } from '../hooks/useNotifications';
 import { ADMIN_POPUP_STORAGE_PREFIX } from '../../../utils/authUtils';
 
-// Shown once per login session, a few seconds after sign-in, for every role (what each sees is decided by isNotificationAllowedForUser).
+// Shown once per login session, a few seconds after sign-in, for every role.
+// What each role sees is decided by isNotificationAllowedForUser.
 export const ADMIN_POPUP_DELAY_MS = 4 * 1000;
 export const ADMIN_POPUP_DURATION_MS = 15 * 1000;
 const MAX_VISIBLE_ITEMS = 3;
@@ -65,7 +66,6 @@ const AdminNotificationPopupInner = ({ user, onNavigate }) => {
   const startKey = `${ADMIN_POPUP_STORAGE_PREFIX}start_${user.id}`;
   const shownKey = `${ADMIN_POPUP_STORAGE_PREFIX}shown_${user.id}`;
 
-  // One-shot short delay for the active session
   useEffect(() => {
     if (safeGet(shownKey) === '1') return undefined;
 
@@ -156,7 +156,6 @@ const AdminNotificationPopupInner = ({ user, onNavigate }) => {
       onMouseLeave={() => setIsPaused(false)}
       className="fixed bottom-5 right-5 z-40 w-[calc(100vw-2rem)] max-w-sm bg-white border border-zinc-200 rounded-2xl shadow-2xl overflow-hidden animate-[popupSlideUp_var(--dur-slow)_var(--ease-out-expo)]"
     >
-      {/* Header */}
       <div className="bg-zinc-950 text-white px-4 py-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <svg
@@ -203,7 +202,6 @@ const AdminNotificationPopupInner = ({ user, onNavigate }) => {
         </div>
       </div>
 
-      {/* Preview Items */}
       <div className="divide-y divide-zinc-100 max-h-72 overflow-y-auto bg-white">
         {previewItems.map((n) => {
           const badgeClass = BADGE_STYLES[n.badgeVariant] || BADGE_STYLES.neutral;
@@ -241,7 +239,6 @@ const AdminNotificationPopupInner = ({ user, onNavigate }) => {
         )}
       </div>
 
-      {/* Footer */}
       <div className="px-4 py-2.5 bg-zinc-50 border-t border-zinc-100 flex items-center justify-between text-xs">
         <button
           type="button"
@@ -259,7 +256,6 @@ const AdminNotificationPopupInner = ({ user, onNavigate }) => {
         </button>
       </div>
 
-      {/* Duration Countdown Bar */}
       <div className="h-1 w-full bg-zinc-100">
         <div
           className="h-full bg-zinc-900 transition-[width] duration-100 ease-linear"

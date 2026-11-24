@@ -17,7 +17,6 @@ function LandingMenuBoard({
   const scrollRef = useRef(null);
   const [brokenImages, setBrokenImages] = useState({});
 
-  // Reset scroll to top when changing categories
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = 0;

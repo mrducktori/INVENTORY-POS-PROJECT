@@ -45,7 +45,6 @@ const ReschedulePOModal = ({ po, onClose, onSubmit, loading = false }) => {
         className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col border border-zinc-200 max-h-[calc(100vh-5rem)] md:max-h-[calc(100vh-6rem)] animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)]"
         onClick={e => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="bg-zinc-900 text-white px-6 py-4 flex justify-between items-center shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
@@ -67,7 +66,6 @@ const ReschedulePOModal = ({ po, onClose, onSubmit, loading = false }) => {
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4.5">
-          {/* Current Status Box */}
           <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-4 flex flex-col gap-2">
             <div className="flex items-center justify-between text-xs font-semibold text-zinc-500 uppercase tracking-wider">
               <span>Supplier & Current Schedule</span>
@@ -90,7 +88,6 @@ const ReschedulePOModal = ({ po, onClose, onSubmit, loading = false }) => {
             )}
           </div>
 
-          {/* New Expected Delivery Date Picker */}
           <div>
             <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1.5">
               New Expected Delivery Date <span className="text-rose-600">*</span>
@@ -105,7 +102,6 @@ const ReschedulePOModal = ({ po, onClose, onSubmit, loading = false }) => {
             />
           </div>
 
-          {/* Reschedule Reason Selector */}
           <div>
             <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1.5">
               Reason for Rescheduling
@@ -121,7 +117,6 @@ const ReschedulePOModal = ({ po, onClose, onSubmit, loading = false }) => {
             </select>
           </div>
 
-          {/* Notes / Details */}
           <div>
             <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1.5">
               Additional Details (Optional)
@@ -135,7 +130,6 @@ const ReschedulePOModal = ({ po, onClose, onSubmit, loading = false }) => {
             />
           </div>
 
-          {/* Action Buttons */}
           <div className="pt-2 flex justify-end gap-3">
             <button
               type="button"

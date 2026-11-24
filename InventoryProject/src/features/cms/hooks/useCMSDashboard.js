@@ -272,7 +272,6 @@ export const useCMSDashboard = () => {
     }
   };
 
-  // Promo carousel handlers
   const handleAddPromo = () => {
     setPromos((prev) => [
       ...prev,

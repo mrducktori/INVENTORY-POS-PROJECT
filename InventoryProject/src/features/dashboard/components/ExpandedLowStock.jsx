@@ -1,12 +1,6 @@
 import React from 'react';
 import { formatQuantity } from '../../../utils/productUtils';
 
-// ---------------------------------------------------------------------------
-// ExpandedLowStock
-// Full-width panel that displays all low-stock items with threshold context
-// and dismiss action.
-// ---------------------------------------------------------------------------
-
 const ExpandedLowStock = ({ loading, lowStockDetails, onCollapse }) => {
   const hasAlerts = lowStockDetails?.length > 0;
 

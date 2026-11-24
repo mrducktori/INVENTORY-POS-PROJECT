@@ -74,7 +74,6 @@ export const updateIngredient = async (req, res) => {
 export const deleteIngredient = async (req, res) => {
   try {
     const user_id = req.user.id;
-    // Fetch name before deleting for the log
     const existing = await inventoryService.getIngredientById(req.params.id).catch(() => null);
     const result = await inventoryService.deleteIngredient(req.params.id);
     invalidateAnalyticsCache();
@@ -94,7 +93,6 @@ export const deleteIngredient = async (req, res) => {
 export const receiveStock = async (req, res) => {
   try {
     const { quantity, expiry_date, batch_code, notes } = req.body;
-    // Fetch ingredient name before updating
     const existing = await inventoryService.getIngredientById(req.params.id).catch(() => null);
     const data = await inventoryService.receiveStock(req.params.id, quantity, {
       expiry_date,

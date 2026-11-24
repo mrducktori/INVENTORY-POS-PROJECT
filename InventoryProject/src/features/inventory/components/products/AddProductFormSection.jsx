@@ -96,7 +96,6 @@ const AddProductFormSection = ({
             </div>
           )}
 
-          {/* Cup Sizes & Add-ons Section */}
           <div className="border border-gray-200 rounded-xl overflow-hidden">
             <button
               type="button"

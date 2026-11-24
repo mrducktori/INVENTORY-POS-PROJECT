@@ -5,7 +5,6 @@ import { requireRole } from "../middleware/authMiddleware.js";
 const router = express.Router();
 router.use(requireRole("Owner", "Admin", "Staff", "Custom"));
 
-// Create request
 router.post("/", async (req, res) => {
   try {
     const request = await requestsService.createRequest({
@@ -18,7 +17,6 @@ router.post("/", async (req, res) => {
   }
 });
 
-// Get requests with filters
 router.get("/", async (req, res) => {
   try {
     const filters = {
@@ -34,7 +32,6 @@ router.get("/", async (req, res) => {
   }
 });
 
-// Get pending requests
 router.get("/pending", async (req, res) => {
   try {
     const pending = await requestsService.getPendingRequests();
@@ -44,7 +41,6 @@ router.get("/pending", async (req, res) => {
   }
 });
 
-// Get request statistics
 router.get("/stats", async (req, res) => {
   try {
     const stats = await requestsService.getRequestStats();
@@ -54,7 +50,6 @@ router.get("/stats", async (req, res) => {
   }
 });
 
-// Update request status
 router.put("/:id/status", requireRole("Owner", "Admin"), async (req, res) => {
   try {
     const { status } = req.body;

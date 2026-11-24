@@ -26,7 +26,6 @@ const formatOrderTypeLabel = (orderType) => {
 
 const OngoingOrders = ({ orders, stockIssuesByOrderId = {}, onComplete, onCancel, onEdit }) => (
   <div className="flex flex-col flex-1 overflow-hidden bg-white">
-    {/* Header — clean, lessened eyebrows */}
     <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 bg-white z-10">
       <h2 className="m-0 text-base font-bold text-gray-900">Ongoing Orders</h2>
       <span className="text-xs font-semibold text-gray-500">

@@ -32,7 +32,7 @@ const isPublicCmsKey = (sectionKey) =>
   !INTERNAL_CMS_KEYS.has(sectionKey) &&
   ALLOWED_CMS_KEYS.has(sectionKey);
 
-const CMS_CACHE_TTL_MS = 60 * 1000; // 1 minute server-side cache for public CMS reads
+const CMS_CACHE_TTL_MS = 60 * 1000; // Server-side cache for public CMS reads
 let cmsCache = null;
 let cmsCacheAt = 0;
 let cmsInFlight = null;

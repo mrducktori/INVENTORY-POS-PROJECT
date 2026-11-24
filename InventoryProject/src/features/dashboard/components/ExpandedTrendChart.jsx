@@ -12,12 +12,6 @@ import {
   Legend,
 } from 'recharts';
 
-// ---------------------------------------------------------------------------
-// ExpandedTrendChart
-// Full-width category revenue breakdown chart supporting timeframe presets,
-// custom date range filtering, line/bar visualization modes, and category totals.
-// ---------------------------------------------------------------------------
-
 const PERIOD_OPTIONS = [
   { id: '7d', label: 'Past 7 Days', title: '7-Day Detailed Category Trend' },
   { id: '14d', label: 'Past 14 Days', title: '14-Day Detailed Category Trend' },
@@ -148,7 +142,6 @@ const ExpandedTrendChart = ({
 
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-6 md:p-8 shadow-xs animate-[fadeIn_0.2s_ease-in-out]">
-      {/* Header Row: Title & Timeframe / Chart Controls */}
       <div className="flex justify-between items-start md:items-center mb-4 pb-4 border-b border-gray-100 flex-wrap gap-4">
         <div>
           <h3 className="m-0 text-lg font-bold text-zinc-900">
@@ -165,7 +158,6 @@ const ExpandedTrendChart = ({
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap">
-          {/* Segmented Timeframe Filter Bar */}
           <div className="flex flex-wrap bg-zinc-100 p-1 rounded-xl border border-zinc-200">
             {PERIOD_OPTIONS.map((opt) => {
               const isActive =
@@ -190,7 +182,6 @@ const ExpandedTrendChart = ({
             })}
           </div>
 
-          {/* Chart Type Toggle (Line vs Bar) */}
           <div className="flex bg-zinc-100 p-1 rounded-xl border border-zinc-200">
             <button
               type="button"
@@ -216,7 +207,6 @@ const ExpandedTrendChart = ({
             </button>
           </div>
 
-          {/* Collapse Button */}
           <button
             type="button"
             className="bg-white border border-zinc-200 text-zinc-900 font-bold px-4 py-2 rounded-xl text-xs md:text-sm cursor-pointer transition-colors hover:bg-zinc-100 shadow-xs"
@@ -227,7 +217,6 @@ const ExpandedTrendChart = ({
         </div>
       </div>
 
-      {/* Filter Row: Custom Date Range Inputs (when Custom active) & Category Pills */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-2 flex-wrap">
           <button
@@ -299,7 +288,6 @@ const ExpandedTrendChart = ({
         )}
       </div>
 
-      {/* Chart Canvas */}
       <div className="h-80 flex items-center justify-center">
         {loading ? (
           <div className="text-zinc-500 text-sm font-medium">Loading category breakdown...</div>

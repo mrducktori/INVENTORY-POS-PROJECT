@@ -47,7 +47,6 @@ function LandingPage() {
     ? `lg:col-span-5 ${leftPanelBase} lg:rounded-none lg:border-0 lg:border-r lg:border-white/15 lg:bg-transparent lg:backdrop-blur-none lg:shadow-none lg:min-h-[390px]`
     : `${leftPanelBase} min-h-[340px] sm:min-h-[370px]`;
 
-  // Helper to format title to match the original premium sleek look
   const formatTitle = (titleString) => {
     if (!titleString) return null;
     const parts = titleString.split('|');
@@ -70,7 +69,6 @@ function LandingPage() {
   return (
     <div className="w-full min-h-[100dvh] h-screen bg-cover bg-center bg-fixed font-sans" style={{ backgroundImage: `url("${cmsData.hero_image}")` }}>
       <div className="w-full h-full bg-black/60 backdrop-blur-[2px] flex flex-col">
-        {/* Header - Brand with prominent, large logo */}
         <header className="flex justify-between items-center px-4 sm:px-8 md:px-12 py-3 sm:py-4 min-h-[4.75rem] sm:min-h-[5.75rem] bg-black/50 border-b border-white/15 backdrop-blur-md shrink-0">
           <div className="flex items-center gap-3 sm:gap-4 md:gap-5">
             <img
@@ -93,11 +91,10 @@ function LandingPage() {
           </div>
         </header>
 
-        {/* Main Content - Side-by-Side Hero & Seamless In-Place Menu Expansion */}
         <main className="flex-1 flex flex-col items-center justify-center p-3 sm:p-6 md:p-8 relative w-full overflow-y-auto">
           <div className="relative w-full max-w-6xl mx-auto my-auto flex items-center justify-center">
 
-            {/* Side-by-Side Overview (Fades & slightly scales out smoothly when menu opens) */}
+            {/* Fades and scales out when the menu expands in place. */}
             <div
               className={`w-full py-2 transition-all duration-500 ease-out transform ${
                 isMenuOpen
@@ -112,7 +109,7 @@ function LandingPage() {
                     : 'stagger-in max-w-lg mx-auto'
                 }
               >
-                {/* Left Panel: Welcome info, Location, and Open Menu trigger (Connected split-frame on lg+, separate card on smaller viewports) */}
+                {/* Split frame on lg+, separate card on smaller viewports. */}
                 <div className={leftPanelClass}>
                   <div>
                     <div className="inline-flex items-center gap-2 text-[10px] sm:text-[11px] font-bold tracking-[0.22em] uppercase mb-3.5 pb-2 border-b border-white/15 text-amber-300">
@@ -143,7 +140,6 @@ function LandingPage() {
                     )}
                   </div>
 
-                  {/* Menu Board Access Button */}
                   <div className="pt-5 border-t border-white/15 mt-5">
                     <button
                       type="button"
@@ -166,7 +162,6 @@ function LandingPage() {
                   </div>
                 </div>
 
-                {/* Right Panel: Featured Promo Carousel */}
                 {hasPromos && (
                   <div className="lg:col-span-7 flex flex-col">
                     <LandingPromoCarousel
@@ -186,7 +181,6 @@ function LandingPage() {
               </div>
             </div>
 
-            {/* Interactive Menu Board (Expands in place smoothly) */}
             <div
               className={`w-full h-[78vh] sm:h-[82vh] max-h-[850px] shadow-2xl flex flex-col transition-all duration-500 ease-out transform ${
                 isMenuOpen
@@ -213,7 +207,6 @@ function LandingPage() {
           </div>
         </main>
 
-        {/* Footer */}
         <footer className="px-4 md:px-10 py-4 md:py-5 bg-black/40 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4 md:gap-0 text-[10px] md:text-xs text-gray-400 shrink-0">
           <div className="text-gray-400 text-center md:text-left">
             {cmsData.footer_text}

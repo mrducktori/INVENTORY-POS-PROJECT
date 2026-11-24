@@ -29,7 +29,6 @@ const UsersTable = ({ users, loading, currentUser, onEdit, onToggleStatus, onDel
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     return users.filter((u) => {
-      // Role & Status filtering
       if (roleFilter === 'Archived') {
         if (u.status !== 'INACTIVE') return false;
       } else {
@@ -51,7 +50,6 @@ const UsersTable = ({ users, loading, currentUser, onEdit, onToggleStatus, onDel
 
   return (
     <div className="w-full">
-      {/* Main Table Card */}
       <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden shadow-xs">
         <div className="px-5 py-4 border-b border-zinc-100 flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
           <div className="relative md:w-72">
@@ -228,7 +226,6 @@ const UsersTable = ({ users, loading, currentUser, onEdit, onToggleStatus, onDel
               </tbody>
             </table>
 
-            {/* Pagination Controls */}
             {filtered.length > 0 && (
               <Pagination
                 currentPage={currentPage}
@@ -247,7 +244,6 @@ const UsersTable = ({ users, loading, currentUser, onEdit, onToggleStatus, onDel
         )}
       </div>
 
-      {/* Dedicated Archived Accounts Section */}
       {archivedAccountsList.length > 0 && (
         <div className="mt-8 mb-6 bg-zinc-950 text-white rounded-2xl p-6 border border-zinc-800 shadow-xl w-full">
           <div className="flex items-center justify-between pb-4 border-b border-zinc-800 mb-5">

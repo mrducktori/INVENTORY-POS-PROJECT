@@ -1,11 +1,9 @@
-// ---------------------------------------------------------------------------
 // Page-level permissions
 // Permission keys are the same values used for Dashboard tabs. Staff and
 // Custom accounts are restricted to their `permissions` list; Admin, Owner and
 // Supplier keep their fixed built-in access.
 //
 // Keep in sync with server/utils/permissions.js (GRANTABLE_PERMISSIONS).
-// ---------------------------------------------------------------------------
 
 export const PERMISSION_GROUPS = [
   {

@@ -6,7 +6,6 @@ import { requirePermission } from "../middleware/permissionMiddleware.js";
 const router = express.Router();
 const requireCafeRole = requireRole("Owner", "Admin", "Staff", "Custom");
 
-// Suppliers
 router.get("/suppliers", requireAuth, requireCafeRole, purchasingController.getSuppliers);
 router.get("/price-updates", requireAuth, requireCafeRole, purchasingController.getSupplierPriceUpdates);
 router.post("/suppliers", requireAuth, requireCafeRole, requirePermission("ManageSuppliers"), purchasingController.createSupplier);
@@ -16,7 +15,6 @@ router.put("/suppliers/:id/archive", requireAuth, requireRole("Owner", "Admin", 
 router.put("/suppliers/:id/restore", requireAuth, requireRole("Owner", "Admin", "Custom"), requirePermission("ManageSuppliers"), purchasingController.restoreSupplier);
 router.delete("/suppliers/:id", requireAuth, requireRole("Admin", "Owner"), purchasingController.deleteSupplier);
 
-// Purchase Orders
 router.get("/", requireAuth, requireCafeRole, purchasingController.getPurchaseOrders);
 router.post("/", requireAuth, requireCafeRole, requirePermission("PurchaseOrders", "Forecasting"), purchasingController.createPurchaseOrder);
 router.put("/:id/status", requireAuth, requireCafeRole, requirePermission("PurchaseOrders"), purchasingController.updatePurchaseOrderStatus);
@@ -25,7 +23,6 @@ router.patch("/:id", requireAuth, requireCafeRole, requirePermission("PurchaseOr
 router.patch("/purchase-orders/:id", requireAuth, requireCafeRole, requirePermission("PurchaseOrders"), purchasingController.updatePurchaseOrderStatus);
 router.put("/:id/proposals/respond", requireAuth, requireCafeRole, requirePermission("PurchaseOrders"), purchasingController.respondToSupplierProposal);
 
-// === Supplier Portal Routes ===
 // Suppliers can only see their own POs
 router.get("/my-orders", requireAuth, requireRole('Supplier'), purchasingController.getSupplierOwnOrders);
 // Suppliers can update the status of their own POs (Accept, Decline, To Be Delivered)

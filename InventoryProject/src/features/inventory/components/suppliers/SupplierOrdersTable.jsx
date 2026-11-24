@@ -44,7 +44,6 @@ const SupplierOrdersTable = ({
 }) => {
   return (
     <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden w-full">
-      {/* Navigation Tabs Bar + Search */}
       <div className="px-6 py-4 border-b border-gray-200 bg-gray-50/60 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
           <button
@@ -322,7 +321,6 @@ const SupplierOrdersTable = ({
             </tbody>
           </table>
 
-          {/* Pagination Controls */}
           {filteredOrders.length > 0 && (
             <Pagination
               currentPage={orderPage}

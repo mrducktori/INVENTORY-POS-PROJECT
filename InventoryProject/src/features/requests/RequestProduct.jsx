@@ -44,23 +44,19 @@ const RequestProduct = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   
-  // Data for dropdowns
   const [products, setProducts] = useState([]);
   const [ingredients, setIngredients] = useState([]);
 
-  // Form State
   const [type, setType] = useState('NEW_PRODUCT');
   const [priority, setPriority] = useState('NORMAL');
   const [description, setDescription] = useState('');
   
-  // Structured Form Data
   const [newProduct, setNewProduct] = useState({ name: '', category: '', price: '' });
   const [selectedProductId, setSelectedProductId] = useState('');
   const [newPrice, setNewPrice] = useState('');
   const [proposedRecipe, setProposedRecipe] = useState([]); // List of { ingredient_id, name, qty, unit }
   const [newRecipeItem, setNewRecipeItem] = useState({ ingredient_id: '', quantity: '' });
   
-  // History State
   const [history, setHistory] = useState([]);
   const [historyPage, setHistoryPage] = useState(1);
   const [historyItemsPerPage, setHistoryItemsPerPage] = useState(10);
@@ -482,7 +478,6 @@ const RequestProduct = () => {
                   </tbody>
                 </table>
 
-                {/* Pagination Controls */}
                 <Pagination
                   currentPage={historyPage}
                   totalPages={historyTotalPages}

@@ -45,7 +45,6 @@ const CancelPOModal = ({ po, onClose, onConfirm, loading = false }) => {
         className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col border border-zinc-200 max-h-[calc(100vh-5rem)] md:max-h-[calc(100vh-6rem)] animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)]"
         onClick={e => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="bg-zinc-900 text-white px-6 py-4 flex justify-between items-center shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400">
@@ -67,7 +66,6 @@ const CancelPOModal = ({ po, onClose, onConfirm, loading = false }) => {
         </div>
 
         <form onSubmit={handleConfirm} className="p-6 flex flex-col gap-4.5">
-          {/* Order Snapshot */}
           <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-4 flex flex-col gap-2">
             <div className="flex items-center justify-between text-xs font-semibold text-zinc-500 uppercase tracking-wider">
               <span>Order Details</span>
@@ -82,7 +80,6 @@ const CancelPOModal = ({ po, onClose, onConfirm, loading = false }) => {
             </div>
           </div>
 
-          {/* Friction Warning */}
           <div className="px-3.5 py-2.5 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between text-rose-900">
             <div className="flex items-center gap-2 text-xs font-bold text-rose-800">
               <svg className="w-4 h-4 text-rose-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -93,7 +90,6 @@ const CancelPOModal = ({ po, onClose, onConfirm, loading = false }) => {
             <InfoTip text="Cancelling voids this purchase order permanently. Stock will not be added to inventory and supplier tracking will cease." />
           </div>
 
-          {/* Required Reason Selector */}
           <div>
             <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1.5">
               Reason for Cancellation <span className="text-rose-600">*</span>
@@ -111,7 +107,6 @@ const CancelPOModal = ({ po, onClose, onConfirm, loading = false }) => {
             </select>
           </div>
 
-          {/* Additional Notes */}
           <div>
             <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1.5">
               Additional Notes {selectedReason === 'Other' && <span className="text-rose-600">*</span>}
@@ -126,7 +121,6 @@ const CancelPOModal = ({ po, onClose, onConfirm, loading = false }) => {
             />
           </div>
 
-          {/* Friction Acknowledgment Checkbox */}
           <label className="flex items-start gap-2.5 p-3 rounded-xl bg-zinc-100/70 border border-zinc-200 cursor-pointer select-none">
             <input
               type="checkbox"
@@ -139,7 +133,6 @@ const CancelPOModal = ({ po, onClose, onConfirm, loading = false }) => {
             </span>
           </label>
 
-          {/* Action Buttons */}
           <div className="pt-2 flex justify-end gap-3">
             <button
               type="button"

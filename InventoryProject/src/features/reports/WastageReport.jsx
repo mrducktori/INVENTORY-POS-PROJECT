@@ -6,7 +6,6 @@ import { escapeHtml } from '../../utils/escapeHtml';
 import { TableSkeleton, StatCardsSkeleton } from '../../components/shared/SkeletonLoader';
 import Pagination from '../../components/shared/Pagination';
 
-// ─── Reason badge colors ──────────────────────────────────────────────────────
 const reasonBadgeStyle = (reason) => {
   const map = {
     'Expired':   { background: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca' },
@@ -18,7 +17,6 @@ const reasonBadgeStyle = (reason) => {
   return map[reason] || map['Other'];
 };
 
-// ─── Main Component ───────────────────────────────────────────────────────────
 const WastageReport = () => {
   const [entries, setEntries] = useState([]);
   const [stats, setStats]     = useState(null);
@@ -66,7 +64,6 @@ const WastageReport = () => {
     }
   }, [period, customStart, customEnd]);
 
-  // Auto-fetch default report on initial mount
   useEffect(() => {
     fetchReport();
   }, [fetchReport]);
@@ -90,7 +87,6 @@ const WastageReport = () => {
     );
   };
 
-  // Unique reasons for filter dropdown
   const reasons = useMemo(() => {
     const set = new Set(entries.map(e => e.reason).filter(Boolean));
     return ['ALL', ...Array.from(set)];
@@ -127,7 +123,6 @@ const WastageReport = () => {
     return filtered.slice(start, start + itemsPerPage);
   }, [filtered, page, itemsPerPage]);
 
-  // Helper to get estimated cost for an entry
   const getEntryCost = (e) => {
     const explicitCost = parseFloat(e.estimated_cost);
     if (!isNaN(explicitCost) && explicitCost > 0) return explicitCost;
@@ -146,11 +141,9 @@ const WastageReport = () => {
     return Math.round(qty * defaultUnitRate * 100) / 100;
   };
 
-  // Summary aggregations
   const totalQuantity = filtered.reduce((s, e) => s + (parseFloat(e.quantity) || 0), 0);
   const totalCost     = filtered.reduce((s, e) => s + getEntryCost(e), 0);
 
-  // Group by reason for breakdown
   const byReason = useMemo(() => {
     const map = {};
     filtered.forEach(e => {
@@ -313,7 +306,6 @@ const WastageReport = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Controls */}
       <div className="bg-white border border-zinc-200/80 shadow-2xs rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2">
@@ -411,7 +403,6 @@ const WastageReport = () => {
         </div>
       </div>
 
-      {/* Initial / Changed State */}
       {!fetched && !loading && (
         <div className="p-12 flex flex-col items-center justify-center text-zinc-500 bg-white border border-zinc-200/80 border-dashed rounded-2xl h-64 text-center">
           <svg className="w-12 h-12 mb-3 text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
@@ -429,7 +420,6 @@ const WastageReport = () => {
 
       {fetched && !loading && (
         <div className="flex flex-col gap-6 fade-in">
-          {/* KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white border border-zinc-200 rounded-xl p-4 shadow-2xs">
               <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Total Records</div>
@@ -453,7 +443,6 @@ const WastageReport = () => {
             </div>
           </div>
 
-          {/* Reason Breakdown */}
           {byReason.length > 0 && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2 bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden">
@@ -505,7 +494,6 @@ const WastageReport = () => {
                 </div>
               </div>
 
-              {/* Stats from /wastage/stats */}
               {stats && (
                 <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden h-fit">
                   <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50">
@@ -545,7 +533,6 @@ const WastageReport = () => {
             </div>
           )}
 
-          {/* Main Wastage Table */}
           <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden">
             <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50">
               <h2 className="m-0 text-lg font-bold text-gray-900 tracking-tight">Wastage Log ({filtered.length} records)</h2>
@@ -600,7 +587,6 @@ const WastageReport = () => {
                     </tbody>
                   </table>
 
-                  {/* Pagination Controls */}
                   <Pagination
                     currentPage={page}
                     totalPages={totalPages}

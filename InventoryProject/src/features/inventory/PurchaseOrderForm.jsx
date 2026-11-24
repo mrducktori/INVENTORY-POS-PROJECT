@@ -50,11 +50,9 @@ const PurchaseOrderForm = ({ onClose, onSuccess }) => {
     fetchData();
   }, []);
 
-  // When supplier changes, we could pre-filter the checklist
   const selectedSupplier = suppliers.find(s => s.id === formData.supplier_id);
   const supplierIngredientIds = selectedSupplier?.supplier_ingredients?.map(si => si.ingredient_id) || [];
 
-  // Determine which ingredients to show in checklist
   const displayedIngredients = formData.supplier_id 
     ? (supplierIngredientIds.length > 0 
         ? ingredients.filter(ing => supplierIngredientIds.includes(ing.id))
@@ -79,11 +77,10 @@ const PurchaseOrderForm = ({ onClose, onSuccess }) => {
     });
   };
 
-  // Auto bring up selected items: partition into selected (top) and unselected (bottom)
+  // Selected items are listed above unselected ones.
   const selectedIngredients = sortItems(searchedIngredients.filter(ing => formData.items[ing.id]?.selected));
   const unselectedIngredients = sortItems(searchedIngredients.filter(ing => !formData.items[ing.id]?.selected));
 
-  // Compute selected items count & total PO cost
   const selectedItemsList = Object.entries(formData.items).filter(([, item]) => item.selected);
   const selectedCount = selectedItemsList.length;
   const orderTotal = selectedItemsList.reduce((sum, [, item]) => {
@@ -138,7 +135,6 @@ const PurchaseOrderForm = ({ onClose, onSuccess }) => {
 
     if (!formData.supplier_id) return setError('Please select a supplier.');
     
-    // Filter out selected items
     const selectedItems = Object.entries(formData.items)
       .filter(([, item]) => item.selected)
       .map(([ingId, item]) => {
@@ -418,7 +414,6 @@ const PurchaseOrderForm = ({ onClose, onSuccess }) => {
                       </div>
                     )}
 
-                    {/* Remaining available items */}
                     {unselectedIngredients.length > 0 && (
                       <div className="flex flex-col gap-3">
                         {unselectedIngredients.map(ing => renderItemCard(ing, false))}
@@ -511,7 +506,6 @@ const PurchaseOrderForm = ({ onClose, onSuccess }) => {
             </div>
 
             <div className="p-6 overflow-y-auto flex-1 flex flex-col gap-4">
-              {/* Supplier & Delivery Summary */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-zinc-50 border border-zinc-200 rounded-xl p-4">
                 <div>
                   <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider block">Supplier</span>
@@ -532,7 +526,6 @@ const PurchaseOrderForm = ({ onClose, onSuccess }) => {
                 </div>
               </div>
 
-              {/* Itemized Line Items Table */}
               <div className="border border-zinc-200 rounded-xl overflow-hidden bg-white shadow-2xs">
                 <div className="px-4 py-2.5 bg-zinc-50 border-b border-zinc-200 flex justify-between items-center text-xs font-bold text-zinc-600 uppercase tracking-wider">
                   <span>Ordered Items ({reviewData.items.length})</span>
@@ -560,7 +553,6 @@ const PurchaseOrderForm = ({ onClose, onSuccess }) => {
                 </div>
               </div>
 
-              {/* Friction Safeguard Checkbox */}
               <label className="flex items-start gap-2.5 p-3 rounded-xl bg-zinc-100/70 border border-zinc-200 cursor-pointer select-none">
                 <input
                   type="checkbox"

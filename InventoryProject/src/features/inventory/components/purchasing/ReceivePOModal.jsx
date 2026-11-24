@@ -110,7 +110,6 @@ const ReceivePOModal = ({ po, onClose, onSubmit }) => {
     setItems(prev => prev.map(item => item.id === id ? { ...item, batch_code: val } : item));
   };
 
-  // Determine items to receive
   const todayManila = getManilaDateOnly();
   const isPerishableItem = (item) => !(item.ingredients?.is_perishable === false || item.ingredients?.is_perishable === 'false');
   const itemsToSubmit = items
@@ -166,7 +165,6 @@ const ReceivePOModal = ({ po, onClose, onSubmit }) => {
     <UnsavedNotice show={escWarn} />
     <div className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[9999] p-4 flex justify-center items-start pt-6 sm:pt-10 md:pt-14 pb-12 animate-[modalBackdropFadeIn_0.2s_ease-out]" onMouseDown={(e) => { if (e.target === e.currentTarget && !closeBlocked) onClose(); }}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[calc(100vh-5rem)] md:max-h-[calc(100vh-6rem)] overflow-hidden flex flex-col animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)]" onClick={e => e.stopPropagation()}>
-        {/* Header */}
         <div className="bg-zinc-900 text-white px-6 py-4 flex justify-between items-center shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
@@ -189,7 +187,6 @@ const ReceivePOModal = ({ po, onClose, onSubmit }) => {
           <button className="text-zinc-400 hover:text-white transition-colors bg-transparent border-none text-xl leading-none cursor-pointer p-0 disabled:opacity-40 disabled:cursor-not-allowed" onClick={onClose} disabled={closeBlocked} title={isDirty ? 'Save or reset your changes first' : undefined} aria-label="Close"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
         </div>
 
-        {/* Form Body */}
         {!isReviewStep ? (
           <form onSubmit={handleProceedToReview} className="flex flex-col overflow-hidden min-h-0 flex-1">
             <div className="p-6 overflow-y-auto flex-1 flex flex-col gap-4">
@@ -333,10 +330,8 @@ const ReceivePOModal = ({ po, onClose, onSubmit }) => {
             </div>
           </form>
         ) : (
-          /* Step 2: Friction Review & Impact Summary */
           <div className="flex flex-col overflow-hidden min-h-0 flex-1">
             <div className="p-6 overflow-y-auto flex-1 flex flex-col gap-4">
-              {/* Status Outcome Banner */}
               <div className={`px-4 py-3 rounded-xl border flex items-center justify-between ${
                 newStatus === 'Received'
                   ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
@@ -365,7 +360,6 @@ const ReceivePOModal = ({ po, onClose, onSubmit }) => {
                 </span>
               </div>
 
-              {/* Inventory Stock Additions Breakdown */}
               <div className="bg-zinc-50 border border-zinc-200 rounded-xl overflow-hidden">
                 <div className="px-4 py-3 border-b border-zinc-200 text-xs font-bold text-zinc-600 uppercase tracking-wider">
                   Live Stock Additions

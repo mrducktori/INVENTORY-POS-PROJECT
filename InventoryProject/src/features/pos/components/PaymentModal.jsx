@@ -440,7 +440,6 @@ const PaymentModal = ({ order, posSettings = null, onConfirm, onClose }) => {
               </div>
             )}
 
-            {/* Totals Summary */}
             <div className="p-4 bg-gray-50 rounded-xl border border-gray-200/80 flex flex-col gap-1.5">
               {discountAmount > 0 && (
                 <>
@@ -463,7 +462,6 @@ const PaymentModal = ({ order, posSettings = null, onConfirm, onClose }) => {
               </div>
             </div>
 
-            {/* Discount Selection */}
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-2">
                 Discount Option
@@ -621,7 +619,6 @@ const PaymentModal = ({ order, posSettings = null, onConfirm, onClose }) => {
               )}
             </div>
 
-            {/* Payment Method Tabs */}
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-2">
                 Payment Method
@@ -645,7 +642,6 @@ const PaymentModal = ({ order, posSettings = null, onConfirm, onClose }) => {
               </div>
             </div>
 
-            {/* CASH */}
             {method === 'CASH' && (
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1.5">
@@ -703,7 +699,6 @@ const PaymentModal = ({ order, posSettings = null, onConfirm, onClose }) => {
               </div>
             )}
 
-            {/* QR PROVIDERS: GCASH / MAYA / QRPH */}
             {isQrProvider && (
               <div className="flex flex-col gap-3.5">
                 {activeWalletConfig &&
@@ -804,7 +799,6 @@ const PaymentModal = ({ order, posSettings = null, onConfirm, onClose }) => {
               </div>
             )}
 
-            {/* CARD */}
             {method === 'CARD' && (
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-gray-700">Card Approval / Reference Code *</label>
@@ -823,7 +817,6 @@ const PaymentModal = ({ order, posSettings = null, onConfirm, onClose }) => {
               </div>
             )}
 
-            {/* SPLIT */}
             {method === 'SPLIT' && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">

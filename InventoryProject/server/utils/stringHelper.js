@@ -150,6 +150,8 @@ export const checkCompositeDuplicate = (newName, newCategory, existingItems, exc
   if (normAlphaNew) {
     for (const item of ordered) {
       if (!normalizeName(item.name)) continue;
+      // Lookalike names only matter inside the same category.
+      if (normalizeCategory(item.category) !== targetCat) continue;
       if (findSimilarName(newName, [item.name])) {
         return {
           isHardDuplicate: false,

@@ -326,7 +326,8 @@ export const getProductStockSummary = (
       if (!Number.isFinite(sizeRecipeRemaining)) sizeRecipeRemaining = baseRecipeRemainingOrderable;
     }
 
-    // Same packaging rules as getMaxQtyForConfiguredItem: no cup for dine-in-no-cup, lid/straw for take-out/delivery.
+    // Same packaging rules as getMaxQtyForConfiguredItem: no cup for dine-in-no-cup,
+    // lid and straw for take-out/delivery.
     const normOrderType = String(orderType || "DINE_IN").toUpperCase();
     const skipCup = normOrderType === "DINE_IN" && Boolean(sz?.dine_in_no_cup);
     const extraIds = normOrderType === "TAKE_OUT" || normOrderType === "DELIVERY"

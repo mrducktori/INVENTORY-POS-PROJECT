@@ -39,7 +39,6 @@ const StockMovementReport = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Controls Bar */}
       <StockMovementToolbar
         period={period}
         onPeriodChange={handlePeriodChange}
@@ -58,7 +57,6 @@ const StockMovementReport = () => {
         onPrint={handlePrint}
       />
 
-      {/* Initial / Changed State */}
       {!fetched && !loading && (
         <div className="p-12 flex flex-col items-center justify-center text-zinc-500 bg-white border border-zinc-200/80 border-dashed rounded-2xl h-64 text-center">
           <svg className="w-12 h-12 mb-3 text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -71,7 +69,6 @@ const StockMovementReport = () => {
         </div>
       )}
 
-      {/* Loading Skeleton */}
       {loading && (
         <div className="flex flex-col gap-6">
           <StatCardsSkeleton count={5} />
@@ -79,13 +76,10 @@ const StockMovementReport = () => {
         </div>
       )}
 
-      {/* Results View */}
       {fetched && !loading && (
         <div className="flex flex-col gap-6 fade-in">
-          {/* Executive KPI Cards */}
           <StockMovementSummaryCards summary={summary} />
 
-          {/* Section View Switcher */}
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -107,7 +101,6 @@ const StockMovementReport = () => {
             </button>
           </div>
 
-          {/* VIEW 1: Stock Movement Log / VIEW 2: Current Inventory Snapshot */}
           {activeView === 'movements' ? (
             <StockMovementTable
               periodLabel={periodLabel}

@@ -23,7 +23,6 @@ const ReceiptJournalTable = ({
 }) => {
   return (
     <>
-      {/* Table Content */}
       {loading ? (
         <div className="space-y-2 py-4">
           {[...Array(6)].map((_, i) => (
@@ -145,22 +144,18 @@ const ReceiptJournalTable = ({
                     onClick={() => onSelectReceipt(sale.id)}
                     className="hover:bg-zinc-50/80 transition-colors cursor-pointer group"
                   >
-                    {/* Receipt No */}
                     <td className="sticky left-0 bg-white group-hover:bg-zinc-50 z-10 py-3.5 px-3 font-mono font-bold text-zinc-900 whitespace-nowrap">
                       {receiptNo}
                     </td>
 
-                    {/* Date & Time */}
                     <td className="py-3.5 px-3 text-zinc-600 font-mono text-xs whitespace-nowrap">
                       {formatDateTime(sale.created_at)}
                     </td>
 
-                    {/* Cashier / Staff */}
                     <td className="py-3.5 px-3 font-medium text-zinc-800 whitespace-nowrap">
                       {staffName}
                     </td>
 
-                    {/* Items */}
                     <td className="py-3.5 px-3 text-zinc-800 max-w-xs">
                       {items.length > 0 ? (
                         <div className="space-y-1">
@@ -188,12 +183,10 @@ const ReceiptJournalTable = ({
                       )}
                     </td>
 
-                    {/* Total Qty */}
                     <td className="py-3.5 px-3 text-center text-zinc-700 font-mono font-semibold whitespace-nowrap">
                       {totalItemsQty}
                     </td>
 
-                    {/* Payment Method */}
                     <td className="py-3.5 px-3 whitespace-nowrap">
                       <span
                         className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wider ${
@@ -215,7 +208,6 @@ const ReceiptJournalTable = ({
                       )}
                     </td>
 
-                    {/* Discount Badge */}
                     <td className="py-3.5 px-3 whitespace-nowrap">
                       {discountLabel ? (
                         <div className="space-y-0.5">
@@ -235,12 +227,10 @@ const ReceiptJournalTable = ({
                       )}
                     </td>
 
-                    {/* Total */}
                     <td className={`py-3.5 px-3 text-right font-mono font-bold whitespace-nowrap ${isVoidedOrRefunded ? 'text-zinc-400 line-through' : 'text-zinc-950'}`}>
                       {totalFormatted}
                     </td>
 
-                    {/* Status */}
                     <td className="py-3.5 px-3 text-center whitespace-nowrap">
                       <span
                         className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
@@ -261,7 +251,6 @@ const ReceiptJournalTable = ({
                       )}
                     </td>
 
-                    {/* Action */}
                     <td className="py-3.5 px-3 text-right whitespace-nowrap">
                       <button
                         type="button"
@@ -286,7 +275,6 @@ const ReceiptJournalTable = ({
         </div>
       )}
 
-      {/* Pagination Bar */}
       {!loading && effectiveTotal > 0 && (
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-zinc-100 text-xs md:text-sm text-zinc-600">
           <div className="flex items-center gap-3">

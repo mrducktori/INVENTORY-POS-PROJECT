@@ -132,7 +132,6 @@ const PurchaseOrders = () => {
     else setExpandedRow(id);
   };
 
-  // Overdue detection helper
   const isPOOverdue = (po) => {
     if (!po) return false;
     if (po.is_overdue !== undefined) return Boolean(po.is_overdue);
@@ -145,18 +144,15 @@ const PurchaseOrders = () => {
     return getDaysOverdue(po?.expected_date);
   };
 
-  // Reset page when tab or search query changes
   useEffect(() => {
     setCurrentPage(1);
   }, [tabFilter, searchQuery]);
 
-  // Counts
   const overdueCount = orders.filter(isPOOverdue).length;
   const proposalsCount = orders.filter(o => o.has_proposals || o.status === 'Proposal Pending' || o.status === 'Partially Accepted').length;
   const deliveringCount = orders.filter(o => ['To Be Delivered', 'Delivering', 'Partial'].includes(o.status)).length;
   const completedCount = orders.filter(o => o.status === 'Received').length;
 
-  // Filtered orders (tab + multi-field search)
   const filteredOrders = useMemo(() => {
     return orders.filter(po => {
       if (tabFilter === 'OVERDUE' && !isPOOverdue(po)) return false;
@@ -208,7 +204,6 @@ const PurchaseOrders = () => {
           </div>
         </div>
 
-        {/* Tab Filter Navigation Bar + Search */}
         <div className="px-6 py-3.5 border-b border-gray-200 bg-white flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
             <button
@@ -560,7 +555,6 @@ const PurchaseOrders = () => {
                                                 {item.ingredients?.name || 'Unknown'}
                                               </td>
                                               
-                                              {/* Supplier Availability Status */}
                                               <td className="px-4 py-3">
                                                 {resp ? (
                                                   <div className="flex flex-col gap-1">
@@ -580,7 +574,6 @@ const PurchaseOrders = () => {
                                                           </span>
                                                         )}
                                                         
-                                                        {/* Decision Action Buttons */}
                                                         {!dec && (
                                                           <div className="flex items-center gap-2 mt-1">
                                                             <button
@@ -655,7 +648,6 @@ const PurchaseOrders = () => {
                                               </td>
                                             </tr>
 
-                                            {/* Direct Table Rows for Each Received Batch (Received 1, Received 2, etc.) */}
                                             {(() => {
                                               const receiptList = (item.receipt_history && item.receipt_history.length > 0)
                                                 ? item.receipt_history
@@ -712,7 +704,6 @@ const PurchaseOrders = () => {
             </div>
           )}
 
-          {/* Pagination Controls */}
           {!loading && filteredOrders.length > 0 && (
             <Pagination
               currentPage={currentPage}

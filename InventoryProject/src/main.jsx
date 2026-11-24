@@ -39,14 +39,14 @@ document.addEventListener('click', (e) => {
       return false;
     }
     btn.setAttribute('data-cooldown', 'true');
-    btn.style.opacity = '0.8'; // Slight visual feedback
+    btn.style.opacity = '0.8';
     
     setTimeout(() => {
       btn.removeAttribute('data-cooldown');
       btn.style.opacity = '';
     }, 500);
   }
-}, true); // Use capture phase to intercept before React
+}, true); // Capture phase so the click is intercepted before React handles it.
 
 
 

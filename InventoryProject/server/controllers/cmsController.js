@@ -74,7 +74,7 @@ export const updateCmsContent = async (req, res) => {
               slides = [parsed];
             }
           } catch {
-            // Fallback for legacy plain text promo descriptions
+            // Legacy promo descriptions are plain text, not JSON; leave them as-is.
           }
         }
       }
@@ -90,7 +90,7 @@ export const updateCmsContent = async (req, res) => {
 
     const data = await cmsService.updateCmsContent(section_key, updates);
     
-    // Log audit using authenticated user id per Rule 9
+    // Audit the authenticated user, never an id taken from the request body.
     const userId = req.user?.id || null;
     await logAudit('CMS_CONTENT_UPDATED', userId, { section_key, updated_by: req.user?.name });
 

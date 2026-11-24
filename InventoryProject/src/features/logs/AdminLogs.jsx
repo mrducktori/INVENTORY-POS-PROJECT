@@ -55,7 +55,6 @@ const AdminLogs = () => {
 
   return (
     <div className="p-4 md:p-8 flex-1 bg-gray-50 min-h-screen overflow-y-auto w-full space-y-6">
-      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-zinc-200">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-zinc-900 tracking-tight m-0">
@@ -68,9 +67,7 @@ const AdminLogs = () => {
         <RefreshButton onRefresh={fetchLogs} loading={loading} className="self-start md:self-auto" />
       </div>
 
-      {/* Main Card */}
       <div className="bg-white border border-zinc-200/80 rounded-2xl shadow-2xs overflow-hidden">
-        {/* Toolbar */}
         <div className="p-4 sm:p-5 border-b border-zinc-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="relative w-full sm:w-80">
             <svg className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -106,7 +103,6 @@ const AdminLogs = () => {
           </div>
         </div>
 
-        {/* Table */}
         {loading ? (
           <div className="p-6">
             <TableSkeleton rows={8} cols={4} />
@@ -156,7 +152,6 @@ const AdminLogs = () => {
               </tbody>
             </table>
 
-            {/* Pagination Controls */}
             {filteredLogs.length > 0 && (
               <Pagination
                 currentPage={currentPage}

@@ -206,7 +206,8 @@ const Navbar = ({ activeTab, onTabChange }) => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isMobileOpen]);
 
-  // Dark mode lives only in the authenticated shell so landing/login (photo backgrounds) stay untouched.
+  // Dark mode lives only in the authenticated shell so the landing and login pages (photo
+  // backgrounds) stay untouched.
   const [dark, setDark] = useState(() => {
     try { return localStorage.getItem('theme') === 'dark'; } catch { return false; }
   });
@@ -315,7 +316,6 @@ const Navbar = ({ activeTab, onTabChange }) => {
                   )}
                 </div>
 
-                {/* Smooth collapsible submenu accordion */}
                 <div
                   className={`grid transition-all duration-250 ease-out ${
                     isGroupOpen ? 'grid-rows-[1fr] opacity-100 mt-1' : 'grid-rows-[0fr] opacity-0'
@@ -391,7 +391,7 @@ const Navbar = ({ activeTab, onTabChange }) => {
 
   return (
     <>
-      {/* Mobile / Tablet Top Header Bar (< lg) */}
+      {/* Below lg: top bar, backdrop and slide-over drawer replace the sidebar. */}
       <header data-no-invert className="lg:hidden bg-zinc-950 text-white border-b border-zinc-800 px-4 py-3 flex items-center justify-between shrink-0 select-none z-40">
         <div className="flex items-center gap-3 min-w-0">
           <button
@@ -426,7 +426,6 @@ const Navbar = ({ activeTab, onTabChange }) => {
         </div>
       </header>
 
-      {/* Mobile Slide-Over Backdrop (< lg) */}
       <div
         className={`lg:hidden fixed inset-0 z-[9990] bg-black/60 backdrop-blur-xs transition-opacity duration-300 ${
           isMobileOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
@@ -434,7 +433,6 @@ const Navbar = ({ activeTab, onTabChange }) => {
         onClick={() => setIsMobileOpen(false)}
       />
 
-      {/* Mobile Slide-Over Sidebar Drawer (< lg) */}
       <aside
         data-no-invert
         className={`lg:hidden fixed inset-y-0 left-0 z-[9995] w-72 max-w-[85vw] bg-zinc-950 text-white flex flex-col border-r border-zinc-800 shadow-2xl transform transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] select-none ${
@@ -485,14 +483,13 @@ const Navbar = ({ activeTab, onTabChange }) => {
         </div>
       </aside>
 
-      {/* Desktop Smooth Collapsible Sidebar (>= lg) */}
+      {/* lg and up: collapsible sidebar. */}
       <nav
         data-no-invert
         className={`hidden lg:flex bg-zinc-950 text-white flex-col border-r border-zinc-800 shrink-0 h-full overflow-hidden select-none transition-[width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
           isCollapsed ? 'w-20' : 'w-68'
         }`}
       >
-        {/* Brand header */}
         <div className={`border-b border-zinc-800 bg-black transition-all duration-300 ${isCollapsed ? 'p-3' : 'p-4'}`}>
           <div className={`flex items-center ${isCollapsed ? 'flex-col gap-2.5 justify-center' : 'justify-between gap-2'}`}>
             <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-2.5 overflow-hidden'}`}>
@@ -541,10 +538,8 @@ const Navbar = ({ activeTab, onTabChange }) => {
           )}
         </div>
 
-        {/* Nav list */}
         {renderNavList(isCollapsed)}
 
-        {/* Logout button */}
         <div className={`border-t border-zinc-800 bg-zinc-950 ${isCollapsed ? 'p-2.5' : 'p-4'}`}>
           <ThemeToggle collapsed={isCollapsed} dark={dark} onToggle={() => setDark((d) => !d)} />
           <button

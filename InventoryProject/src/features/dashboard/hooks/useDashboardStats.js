@@ -1,13 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getDashboardStats } from '../../../api/dashboardApi';
 
-// ---------------------------------------------------------------------------
-// useDashboardStats
-// Custom hook that encapsulates ALL data-fetching and transformation logic
-// for the Dashboard. The JSX layer (components) should ONLY call this hook
-// and render the values it returns ΓÇö no business logic in JSX.
-// ---------------------------------------------------------------------------
-
 const COLORS = ['#1e40af', '#991b1b', '#166534', '#6b21a8', '#9a3412', '#115e59'];
 
 /**
@@ -69,10 +62,6 @@ const sortProducts = (products, ascending) => {
     ascending ? a.value - b.value : b.value - a.value
   );
 };
-
-// ---------------------------------------------------------------------------
-// Hook
-// ---------------------------------------------------------------------------
 
 const useDashboardStats = () => {
   const [stats, setStats] = useState(null);
@@ -148,8 +137,6 @@ const useDashboardStats = () => {
     };
   }, [isTrendExpanded, trendPeriod, trendStartDate, trendEndDate, canReuseOverviewTrend]);
 
-  // --- Derived / computed values ---
-
   const activeSalesTrend = canReuseOverviewTrend
     ? stats.salesTrend
     : (trendStats?.salesTrend || stats?.salesTrend || []);
@@ -204,10 +191,8 @@ const useDashboardStats = () => {
   ];
 
   return {
-    // Raw state
     stats,
     loading,
-    // UI state
     isTrendExpanded,
     activeTrendCategory,
     trendPeriod,
@@ -219,7 +204,6 @@ const useDashboardStats = () => {
     topSalesPeriod,
     startDate,
     endDate,
-    // Actions (state setters)
     setIsTrendExpanded,
     setActiveTrendCategory,
     setTrendPeriod,
@@ -230,7 +214,6 @@ const useDashboardStats = () => {
     setStartDate,
     setEndDate,
     toggleLowStock,
-    // Derived data ready for components
     kpiCards,
     trendCategories,
     trendCategoryTotals,

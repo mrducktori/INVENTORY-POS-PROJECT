@@ -390,7 +390,6 @@ const SalesSummaryReport = () => {
         </div>
       )}
 
-      {/* Inline Non-Blocking Staff Sales Audit Section */}
       {selectedStaff && (
         <div
           ref={inlineAuditRef}

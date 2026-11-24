@@ -345,7 +345,6 @@ const PosSettingsModal = ({ allIngredients = [], initialSettings = null, onSaved
           </button>
         </div>
 
-        {/* Sub-Navigation */}
         <div className="px-6 py-3 bg-gray-50 border-b border-gray-200 flex flex-wrap gap-2 shrink-0">
           {[
             { id: 'PROMOS', label: 'Promos & Discounts' },
@@ -384,7 +383,6 @@ const PosSettingsModal = ({ allIngredients = [], initialSettings = null, onSaved
             <div className="py-12 text-center text-sm text-gray-500">Loading POS store configuration...</div>
           ) : (
             <>
-              {/* TAB 1: PROMOS & DISCOUNTS */}
               {activeTab === 'PROMOS' && (
                 <div className="space-y-6">
                   <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
@@ -752,7 +750,6 @@ const PosSettingsModal = ({ allIngredients = [], initialSettings = null, onSaved
                 </div>
               )}
 
-              {/* TAB 2: E-WALLET & STATIC QR */}
               {activeTab === 'QR_WALLETS' && (
                 <div className="space-y-4">
                   <div className="p-3.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs text-zinc-700 leading-relaxed">
@@ -857,7 +854,6 @@ const PosSettingsModal = ({ allIngredients = [], initialSettings = null, onSaved
                 </div>
               )}
 
-              {/* TAB 3: PACKAGING & KDS ROUTING */}
               {activeTab === 'PACKAGING_KDS' && (
                 <div className="space-y-5">
                   <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-4">

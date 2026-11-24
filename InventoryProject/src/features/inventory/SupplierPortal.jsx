@@ -48,7 +48,6 @@ const SupplierPortal = () => {
           disabled={mainView === 'CATALOG' && catalogDirty > 0}
           disabledReason="Save your changes first"
         />
-        {/* Top View Switcher */}
         <div className="inline-flex p-1 bg-gray-200/80 rounded-xl gap-1 shrink-0">
           <button
             type="button"
@@ -86,7 +85,6 @@ const SupplierPortal = () => {
         <SupplierCatalogSection key={catalogKey} onDirtyChange={setCatalogDirty} />
       ) : (
         <>
-          {/* Summary Stats */}
           {!loading && orders.length > 0 && (
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
               <div
@@ -144,7 +142,6 @@ const SupplierPortal = () => {
             </div>
           )}
 
-          {/* Main Table Card with Tabs */}
           <SupplierOrdersTable
             loading={loading}
             orders={orders}
@@ -172,7 +169,6 @@ const SupplierPortal = () => {
         </>
       )}
 
-      {/* Decline & Postpone Modals */}
       <SupplierOrderActionModals
         declineModal={declineModal}
         setDeclineModal={setDeclineModal}
@@ -182,7 +178,6 @@ const SupplierPortal = () => {
         onPostponeSubmit={handlePostponeSubmit}
       />
 
-      {/* Review & Accept Items Modal */}
       <SupplierReviewPOModal
         isOpen={reviewModal.show}
         onClose={() => setReviewModal({ show: false, order: null })}

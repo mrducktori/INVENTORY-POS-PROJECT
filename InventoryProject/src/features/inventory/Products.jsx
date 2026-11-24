@@ -17,7 +17,6 @@ const Products = () => {
   const [recipe, setRecipe] = useState(null);
   const [recipeLoading, setRecipeLoading] = useState(false);
 
-  // Sorting & Pagination States
   const [sortField, setSortField] = useState('name'); // 'name' | 'price'
   const [sortDirection, setSortDirection] = useState('asc'); // 'asc' | 'desc'
   const [currentPage, setCurrentPage] = useState(1);
@@ -27,7 +26,6 @@ const Products = () => {
     fetchProducts();
   }, []);
 
-  // Reset page when filter or search changes
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, filter]);
@@ -73,7 +71,6 @@ const Products = () => {
     });
   }, [products, filter, searchTerm]);
 
-  // Sorting handlers
   const handlePriceSort = () => {
     if (sortField !== 'price') {
       setSortField('price');
@@ -100,7 +97,6 @@ const Products = () => {
     setCurrentPage(1);
   };
 
-  // Sorted list
   const sortedProducts = useMemo(() => {
     const list = [...filteredProducts];
     if (sortField === 'price') {
@@ -110,7 +106,6 @@ const Products = () => {
         list.sort((a, b) => (parseFloat(b.price) || 0) - (parseFloat(a.price) || 0));
       }
     } else {
-      // Default / Alphabetical
       if (sortDirection === 'desc') {
         list.sort((a, b) => b.name.localeCompare(a.name));
       } else {
@@ -120,7 +115,6 @@ const Products = () => {
     return list;
   }, [filteredProducts, sortField, sortDirection]);
 
-  // Paginated items
   const totalPages = Math.max(1, Math.ceil(sortedProducts.length / itemsPerPage));
   const paginatedProducts = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
@@ -129,7 +123,6 @@ const Products = () => {
 
   return (
     <div className="w-full px-6 lg:px-10 py-6 min-h-full space-y-6">
-      {/* Header section */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-4 border-b border-gray-200">
         <div>
           <div className="flex items-center gap-2 mb-1">
@@ -150,7 +143,6 @@ const Products = () => {
 
         <div className="flex items-center gap-3 flex-wrap self-start md:self-auto">
         <RefreshButton onRefresh={fetchProducts} className="py-2.5" />
-        {/* View Switcher Controls (Table vs Grid) */}
         <div className="flex items-center gap-2 bg-zinc-100 p-1.5 rounded-xl border border-zinc-200">
           <button
             type="button"
@@ -185,9 +177,7 @@ const Products = () => {
         </div>
       </div>
 
-      {/* Main Content Container */}
       <div className="bg-white border border-gray-200/90 shadow-xs rounded-2xl overflow-hidden w-full">
-        {/* Search & Category Filter Toolbar */}
         <div className="px-6 py-5 border-b border-gray-100 bg-zinc-50/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <h2 className="m-0 text-lg font-bold text-zinc-900 tracking-tight">
@@ -239,7 +229,6 @@ const Products = () => {
           </div>
         </div>
 
-        {/* Content Area */}
         <div className="p-0">
           {loading ? (
             <div className="p-4 md:p-6">
@@ -278,7 +267,6 @@ const Products = () => {
               <p className="text-sm text-zinc-500 m-0">Try adjusting your search query or category filter.</p>
             </div>
           ) : viewMode === 'table' ? (
-            /* ================= MODE 1: TABLE VIEW ================= */
             <div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
@@ -346,7 +334,6 @@ const Products = () => {
                   <tbody className="divide-y divide-zinc-200">
                     {paginatedProducts.map(product => (
                       <tr key={product.id} className="hover:bg-zinc-50/70 transition-colors group">
-                        {/* Product Name & Photo */}
                         <td className="px-6 py-4 sticky left-0 z-10 bg-white group-hover:bg-zinc-50 transition-colors shadow-[1px_0_0_0_#f4f4f5]">
                           <div className="flex items-center gap-3.5">
                             {product.image_url ? (
@@ -376,17 +363,14 @@ const Products = () => {
                           </div>
                         </td>
 
-                        {/* Category */}
                         <td className="px-6 py-4 text-sm font-semibold text-zinc-700 uppercase tracking-wide">
                           {product.category}
                         </td>
 
-                        {/* Price */}
                         <td className="px-6 py-4 text-base font-black text-zinc-900 text-right tabular-nums">
                           ₱{parseFloat(product.price).toFixed(2)}
                         </td>
 
-                        {/* Stock Status */}
                         <td className="px-6 py-4 text-center">
                           {product.track_stock ? (
                             <span className={`inline-flex px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${
@@ -405,7 +389,6 @@ const Products = () => {
                           )}
                         </td>
 
-                        {/* View Recipe Button */}
                         <td className="px-6 py-4 text-right">
                           <button 
                             type="button"
@@ -434,7 +417,6 @@ const Products = () => {
               />
             </div>
           ) : (
-            /* ================= MODE 2: GRID / CARDS VIEW ================= */
             <div>
               <div className="p-6 md:p-8">
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -444,7 +426,6 @@ const Products = () => {
                       className="bg-white border border-zinc-200/90 rounded-2xl overflow-hidden shadow-xs hover:border-zinc-400 hover:shadow-md transition-all flex flex-col justify-between group"
                     >
                       <div>
-                        {/* Product Card Image Banner */}
                         <div className="relative h-48 w-full bg-zinc-100 overflow-hidden">
                           {product.image_url ? (
                             <img
@@ -462,12 +443,10 @@ const Products = () => {
                             </div>
                           )}
 
-                          {/* Category Badge on top of image */}
                           <span className="absolute top-3 left-3 px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider bg-black/75 text-white backdrop-blur-xs">
                             {product.category}
                           </span>
 
-                          {/* Stock Tag on image */}
                           <div className="absolute top-3 right-3">
                             {product.track_stock ? (
                               <span className={`px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider backdrop-blur-xs shadow-xs ${
@@ -487,7 +466,6 @@ const Products = () => {
                           </div>
                         </div>
 
-                        {/* Card Body */}
                         <div className="p-5">
                           <h3 className="text-base font-extrabold text-zinc-900 m-0 mb-1 line-clamp-1" title={product.name}>
                             {product.name}
@@ -499,7 +477,6 @@ const Products = () => {
                         </div>
                       </div>
 
-                      {/* Card Footer Button */}
                       <div className="p-5 pt-0">
                         <button
                           type="button"
@@ -530,7 +507,6 @@ const Products = () => {
         </div>
       </div>
 
-      {/* Recipe Modal */}
       {selectedProduct && createPortal(
         <div 
           className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[9999] p-4 flex justify-center items-start pt-6 sm:pt-10 md:pt-14 pb-12 animate-[modalBackdropFadeIn_0.2s_ease-out]" 
@@ -540,7 +516,6 @@ const Products = () => {
             className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[calc(100vh-5rem)] md:max-h-[calc(100vh-6rem)] animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)]"
             onClick={e => e.stopPropagation()}
           >
-            {/* Modal Header */}
             <div className="bg-zinc-900 text-white p-5 flex justify-between items-center shrink-0">
               <div className="flex items-center gap-3">
                 {selectedProduct.image_url && (
@@ -566,7 +541,6 @@ const Products = () => {
                aria-label="Close"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
             </div>
 
-            {/* Modal Body */}
             <div className="p-0 overflow-y-auto max-h-[60vh]">
               {recipeLoading ? (
                 <div className="p-6">
@@ -614,7 +588,6 @@ const Products = () => {
               )}
             </div>
 
-            {/* Modal Footer */}
             <div className="px-6 py-4 border-t border-zinc-200 bg-zinc-50 flex justify-end shrink-0">
               <button 
                 type="button"

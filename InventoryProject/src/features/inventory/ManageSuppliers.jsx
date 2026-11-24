@@ -49,7 +49,6 @@ const ManageSuppliers = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  // Modals state
   const [formModalOpen, setFormModalOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState(null);
   const [viewingCatalogSupplier, setViewingCatalogSupplier] = useState(null);
@@ -92,19 +91,16 @@ const ManageSuppliers = () => {
     }
   };
 
-  // Open Add modal
   const handleOpenAdd = () => {
     setEditingSupplier(null);
     setFormModalOpen(true);
   };
 
-  // Open Edit modal
   const handleOpenEdit = (supplier) => {
     setEditingSupplier(supplier);
     setFormModalOpen(true);
   };
 
-  // Save Supplier (Create or Update)
   const handleSaveSupplier = async (payload) => {
     setFormModalOpen(false);
     try {
@@ -122,7 +118,6 @@ const ManageSuppliers = () => {
     }
   };
 
-  // Archive Supplier (soft delete)
   const handleDeleteSupplier = (supplier) => {
     setConfirmConfig({
       isOpen: true,
@@ -142,7 +137,6 @@ const ManageSuppliers = () => {
     });
   };
 
-  // Restore Supplier
   const handleRestoreSupplier = async (supplier) => {
     try {
       await restoreSupplier(supplier.id);
@@ -182,12 +176,10 @@ const ManageSuppliers = () => {
     }
   };
 
-  // Reset page when search term changes
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm]);
 
-  // Active and archived suppliers
   const activeSuppliers = useMemo(() => {
     return suppliers.filter((s) => !s.is_archived);
   }, [suppliers]);
@@ -196,7 +188,6 @@ const ManageSuppliers = () => {
     return suppliers.filter((s) => s.is_archived);
   }, [suppliers]);
 
-  // Filtered suppliers for directory
   const filteredSuppliers = useMemo(() => {
     const term = searchTerm.toLowerCase().trim();
     if (!term) return activeSuppliers;
@@ -218,7 +209,6 @@ const ManageSuppliers = () => {
 
   return (
     <div className="p-4 md:p-8 flex-1 bg-gray-50 overflow-y-auto w-full">
-      {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <div>
           <h1 className="m-0 text-xl md:text-2xl font-bold text-zinc-900 tracking-tight">
@@ -230,7 +220,6 @@ const ManageSuppliers = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Tab Switcher */}
           <div className="inline-flex bg-zinc-200/80 p-1 rounded-xl">
             <button
               type="button"
@@ -271,7 +260,6 @@ const ManageSuppliers = () => {
         </div>
       </div>
 
-      {/* Messages */}
       {successMsg && (
         <div className="mb-5 p-4 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl text-sm font-bold animate-in fade-in">
           {successMsg}
@@ -283,10 +271,8 @@ const ManageSuppliers = () => {
         </div>
       )}
 
-      {/* TAB 1: SUPPLIERS DIRECTORY */}
       {activeTab === 'suppliers' && (
         <div className="space-y-4">
-          {/* Search bar */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
             <div className="relative w-full sm:w-80">
               <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-400">
@@ -308,7 +294,6 @@ const ManageSuppliers = () => {
             </div>
           </div>
 
-          {/* Suppliers Table */}
           <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden shadow-xs">
             {loading ? (
               <div className="p-12 text-center text-sm text-zinc-400">Loading supplier directory...</div>
@@ -426,7 +411,6 @@ const ManageSuppliers = () => {
               </div>
             )}
 
-            {/* Pagination Controls */}
             {filteredSuppliers.length > 0 && (
               <Pagination
                 currentPage={currentPage}
@@ -443,7 +427,6 @@ const ManageSuppliers = () => {
             )}
           </div>
 
-          {/* Dedicated Archived Suppliers Section */}
           {archivedSuppliers.length > 0 && (
             <div className="mt-8 mb-4 bg-zinc-950 text-white rounded-2xl p-6 border border-zinc-800 shadow-xl w-full">
               <div className="flex items-center justify-between pb-4 border-b border-zinc-800 mb-5">
@@ -481,7 +464,6 @@ const ManageSuppliers = () => {
         </div>
       )}
 
-      {/* TAB 2: PRICE DIFFERENCES & COMPARISON MATRIX */}
       {activeTab === 'prices' && (
         <SupplierPriceComparison
           suppliers={activeSuppliers}
@@ -490,7 +472,6 @@ const ManageSuppliers = () => {
         />
       )}
 
-      {/* Modals */}
       {formModalOpen && (
         <SupplierFormModal
           isOpen={formModalOpen}

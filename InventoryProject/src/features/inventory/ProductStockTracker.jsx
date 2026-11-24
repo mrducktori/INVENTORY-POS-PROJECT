@@ -154,7 +154,6 @@ const ProductStockTracker = () => {
         </button>
       </div>
 
-      {/* ---- Stats Row ---- */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <div className="bg-white border border-gray-200 p-5 rounded-xl shadow-sm flex flex-col justify-center text-center">
           <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Tracked Products</div>
@@ -174,7 +173,6 @@ const ProductStockTracker = () => {
         </div>
       </div>
 
-      {/* ---- Main Table Card ---- */}
       <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden w-full">
         <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <h2 className="m-0 text-lg font-bold text-gray-900 tracking-tight">Product Stock Levels</h2>
@@ -281,7 +279,6 @@ const ProductStockTracker = () => {
             </div>
           )}
 
-          {/* Pagination Controls */}
           {!loading && sortedFiltered.length > 0 && (
             <Pagination
               currentPage={currentPage}

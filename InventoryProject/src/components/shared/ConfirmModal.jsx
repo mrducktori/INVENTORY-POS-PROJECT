@@ -40,7 +40,7 @@ const ConfirmModal = ({
   const handleCancelClick = (e) => {
     e?.preventDefault?.();
     e?.stopPropagation?.();
-    if (isBusy) return; // Prevent canceling in the middle of a database commit
+    if (isBusy) return; // Block cancel while a database commit is in flight.
     if (onCancel) onCancel();
   };
 
@@ -54,7 +54,6 @@ const ConfirmModal = ({
         onClick={e => e.stopPropagation()}
       >
         <div className="p-6 md:p-8 text-center">
-          {/* Status Icon */}
           <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
             isDanger 
               ? 'bg-rose-100 text-rose-600' 

@@ -7,7 +7,6 @@ const SupplierReviewPOModal = ({ isOpen, onClose, order, onSubmit }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  // Initialize items state when modal opens with an order
   useEffect(() => {
     if (order && order.purchase_order_items) {
       const initial = {};
@@ -68,7 +67,6 @@ const SupplierReviewPOModal = ({ isOpen, onClose, order, onSubmit }) => {
     e.preventDefault();
     setError('');
 
-    // Validation
     const payloadItems = [];
     for (const item of items) {
       const state = itemsState[item.id];
@@ -115,7 +113,6 @@ const SupplierReviewPOModal = ({ isOpen, onClose, order, onSubmit }) => {
   return (
     <div className="fixed inset-0 z-[9999] overflow-y-auto bg-black/60 backdrop-blur-xs flex justify-center items-start pt-6 sm:pt-10 md:pt-14 pb-12 p-4 animate-[modalBackdropFadeIn_0.2s_ease-out]">
       <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[calc(100vh-5rem)] md:max-h-[calc(100vh-6rem)] flex flex-col border border-gray-200 animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)]">
-        {/* Header */}
         <div className="p-6 border-b border-gray-100 flex items-start justify-between bg-zinc-900 text-white rounded-t-2xl shrink-0">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -139,7 +136,6 @@ const SupplierReviewPOModal = ({ isOpen, onClose, order, onSubmit }) => {
            aria-label="Close"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
         </div>
 
-        {/* Toolbar & Live Summary */}
         <div className="px-6 py-3 bg-zinc-50 border-b border-gray-200 flex flex-wrap items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-bold text-zinc-500 uppercase tracking-wider">Summary:</span>
@@ -167,14 +163,12 @@ const SupplierReviewPOModal = ({ isOpen, onClose, order, onSubmit }) => {
           </button>
         </div>
 
-        {/* Error message */}
         {error && (
           <div className="mx-6 mt-4 p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold rounded-xl">
             {error}
           </div>
         )}
 
-        {/* Items List */}
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
             <p className="text-xs text-zinc-500 m-0">
@@ -211,7 +205,6 @@ const SupplierReviewPOModal = ({ isOpen, onClose, order, onSubmit }) => {
                       </span>
                     </div>
 
-                    {/* Status Options Toggle */}
                     <div className="inline-flex rounded-lg border border-gray-200 bg-gray-100 p-0.5 shrink-0">
                       <button
                         type="button"
@@ -249,7 +242,6 @@ const SupplierReviewPOModal = ({ isOpen, onClose, order, onSubmit }) => {
                     </div>
                   </div>
 
-                  {/* Sub-inputs when Proposed Date selected */}
                   {isProposed && (
                     <div className="mt-3 pt-3 border-t border-amber-200/80 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs animate-in fade-in duration-150">
                       <div>
@@ -280,7 +272,6 @@ const SupplierReviewPOModal = ({ isOpen, onClose, order, onSubmit }) => {
                     </div>
                   )}
 
-                  {/* Sub-inputs when Unavailable selected */}
                   {isUnavailable && (
                     <div className="mt-3 pt-3 border-t border-rose-200/80 text-xs animate-in fade-in duration-150">
                       <label className="block font-bold text-rose-900 mb-1">
@@ -301,7 +292,6 @@ const SupplierReviewPOModal = ({ isOpen, onClose, order, onSubmit }) => {
             })}
           </div>
 
-          {/* Modal Footer */}
           <div className="p-4 md:p-6 border-t border-gray-100 bg-white flex items-center justify-between rounded-b-2xl">
             <button
               type="button"

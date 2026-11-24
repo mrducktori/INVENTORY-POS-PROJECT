@@ -61,7 +61,6 @@ const DashboardOverview = ({ onNavigate }) => {
 
   return (
     <div className="w-full px-6 lg:px-10 py-6 min-h-full space-y-8">
-      {/* Header section with operational status */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-4 border-b border-gray-200">
         <div>
           <div className="flex items-center gap-3 mb-2">
@@ -110,7 +109,6 @@ const DashboardOverview = ({ onNavigate }) => {
         />
       </section>
 
-      {/* Expanded Trend Chart */}
       {isTrendExpanded && (
         <ExpandedTrendChart
           loading={loading || trendLoading}
@@ -136,7 +134,6 @@ const DashboardOverview = ({ onNavigate }) => {
         loading={loading}
       />
 
-      {/* Expanded Low Stock Panel */}
       {isLowStockExpanded && (
         <ExpandedLowStock
           loading={loading}

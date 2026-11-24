@@ -71,13 +71,9 @@ const IngredientRestockTab = ({
         ))}
       </div>
 
-      {/* Main Table Card */}
       <div className="bg-white border border-zinc-200/80 rounded-2xl shadow-2xs overflow-hidden">
-        {/* Structured Multi-Tier Toolbar */}
         <div className="p-4 sm:p-5 border-b border-zinc-100 space-y-3.5">
-          {/* Row 1: Search Box on Left, Action Buttons on Right */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            {/* Search */}
             <div className="relative w-full sm:w-80">
               <svg
                 className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
@@ -109,7 +105,6 @@ const IngredientRestockTab = ({
               )}
             </div>
 
-            {/* Right Action Buttons */}
             <div className="flex items-center gap-2 shrink-0">
               {selectedIngredientIds.length > 0 ? (
                 <div className="flex items-center gap-2">
@@ -168,7 +163,6 @@ const IngredientRestockTab = ({
             </div>
           </div>
 
-          {/* Row 2: Category Filter Pills with clean horizontal scroll and executive pill styling */}
           {categories.length > 0 && (
             <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
               <button
@@ -199,7 +193,6 @@ const IngredientRestockTab = ({
             </div>
           )}
 
-          {/* Row 3: Status Filter Pills with dynamic counts */}
           <div className="flex items-center justify-between gap-3 pt-0.5">
             <div className="flex flex-wrap items-center bg-zinc-100 p-0.5 rounded-lg border border-zinc-200/70">
               {[
@@ -228,7 +221,6 @@ const IngredientRestockTab = ({
           </div>
         </div>
 
-        {/* Table Content */}
         {loadingIngredients ? (
           <div className="p-6">
             <TableSkeleton rows={6} cols={8} />
@@ -509,7 +501,6 @@ const IngredientRestockTab = ({
               </table>
             </div>
 
-            {/* Pagination Footer */}
             {filteredIngredients.length > pageSize && (
               <div className="px-4 py-3 border-t border-zinc-100 flex items-center justify-between text-xs text-zinc-500">
                 <div>

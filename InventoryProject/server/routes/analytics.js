@@ -13,7 +13,7 @@ router.use(requirePermission('Dashboard', 'Forecasting', 'Reports'));
 // shortcut: no-op, remove it and its ~30 call sites when those files are next touched.
 export function invalidateAnalyticsCache() {}
 
-// Demand forecast v2: one engine for the list and the product detail (services/forecastService.js).
+// One engine serves both the list and the product detail (services/forecastService.js).
 router.get('/forecast', async (req, res) => {
   try {
     res.json(await forecastService.getForecastOverview({ horizon: req.query.horizon }));

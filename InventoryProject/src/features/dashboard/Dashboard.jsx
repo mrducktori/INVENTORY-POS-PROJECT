@@ -59,7 +59,7 @@ const resolveInitialRoute = (user, defaultTab) => {
       }
     }
   } catch {
-    // ignore
+    // Storage can be unavailable; fall back to the default tab.
   }
   return { tab: defaultTab, subTab: null };
 };
@@ -116,11 +116,10 @@ const Dashboard = () => {
         }
       }
     } catch {
-      // ignore
+      // Storage or history can be unavailable; the tab still works.
     }
   }, [isAuthorized, getDefaultTab]);
 
-  // Sync state with URL hash and localStorage on tab changes
   useEffect(() => {
     if (!effectiveTab) return;
     const routeString = effectiveSubTab ? `${effectiveTab}/${effectiveSubTab}` : effectiveTab;
@@ -140,7 +139,6 @@ const Dashboard = () => {
     } catch { /* ignore storage errors */ }
   }, [effectiveTab, effectiveSubTab]);
 
-  // Handle browser Back / Forward navigation
   useEffect(() => {
     const handleHashChange = () => {
       const rawHash = window.location.hash.replace(/^#\/?/, '');
@@ -162,7 +160,7 @@ const Dashboard = () => {
   useEffect(() => {
     if (!user?.id) return;
 
-    // 1. Supabase Realtime channel listener for this specific user
+    // Realtime listener for status changes on this user.
     const channel = supabase
       .channel(`user_status_monitor_${user.id}`)
       .on(
@@ -183,7 +181,7 @@ const Dashboard = () => {
       )
       .subscribe();
 
-    // 2. Periodic heartbeat fallback check (every 60 seconds when tab is visible)
+    // Heartbeat fallback in case a realtime event is missed (skipped while the tab is hidden).
     const interval = setInterval(async () => {
       if (typeof document !== 'undefined' && document.hidden) return;
       try {
@@ -197,7 +195,7 @@ const Dashboard = () => {
           window.location.href = '/coftealoginpageforstaff';
         }
       } catch {
-        // ignore transient network errors
+        // A failed heartbeat is retried on the next tick.
       }
     }, 60000);
 
@@ -230,11 +228,9 @@ const Dashboard = () => {
       case 'POS':               return <POS subTab={effectiveSubTab} onSubTabChange={handleSubTabChange} />;
       case 'ReportWastage':     return <ReportWastage />;
 
-      // Inventory System
       case 'Products':          return <Products />;
       case 'ManageProducts':    return <ManageProducts subTab={effectiveSubTab} onSubTabChange={handleSubTabChange} />;
 
-      // Inventory Stock
       case 'RawMaterialTracker': return <RawMaterialTracker subTab={effectiveSubTab} onSubTabChange={handleSubTabChange} />;
       case 'ProductStockTracker': return <ProductStockTracker />;
       case 'ManageRawMaterials': return <ManageRawMaterials />;
@@ -244,29 +240,23 @@ const Dashboard = () => {
       case 'PurchaseOrders':    return <PurchaseOrders />;
       case 'ManageSuppliers':   return <ManageSuppliers />;
 
-      // Logs & Reports
       case 'AuditLogs':         return <AuditLogs />;
       case 'AdminLogs':         return <AdminLogs />;
       case 'TransactionLogs':   return <TransactionLogs />;
       case 'SalesReceiptJournal': return <SalesReceiptJournal />;
       case 'SalesSummaryReport': return <SalesSummaryReport />;
 
-      // Account Management & Staff Requests
       case 'AccountManager':    return <AccountManager subTab={effectiveSubTab} onSubTabChange={handleSubTabChange} />;
       case 'EmployeeTracker':   return <EmployeeTracker />;
       case 'RequestProduct':    return <RequestProduct />;
       case 'ViewRequests':      return <ViewRequests />;
 
-      // Analytics
       case 'Forecasting':       return <DemandForecasting />;
 
-      // Reports Module
       case 'Reports':           return <Reports />;
 
-      // Content Management
       case 'CMSDashboard':      return <CMSDashboard />;
 
-      // Supplier Portal
       case 'SupplierPortal':    return <SupplierPortal />;
 
       default:

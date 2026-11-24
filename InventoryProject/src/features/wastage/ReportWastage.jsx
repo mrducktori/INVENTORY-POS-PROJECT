@@ -126,7 +126,6 @@ const ReportWastage = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  // KPI Calculations
   const totalWastageQuantity = useMemo(
     () => wastageHistory.reduce((sum, w) => sum + (parseFloat(w.quantity) || 0), 0),
     [wastageHistory]
@@ -140,7 +139,6 @@ const ReportWastage = () => {
     }).length;
   }, [wastageHistory]);
 
-  // Filtered History
   const filteredHistory = useMemo(() => {
     if (!searchFilter.trim()) return wastageHistory;
     const q = searchFilter.toLowerCase();
@@ -163,7 +161,6 @@ const ReportWastage = () => {
 
   return (
     <div className="w-full px-6 lg:px-10 py-6 min-h-full space-y-6">
-      {/* Operational Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-4 border-b border-gray-200">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-zinc-900 tracking-tight m-0">
@@ -175,7 +172,6 @@ const ReportWastage = () => {
         </div>
       </div>
 
-      {/* KPI Cards Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-2xs">
           <div className="text-xs font-medium text-zinc-500 mb-1">
@@ -214,9 +210,7 @@ const ReportWastage = () => {
         </div>
       </div>
 
-      {/* Adaptive 2-Column Section: Form on Left, History Table on Right */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* Left Column: Log Wastage Form */}
         <div className="lg:col-span-5 xl:col-span-4 bg-white border border-gray-200/90 rounded-2xl p-6 md:p-8 shadow-xs space-y-6">
           <div className="pb-4 border-b border-gray-100">
             <h2 className="text-xl font-bold text-zinc-900 m-0">
@@ -227,7 +221,6 @@ const ReportWastage = () => {
             </p>
           </div>
 
-          {/* Feedback Banner */}
           {feedback.text && (
             <div
               className={`p-4 rounded-xl text-sm font-semibold border transition-all ${
@@ -241,7 +234,6 @@ const ReportWastage = () => {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Ingredient Selector */}
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-zinc-700">
                 Raw Material Ingredient *
@@ -256,7 +248,6 @@ const ReportWastage = () => {
               />
             </div>
 
-            {/* Live Stock Context Chip */}
             {selectedIngredient && (
               <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-3.5 space-y-2">
                 <div className="flex items-center justify-between">
@@ -305,7 +296,6 @@ const ReportWastage = () => {
               </div>
             )}
 
-            {/* Batch Selector */}
             {selectedIngredient?.batches?.length > 0 && (
               <div className="space-y-1.5">
                 <label className="block text-xs font-semibold text-zinc-700">
@@ -327,7 +317,6 @@ const ReportWastage = () => {
               </div>
             )}
 
-            {/* Quantity Input */}
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-zinc-700">
                 Quantity Wasted *
@@ -359,7 +348,6 @@ const ReportWastage = () => {
               </div>
             </div>
 
-            {/* Reason Selector */}
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-zinc-700">
                 Reason *
@@ -387,7 +375,6 @@ const ReportWastage = () => {
               </div>
             </div>
 
-            {/* Submit Button */}
             <button
               type="submit"
               disabled={submitting}
@@ -398,7 +385,6 @@ const ReportWastage = () => {
           </form>
         </div>
 
-        {/* Right Column: Wastage History Table */}
         <div className="lg:col-span-7 xl:col-span-8 bg-white border border-gray-200/90 rounded-2xl p-6 md:p-8 shadow-xs space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-gray-100">
             <div>
@@ -410,7 +396,6 @@ const ReportWastage = () => {
               </p>
             </div>
 
-            {/* Filter Search Input */}
             <div className="w-full sm:w-64">
               <input
                 type="text"
@@ -422,7 +407,6 @@ const ReportWastage = () => {
             </div>
           </div>
 
-          {/* Table Container */}
           <div className="w-full">
             {loading ? (
               <div className="py-4">
@@ -494,7 +478,6 @@ const ReportWastage = () => {
                   </tbody>
                 </table>
 
-                {/* Pagination Controls */}
                 <Pagination
                   currentPage={currentPage}
                   totalPages={totalPages}

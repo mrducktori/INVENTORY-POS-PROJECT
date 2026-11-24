@@ -20,7 +20,6 @@ const Pagination = ({
   const startItem = totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
   const endItem = Math.min(currentPage * itemsPerPage, totalItems);
 
-  // Generate page numbers with ellipsis
   const getPageNumbers = () => {
     const pages = [];
     const maxVisible = 5;
@@ -52,7 +51,6 @@ const Pagination = ({
 
   return (
     <div className={`px-6 py-4 bg-white border-t border-gray-200/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm ${className}`}>
-      {/* Items Count & Optional Items-per-page dropdown */}
       <div className="flex items-center gap-3 text-gray-600 font-medium text-xs sm:text-sm">
         <span>
           Showing <strong className="text-gray-900 font-bold">{startItem}</strong> to{' '}
@@ -76,10 +74,8 @@ const Pagination = ({
         )}
       </div>
 
-      {/* Pagination Controls */}
       {totalPages > 1 && (
         <div className="flex items-center gap-1">
-          {/* Previous Button */}
           <button
             type="button"
             onClick={() => onPageChange(currentPage - 1)}
@@ -92,7 +88,6 @@ const Pagination = ({
             </svg>
           </button>
 
-          {/* Page Numbers */}
           <div className="flex items-center gap-1">
             {getPageNumbers().map((page, idx) => {
               if (page === 'ellipsis-start' || page === 'ellipsis-end') {
@@ -121,7 +116,6 @@ const Pagination = ({
             })}
           </div>
 
-          {/* Next Button */}
           <button
             type="button"
             onClick={() => onPageChange(currentPage + 1)}

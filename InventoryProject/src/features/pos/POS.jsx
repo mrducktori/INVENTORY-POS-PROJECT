@@ -120,7 +120,6 @@ const POS = ({ subTab = null, onSubTabChange = null }) => {
 
   return (
     <div className="flex flex-col h-full lg:h-[calc(100vh-0px)] w-full bg-gray-50 overflow-hidden relative">
-      {/* Top Workspace Switcher */}
       <div className="px-4 md:px-6 py-2.5 bg-white border-b border-gray-200 flex flex-wrap items-center justify-between gap-3 shrink-0 z-20">
         <div className="flex items-center gap-2.5">
           <svg className="w-5 h-5 text-gray-900" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -225,7 +224,6 @@ const POS = ({ subTab = null, onSubTabChange = null }) => {
 
       {workspace === "REGISTER" && (
         <div className="flex flex-col lg:flex-row flex-1 min-h-0 overflow-hidden">
-          {/* LEFT - Products */}
           <div className="flex-[2] flex flex-col p-4 md:p-6 overflow-hidden border-r border-gray-200">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
               <h2 className="m-0 text-2xl font-bold text-gray-900 tracking-tight">Point of Sale</h2>
@@ -263,9 +261,7 @@ const POS = ({ subTab = null, onSubTabChange = null }) => {
             </div>
           </div>
 
-          {/* RIGHT - Cart/Ongoing Orders */}
           <div className="flex-1 flex flex-col bg-white min-w-[320px] max-w-full lg:max-w-[400px] z-10 shadow-[-4px_0_15px_rgba(0,0,0,0.03)]">
-            {/* Tabs */}
             <div className="flex border-b border-gray-200 bg-gray-50/50">
               <button
                 className={`flex-1 py-3.5 text-sm font-semibold transition-colors border-b-2 cursor-pointer ${
@@ -293,7 +289,6 @@ const POS = ({ subTab = null, onSubTabChange = null }) => {
               <ExtraSupplyButton onNotice={showStockNotice} />
             </div>
 
-            {/* Cart Tab */}
             {activeTab === "cart" && (
               <>
                 <Cart
@@ -341,7 +336,6 @@ const POS = ({ subTab = null, onSubTabChange = null }) => {
               </>
             )}
 
-            {/* Ongoing Orders Tab */}
             {activeTab === "ongoing" && (
               <OngoingOrders
                 orders={ongoingOrders}
@@ -355,7 +349,6 @@ const POS = ({ subTab = null, onSubTabChange = null }) => {
         </div>
       )}
 
-      {/* Options Modal */}
       {showOptions && selectedProduct && (
         <ProductOptionsModal
           key={`${selectedProduct.id}-${editingCartItemId || "new"}`}
@@ -373,7 +366,6 @@ const POS = ({ subTab = null, onSubTabChange = null }) => {
         />
       )}
 
-      {/* Ingredients & Availability Info Modal */}
       {recipeProduct && (
         <ProductInfoModal
           product={recipeProduct}
@@ -387,7 +379,6 @@ const POS = ({ subTab = null, onSubTabChange = null }) => {
         />
       )}
 
-      {/* Payment Modal */}
       {showPaymentModal && paymentOrder && (
         <PaymentModal
           order={paymentOrder}
@@ -397,7 +388,6 @@ const POS = ({ subTab = null, onSubTabChange = null }) => {
         />
       )}
 
-      {/* Store POS Setup Modal */}
       {showPosSettings && (
         <PosSettingsModal
           allIngredients={ingredients}
@@ -407,7 +397,6 @@ const POS = ({ subTab = null, onSubTabChange = null }) => {
         />
       )}
 
-      {/* Digital Receipt Modal after Completed Transaction */}
       {showReceiptModal && (completedReceipt || completedSaleId) && (
         <SalesReceiptModal
           saleId={completedSaleId}
@@ -416,7 +405,6 @@ const POS = ({ subTab = null, onSubTabChange = null }) => {
         />
       )}
 
-      {/* Confirmation Modal */}
       <ConfirmModal {...confirmConfig} />
     </div>
   );

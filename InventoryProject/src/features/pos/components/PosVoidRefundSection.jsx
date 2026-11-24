@@ -207,7 +207,6 @@ const PosVoidRefundSection = ({ user }) => {
 
       <div className="flex-1 min-h-0 overflow-y-auto p-6">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Left: Recent Sales Table */}
           <div className="lg:col-span-7 bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden">
             <div className="p-4 border-b border-gray-200 flex flex-wrap items-center justify-between gap-2">
               <div>
@@ -325,7 +324,6 @@ const PosVoidRefundSection = ({ user }) => {
             </div>
           </div>
 
-          {/* Right: Void / Return / Refund Form */}
           <div className="lg:col-span-5 bg-white rounded-xl border border-gray-200 shadow-xs p-5 space-y-4">
             <div>
               <h3 className="m-0 text-sm font-bold text-gray-900">Void / Return / Refund</h3>

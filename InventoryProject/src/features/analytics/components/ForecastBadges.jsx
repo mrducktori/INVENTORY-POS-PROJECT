@@ -1,7 +1,7 @@
 import React from 'react';
 
 /**
- * Clean vector sort indicator (Strictly NO emojis per Rule 16).
+ * Vector sort indicator for column headers.
  */
 export const SortIcon = ({ active, direction, className = '' }) => {
   if (!active) {

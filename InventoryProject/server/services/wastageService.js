@@ -16,9 +16,8 @@ const computeWastageEntryCost = (entry) => {
   return Math.round(qty * (resolveUnitCost(ing) ?? 0) * 100) / 100;
 };
 
-// FIX #3 & #13: Added a stock sufficiency check BEFORE logging the wastage record.
-// This prevents the audit log from being created if the deduction would fail,
-// keeping the wastage log and actual inventory perfectly in sync.
+// The stock check runs before anything is logged or deducted, and the wastage record is
+// inserted only after the deduction succeeds, so a failure never leaves a log entry.
 export const reportWastage = async ({ ingredient_id, quantity, reason, batch_id = null, reported_by }) => {
   const qty = validateNumberBound(quantity, {
     label: 'Wastage quantity',
@@ -33,7 +32,6 @@ export const reportWastage = async ({ ingredient_id, quantity, reason, batch_id 
     required: true
   });
 
-  // Check current stock BEFORE logging or deducting
   const ingredient = await getIngredientById(ingredient_id);
   if (ingredient.is_archived) {
     throw new Error("Cannot report wastage for an archived ingredient");
@@ -45,7 +43,7 @@ export const reportWastage = async ({ ingredient_id, quantity, reason, batch_id 
     );
   }
 
-  // Deduct from batches & stock first (preferring expired batches when reason is Expiry, or using explicit batch_id)
+  // Deduct from batches first: expired ones when the reason is Expiry, or the explicit batch_id.
   const dedResult = await batchService.deductStockFEFO(ingredient_id, qty, {
     targetBatchId: batch_id || null,
     preferExpired: /expir/i.test(cleanReason),
@@ -60,7 +58,6 @@ export const reportWastage = async ({ ingredient_id, quantity, reason, batch_id 
       ingredient
     });
 
-    // Only log the wastage record AFTER the deduction succeeds
     const { data: inserted, error } = await supabase
       .from("wastage")
       .insert([{
@@ -86,7 +83,6 @@ export const reportWastage = async ({ ingredient_id, quantity, reason, batch_id 
 
   invalidateAnalyticsCache();
 
-  // Create an audit log so it shows up in AuditLogs correctly
   await logAudit("WASTAGE", reported_by, {
     ingredient_id,
     ingredient_name: ingredient.name,

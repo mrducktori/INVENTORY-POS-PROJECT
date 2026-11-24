@@ -84,7 +84,8 @@ const ModifyProductModal = ({
     return v === null || v === '' || v === undefined ? null : v;
   };
   const autoOf = (r) => round3(Number(r.quantity_used) * activeMult);
-  // Saves this ingredient's override map with the selected size set to `val` (or removed when val is null).
+  // Saves this ingredient's override map with the selected size set to `val`
+  // (removed when val is null).
   const saveSizeValue = (r, val) => {
     const map = { ...(r.size_quantities && typeof r.size_quantities === 'object' ? r.size_quantities : {}) };
     const k = overrideKey(r);
@@ -238,7 +239,6 @@ const ModifyProductModal = ({
             )}
           </form>
 
-          {/* Cup Sizes & Add-ons Configuration */}
           <div className="mt-8 pt-8 border-t border-gray-200">
             <div className="mb-4">
               <h3 className="m-0 text-xl font-extrabold text-gray-900 tracking-tight">Cup Sizes & Add-ons Configuration</h3>
@@ -452,7 +452,6 @@ const ModifyProductModal = ({
                 <span className="text-xs text-gray-500">Pick an ingredient, enter qty, then hit Enter</span>
               </div>
 
-              {/* Quick-Add Suggestions based on category */}
               {(() => {
                 const cat = (selectedProduct?.category || '').toUpperCase();
                 let keywords = ['CUPS', 'FRUCTOSE', 'MILK', 'SYRUP'];

@@ -46,12 +46,10 @@ const SupplierCatalogModal = ({ supplier, onClose, onAcknowledgePriceUpdates }) 
   const displayedItems = useMemo(() => {
     let items = catalogItems;
 
-    // Filter by tab / mode
     if (effectiveFilterMode === 'UPDATED') {
       items = items.filter((item) => Boolean(item.priceChange));
     }
 
-    // Filter by search term
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
       items = items.filter(
@@ -61,12 +59,11 @@ const SupplierCatalogModal = ({ supplier, onClose, onAcknowledgePriceUpdates }) 
       );
     }
 
-    // Sort: if sortUpdatedFirst is active, place items with priceChange on top
     return [...items].sort((a, b) => {
       if (sortUpdatedFirst) {
         const aHas = a.priceChange ? 1 : 0;
         const bHas = b.priceChange ? 1 : 0;
-        if (aHas !== bHas) return bHas - aHas; // Updated items on top
+        if (aHas !== bHas) return bHas - aHas;
       }
       return a.name.localeCompare(b.name);
     });
@@ -83,7 +80,6 @@ const SupplierCatalogModal = ({ supplier, onClose, onAcknowledgePriceUpdates }) 
         className="bg-white rounded-2xl shadow-2xl border border-zinc-200 w-full max-w-3xl overflow-hidden flex flex-col max-h-[calc(100vh-5rem)] md:max-h-[calc(100vh-6rem)] animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)]"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="px-6 py-4 bg-zinc-950 text-white flex items-center justify-between border-b border-zinc-800 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-300">
@@ -117,7 +113,6 @@ const SupplierCatalogModal = ({ supplier, onClose, onAcknowledgePriceUpdates }) 
           </button>
         </div>
 
-        {/* Contact Info Subheader & Supplier Pricing Protection Badge */}
         <div className="p-4 bg-zinc-50 border-b border-zinc-200 flex flex-wrap items-center justify-between gap-4 text-xs">
           <div className="flex flex-wrap items-center gap-4 text-zinc-600">
             {supplier.contact_person && (
@@ -140,7 +135,6 @@ const SupplierCatalogModal = ({ supplier, onClose, onAcknowledgePriceUpdates }) 
             )}
           </div>
 
-          {/* Supplier-Maintained Pricing Badge */}
           <div className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 border border-zinc-200 rounded-lg text-xs font-semibold text-zinc-700">
             <svg className="w-3.5 h-3.5 text-zinc-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
@@ -149,7 +143,6 @@ const SupplierCatalogModal = ({ supplier, onClose, onAcknowledgePriceUpdates }) 
           </div>
         </div>
 
-        {/* Notice Banner when Supplier recently updated prices */}
         {recentUpdates?.changes_count > 0 && (
           <div className="mx-6 mt-4 p-3.5 bg-amber-50/90 border border-amber-200 rounded-xl flex flex-wrap items-center justify-between gap-3 text-xs text-amber-900 fade-in">
             <div className="flex items-start gap-2.5">
@@ -208,7 +201,6 @@ const SupplierCatalogModal = ({ supplier, onClose, onAcknowledgePriceUpdates }) 
           </div>
         )}
 
-        {/* Search & Filter Controls Toolbar */}
         <div className="p-4 border-b border-zinc-200/80 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-zinc-50/40">
           <div className="relative flex-1">
             <svg className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -224,7 +216,6 @@ const SupplierCatalogModal = ({ supplier, onClose, onAcknowledgePriceUpdates }) 
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {/* Filter Pills: All vs Updated */}
             <div className="inline-flex p-0.5 bg-zinc-200/70 rounded-lg border border-zinc-200 text-xs">
               <button
                 type="button"
@@ -253,7 +244,6 @@ const SupplierCatalogModal = ({ supplier, onClose, onAcknowledgePriceUpdates }) 
               )}
             </div>
 
-            {/* Sort Toggle Button (Updated on top vs A-Z order) */}
             {updatedCount > 0 && effectiveFilterMode === 'ALL' && (
               <button
                 type="button"
@@ -278,7 +268,6 @@ const SupplierCatalogModal = ({ supplier, onClose, onAcknowledgePriceUpdates }) 
           </div>
         </div>
 
-        {/* Catalog Table */}
         <div className="overflow-y-auto flex-1 p-0">
           {displayedItems.length === 0 ? (
             <div className="p-12 text-center text-sm text-zinc-400">
@@ -394,7 +383,6 @@ const SupplierCatalogModal = ({ supplier, onClose, onAcknowledgePriceUpdates }) 
           )}
         </div>
 
-        {/* Footer */}
         <div className="px-6 py-3.5 bg-zinc-50 border-t border-zinc-200 flex items-center justify-between shrink-0">
           <div className="text-xs text-zinc-500">
             {updatedCount > 0 ? (

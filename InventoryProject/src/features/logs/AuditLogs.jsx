@@ -28,7 +28,7 @@ const AuditLogs = () => {
       const adjustedFilters = {
         ...filters,
         end_date: filters.end_date ? filters.end_date + 'T23:59:59' : undefined,
-        limit: 200, // Fetch up to 200 for responsive client-side search & filtering
+        limit: 200, // Search and filters run client-side over this window.
         offset: 0
       };
       const result = await getAuditLogs(adjustedFilters);
@@ -77,7 +77,7 @@ const AuditLogs = () => {
     setSortConfig({ key, direction });
   };
 
-  // Safe multi-field search filter (strictly case-insensitive)
+  // Case-insensitive match across all searchable fields.
   const filteredLogs = useMemo(() => {
     let result = [...logs];
     const term = searchTerm.trim().toLowerCase();
@@ -105,7 +105,6 @@ const AuditLogs = () => {
       });
     }
 
-    // Sort
     result.sort((a, b) => {
       let valA = a[sortConfig.key];
       let valB = b[sortConfig.key];
@@ -127,7 +126,6 @@ const AuditLogs = () => {
     return result;
   }, [logs, searchTerm, sortConfig]);
 
-  // Sliced page rows
   const paginatedLogs = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return filteredLogs.slice(start, start + pageSize);
@@ -138,7 +136,6 @@ const AuditLogs = () => {
   const startEntry = effectiveTotal === 0 ? 0 : (currentPage - 1) * pageSize + 1;
   const endEntry = Math.min(currentPage * pageSize, effectiveTotal);
 
-  // Metrics for KPI summary cards
   const metrics = useMemo(() => {
     const todayStr = getManilaDateOnly();
     let todayCount = 0;
@@ -186,7 +183,6 @@ const AuditLogs = () => {
 
   return (
     <div className="p-4 md:p-8 flex-1 bg-gray-50 min-h-screen overflow-y-auto w-full space-y-6">
-      {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-zinc-200">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-zinc-900 tracking-tight m-0">
@@ -199,7 +195,6 @@ const AuditLogs = () => {
         <RefreshButton onRefresh={fetchLogs} loading={loading} className="self-start md:self-auto" />
       </div>
 
-      {/* KPI Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white border border-zinc-200 rounded-xl p-4 shadow-2xs">
           <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
@@ -238,13 +233,9 @@ const AuditLogs = () => {
         </div>
       </div>
 
-      {/* Main Table Card */}
       <div className="bg-white border border-zinc-200/80 rounded-2xl shadow-2xs overflow-hidden">
-        {/* Structured Multi-Tier Toolbar */}
         <div className="p-4 sm:p-5 border-b border-zinc-100 space-y-3.5">
-          {/* Row 1: Search & Category Filter */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            {/* Search Input with inline SVG and clear button */}
             <div className="relative w-full sm:w-80">
               <svg className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
@@ -268,7 +259,6 @@ const AuditLogs = () => {
               )}
             </div>
 
-            {/* Right Controls: Category Dropdown */}
             <div className="flex items-center gap-2 shrink-0">
               <select
                 name="action"
@@ -291,7 +281,6 @@ const AuditLogs = () => {
             </div>
           </div>
 
-          {/* Row 2: Date Presets and Custom Range */}
           <div className="flex flex-wrap items-center justify-between gap-2.5 pt-0.5">
             <div className="flex flex-wrap items-center gap-1.5">
               <div className="flex items-center gap-1 bg-zinc-100 p-0.5 rounded-lg border border-zinc-200/70">
@@ -316,7 +305,6 @@ const AuditLogs = () => {
                 ))}
               </div>
 
-              {/* Inline date range */}
               <div className="flex items-center gap-1.5 bg-zinc-50 border border-zinc-200 rounded-lg px-2.5 py-1 text-xs">
                 <span className="font-semibold text-zinc-400 uppercase text-[10px]">From</span>
                 <input
@@ -359,7 +347,6 @@ const AuditLogs = () => {
           </div>
         </div>
 
-        {/* Table Content */}
         {loading ? (
           <div className="p-6">
             <TableSkeleton rows={8} cols={5} />
@@ -452,7 +439,6 @@ const AuditLogs = () => {
           </div>
         )}
 
-        {/* Unified Numbered Pagination Bar */}
         {!loading && effectiveTotal > 0 && (
           <div className="px-4 sm:px-6 py-3.5 border-t border-zinc-200/80 bg-zinc-50/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-3">

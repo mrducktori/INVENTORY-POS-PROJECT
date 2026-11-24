@@ -26,12 +26,11 @@ const SearchableIngredientSelect = ({
   const inputRef = useRef(null);
   const listRef = useRef(null);
 
-  // Find currently selected ingredient
   const selectedIngredient = useMemo(() => {
     return ingredients.find(ing => String(ing.id) === String(value));
   }, [ingredients, value]);
 
-  // Quick category matcher based on name and unit
+  // Guess a category chip from the ingredient name and unit.
   const categorizeIngredient = (ing) => {
     const name = (ing?.name || '').toUpperCase();
     const unit = (ing?.unit || '').toUpperCase();
@@ -54,21 +53,17 @@ const SearchableIngredientSelect = ({
     return 'OTHER';
   };
 
-  // Filtered ingredients
   const filteredIngredients = useMemo(() => {
     return ingredients.filter(ing => {
-      // Exclude already added IDs if requested
       if (filterExcludedIds.length > 0 && filterExcludedIds.includes(ing.id)) {
         return false;
       }
 
-      // Filter by category
       if (activeCategory !== 'ALL') {
         const cat = categorizeIngredient(ing);
         if (cat !== activeCategory) return false;
       }
 
-      // Filter by search term
       if (!searchTerm.trim()) return true;
       const term = searchTerm.toLowerCase().trim();
       const name = (ing.name || '').toLowerCase();
@@ -131,7 +126,6 @@ const SearchableIngredientSelect = ({
       e.preventDefault();
       const nextIdx = safeHighlightedIndex < filteredIngredients.length - 1 ? safeHighlightedIndex + 1 : 0;
       setHighlightedIndex(nextIdx);
-      // Scroll into view
       if (listRef.current) {
         const item = listRef.current.children[nextIdx];
         if (item) item.scrollIntoView({ block: 'nearest' });
@@ -166,7 +160,6 @@ const SearchableIngredientSelect = ({
 
   return (
     <div ref={containerRef} className={`relative w-full ${className}`}>
-      {/* Trigger & Search Input Container */}
       <div 
         className={`flex items-center w-full px-3 py-2 bg-white border rounded-lg text-sm transition-all shadow-sm ${
           isOpen ? 'border-gray-900 ring-1 ring-gray-900' : 'border-gray-300 hover:border-gray-400'
@@ -178,12 +171,10 @@ const SearchableIngredientSelect = ({
           }
         }}
       >
-        {/* Search Icon */}
         <svg className="w-4 h-4 text-gray-400 shrink-0 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         </svg>
 
-        {/* Selected badge / input */}
         <div className="flex-1 flex items-center min-w-0">
           {selectedIngredient && !isOpen ? (
             <div className="flex items-center justify-between w-full">
@@ -214,7 +205,6 @@ const SearchableIngredientSelect = ({
           )}
         </div>
 
-        {/* Action icons */}
         <div className="flex items-center shrink-0 ml-2 gap-1">
           {selectedIngredient && (
             <button
@@ -248,10 +238,8 @@ const SearchableIngredientSelect = ({
         </div>
       </div>
 
-      {/* Popover Dropdown */}
       {isOpen && !disabled && (
         <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden fade-in">
-          {/* Category Chips Bar */}
           {showCategoryFilters && (
             <div className="p-2 border-b border-gray-100 bg-gray-50/80 flex items-center gap-1.5 overflow-x-auto scrollbar-none text-xs">
               {categories.map(cat => (
@@ -271,7 +259,6 @@ const SearchableIngredientSelect = ({
             </div>
           )}
 
-          {/* Results List */}
           <div 
             ref={listRef}
             className="max-h-60 overflow-y-auto divide-y divide-gray-50 scrollbar-thin scrollbar-thumb-gray-200"
@@ -321,7 +308,6 @@ const SearchableIngredientSelect = ({
             )}
           </div>
 
-          {/* Footer stats / hint */}
           <div className="px-3 py-2 bg-gray-50 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
             <span>{filteredIngredients.length} ingredients</span>
             <span className="text-gray-400">Use ↑↓ and Enter to select</span>

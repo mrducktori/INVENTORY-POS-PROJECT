@@ -270,7 +270,6 @@ const RawMaterialCategoriesModal = ({
           )}
 
           <div className="flex flex-col lg:flex-row gap-6 items-start">
-            {/* Left Sidebar */}
             <div className="w-full lg:w-64 shrink-0 flex flex-col gap-4">
               <form
                 onSubmit={handleAddCategory}
@@ -355,11 +354,9 @@ const RawMaterialCategoriesModal = ({
               </div>
             </div>
 
-            {/* Right Panel */}
             <div className="flex-1 min-w-0 w-full">
               {effectiveSelectedCategory ? (
                 <form onSubmit={handleSaveRename}>
-                  {/* Category Rename & Delete Header Bar */}
                   <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-5 flex flex-col gap-3">
                     <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3">
                       <div className="flex items-center gap-2.5 flex-wrap">

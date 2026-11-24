@@ -21,7 +21,6 @@ export const getSales = async (filters = {}, pageSize = 50, page = 1) => {
   if (filters.skip_count) {
     params.append('skip_count', 'true');
   }
-  // pagination parameters
   const offset = pageSize === 'all' ? 0 : (page - 1) * pageSize;
   params.append('limit', pageSize);
   params.append('offset', offset);

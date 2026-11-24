@@ -344,7 +344,6 @@ export const useManageProducts = () => {
       return;
     }
 
-    // Frontend composite duplicate check
     if (!forceCreate) {
       const similarityMatch = checkDuplicateOrSimilar(formData.name, products, null, trimmedCategory);
       if (similarityMatch?.isHardDuplicate) {
@@ -572,7 +571,8 @@ export const useManageProducts = () => {
       return;
     }
 
-    // Name and category untouched: nothing to check (an archived twin must not block editing price, sizes, etc.).
+    // Name and category untouched: nothing to check (an archived twin must not block
+    // editing price, sizes, etc.).
     const sameKey = (v) => String(v ?? '').trim().replace(/\s+/g, ' ').toUpperCase();
     const identityUnchanged =
       sameKey(editName) === sameKey(selectedProduct.name) &&

@@ -76,7 +76,6 @@ const SupplierFormModal = ({
   const [selectedCat, setSelectedCat] = useState('All');
   const [validationError, setValidationError] = useState('');
 
-  // Classified ingredients
   const categorizedIngredients = useMemo(() => {
     return ingredients.map((ing) => ({
       ...ing,
@@ -98,12 +97,10 @@ const SupplierFormModal = ({
       const isSelected = !!current?.selected;
 
       if (isSelected) {
-        // Deselect
         const newItems = { ...prev.items };
         delete newItems[ing.id];
         return { ...prev, items: newItems };
       } else {
-        // Select with defaults from ingredient
         return {
           ...prev,
           items: {
@@ -264,7 +261,6 @@ const SupplierFormModal = ({
         className="bg-white rounded-2xl shadow-2xl border border-zinc-200 w-full max-w-4xl max-h-[92vh] overflow-hidden flex flex-col animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)]"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="bg-zinc-950 text-white px-6 py-4 flex justify-between items-center shrink-0 border-b border-zinc-800">
           <div>
             <h2 className="m-0 text-lg font-bold tracking-tight">
@@ -283,7 +279,6 @@ const SupplierFormModal = ({
            aria-label="Close"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
         </div>
 
-        {/* Form Body */}
         <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden min-h-0 flex-1">
           <div className="p-6 overflow-y-auto flex-1 flex flex-col gap-6">
             {validationError && (
@@ -298,7 +293,6 @@ const SupplierFormModal = ({
                 </button>
               </div>
             )}
-            {/* General Info Card */}
             <div className="p-5 bg-zinc-50 border border-zinc-200 rounded-xl space-y-4">
               <div className="text-xs font-bold text-zinc-700 uppercase tracking-wider">
                 Supplier Information
@@ -392,7 +386,6 @@ const SupplierFormModal = ({
               </div>
             </div>
 
-            {/* Supplied Materials & Pricing Configuration */}
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <div>
@@ -410,7 +403,6 @@ const SupplierFormModal = ({
                 </div>
               </div>
 
-              {/* Search & Categories */}
               <div className="flex flex-col sm:flex-row gap-2 justify-between items-start sm:items-center">
                 <div className="relative w-full sm:w-64">
                   <svg className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -458,7 +450,6 @@ const SupplierFormModal = ({
                 </div>
               </div>
 
-              {/* Items List */}
               <div className="border border-zinc-200 rounded-xl overflow-hidden divide-y divide-zinc-200 max-h-96 overflow-y-auto">
                 {filteredIngredients.map((ing) => {
                   const itemConfig = formData.items[ing.id];
@@ -488,10 +479,8 @@ const SupplierFormModal = ({
                           </div>
                         </label>
 
-                        {/* Inline Pricing Fields when Checked */}
                         {isChecked && (
                           <div className="flex flex-wrap items-center gap-2 sm:gap-3 pl-7 sm:pl-0">
-                            {/* Packaging Unit */}
                             <div className="flex items-center gap-1.5">
                               <span className="text-[11px] font-bold text-zinc-500 uppercase">Unit:</span>
                               <input
@@ -504,7 +493,6 @@ const SupplierFormModal = ({
                               />
                             </div>
 
-                            {/* Conversion Factor */}
                             <div className="flex items-center gap-1.5">
                               <span className="text-[11px] font-bold text-zinc-500 uppercase">Yield ({ing.unit}):</span>
                               <input
@@ -543,7 +531,6 @@ const SupplierFormModal = ({
                               </div>
                             )}
 
-                            {/* Base unit calculation indicator */}
                             <div className="text-[11px] font-mono text-zinc-500 whitespace-nowrap hidden lg:block">
                               = ₱{costPerBase.toFixed(3)}/{ing.unit}
                             </div>
@@ -557,7 +544,6 @@ const SupplierFormModal = ({
             </div>
           </div>
 
-          {/* Footer */}
           <div className="px-6 py-4 border-t border-zinc-200 bg-zinc-50 flex justify-between items-center shrink-0">
             <span className="text-xs text-zinc-500 font-medium">
               {selectedCount} ingredients will be linked to this supplier.

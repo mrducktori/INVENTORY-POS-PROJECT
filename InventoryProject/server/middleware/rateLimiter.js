@@ -1,6 +1,6 @@
 import rateLimit from 'express-rate-limit';
 
-// General API rate limiter - 5000 requests per 15 minutes
+// General API limiter: 5000 requests per 15 minutes
 export const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5000,
@@ -51,7 +51,7 @@ export const userManagementLimiter = rateLimit({
   skip: isLocalOrDev
 });
 
-// Loose limiter for general operations - 200 requests per 15 minutes
+// Loose limiter for general operations: 500 requests per 15 minutes
 export const looseLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 500,
@@ -61,7 +61,7 @@ export const looseLimiter = rateLimit({
   skip: isLocalOrDev
 });
 
-// Create/Write operations limiter - moderate limits
+// Write limiter: 60 requests per minute
 export const createLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 60,

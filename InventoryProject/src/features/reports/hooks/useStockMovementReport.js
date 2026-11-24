@@ -81,14 +81,12 @@ export const useStockMovementReport = () => {
       const auditList = auditRes?.data || auditRes || [];
       const wastageList = wastageData || [];
 
-      // Create lookup maps for accurate names and units
       const ingredientMap = {};
       ingList.forEach((i) => { ingredientMap[i.id] = i; });
 
       const productMap = {};
       prodList.forEach((p) => { productMap[p.id] = p; });
 
-      // 1. Build current inventory snapshot (Ingredients + Trackable Products)
       const ingredientRows = ingList
         .filter((i) => !i.is_archived)
         .map((i) => {
@@ -127,7 +125,7 @@ export const useStockMovementReport = () => {
 
       const snapshot = [...ingredientRows, ...productRows];
 
-      // 2. Map dedicated records from the wastage table (primary source of truth)
+      // Wastage table rows are the primary source of truth for wastage.
       const directWastageMovements = wastageList.map((w) => {
         const ing = w.ingredients || ingredientMap[w.ingredient_id] || {};
         const qty = parseFloat(w.quantity) || 0;
@@ -152,7 +150,6 @@ export const useStockMovementReport = () => {
         };
       });
 
-      // 3. Parse comprehensive stock movement audit events (IN, OUT, WASTAGE)
       const parsedAuditMovements = auditList.map((log) => {
         let details;
         if (typeof log.details === 'string') {
@@ -246,7 +243,7 @@ export const useStockMovementReport = () => {
         };
       });
 
-      // 4. Combine and deduplicate movements: prioritize wastage table records over audit log duplicates
+      // Wastage table records win over duplicate audit-log events.
       const combined = [...directWastageMovements, ...parsedAuditMovements];
       const seenWastage = new Set();
       const finalMovements = [];
@@ -273,12 +270,10 @@ export const useStockMovementReport = () => {
     }
   }, [period]);
 
-  // Auto-fetch default report on initial mount
   useEffect(() => {
     fetchReport();
   }, [fetchReport]);
 
-  // Filter movements
   const filteredMovements = useMemo(() => {
     return movements.filter((m) => {
       const term = (search || '').trim().toLowerCase();
@@ -299,7 +294,6 @@ export const useStockMovementReport = () => {
     return filteredMovements.slice(start, start + movementItemsPerPage);
   }, [filteredMovements, movementPage, movementItemsPerPage]);
 
-  // Filter snapshot
   const filteredSnapshot = useMemo(() => {
     return rows.filter((r) => {
       const term = (search || '').trim().toLowerCase();
@@ -312,7 +306,6 @@ export const useStockMovementReport = () => {
     });
   }, [rows, search, stockStatusFilter]);
 
-  // Grouped snapshot with alphabetical sorting inside each status
   const groupedSnapshot = useMemo(() => {
     return STATUS_GROUPS.map((group) => {
       const items = filteredSnapshot
@@ -325,7 +318,6 @@ export const useStockMovementReport = () => {
     }).filter((group) => group.items.length > 0);
   }, [filteredSnapshot]);
 
-  // Metrics
   const summary = useMemo(() => {
     const inflowEvents = movements.filter((m) => m.movementType === 'IN');
     const outflowEvents = movements.filter((m) => m.movementType === 'OUT');
@@ -361,7 +353,7 @@ export const useStockMovementReport = () => {
     setMovementPage(1);
   }, []);
 
-  // Export CSV (RFC-4180 standard CRLF layout)
+  // CSV uses CRLF line endings per RFC 4180.
   const handleExportCSV = useCallback(() => {
     const { totalStockIn, totalStockOut, totalWastage, netMovement, criticalCount } = summary;
     const exportRows = [
@@ -407,7 +399,6 @@ export const useStockMovementReport = () => {
     downloadCSV(exportRows, `CofTea_Stock_Movement_Report_${period}_${getManilaDateOnly()}.csv`);
   }, [summary, periodLabel, movements, groupedSnapshot, period]);
 
-  // Export PDF / Print (Executive Layout)
   const handlePrint = useCallback(() => {
     const { totalStockIn, totalStockOut, totalWastage, netMovement, criticalCount } = summary;
     const movementRowsHtml = movements.map((m) => {

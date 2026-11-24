@@ -36,10 +36,10 @@ export const isNotificationAllowedForUser = (notification, user) => {
   const rawRole = user.role || '';
   const role = rawRole.charAt(0).toUpperCase() + rawRole.slice(1).toLowerCase();
 
-  // 1. External Suppliers: Only allowed to inspect POs specifically addressed to them
+  // Suppliers only see POs addressed to them.
   if (role === 'Supplier') {
     if (notification.category !== 'PO') return false;
-    // Suppliers only need to act on new orders and cancellations, not on their own accept/decline replies.
+    // Suppliers act on new orders and cancellations, not on their own accept/decline replies.
     if (notification.type !== 'PO_PENDING' && notification.type !== 'PO_CANCELLED') return false;
     if (user.supplier_id && notification.supplierId && notification.supplierId !== user.supplier_id) {
       return false;
@@ -47,24 +47,22 @@ export const isNotificationAllowedForUser = (notification, user) => {
     return true;
   }
 
-  // 2. Executive Owners and System Administrators: Full 360-degree operational visibility
+  // Owners and admins see everything.
   if (role === 'Owner' || role === 'Admin') {
     return true;
   }
 
-  // 3. Frontline Operations Staff (Cashiers, Baristas, Crew)
+  // Staff see stock alerts, plus POs only with the PurchaseOrders permission.
   if (role === 'Staff') {
-    // Supplier price changes are confidential procurement matters — hidden from Staff
+    // Supplier price changes are confidential procurement data, hidden from Staff.
     if (notification.category === 'SUPPLIER') return false;
 
-    // Purchase Order updates: Regular staff do not manage procurement or wholesale spend.
-    // Only surface POs if the user has been explicitly granted PurchaseOrders permission.
+    // Staff do not manage procurement, so POs need an explicit PurchaseOrders grant.
     if (notification.category === 'PO') {
       return canAccess(user, 'PurchaseOrders');
     }
 
-    // Stock Alerts (Stockouts & Low Stock):
-    // Crucial for frontliners to know what cannot be punched, brewed, or what needs replenishment!
+    // Stock alerts reach all staff: they show what cannot be sold or needs replenishing.
     if (notification.category === 'STOCK') {
       return true;
     }
@@ -72,7 +70,7 @@ export const isNotificationAllowedForUser = (notification, user) => {
     return false;
   }
 
-  // 4. Custom Accounts (Granular permission evaluation)
+  // Custom accounts are checked per category against their page permissions.
   if (role === 'Custom') {
     if (notification.category === 'SUPPLIER') {
       return canAccess(user, 'ManageSuppliers');
@@ -327,13 +325,11 @@ export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK, userOverride =
   const priceUpdates = snapshot.priceUpdates;
   const loading = snapshot.loading;
 
-  // Access rights for conditional loading & rendering
   const isSupplierUser = String(activeUser?.role || '').toLowerCase() === 'supplier';
   const canViewStock = !activeUser || activeUser.role === 'Owner' || activeUser.role === 'Admin' || activeUser.role === 'Staff' || canAccess(activeUser, 'ProductStockTracker') || canAccess(activeUser, 'RawMaterialTracker') || canAccess(activeUser, 'POS') || canAccess(activeUser, 'Products');
   const canViewPOs = activeUser?.role === 'Owner' || activeUser?.role === 'Admin' || canAccess(activeUser, 'PurchaseOrders') || isSupplierUser;
   const canViewSuppliers = activeUser?.role === 'Owner' || activeUser?.role === 'Admin' || canAccess(activeUser, 'ManageSuppliers');
 
-  // Persistence per user
   const saveReadIds = useCallback((newReadIds) => {
     const state = getUserState(userKey);
     state.readIds = newReadIds;
@@ -356,7 +352,6 @@ export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK, userOverride =
     notifyListeners();
   }, [userKey]);
 
-  // Sync external lowStockItems if provided
   useEffect(() => {
     if (Array.isArray(lowStockItems) && lowStockItems.length > 0) {
       sharedStore.internalLowStock = lowStockItems;
@@ -422,13 +417,12 @@ export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK, userOverride =
     };
   }, [canViewPOs, canViewSuppliers, canViewStock, isSupplierUser]);
 
-  // Build unified, role-filtered notification list
   const allNotifications = useMemo(() => {
     const list = [];
     const dismissedSet = new Set(dismissedIds);
     const readSet = new Set(readIds);
 
-    // 1. Process Low Stock & Out of Stock Items (for users with stock permission)
+    // Process Low Stock & Out of Stock Items (for users with stock permission)
     if (canViewStock) {
       const stockItems = (Array.isArray(lowStockItems) && lowStockItems.length > 0) ? lowStockItems : internalLowStock;
       if (Array.isArray(stockItems)) {
@@ -528,7 +522,7 @@ export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK, userOverride =
       }
     }
 
-    // 2. Process Purchase Orders (only for users with PO permission or assigned Suppliers)
+    // Process Purchase Orders (only for users with PO permission or assigned Suppliers)
     if (canViewPOs && Array.isArray(orders)) {
       orders.forEach((po) => {
         const shortId = po.id ? po.id.slice(0, 8).toUpperCase() : '';
@@ -717,7 +711,7 @@ export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK, userOverride =
       });
     }
 
-    // 3. Process Supplier Price Updates (strictly for procurement managers)
+    // Process Supplier Price Updates (strictly for procurement managers)
     if (canViewSuppliers && Array.isArray(priceUpdates)) {
       priceUpdates.forEach((up) => {
         const id = `supp_price_${up.id}`;
@@ -750,10 +744,9 @@ export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK, userOverride =
       });
     }
 
-    // Final security filter: Guarantee that every notification in the returned array is explicitly permitted for this user's role
+    // Final role filter: every returned notification must be allowed for this user's role.
     const roleFiltered = list.filter((n) => isNotificationAllowedForUser(n, activeUser));
 
-    // Sort strictly newest-first
     return roleFiltered.sort((a, b) => (Number(b.timestamp) || 0) - (Number(a.timestamp) || 0));
   }, [
     canViewStock,
@@ -771,7 +764,6 @@ export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK, userOverride =
     snapshotNowMs
   ]);
 
-  // Derived counts tailored for the current user
   const unreadCount = useMemo(() => {
     return allNotifications.filter((n) => !n.isRead).length;
   }, [allNotifications]);
@@ -780,7 +772,6 @@ export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK, userOverride =
     return allNotifications.filter((n) => !n.isRead && n.badgeVariant === 'danger').length;
   }, [allNotifications]);
 
-  // Actions
   const markAsRead = useCallback((id) => {
     if (!readIds.includes(id)) {
       saveReadIds([...readIds, id]);

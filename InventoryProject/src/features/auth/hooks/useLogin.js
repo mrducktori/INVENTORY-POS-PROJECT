@@ -5,7 +5,6 @@ const MAX_ATTEMPTS   = 3;
 const LOCK_MS        = 5 * 60 * 1000; // 5 minutes
 const STORAGE_KEY    = 'login_lockout';
 
-// ── localStorage helpers ──────────────────────────────────────────────────────
 function getRecord(username) {
   try {
     const all = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
@@ -34,7 +33,6 @@ function secondsLeft(record) {
   return Math.max(0, Math.ceil((record.lockedUntil - Date.now()) / 1000));
 }
 
-// ── Hook ──────────────────────────────────────────────────────────────────────
 export const useLogin = () => {
   const [form, setForm]         = useState({ username: '', password: '' });
   const [user, setUser]         = useState(getCurrentUser());
@@ -48,7 +46,6 @@ export const useLogin = () => {
 
   const isLocked = countdown > 0;
 
-  // Tick countdown once per second
   useEffect(() => {
     if (countdown <= 0) { clearInterval(timerRef.current); return; }
     timerRef.current = setInterval(() => {
@@ -100,7 +97,6 @@ export const useLogin = () => {
       saveUser(data);
       setUser(data);
     } catch (err) {
-      // Increment local attempt counter
       const fresh = getRecord(username);
       // Reset if previous lock expired
       if (fresh.lockedUntil && fresh.lockedUntil <= Date.now()) {

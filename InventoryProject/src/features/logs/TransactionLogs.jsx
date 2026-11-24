@@ -9,7 +9,6 @@ import InfoTip from '../../components/shared/InfoTip';
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
 
-// Category filter options
 const CATEGORY_OPTIONS = [
   { value: '', label: 'All Transactions' },
   { value: 'SALE', label: 'Sales' },
@@ -48,7 +47,7 @@ const TransactionLogs = () => {
       const response = await getAuditLogs(adjustedFilters);
       const allLogs = response?.data || response || [];
 
-      // Filter out everything except Sales, PO, and Stock Received
+      // Keep only sales, purchase orders and stock received.
       const txLogs = allLogs.filter(log =>
         log.action?.toUpperCase().startsWith('SALE') ||
         log.action?.toUpperCase().startsWith('PURCHASE_ORDER') ||
@@ -98,7 +97,7 @@ const TransactionLogs = () => {
     }));
   };
 
-  // Safe multi-field search filter (strictly case-insensitive)
+  // Case-insensitive match across all searchable fields.
   const filteredLogs = useMemo(() => {
     let result = [...logs];
     const term = searchTerm.trim().toLowerCase();
@@ -122,7 +121,6 @@ const TransactionLogs = () => {
       });
     }
 
-    // Sort
     result.sort((a, b) => {
       let valA = a[sortConfig.key];
       let valB = b[sortConfig.key];
@@ -140,7 +138,6 @@ const TransactionLogs = () => {
     return result;
   }, [logs, searchTerm, sortConfig]);
 
-  // Sliced page rows
   const paginatedLogs = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return filteredLogs.slice(start, start + pageSize);
@@ -151,7 +148,6 @@ const TransactionLogs = () => {
   const startEntry = effectiveTotal === 0 ? 0 : (currentPage - 1) * pageSize + 1;
   const endEntry = Math.min(currentPage * pageSize, effectiveTotal);
 
-  // Stats computed from active dataset
   const stats = useMemo(() => {
     const totalTransactions = logs.length;
     const saleCount = logs.filter(l => l.action?.toUpperCase().startsWith('SALE')).length;
@@ -201,7 +197,6 @@ const TransactionLogs = () => {
 
   return (
     <div className="p-4 md:p-8 flex-1 bg-gray-50 min-h-screen overflow-y-auto w-full space-y-6">
-      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-zinc-200">
         <div>
           <div className="flex items-center gap-2">
@@ -219,7 +214,6 @@ const TransactionLogs = () => {
         <RefreshButton onRefresh={fetchLogs} loading={loading} className="self-start md:self-auto" />
       </div>
 
-      {/* KPI Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div className="bg-white border border-zinc-200 rounded-xl p-4 shadow-2xs">
           <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
@@ -270,11 +264,8 @@ const TransactionLogs = () => {
         </div>
       </div>
 
-      {/* Main Table Card */}
       <div className="bg-white border border-zinc-200/80 rounded-2xl shadow-2xs overflow-hidden">
-        {/* Structured Multi-Tier Toolbar */}
         <div className="p-4 sm:p-5 border-b border-zinc-100 space-y-3.5">
-          {/* Row 1: Search & Category Dropdown */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="relative w-full sm:w-80">
               <svg className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -313,7 +304,6 @@ const TransactionLogs = () => {
             </div>
           </div>
 
-          {/* Row 2: Date Presets & Custom Range */}
           <div className="flex flex-wrap items-center justify-between gap-2.5 pt-0.5">
             <div className="flex flex-wrap items-center gap-1.5">
               <div className="flex items-center gap-1 bg-zinc-100 p-0.5 rounded-lg border border-zinc-200/70">
@@ -338,7 +328,6 @@ const TransactionLogs = () => {
                 ))}
               </div>
 
-              {/* Inline date range */}
               <div className="flex items-center gap-1.5 bg-zinc-50 border border-zinc-200 rounded-lg px-2.5 py-1 text-xs">
                 <span className="font-semibold text-zinc-400 uppercase text-[10px]">From</span>
                 <input
@@ -381,7 +370,6 @@ const TransactionLogs = () => {
           </div>
         </div>
 
-        {/* Table */}
         {loading ? (
           <div className="p-6">
             <TableSkeleton rows={8} cols={5} />
@@ -485,7 +473,6 @@ const TransactionLogs = () => {
           </div>
         )}
 
-        {/* Numbered Pagination */}
         {!loading && effectiveTotal > 0 && (
           <div className="px-4 sm:px-6 py-3.5 border-t border-zinc-200/80 bg-zinc-50/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-3">

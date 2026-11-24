@@ -210,7 +210,6 @@ const ProductListSection = ({
               </table>
             </div>
 
-            {/* Pagination Bar */}
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}

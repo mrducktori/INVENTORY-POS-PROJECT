@@ -45,7 +45,6 @@ export default function CMSPromotionsTab({
               key={promo.id || idx}
               className="p-4 sm:p-5 border border-zinc-200 rounded-2xl bg-zinc-50/40 hover:bg-zinc-50/70 transition-all space-y-4"
             >
-              {/* Slide Header with Order Badge & Sorting Controls */}
               <div className="flex items-center justify-between pb-3 border-b border-zinc-200/80">
                 <div className="flex items-center gap-2">
                   <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-zinc-900 text-white text-xs font-bold">
@@ -61,7 +60,6 @@ export default function CMSPromotionsTab({
                   )}
                 </div>
 
-                {/* Reorder and Delete Actions */}
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"
@@ -103,9 +101,7 @@ export default function CMSPromotionsTab({
                 </div>
               </div>
 
-              {/* Slide Fields Grid */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                {/* Left: Title & Caption */}
                 <div className="space-y-3.5">
                   <div className="space-y-1.5">
                     <label className="block text-xs font-semibold text-zinc-700">Slide Title</label>
@@ -130,7 +126,6 @@ export default function CMSPromotionsTab({
                   </div>
                 </div>
 
-                {/* Right: Poster Image Upload & Preview */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="block text-xs font-semibold text-zinc-700">Poster Image</label>

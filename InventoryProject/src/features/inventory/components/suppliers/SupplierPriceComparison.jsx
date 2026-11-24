@@ -38,7 +38,6 @@ const SupplierPriceComparison = ({ suppliers, ingredients, onEditSupplier }) => 
     return ingredients.map((ing) => {
       const category = classifyIngredient(ing.name);
 
-      // Find all supplier offerings
       const offerings = [];
       suppliers.forEach((supp) => {
         const mapping = (supp.supplier_ingredients || []).find((si) => si.ingredient_id === ing.id);
@@ -59,7 +58,6 @@ const SupplierPriceComparison = ({ suppliers, ingredients, onEditSupplier }) => 
         }
       });
 
-      // Sort offerings by costPerBase ascending (lowest price first)
       offerings.sort((a, b) => a.costPerBase - b.costPerBase);
 
       const lowestOffering = offerings[0] || null;
@@ -98,7 +96,6 @@ const SupplierPriceComparison = ({ suppliers, ingredients, onEditSupplier }) => 
     return filteredData.slice(start, start + itemsPerPage);
   }, [filteredData, currentPage, itemsPerPage]);
 
-  // Key stats
   const stats = useMemo(() => {
     const multiSupplier = comparisonData.filter((r) => r.offerings.length > 1).length;
     const covered = comparisonData.filter((r) => r.offerings.length > 0).length;
@@ -111,7 +108,6 @@ const SupplierPriceComparison = ({ suppliers, ingredients, onEditSupplier }) => 
 
   return (
     <div className="space-y-6">
-      {/* Overview Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white border border-zinc-200 rounded-xl p-5 shadow-xs">
           <div className="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-1">
@@ -150,7 +146,6 @@ const SupplierPriceComparison = ({ suppliers, ingredients, onEditSupplier }) => 
         </div>
       </div>
 
-      {/* Filter and Search Bar */}
       <div className="bg-white border border-zinc-200 rounded-xl p-4 shadow-xs flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
         <div className="relative md:w-80">
           <svg className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -183,7 +178,6 @@ const SupplierPriceComparison = ({ suppliers, ingredients, onEditSupplier }) => 
         </div>
       </div>
 
-      {/* Comparison Matrix Table */}
       <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden shadow-xs">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse whitespace-nowrap">
@@ -206,20 +200,17 @@ const SupplierPriceComparison = ({ suppliers, ingredients, onEditSupplier }) => 
               ) : (
                 paginatedData.map(({ ingredient, category, offerings, priceDifference }) => (
                   <tr key={ingredient.id} className="hover:bg-zinc-50/60 transition-colors">
-                    {/* Material info */}
                     <td className="px-5 py-3.5">
                       <div className="font-bold text-zinc-900">{ingredient.name}</div>
                       <div className="text-xs text-zinc-500 font-medium">Base Unit: {ingredient.unit}</div>
                     </td>
 
-                    {/* Category */}
                     <td className="px-5 py-3.5">
                       <span className="inline-flex px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider bg-zinc-100 text-zinc-700 border border-zinc-200">
                         {category}
                       </span>
                     </td>
 
-                    {/* Standard packaging */}
                     <td className="px-5 py-3.5 text-xs text-zinc-600">
                       <div>
                         1 {ingredient.purchase_unit || 'Unit'} = {ingredient.conversion_factor || 1} {ingredient.unit}
@@ -229,7 +220,6 @@ const SupplierPriceComparison = ({ suppliers, ingredients, onEditSupplier }) => 
                       </div>
                     </td>
 
-                    {/* All supplier quotes */}
                     <td className="px-5 py-3.5">
                       {offerings.length === 0 ? (
                         <span className="text-xs text-amber-700 font-semibold bg-amber-50 px-2 py-1 rounded border border-amber-200">
@@ -279,7 +269,6 @@ const SupplierPriceComparison = ({ suppliers, ingredients, onEditSupplier }) => 
                       )}
                     </td>
 
-                    {/* Price Difference / Delta */}
                     <td className="px-5 py-3.5 text-right font-mono text-xs">
                       {offerings.length > 1 && priceDifference > 0 ? (
                         <span className="inline-flex items-center gap-1 font-bold text-amber-800 bg-amber-50 px-2.5 py-1 rounded border border-amber-200">

@@ -4,7 +4,6 @@ import { invalidateAnalyticsCache } from "../routes/analytics.js";
 import { LIMITS, validateNumberBound } from "../utils/validationHelper.js";
 import { getManilaDateOnly } from "../utils/dateUtils.js";
 
-// === Suppliers ===
 export const getSuppliers = async (req, res) => {
   try {
     const data = await purchasingService.getSuppliers();
@@ -19,7 +18,6 @@ export const createSupplier = async (req, res) => {
     const { user_id: _userId, ...body } = req.body;
     const data = await purchasingService.createSupplier(body);
     
-    // Log audit
     await logAudit('SUPPLIER_CREATED', req.user.id, {
       supplier_id: data.id,
       name: data.name
@@ -48,7 +46,6 @@ export const updateSupplier = async (req, res) => {
   }
 };
 
-// === Purchase Orders ===
 export const archiveSupplier = async (req, res) => {
   try {
     const { id } = req.params;
@@ -109,7 +106,6 @@ export const createPurchaseOrder = async (req, res) => {
     }
     const data = await purchasingService.createPurchaseOrder(body);
     
-    // Log audit
     await logAudit('PURCHASE_ORDER_CREATED', req.user.id, {
       po_id: data.id,
       supplier_id: data.supplier_id,
@@ -151,7 +147,6 @@ export const updatePurchaseOrderStatus = async (req, res) => {
     
     const data = await purchasingService.updatePurchaseOrderStatus(id, status, items_received, expected_date, reason);
     
-    // Determine the audit action
     let auditAction = 'PURCHASE_ORDER_STATUS_UPDATED';
     if (statusUpper === 'DECLINED') auditAction = 'SUPPLIER_PO_DECLINED';
     else if (statusUpper === 'CANCELLED') auditAction = 'PURCHASE_ORDER_CANCELLED';
@@ -164,15 +159,13 @@ export const updatePurchaseOrderStatus = async (req, res) => {
       ...(reason ? { reason } : {})
     });
 
-    // Log individual stock receipts for each received item so they show in
-    // Transaction Logs and Stock Movement reports
+    // Log each received item so it appears in Transaction Logs and Stock Movement reports.
     const receiptsToLog = Array.isArray(data?._appliedReceipts)
       ? data._appliedReceipts
       : (items_received || []).filter((item) => item.ingredient_id && Number(item.quantity_received_now) > 0);
 
     if (receiptsToLog.length > 0) {
       for (const item of receiptsToLog) {
-        // Fetch the ingredient to get its name and current stock for the log
         const { getIngredientById } = await import("../services/inventoryService.js");
         const ingredient = await getIngredientById(item.ingredient_id);
         if (!ingredient) continue;
@@ -203,7 +196,6 @@ export const updatePurchaseOrderStatus = async (req, res) => {
   }
 };
 
-// === Supplier Portal ===
 const PO_STATUS_CANON = Object.fromEntries(
   Object.keys(purchasingService.SUPPLIER_TRANSITIONS).map((s) => [s.toLowerCase(), s])
 );
@@ -211,10 +203,8 @@ const SUPPLIER_ALLOWED_STATUSES =['Accepted', 'Declined', 'To Be Delivered', 'De
 
 export const getSupplierOwnOrders = async (req, res) => {
   try {
-    // Get the supplier_id linked to this user account
     const supplierId = req.user.supplier_id;
     if (!supplierId) {
-      // Fetch from DB if not on req.user
       const { supabase } = await import("../config/supabaseClient.js");
       const { data: userData } = await supabase
         .from('users')
@@ -241,7 +231,7 @@ export const updateSupplierOrderStatus = async (req, res) => {
     const { status, expected_date } = req.body;
     const rawReason = req.body.declineReason || req.body.decline_reason || req.body.reason;
 
-    // Normalize comparison for allowed statuses
+    // Match the status case-insensitively.
     const matchedStatus = SUPPLIER_ALLOWED_STATUSES.find(
       s => s.toLowerCase() === (status || '').toLowerCase()
     );
@@ -262,7 +252,6 @@ export const updateSupplierOrderStatus = async (req, res) => {
 
     const declineReason = rawReason && typeof rawReason === 'string' ? rawReason.trim() : null;
 
-    // Get supplier_id from user
     const { supabase } = await import("../config/supabaseClient.js");
     const { data: userData } = await supabase
       .from('users')
@@ -274,7 +263,7 @@ export const updateSupplierOrderStatus = async (req, res) => {
       return res.status(403).json({ error: 'Your account is not linked to a supplier.' });
     }
 
-    // Verify this PO belongs to the supplier
+    // A supplier may only act on its own purchase orders.
     const { data: po } = await supabase
       .from('purchase_orders')
       .select('id, supplier_id, status')
@@ -524,7 +513,6 @@ export const updateSupplierOwnCatalog = async (req, res) => {
       }
     }
 
-    // Fetch supplier name for audit details
     const { data: supplierInfo } = await supabase
       .from('suppliers')
       .select('name')

@@ -6,7 +6,6 @@ import { requirePermission } from '../middleware/permissionMiddleware.js';
 
 const router = express.Router();
 
-// Get audit logs with optional filters
 router.get('/', requireRole('Owner', 'Admin', 'Staff', 'Custom'), requirePermission('AuditLogs', 'Reports'), async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 100, 2000);

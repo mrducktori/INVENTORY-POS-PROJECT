@@ -70,7 +70,7 @@ const AccountManager = ({ subTab = null, onSubTabChange = null }) => {
     fetchUsers();
     fetchSuppliers();
 
-    // Live-update online/offline and account status changes in real time
+    // Realtime updates keep online badges and account status current.
     const channel = supabase
       .channel('account_manager_users_sync')
       .on(
@@ -99,7 +99,8 @@ const AccountManager = ({ subTab = null, onSubTabChange = null }) => {
       )
       .subscribe();
 
-    // Periodic silent refresh every 30s while visible so server-side inactivity reaper updates online badges
+    // Silent refresh every 30s while the tab is visible so the server-side inactivity reaper
+    // is reflected in the online badges.
     const interval = setInterval(() => {
       if (typeof document !== 'undefined' && document.hidden) return;
       fetchUsers(true);
@@ -132,7 +133,7 @@ const AccountManager = ({ subTab = null, onSubTabChange = null }) => {
     }
   };
 
-  // 5-second countdown timer for archiving online accounts
+  // Counts down from 5 before an online account can be archived.
   useEffect(() => {
     if (!showConfirmModal || confirmAction !== 'status' || countdown <= 0) return;
     const timer = setInterval(() => {
@@ -506,7 +507,6 @@ const AccountManager = ({ subTab = null, onSubTabChange = null }) => {
         </div>
       )}
 
-      {/* Confirmation / Warning Modal */}
       {showConfirmModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[9999] p-4 flex justify-center items-start pt-6 sm:pt-10 md:pt-14 pb-12 animate-[modalBackdropFadeIn_0.2s_ease-out]">
           <div className="bg-white rounded-2xl p-6 md:p-8 w-full max-w-md shadow-2xl animate-[slideUp_0.3s_ease-out]">

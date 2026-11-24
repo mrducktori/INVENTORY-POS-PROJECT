@@ -12,7 +12,6 @@ export default function CMSHeroTab({
 }) {
   return (
     <div className="space-y-6">
-      {/* Hero Section */}
       <div className="bg-white border border-zinc-200 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-5">
         <div className="pb-4 border-b border-zinc-100">
           <h2 className="m-0 text-base font-bold text-zinc-900">Landing Page Hero</h2>
@@ -71,7 +70,6 @@ export default function CMSHeroTab({
         </div>
       </div>
 
-      {/* Menu Board Heading */}
       <div className="bg-white border border-zinc-200 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-5">
         <div className="pb-4 border-b border-zinc-100">
           <h2 className="m-0 text-base font-bold text-zinc-900">Menu Board Header</h2>

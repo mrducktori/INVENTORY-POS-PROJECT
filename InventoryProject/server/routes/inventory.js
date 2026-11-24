@@ -19,14 +19,12 @@ router.get("/reorder-plan", inventoryController.getReorderPlan);
 router.put("/ingredients/:id/archive", requirePermission("ManageRawMaterials"), inventoryController.archiveIngredient);
 router.put("/ingredients/:id/restore", requirePermission("ManageRawMaterials"), inventoryController.restoreIngredient);
 
-// Batch tracking, expiration alerts, stocktake & OCR scanning
 router.get("/batches", inventoryController.getBatches);
 router.get("/expiry-alerts", inventoryController.getExpiryAlerts);
 router.get("/stocktake", inventoryController.getStocktakeHistory);
 router.post("/stocktake", requireRole("Owner", "Admin", "Custom"), requirePermission("RawMaterialTracker"), inventoryController.performStocktake);
 router.post("/ocr-scan", createLimiter, requireRole("Owner", "Admin", "Custom"), requirePermission("StockReceived", "PurchaseOrders"), inventoryController.scanOcrDocument);
 
-// Raw material category management
 router.get("/categories", inventoryController.getCategories);
 router.post("/categories", requireRole("Owner", "Admin", "Custom"), requirePermission("ManageRawMaterials"), inventoryController.createCategory);
 router.put("/categories/:name", requireRole("Owner", "Admin", "Custom"), requirePermission("ManageRawMaterials"), inventoryController.renameCategory);

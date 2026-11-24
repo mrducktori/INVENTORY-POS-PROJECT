@@ -25,13 +25,11 @@ const CategorySettingsModal = ({ onClose, allIngredients = [], onCategoriesChang
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState({ type: '', text: '' });
 
-  // Category CRUD Form States
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newCategoryStation, setNewCategoryStation] = useState('BARISTA');
   const [renameValue, setRenameValue] = useState('');
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
-  // Prep Station, Sizes & Add-ons Form State for current category
   const [editPrepStation, setEditPrepStation] = useState('BARISTA');
   const [editSizes, setEditSizes] = useState([]);
   const [editAddOns, setEditAddOns] = useState([]);
@@ -348,7 +346,6 @@ const CategorySettingsModal = ({ onClose, allIngredients = [], onCategoriesChang
             <div className="flex-1 min-w-0 w-full">
               {selectedCategory ? (
                 <>
-                  {/* Category Rename & Delete Header Bar */}
                   <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-5 flex flex-col gap-3">
                     <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3">
                       <div className="flex items-center gap-2.5 flex-wrap">

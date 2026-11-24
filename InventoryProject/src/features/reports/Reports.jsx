@@ -29,12 +29,11 @@ const TABS = [
 
 const Reports = () => {
   const getInitialTab = () => {
-    // 1. Check URL hash sub-route (e.g. #Reports/wastage)
+    // The URL hash sub-route (e.g. #Reports/wastage) wins over the saved tab.
     if (typeof window !== 'undefined' && window.location.hash.includes('/')) {
       const sub = window.location.hash.split('/')[1];
       if (TABS.some((t) => t.id === sub)) return sub;
     }
-    // 2. Check localStorage
     try {
       const saved = localStorage.getItem('coftea_reports_active_tab');
       if (saved && TABS.some((t) => t.id === saved)) return saved;
@@ -58,7 +57,7 @@ const Reports = () => {
     }
   }, []);
 
-  // Keep URL hash and localStorage in sync on change
+  // Keep the URL hash and localStorage in sync with the active tab.
   useEffect(() => {
     try {
       localStorage.setItem('coftea_reports_active_tab', activeTab);
@@ -89,7 +88,6 @@ const Reports = () => {
 
   return (
     <div className="p-4 md:p-8 pb-24 bg-gray-50 w-full flex flex-col min-h-screen space-y-6">
-      {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-zinc-200">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-zinc-900 tracking-tight m-0">
@@ -101,7 +99,6 @@ const Reports = () => {
         </div>
       </div>
 
-      {/* Modern Executive Pill Tab Navigation */}
       <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
         {TABS.map((tab) => (
           <button
@@ -120,7 +117,6 @@ const Reports = () => {
         ))}
       </div>
 
-      {/* Active Report Container */}
       <div className="flex-1 flex flex-col min-h-0">
         {renderContent()}
       </div>

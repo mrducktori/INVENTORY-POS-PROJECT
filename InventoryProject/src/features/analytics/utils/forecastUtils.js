@@ -28,7 +28,8 @@ export const suggestedPurchase = (item, sup) => {
     conversionFactor,
     unit,
     totalStock: qty * conversionFactor,
-    // Factor 1 with a different unit (e.g. "kg") means no pack size was set: the PO would be in grams but priced per kg.
+    // Factor 1 with a different unit (e.g. "kg") means no pack size was set: the PO would be
+    // in grams but priced per kg.
     needsSetup: conversionFactor === 1 && String(unit).trim().toLowerCase() !== String(item.unit).trim().toLowerCase(),
   };
 };

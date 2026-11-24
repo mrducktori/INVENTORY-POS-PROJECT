@@ -53,7 +53,6 @@ const DemandForecasting = () => {
         onConfirm={sendPurchaseOrders}
         onCancel={() => setPoConfirm(null)}
       />
-      {/* Toast Notification */}
       {toast && (
         <div
           className={`fixed top-5 right-5 z-[10000] flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border text-sm font-medium animate-[popupSlideUp_var(--dur-slow)_var(--ease-out-expo)] ${
@@ -76,7 +75,6 @@ const DemandForecasting = () => {
         </div>
       )}
 
-      {/* Page Header & Tab Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-200">
         <div>
           <div className="flex items-center gap-2.5">
@@ -102,7 +100,6 @@ const DemandForecasting = () => {
           </p>
         </div>
 
-        {/* Clean Segmented Control */}
         <div className="inline-flex p-1 bg-zinc-100 rounded-xl border border-zinc-200/80 self-start sm:self-auto">
           <button
             type="button"
@@ -134,7 +131,6 @@ const DemandForecasting = () => {
         </div>
       </div>
 
-      {/* TAB 1: INGREDIENT RESTOCK */}
       {activeTab === 'ingredients' && (
         <IngredientRestockTab
           ingredientData={ingredientData}
@@ -172,7 +168,6 @@ const DemandForecasting = () => {
         />
       )}
 
-      {/* TAB 2: MENU DEMAND (7-DAY PRODUCT SALES FORECAST) */}
       {activeTab === 'products' && (
         <MenuDemandTab
           loadingProducts={loadingProducts}

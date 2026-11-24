@@ -70,7 +70,6 @@ export const useDemandForecasting = () => {
 
   const [infoModalOpen, setInfoModalOpen] = useState(false);
 
-  // Ingredient reorder plan
   const [reorderPlan, setReorderPlan] = useState([]);
   const [loadingIngredients, setLoadingIngredients] = useState(true);
   const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL' | 'ORDER' | 'WATCH' | 'OK'
@@ -81,7 +80,6 @@ export const useDemandForecasting = () => {
   const [ingSortField, setIngSortField] = useState('days_of_cover');
   const [ingSortDirection, setIngSortDirection] = useState('asc'); // lowest cover first
 
-  // Product forecast
   const [forecast, setForecast] = useState(null); // full /analytics/forecast response
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -109,7 +107,6 @@ export const useDemandForecasting = () => {
     }
   };
 
-  // Product detail modal
   const [detailProduct, setDetailProduct] = useState(null);
 
   // Chosen supplier per ingredient id; unset means the first (fastest/cheapest) one.
@@ -181,7 +178,6 @@ export const useDemandForecasting = () => {
     }
   }, [activeTab, fetchProductForecasts]);
 
-  // Ingredient summary + categories + filtering
   const ingredientData = useMemo(() => {
     const count = (fn) => reorderPlan.filter(fn).length;
     return {
@@ -239,7 +235,6 @@ export const useDemandForecasting = () => {
     return sortedIngredients.slice(start, start + ING_PAGE_SIZE);
   }, [sortedIngredients, ingPage]);
 
-  // Product categories & filtering
   const productForecasts = useMemo(() => forecast?.products || [], [forecast]);
 
   const productCategories = useMemo(() => {

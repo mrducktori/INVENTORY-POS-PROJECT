@@ -67,24 +67,19 @@ export const useSalesReceiptJournal = () => {
   const [fetchLimit, setFetchLimit] = useState(250);
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Server request date range & filters
   const [datePreset, setDatePreset] = useState('RECENT'); // 'RECENT' | 'TODAY' | '7D' | 'MONTH' | 'CUSTOM'
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  // Filters matching reference UI
   const [selectedType, setSelectedType] = useState('ALL');
   const [statusScope, setStatusScope] = useState('ALL'); // 'ALL' | 'TODAY' | 'CASH' | 'GCASH' | 'DISCOUNTED'
 
-  // Sorting
   const [sortField, setSortField] = useState('created');
-  const [sortOrder, setSortOrder] = useState('desc'); // 'asc' | 'desc'
+  const [sortOrder, setSortOrder] = useState('desc');
 
-  // Modals
   const [activeReceiptSaleId, setActiveReceiptSaleId] = useState(null);
   const [showGuide, setShowGuide] = useState(false);
 
-  // Fetch dynamic categories once on mount
   useEffect(() => {
     let active = true;
     getCategorySettings()
@@ -103,7 +98,7 @@ export const useSalesReceiptJournal = () => {
     { id: 'DISCOUNTED', label: 'DISCOUNTED' },
   ], [dynamicCategoryNames]);
 
-  // Debounce search input
+  // Wait for typing to pause before querying the server.
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchInput);
@@ -135,7 +130,6 @@ export const useSalesReceiptJournal = () => {
     }
   }, []);
 
-  // Fetch sales from API with active date/type/search request filters
   const fetchSales = useCallback(async () => {
     try {
       setLoading(true);
@@ -182,7 +176,6 @@ export const useSalesReceiptJournal = () => {
     fetchSales();
   }, [fetchSales]);
 
-  // Helper to check if a sale was created today (Manila Timezone)
   const isSaleToday = useCallback((dateStr) => {
     if (!dateStr) return false;
     try {
@@ -196,7 +189,6 @@ export const useSalesReceiptJournal = () => {
     }
   }, []);
 
-  // Compute live counts for status pills based on loaded sales
   const counts = useMemo(() => {
     let today = 0;
     let cash = 0;
@@ -222,7 +214,7 @@ export const useSalesReceiptJournal = () => {
     };
   }, [sales, totalServerCount, datePreset, isSaleToday]);
 
-  // Dynamic fetch options based on the total records matching active filters
+  // Fetch-size choices depend on how many receipts match the active filters.
   const fetchOptions = useMemo(() => {
     if (datePreset === 'RECENT') {
       return [
@@ -259,7 +251,7 @@ export const useSalesReceiptJournal = () => {
       ];
     }
 
-    // High volume totals > 1000 (e.g. 14,044 matching receipts)
+    // Above 1000 matches, offer tiers below the total plus "all".
     const tiers = [250, 500, 1000, 2500, 5000].filter((t) => t < total);
     return [
       ...tiers.map((t) => ({ value: t, label: `${t.toLocaleString()} receipts` })),
@@ -267,7 +259,6 @@ export const useSalesReceiptJournal = () => {
     ];
   }, [datePreset, totalServerCount]);
 
-  // KPI Calculations
   const metrics = useMemo(() => {
     const totalRevenue = sales.reduce((sum, s) => sum + (Number(s.total_amount) || 0), 0);
     const avgTicket = sales.length > 0 ? totalRevenue / sales.length : 0;
@@ -277,10 +268,8 @@ export const useSalesReceiptJournal = () => {
     };
   }, [sales]);
 
-  // Client-side filtering across Selected Type, Status Scope, and Search
   const filteredSales = useMemo(() => {
     return sales.filter((sale) => {
-      // 1. Selected Type Pill Filter
       if (selectedType !== 'ALL') {
         if (selectedType === 'CASH') {
           if (String(sale.payment_method || '').toUpperCase() !== 'CASH') return false;
@@ -289,7 +278,6 @@ export const useSalesReceiptJournal = () => {
         } else if (selectedType === 'DISCOUNTED') {
           if (Number(sale.discount_amount || 0) <= 0) return false;
         } else {
-          // Category filter (COFFEE, MILK TEA, etc.)
           const hasCategory = (sale.sale_items || []).some(
             (item) => String(item.products?.category || '').toUpperCase() === selectedType
           );
@@ -297,7 +285,6 @@ export const useSalesReceiptJournal = () => {
         }
       }
 
-      // 2. Status Scope Pill Filter
       if (statusScope !== 'ALL') {
         if (statusScope === 'TODAY' && !isSaleToday(sale.created_at)) return false;
         if (statusScope === 'CASH' && String(sale.payment_method || '').toUpperCase() !== 'CASH') return false;
@@ -305,7 +292,6 @@ export const useSalesReceiptJournal = () => {
         if (statusScope === 'DISCOUNTED' && Number(sale.discount_amount || 0) <= 0) return false;
       }
 
-      // 3. Search query filter (strictly case-insensitive, matching receipt #, staff, items, add-ons, or notes)
       if (debouncedSearch) {
         const q = debouncedSearch.toLowerCase().trim().replace(/^#/, '');
         const receiptNo = String(sale.receipt_number || '').toLowerCase();
@@ -359,7 +345,6 @@ export const useSalesReceiptJournal = () => {
     });
   }, [sales, selectedType, statusScope, debouncedSearch, isSaleToday]);
 
-  // Client-side sorting
   const sortedSales = useMemo(() => {
     const list = [...filteredSales];
     list.sort((a, b) => {
@@ -387,7 +372,6 @@ export const useSalesReceiptJournal = () => {
     return list;
   }, [filteredSales, sortField, sortOrder]);
 
-  // Sliced page rows
   const displayedSales = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return sortedSales.slice(start, start + pageSize);
@@ -466,7 +450,6 @@ export const useSalesReceiptJournal = () => {
     setCurrentPage(1);
   }, []);
 
-  // Export filtered receipts to CSV
   const handleExportCSV = useCallback(() => {
     if (!filteredSales || filteredSales.length === 0) return;
 

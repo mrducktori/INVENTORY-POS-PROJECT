@@ -29,7 +29,6 @@ export default function SupplierCatalogSection({ onDirtyChange }) {
   const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL' | 'EDITED' | 'SAVED'
   const [sortOption, setSortOption] = useState('NAME_ASC'); // 'NAME_ASC' | 'NAME_DESC' | 'PRICE_ASC' | 'PRICE_DESC' | 'EDITED_FIRST'
   
-  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   
@@ -235,7 +234,6 @@ export default function SupplierCatalogSection({ onDirtyChange }) {
       return matchesSearch && matchesCategory && matchesStatus;
     });
 
-    // Sorting
     return [...result].sort((a, b) => {
       const aIng = a.ingredients || {};
       const bIng = b.ingredients || {};
@@ -259,7 +257,6 @@ export default function SupplierCatalogSection({ onDirtyChange }) {
         return (bIng.name || '').localeCompare(aIng.name || '');
       }
 
-      // Default: NAME_ASC
       return (aIng.name || '').localeCompare(bIng.name || '');
     });
   }, [items, searchTerm, selectedCategory, statusFilter, sortOption, edits]);
@@ -280,7 +277,6 @@ export default function SupplierCatalogSection({ onDirtyChange }) {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Supplier Profile Info Header */}
       {catalog && (
         <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
@@ -321,7 +317,6 @@ export default function SupplierCatalogSection({ onDirtyChange }) {
         </div>
       )}
 
-      {/* Notifications */}
       {error && (
         <div role="alert" className="feedback-pop p-4 rounded-xl text-sm font-semibold bg-red-50 text-red-800 border border-red-200 flex items-center justify-between">
           <span>{error}</span>
@@ -340,12 +335,9 @@ export default function SupplierCatalogSection({ onDirtyChange }) {
         </div>
       )}
 
-      {/* Action Toolbar & Filters */}
       <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-xs flex flex-col gap-4">
-        {/* Row 1: Search, Sort, Status Scope Pills & Save Updates */}
         <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-3">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1">
-            {/* Search */}
             <div className="relative flex-1 max-w-md">
               <svg className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -371,7 +363,6 @@ export default function SupplierCatalogSection({ onDirtyChange }) {
               )}
             </div>
 
-            {/* Sort Dropdown */}
             <div className="flex items-center gap-1.5 shrink-0">
               <select
                 value={sortOption}
@@ -390,7 +381,6 @@ export default function SupplierCatalogSection({ onDirtyChange }) {
             </div>
           </div>
 
-          {/* Status Scope Pills (All, Edited, Saved) & Save Actions */}
           <div className="flex flex-wrap items-center gap-2 justify-between lg:justify-end">
             <div className="inline-flex p-1 bg-zinc-100 rounded-xl border border-zinc-200/80 gap-1 text-xs">
               {[
@@ -481,7 +471,6 @@ export default function SupplierCatalogSection({ onDirtyChange }) {
           </div>
         </div>
 
-        {/* Row 2: Category Filter Pills & Clear Filters */}
         <div className="pt-3 border-t border-gray-100 flex flex-wrap items-center gap-1.5">
           <button
             type="button"
@@ -536,7 +525,6 @@ export default function SupplierCatalogSection({ onDirtyChange }) {
         </div>
       </div>
 
-      {/* Catalog Table */}
       <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-xs">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
@@ -637,20 +625,17 @@ export default function SupplierCatalogSection({ onDirtyChange }) {
                       key={ingredientId} 
                       className={`hover:bg-gray-50/60 transition-colors ${isModified ? 'bg-amber-50/40' : ''}`}
                     >
-                      {/* Name & Base Unit */}
                       <td className="py-3.5 px-4">
                         <div className="font-bold text-gray-900 text-sm">{ing.name || 'Unnamed Material'}</div>
                         <div className="text-[11px] text-gray-400 font-medium">Base stock unit: {ing.unit || 'unit'}</div>
                       </td>
 
-                      {/* Category */}
                       <td className="py-3.5 px-4">
                         <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-zinc-100 text-zinc-700 border border-zinc-200">
                           {ing.category || 'GENERAL'}
                         </span>
                       </td>
 
-                      {/* Purchase Unit */}
                       <td className="py-3.5 px-4">
                         <div className="flex items-center gap-1.5">
                           <input
@@ -678,7 +663,6 @@ export default function SupplierCatalogSection({ onDirtyChange }) {
                         <div className="text-[10px] text-gray-400">Managed by café</div>
                       </td>
 
-                      {/* Agreed Price */}
                       <td className="py-3.5 px-4">
                         <div className="relative w-32">
                           <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-500">₱</span>
@@ -698,7 +682,6 @@ export default function SupplierCatalogSection({ onDirtyChange }) {
                         </div>
                       </td>
 
-                      {/* Effective Base Cost */}
                       <td className="py-3.5 px-4 text-right">
                         <span className="font-mono font-bold text-gray-800 text-xs">
                           ₱{effectiveBaseCost.toFixed(4)}
@@ -706,7 +689,6 @@ export default function SupplierCatalogSection({ onDirtyChange }) {
                         <span className="block text-[10px] text-gray-400">/ {ing.unit || 'unit'}</span>
                       </td>
 
-                      {/* Status */}
                       <td className="py-3.5 px-4 text-center">
                         {isModified ? (
                           <span className="inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200">
@@ -726,7 +708,6 @@ export default function SupplierCatalogSection({ onDirtyChange }) {
           </table>
         </div>
 
-        {/* Pagination Bar */}
         {filteredItems.length > 0 && (
           <Pagination
             currentPage={currentPage}
@@ -742,7 +723,6 @@ export default function SupplierCatalogSection({ onDirtyChange }) {
           />
         )}
 
-        {/* Footer info */}
         <div className="px-5 py-3.5 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-gray-500">
           <span>
             Showing <strong>{filteredItems.length}</strong> of <strong>{items.length}</strong> raw materials in your catalog.

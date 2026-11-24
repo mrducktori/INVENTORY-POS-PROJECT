@@ -1,13 +1,6 @@
 import React, { useState } from 'react';
 import { CardGridSkeleton } from '../../../components/shared/SkeletonLoader';
 
-// ---------------------------------------------------------------------------
-// TopSalesGrid
-// Displays sales volume categorized by drink / food group,
-// complete with category tabs, true compact/open accordion toggles,
-// adaptive grid widths, and enlarged item badges.
-// ---------------------------------------------------------------------------
-
 const TopSalesGrid = ({
   loading,
   topProductsByCategory,
@@ -24,7 +17,6 @@ const TopSalesGrid = ({
   const categoryEntries = Object.entries(topProductsByCategory || {});
   const isEmpty = categoryEntries.length === 0;
 
-  // Tab selection: 'ALL' or specific category name
   const [activeCategoryTab, setActiveCategoryTab] = useState('ALL');
 
   // Compaction state per category (true = compacted/collapsed, false = open)
@@ -81,7 +73,6 @@ const TopSalesGrid = ({
 
   return (
     <div className="bg-white border border-gray-200/90 rounded-2xl p-6 md:p-8 shadow-xs">
-      {/* Header & Controls */}
       <div className="flex justify-between items-center flex-wrap gap-4 mb-5 pb-4 border-b border-gray-100">
         <div>
           <h3 className="text-xl font-extrabold text-zinc-900 m-0">
@@ -93,7 +84,6 @@ const TopSalesGrid = ({
         </div>
 
         <div className="flex items-center flex-wrap gap-3">
-          {/* Compact / Open All toggle */}
           {categoryEntries.length > 0 && (
             <button
               type="button"
@@ -108,7 +98,6 @@ const TopSalesGrid = ({
             </button>
           )}
 
-          {/* Segmented Period Switcher */}
           <div className="flex bg-zinc-100 p-1 rounded-xl border border-zinc-200">
             <button 
               type="button"
@@ -173,7 +162,6 @@ const TopSalesGrid = ({
             </div>
           )}
 
-          {/* Sort order toggle */}
           <button
             type="button"
             className="px-3.5 py-2 rounded-xl border border-zinc-200 hover:bg-zinc-50 text-xs md:text-sm font-bold text-zinc-700 cursor-pointer transition-colors"
@@ -189,7 +177,6 @@ const TopSalesGrid = ({
         </div>
       </div>
 
-      {/* Category Tabs Bar */}
       {!isEmpty && (
         <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-5 border-b border-zinc-100 scrollbar-none">
           <button
@@ -221,7 +208,6 @@ const TopSalesGrid = ({
         </div>
       )}
 
-      {/* Content Area */}
       <div className="w-full">
         {loading ? (
           <div className="py-4">
@@ -251,14 +237,12 @@ const TopSalesGrid = ({
                     isCompacted ? 'bg-zinc-50/40' : ''
                   }`}
                 >
-                  {/* Category Header with Compacting & Items Indicator */}
                   <div 
                     onClick={() => toggleCategoryCompact(category)}
                     className={`flex items-center justify-between gap-2 cursor-pointer select-none group transition-all ${
                       isCompacted ? 'pb-0 mb-0' : 'pb-3.5 mb-4 border-b border-zinc-200'
                     }`}
                   >
-                    {/* Category Title: Auto-adjusts size & stays on a single line */}
                     <div className="min-w-0 flex-1 pr-1">
                       <span 
                         className={`font-black uppercase tracking-wide text-zinc-900 group-hover:text-black block truncate leading-tight ${getCategoryHeaderFontSize(category)}`}
@@ -268,7 +252,6 @@ const TopSalesGrid = ({
                       </span>
                     </div>
 
-                    {/* Action Controls: Compact Button + Items Badge (Never wraps) */}
                     <div className="flex items-center gap-1.5 shrink-0">
                       <button
                         type="button"
@@ -288,16 +271,13 @@ const TopSalesGrid = ({
                         <span>{isCompacted ? 'Open' : 'Compact'}</span>
                       </button>
 
-                      {/* Items Badge: Single line, proportional padding */}
                       <span className="text-xs font-black px-2.5 py-1 rounded-lg bg-zinc-900 text-white tracking-wide shrink-0 whitespace-nowrap shadow-2xs">
                         {products.length} {products.length === 1 ? 'Item' : 'Items'}
                       </span>
                     </div>
                   </div>
 
-                  {/* Body: Compact Summary vs Full List */}
                   {isCompacted ? (
-                    /* COMPACTED / COLLAPSED STATE */
                     <div 
                       onClick={() => toggleCategoryCompact(category)}
                       className="mt-3 py-2.5 px-3.5 rounded-xl bg-zinc-100/90 hover:bg-zinc-200/80 transition-colors cursor-pointer flex items-center justify-between text-xs md:text-sm gap-2"
@@ -310,7 +290,6 @@ const TopSalesGrid = ({
                       </span>
                     </div>
                   ) : (
-                    /* EXPANDED / OPEN STATE: List of Products */
                     <ul className="list-none p-0 m-0 space-y-4">
                       {sorted.map((product, index) => {
                         const sharePercent = Math.max(Math.round(((product.value || 0) / maxUnits) * 100), 6);
@@ -344,7 +323,6 @@ const TopSalesGrid = ({
                               </span>
                             </div>
 
-                            {/* Relative share bar */}
                             <div className="w-full bg-zinc-200/70 h-1.5 rounded-full overflow-hidden">
                               <div 
                                 className={`h-full rounded-full transition-all duration-300 ${

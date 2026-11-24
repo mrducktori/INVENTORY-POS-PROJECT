@@ -140,9 +140,7 @@ const attachSizeOverrides = (rows = [], overridesMap = {}) =>
     };
   });
 
-/**
- * Resolves the exact ingredient quantity required for a specific cup size.
- */
+/** Resolves the ingredient quantity required for a specific cup size. */
 export const resolveRecipeQuantityForSize = (recipe, cupSizeName, cupSizeObj = null) => {
   if (!recipe) return 0;
   const targetKey = normalizeSizeKey(cupSizeName || cupSizeObj?.name);
@@ -271,7 +269,6 @@ export const createRecipe = async ({ product_id, ingredient_id, quantity_used, r
   const validatedOverrides = validateSizeOverridesInput({ size_name, size_quantities });
   await assertRecipeUnitCompatible(ingredient_id, recipe_unit);
 
-  // Check if recipe already exists
   const { data: existing } = await supabase
     .from("recipes")
     .select("id")

@@ -51,7 +51,6 @@ const SalesReceiptJournal = () => {
 
   return (
     <div className="p-4 md:p-8 flex-1 bg-gray-50 min-h-screen overflow-y-auto w-full space-y-6">
-      {/* Page Title & Operational Subtitle */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-zinc-200">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-zinc-900 tracking-tight m-0">
@@ -63,7 +62,6 @@ const SalesReceiptJournal = () => {
         </div>
       </div>
 
-      {/* KPI Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white border border-zinc-200 rounded-xl p-4 shadow-2xs">
           <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
@@ -112,7 +110,6 @@ const SalesReceiptJournal = () => {
         </div>
       </div>
 
-      {/* Main Journal Container (Reference Layout) */}
       <div className="bg-white rounded-2xl border border-zinc-200/90 shadow-xs p-5 md:p-6 space-y-4">
         <ReceiptJournalToolbar
           searchInput={searchInput}
@@ -159,7 +156,6 @@ const SalesReceiptJournal = () => {
         />
       </div>
 
-      {/* Digital Receipt Modal Component */}
       {activeReceiptSaleId && (
         <SalesReceiptModal
           saleId={activeReceiptSaleId}
@@ -167,7 +163,6 @@ const SalesReceiptJournal = () => {
         />
       )}
 
-      {/* Receipt & Audit Reference Guide Modal */}
       <ReceiptGuideModal
         isOpen={showGuide}
         onClose={() => setShowGuide(false)}

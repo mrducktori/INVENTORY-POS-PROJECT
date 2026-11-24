@@ -10,13 +10,11 @@ import ErrorBoundary from './components/shared/ErrorBoundary';
 const LoginPage = lazy(() => import('./features/auth/LoginPage'));
 const Dashboard = lazy(() => import('./features/dashboard/Dashboard'));
 
-// PrivateRoute component for protecting routes
 const PrivateRoute = ({ children }) => {
   const user = getCurrentUser();
   return user ? children : <Navigate to="/coftealoginpageforstaff" replace />;
 };
 
-// Activity and Session Timeout Watcher
 function SessionTimeoutWatcher() {
   const navigate = useNavigate();
 
@@ -164,7 +162,6 @@ function App() {
                 </PrivateRoute>
               } 
             />
-            {/* Fallback route */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>

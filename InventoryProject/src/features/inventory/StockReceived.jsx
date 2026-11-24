@@ -26,7 +26,6 @@ const StockReceived = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  // Combined list of trackable items
   const activeIngredients = ingredients.filter(i => !i.is_archived);
   const trackableProducts = products.filter(p => p.track_stock && !p.is_archived);
 
@@ -409,7 +408,6 @@ const StockReceived = () => {
             </div>
           )}
 
-          {/* Pagination Controls */}
           {!loading && filteredItems.length > 0 && (
             <Pagination
               currentPage={currentPage}

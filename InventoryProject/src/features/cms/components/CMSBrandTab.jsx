@@ -14,7 +14,6 @@ export default function CMSBrandTab({
 }) {
   return (
     <div className="space-y-6">
-      {/* Card 1: Browser Tab Title & Favicon */}
       <div className="bg-white border border-zinc-200 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-zinc-100">
           <div>
@@ -24,7 +23,6 @@ export default function CMSBrandTab({
             </p>
           </div>
 
-          {/* Live Browser Tab Mockup Preview */}
           <div className="bg-zinc-200/80 pt-1.5 px-2 rounded-t-xl border border-zinc-300/80 flex items-end self-start sm:self-auto">
             <div className="bg-white px-3 py-1.5 rounded-t-lg shadow-2xs flex items-center gap-2 max-w-[240px] border-t border-x border-zinc-200">
               <img
@@ -87,7 +85,6 @@ export default function CMSBrandTab({
         </div>
       </div>
 
-      {/* Card 2: Brand Logo & Name (Sidebar + Landing Header) */}
       <div className="bg-white border border-zinc-200 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-5">
         <div className="pb-4 border-b border-zinc-100">
           <h2 className="m-0 text-base font-bold text-zinc-900">Brand Logo &amp; Store Name</h2>

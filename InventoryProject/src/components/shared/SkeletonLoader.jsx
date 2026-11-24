@@ -8,7 +8,6 @@ import React from 'react';
 export const TableSkeleton = ({ rows = 6 }) => {
   return (
     <div className="w-full bg-white rounded-xl overflow-hidden border border-zinc-200 shadow-xs animate-pulse">
-      {/* Table Header Placeholder */}
       <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4 flex items-center justify-between gap-4">
         <div className="h-4 bg-zinc-200 rounded w-1/4" />
         <div className="h-4 bg-zinc-200 rounded w-1/6 hidden sm:block" />
@@ -16,7 +15,6 @@ export const TableSkeleton = ({ rows = 6 }) => {
         <div className="h-4 bg-zinc-200 rounded w-1/6 hidden md:block" />
       </div>
 
-      {/* Rows */}
       <div className="divide-y divide-zinc-100">
         {Array.from({ length: rows }).map((_, rIdx) => (
           <div key={rIdx} className="px-6 py-4 flex items-center justify-between gap-4">
@@ -49,17 +47,14 @@ export const CardGridSkeleton = ({ count = 8 }) => {
       {Array.from({ length: count }).map((_, idx) => (
         <div key={idx} className="bg-white rounded-2xl border border-zinc-200 p-4 flex flex-col justify-between shadow-xs">
           <div>
-            {/* Image Placeholder */}
             <div className="w-full aspect-square rounded-xl bg-zinc-200 mb-3" />
             
-            {/* Title & Tag */}
             <div className="space-y-2 mb-3">
               <div className="h-4 bg-zinc-200 rounded w-3/4" />
               <div className="h-3 bg-zinc-100 rounded w-1/2" />
             </div>
           </div>
 
-          {/* Price & Action */}
           <div className="pt-3 border-t border-zinc-100 flex items-center justify-between mt-auto">
             <div className="h-5 bg-zinc-200 rounded w-16" />
             <div className="h-8 bg-zinc-200 rounded-lg w-20" />
@@ -100,7 +95,6 @@ export const StatCardsSkeleton = ({ count = 4 }) => {
 export const FullModuleSkeleton = ({ showCards = true }) => {
   return (
     <div className="p-4 md:p-8 flex-1 bg-zinc-50 overflow-y-auto w-full space-y-6 animate-pulse">
-      {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="space-y-2">
           <div className="h-7 bg-zinc-200 rounded w-48" />
@@ -109,7 +103,6 @@ export const FullModuleSkeleton = ({ showCards = true }) => {
         <div className="h-10 bg-zinc-200 rounded-xl w-32" />
       </div>
 
-      {/* Optional Stat Cards */}
       {showCards && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-white border border-zinc-200 p-5 rounded-xl h-24" />
@@ -119,13 +112,11 @@ export const FullModuleSkeleton = ({ showCards = true }) => {
         </div>
       )}
 
-      {/* Filter / Search Bar */}
       <div className="bg-white p-4 rounded-xl border border-zinc-200 flex flex-col sm:flex-row justify-between gap-4">
         <div className="h-10 bg-zinc-100 rounded-lg w-full sm:w-64" />
         <div className="h-10 bg-zinc-100 rounded-lg w-full sm:w-48" />
       </div>
 
-      {/* Table */}
       <TableSkeleton rows={7} cols={5} />
     </div>
   );

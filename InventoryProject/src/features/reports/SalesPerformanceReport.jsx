@@ -6,7 +6,6 @@ import { escapeHtml } from '../../utils/escapeHtml';
 import { TableSkeleton, StatCardsSkeleton } from '../../components/shared/SkeletonLoader';
 import Pagination from '../../components/shared/Pagination';
 
-// ─── Mini Bar chart (SVG sparkline) ──────────────────────────────────────────
 const TrendBars = ({ data }) => {
   if (!data || data.length === 0) return null;
   const max = Math.max(...data.map(d => d.value), 1);
@@ -30,7 +29,6 @@ const TrendBars = ({ data }) => {
   );
 };
 
-// ─── Main Component ───────────────────────────────────────────────────────────
 const SalesPerformanceReport = () => {
   const currentManilaYear = Number(getManilaDateOnly().slice(0, 4)) || new Date().getFullYear();
   const yearOptions = useMemo(
@@ -74,7 +72,6 @@ const SalesPerformanceReport = () => {
     }
   }, [period, customStart, customEnd, selectedYear]);
 
-  // Auto-fetch default report on initial mount
   const didInitRef = useRef(false);
   useEffect(() => {
     if (didInitRef.current) return;
@@ -137,7 +134,6 @@ const SalesPerformanceReport = () => {
     value: Number(b.revenue || 0)
   }));
 
-  // Build trend data from staff performance
   const trendData = sortedStaff.slice(0, 10).map(s => ({
     label: (s.name || '').split(' ')[0],
     value: s.total_sales || 0
@@ -294,7 +290,6 @@ const SalesPerformanceReport = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Controls Card */}
       <div className="bg-white border border-zinc-200/80 shadow-2xs rounded-2xl p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2">
@@ -369,7 +364,6 @@ const SalesPerformanceReport = () => {
         </div>
       </div>
 
-      {/* Prompt when not yet fetched */}
       {!fetched && !loading && (
         <div className="p-12 flex flex-col items-center justify-center text-zinc-500 bg-white border border-zinc-200/80 border-dashed rounded-2xl h-64 text-center">
           <svg className="w-12 h-12 mb-3 text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -391,7 +385,6 @@ const SalesPerformanceReport = () => {
 
       {fetched && !loading && summary && (
         <div className="flex flex-col gap-6 fade-in">
-          {/* KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             <div className="bg-white border border-zinc-200 rounded-xl p-4 shadow-2xs">
               <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Net Revenue</div>
@@ -425,7 +418,6 @@ const SalesPerformanceReport = () => {
             </div>
           </div>
 
-          {/* Period Breakdown (Daily / Monthly) */}
           {periodBreakdown.length > 0 && (
             <div className="bg-white border border-zinc-200/80 shadow-2xs rounded-2xl overflow-hidden">
               <div className="px-6 py-4 border-b border-zinc-100 flex justify-between items-baseline">
@@ -468,7 +460,6 @@ const SalesPerformanceReport = () => {
             </div>
           )}
 
-          {/* Revenue by Staff (Trend Bars) */}
           {trendData.length > 0 && (
             <div className="bg-white border border-zinc-200/80 shadow-2xs rounded-2xl overflow-hidden pt-4 pb-2">
               <div className="px-6 flex justify-between items-baseline mb-2">
@@ -483,12 +474,10 @@ const SalesPerformanceReport = () => {
             </div>
           )}
 
-          {/* Staff Performance Table */}
           <div className="bg-white border border-zinc-200/80 shadow-2xs rounded-2xl overflow-hidden">
             <div className="p-4 sm:p-5 border-b border-zinc-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <h2 className="m-0 text-base font-bold text-zinc-900 tracking-tight">Personnel Performance Breakdown</h2>
               
-              {/* Staff Search */}
               <div className="relative w-full sm:w-64">
                 <svg className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
@@ -571,13 +560,11 @@ const SalesPerformanceReport = () => {
             </div>
           </div>
 
-          {/* Top Products Sold Table */}
           {sortedProducts.length > 0 && (
             <div className="bg-white border border-zinc-200/80 shadow-2xs rounded-2xl overflow-hidden">
               <div className="p-4 sm:p-5 border-b border-zinc-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <h2 className="m-0 text-base font-bold text-zinc-900 tracking-tight">Top Products Sold</h2>
                 
-                {/* Product Search */}
                 <div className="relative w-full sm:w-64">
                   <svg className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
@@ -640,7 +627,6 @@ const SalesPerformanceReport = () => {
                   </tbody>
                 </table>
 
-                {/* Pagination Controls */}
                 {sortedProducts.length > 0 && (
                   <Pagination
                     currentPage={productPage}

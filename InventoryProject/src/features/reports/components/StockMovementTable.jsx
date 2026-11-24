@@ -92,7 +92,6 @@ const StockMovementTable = ({
               </tbody>
             </table>
 
-            {/* Pagination Controls */}
             <Pagination
               currentPage={movementPage}
               totalPages={movementTotalPages}

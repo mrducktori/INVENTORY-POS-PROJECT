@@ -79,7 +79,6 @@ const NotificationInbox = ({ onNavigate, lowStockItems = [], variant = 'default'
   // Tab safety on role/permission switches (derived during render)
   const effectiveTab = filterPills.some((pill) => pill.key === activeTab) ? activeTab : 'ALL';
 
-  // Close drawer on ESC
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') setIsOpen(false);
@@ -96,7 +95,6 @@ const NotificationInbox = ({ onNavigate, lowStockItems = [], variant = 'default'
     };
   }, [isOpen]);
 
-  // Tab filtered items
   const filteredNotifications = notifications.filter((item) => {
     switch (effectiveTab) {
       case 'UNREAD':
@@ -207,7 +205,6 @@ const NotificationInbox = ({ onNavigate, lowStockItems = [], variant = 'default'
 
   return (
     <>
-      {/* Header Trigger Button */}
       {variant === 'navbar' ? (
         <button
           type="button"
@@ -256,22 +253,18 @@ const NotificationInbox = ({ onNavigate, lowStockItems = [], variant = 'default'
         </button>
       )}
 
-      {/* Slide-over Drawer & Backdrop */}
       {isOpen && (
         <div className="fixed inset-0 z-50 overflow-hidden">
-          {/* Backdrop */}
           <div
             className="fixed inset-0 bg-black/45 backdrop-blur-xs transition-opacity duration-300"
             onClick={() => setIsOpen(false)}
           />
 
-          {/* Drawer container */}
           <div className="fixed inset-y-0 right-0 max-w-full flex pl-6 sm:pl-10">
             <div
               ref={drawerRef}
               className="w-screen max-w-lg bg-white shadow-2xl flex flex-col border-l border-zinc-200 animate-in slide-in-from-right duration-200"
             >
-              {/* Drawer Header */}
               <div className="p-5 border-b border-gray-100 bg-white">
                 <div className="flex items-center justify-between gap-3 mb-2">
                   <div className="flex items-center gap-2.5">
@@ -318,7 +311,6 @@ const NotificationInbox = ({ onNavigate, lowStockItems = [], variant = 'default'
                   </button>
                 </div>
 
-                {/* Subheader action row */}
                 <div className="flex items-center justify-between pt-2 text-xs">
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-zinc-700">
@@ -341,7 +333,6 @@ const NotificationInbox = ({ onNavigate, lowStockItems = [], variant = 'default'
                   )}
                 </div>
 
-                {/* Filter Tabs */}
                 <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-gray-100 overflow-x-auto pb-1 scrollbar-none">
                   {filterPills.map((pill) => (
                     <button
@@ -359,7 +350,6 @@ const NotificationInbox = ({ onNavigate, lowStockItems = [], variant = 'default'
                 </div>
               </div>
 
-              {/* Notification Items List */}
               <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#fafafa]">
                 {loading && notifications.length === 0 ? (
                   <div className="space-y-3 py-2 animate-pulse">
@@ -395,20 +385,17 @@ const NotificationInbox = ({ onNavigate, lowStockItems = [], variant = 'default'
                             : 'bg-zinc-50/70 border-zinc-200/80 hover:bg-white'
                         }`}
                       >
-                        {/* Unread indicator dot */}
                         {!n.isRead && (
                           <span className="absolute top-4 right-4 w-2 h-2 rounded-full bg-blue-600 ring-4 ring-blue-50"></span>
                         )}
 
                         <div className="flex items-start gap-3">
-                          {/* Type Icon */}
                           <div
                             className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 mt-0.5 ${iconClass}`}
                           >
                             {renderIcon(n.type, n.badgeVariant)}
                           </div>
 
-                          {/* Content */}
                           <div className="flex-1 min-w-0 pr-4">
                             <div className="flex items-center gap-2 mb-1 flex-wrap">
                               <span
@@ -429,7 +416,6 @@ const NotificationInbox = ({ onNavigate, lowStockItems = [], variant = 'default'
                               {n.message}
                             </p>
 
-                            {/* Actions row */}
                             <div className="flex items-center justify-between gap-2 mt-3 pt-2.5 border-t border-gray-100">
                               {n.actionTab ? (
                                 <button
@@ -470,7 +456,6 @@ const NotificationInbox = ({ onNavigate, lowStockItems = [], variant = 'default'
                 )}
               </div>
 
-              {/* Drawer Footer */}
               <div className="p-3.5 border-t border-gray-100 bg-white flex items-center justify-between text-xs text-zinc-500">
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-emerald-500"></span>

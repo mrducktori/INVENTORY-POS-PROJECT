@@ -24,7 +24,6 @@ const PasswordRulesList = ({ password = '', isEditing = false }) => {
 
   return (
     <div className="p-4 rounded-xl border border-zinc-200 bg-zinc-50/70 flex flex-col gap-3">
-      {/* Header & Status */}
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-bold text-zinc-700 uppercase tracking-wider">
           Password Requirements
@@ -41,7 +40,6 @@ const PasswordRulesList = ({ password = '', isEditing = false }) => {
         </div>
       </div>
 
-      {/* Progress Bar */}
       <div className="h-1.5 w-full bg-zinc-200 rounded-full overflow-hidden">
         <div
           className={`h-full transition-all duration-300 ${barColor}`}
@@ -49,7 +47,6 @@ const PasswordRulesList = ({ password = '', isEditing = false }) => {
         />
       </div>
 
-      {/* Checklist of rules */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
         {results.map((rule) => (
           <div

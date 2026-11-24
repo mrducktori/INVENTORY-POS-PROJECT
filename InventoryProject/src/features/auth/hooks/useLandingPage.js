@@ -57,7 +57,7 @@ export const useLandingPage = () => {
   }, []);
 
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [isMenuOpen, setIsMenuOpen] = useState(false); // Default is CLOSED per requirement
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [cmsData, setCmsData] = useState({
     brand_logo: '',
     brand_title: 'CofTea Cafe',
@@ -82,10 +82,8 @@ export const useLandingPage = () => {
   const [productsLoading, setProductsLoading] = useState(true);
   const [productsError, setProductsError] = useState(null);
 
-  // Digital Menu Board filtering state
   const [activeCategory, setActiveCategory] = useState('ALL');
 
-  // Promo Carousel & Lightbox state
   const [currentPromoIndex, setCurrentPromoIndex] = useState(0);
   const [isPromoHovered, setIsPromoHovered] = useState(false);
   const [expandedPromo, setExpandedPromo] = useState(null);
@@ -107,7 +105,8 @@ export const useLandingPage = () => {
     }
   }, []);
 
-  // Keep availability fresh while the menu is open: refresh on open, then every 60s while the tab is visible.
+  // Keep availability fresh while the menu is open: refresh on open, then every 60s while the
+  // tab is visible.
   useEffect(() => {
     if (!isMenuOpen) return;
     fetchProducts({ silent: true });
@@ -159,16 +158,15 @@ export const useLandingPage = () => {
       }
     };
 
-    // Fallback timer just in case API is slow/fails
+    // Stop the loading state after 1.2s even if the API is slow or fails.
     const timer = setTimeout(() => setIsInitialLoading(false), 1200);
     fetchData();
-    // Defer product catalog fetch until after initial hero/CMS paint or when menu opens
+    // Load the product catalog alongside the CMS content.
     fetchProducts();
 
     return () => clearTimeout(timer);
   }, [fetchProducts]);
 
-  // Menu category filtering memos
   const presentCategories = useMemo(() => {
     return ['ALL', ...new Set(products.map(p => p.category?.toUpperCase()).filter(Boolean))];
   }, [products]);

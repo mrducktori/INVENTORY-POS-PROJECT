@@ -5,11 +5,11 @@ import jwt from 'jsonwebtoken';
 // Short-lived in-memory cache so bursts of parallel requests from the same page load
 // do not trigger 8-12 redundant database round-trips to `users` for the same JWT.
 const userAuthCache = new Map();
-const AUTH_CACHE_TTL_MS = 20 * 1000; // 20 seconds
+const AUTH_CACHE_TTL_MS = 20 * 1000;
 let hasCurrentSessionIdCol = true;
 
 // Server-side activity tracker: maps userId -> last active timestamp (ms)
-export const SESSION_INACTIVITY_TIMEOUT_MS = 2 * 60 * 60 * 1000; // 2 hours
+export const SESSION_INACTIVITY_TIMEOUT_MS = 2 * 60 * 60 * 1000;
 const userLastActivityMap = new Map();
 let lastReapCheckAt = 0;
 let reapInFlight = null;
@@ -38,9 +38,8 @@ export const invalidateUserAuthCache = (userId) => {
 };
 
 /**
- * Checks all users who currently have an active `current_session_id` and automatically
- * logs out any session whose last activity exceeded SESSION_INACTIVITY_TIMEOUT_MS,
- * clearing `current_session_id = null` and writing a LOGOUT (Inactivity timeout) audit log.
+ * Logs out sessions idle longer than SESSION_INACTIVITY_TIMEOUT_MS: clears `current_session_id`
+ * and writes a LOGOUT (Inactivity timeout) audit log.
  */
 export const reapInactiveUserSessions = async (force = false) => {
   if (!hasCurrentSessionIdCol) return;
@@ -128,8 +127,7 @@ export const getJwtSecret = () => {
 };
 
 /**
- * requireAuth — Validates the JWT token in the Authorization header.
- * Attaches the validated user object to req.user.
+ * Validates the JWT in the Authorization header and attaches the user to req.user.
  */
 export const requireAuth = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -231,10 +229,8 @@ export const requireAuth = async (req, res, next) => {
 };
 
 /**
- * requireRole(...roles) — Checks that req.user has one of the allowed roles.
- * Must be used AFTER requireAuth.
- *
- * Usage: router.post('/', requireAuth, requireRole('Admin', 'Owner'), handler)
+ * Allows only users whose role is one of `roles`. Must run after requireAuth.
+ * Example: router.post('/', requireAuth, requireRole('Admin', 'Owner'), handler)
  */
 export const requireRole = (...roles) => (req, res, next) => {
   if (!req.user) {

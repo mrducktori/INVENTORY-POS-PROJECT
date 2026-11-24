@@ -123,7 +123,6 @@ const AccountForm = ({
 
   return (
     <form onSubmit={handleFormSubmit} className="flex flex-col gap-6">
-      {/* Role template */}
       {roleTemplates.length > 0 && !isSelfOwner && (
         <div className="p-4 rounded-xl border border-zinc-200 bg-zinc-50">
           <Field label="Reuse an existing role" hint="Copies the role and page access. You can still adjust them below.">
@@ -139,7 +138,6 @@ const AccountForm = ({
         </div>
       )}
 
-      {/* Identity */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <Field label="Full name" required>
           <input
@@ -261,12 +259,10 @@ const AccountForm = ({
         </Field>
       </div>
 
-      {/* Password Requirements Checklist */}
       {(!isEditing || Boolean(formData.password)) && (
         <PasswordRulesList password={formData.password} isEditing={isEditing} />
       )}
 
-      {/* Error Banner */}
       {formError && (
         <div className="p-3.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium flex items-center gap-2">
           <svg className="w-4 h-4 shrink-0 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -276,7 +272,6 @@ const AccountForm = ({
         </div>
       )}
 
-      {/* Role */}
       <Field label="Role" required>
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
           {roleOptions.map((role) => {

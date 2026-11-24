@@ -40,9 +40,7 @@ const ReceiptJournalToolbar = ({
 
   return (
     <>
-      {/* Row 1: Search Input on Left, Action Buttons on Right */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        {/* Search Box */}
         <div className="relative w-full sm:w-80">
           <svg
             className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
@@ -72,7 +70,6 @@ const ReceiptJournalToolbar = ({
           )}
         </div>
 
-        {/* Right Action Buttons matching reference */}
         <div className="flex items-center gap-2 shrink-0">
           {filteredCount > 0 && (
             <button
@@ -115,7 +112,6 @@ const ReceiptJournalToolbar = ({
         </div>
       </div>
 
-      {/* Row 1.5: Date Range & Server Request Filter */}
       <div className="flex flex-wrap items-center justify-between gap-3 pt-1 pb-1 border-y border-zinc-100">
         <div className="flex flex-wrap items-center gap-1.5">
           {DATE_PRESETS.map((preset) => (
@@ -182,7 +178,6 @@ const ReceiptJournalToolbar = ({
         </div>
       </div>
 
-      {/* Row 2: Category / Type Filter Pills (exact match to reference) */}
       <div className="flex flex-wrap items-center gap-1 bg-zinc-100 p-1 rounded-lg">
         {categoryPills.map((pill) => {
           const isActive = selectedType === pill.id;
@@ -203,7 +198,6 @@ const ReceiptJournalToolbar = ({
         })}
       </div>
 
-      {/* Row 3: Status / Scope Filter Pills (exact match to reference) */}
       <div className="inline-flex items-center bg-zinc-100 p-0.5 rounded-lg border border-zinc-200/70">
         {statusScopes.map((scope) => {
           const isActive = statusScope === scope.id;

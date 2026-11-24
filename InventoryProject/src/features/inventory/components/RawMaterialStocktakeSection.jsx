@@ -192,7 +192,6 @@ const RawMaterialStocktakeSection = ({ ingredients = [], onRefreshIngredients })
         </div>
       )}
 
-      {/* Physical Count Form Card */}
       <form onSubmit={handleCommitStocktake} className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden">
         <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
@@ -320,7 +319,6 @@ const RawMaterialStocktakeSection = ({ ingredients = [], onRefreshIngredients })
           onItemsPerPageChange={(n) => { setPerPage(n); setPage(1); }}
         />
 
-        {/* Summary Footer */}
         <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-1">
             <span className="text-xs font-bold uppercase tracking-wider text-gray-700 shrink-0">
@@ -357,7 +355,6 @@ const RawMaterialStocktakeSection = ({ ingredients = [], onRefreshIngredients })
         </div>
       </form>
 
-      {/* Recent Stocktake Reconciliations */}
       <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
           <div>

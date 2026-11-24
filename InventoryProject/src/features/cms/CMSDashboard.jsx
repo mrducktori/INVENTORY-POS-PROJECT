@@ -51,7 +51,6 @@ export default function CMSDashboard() {
 
   return (
     <div className="p-4 sm:p-6 md:p-8 max-w-5xl mx-auto w-full space-y-6">
-      {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-200">
         <div>
           <h1 className="m-0 text-xl sm:text-2xl font-bold text-zinc-900 tracking-tight">
@@ -75,7 +74,6 @@ export default function CMSDashboard() {
         </a>
       </div>
 
-      {/* Status Notice */}
       {notice.text && (
         <div
           className={`px-4 py-3 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-between border ${
@@ -98,7 +96,6 @@ export default function CMSDashboard() {
         </div>
       )}
 
-      {/* Navigation Tabs */}
       <div className="flex flex-wrap gap-1.5 bg-zinc-100 p-1 rounded-xl w-fit">
         {NAV_TABS.map((t) => {
           const isActive = activeTab === t.id;
@@ -119,7 +116,6 @@ export default function CMSDashboard() {
         })}
       </div>
 
-      {/* TAB 1: BRAND & BROWSER TAB */}
       {activeTab === 'branding' && (
         <CMSBrandTab
           browserTab={browserTab}
@@ -134,7 +130,6 @@ export default function CMSDashboard() {
         />
       )}
 
-      {/* TAB 2: HERO & MENU HEADER */}
       {activeTab === 'hero' && (
         <CMSHeroTab
           landingHero={landingHero}
@@ -147,7 +142,6 @@ export default function CMSDashboard() {
         />
       )}
 
-      {/* TAB 3: PROMOTIONS CAROUSEL */}
       {activeTab === 'promos' && (
         <CMSPromotionsTab
           promos={promos}
@@ -162,7 +156,6 @@ export default function CMSDashboard() {
         />
       )}
 
-      {/* TAB 4: LOCATION, SOCIALS & FOOTER */}
       {activeTab === 'details' && (
         <CMSLocationFooterTab
           locationInfo={locationInfo}

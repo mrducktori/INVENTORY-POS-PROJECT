@@ -120,7 +120,6 @@ const ViewRequests = () => {
                           <div className="text-sm font-bold text-gray-900 mb-1">{subject}</div>
                           <div className="text-xs text-gray-600 mb-3 whitespace-pre-wrap">{req.details?.description}</div>
                           
-                          {/* Structured Proposals */}
                           {req.type === 'NEW_PRODUCT' && req.details.new_product && (
                             <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-medium text-gray-700">
                               <span className="font-bold text-gray-900 uppercase tracking-wider text-[10px] mr-2">Proposed:</span> 
@@ -187,7 +186,6 @@ const ViewRequests = () => {
             </div>
           )}
 
-          {/* Pagination Controls */}
           {!loading && requests.length > 0 && (
             <Pagination
               currentPage={currentPage}

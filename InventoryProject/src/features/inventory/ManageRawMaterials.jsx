@@ -62,11 +62,9 @@ const ManageRawMaterials = () => {
     return `Use category default (currently: ${text})`;
   };
 
-  // Pagination for Materials List Table
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  // Pagination for Modify Grid View
   const [modifyCurrentPage, setModifyCurrentPage] = useState(1);
   const [modifyItemsPerPage, setModifyItemsPerPage] = useState(12);
 
@@ -104,14 +102,12 @@ const ManageRawMaterials = () => {
     setModifyCurrentPage(1);
   };
 
-  // Paginated data for Materials List Table
   const totalPages = Math.ceil(filteredList.length / itemsPerPage) || 1;
   const paginatedList = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
     return filteredList.slice(start, start + itemsPerPage);
   }, [filteredList, currentPage, itemsPerPage]);
 
-  // Paginated data for Modify Grid View
   const activeModifyList = useMemo(() => {
     return filteredList.filter(i => !i.is_archived);
   }, [filteredList]);
@@ -124,7 +120,6 @@ const ManageRawMaterials = () => {
 
   return (
     <div className="p-4 md:p-8 flex-1 bg-gray-50 overflow-y-auto w-full">
-      {/* ---- Page Header ---- */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="m-0 text-xl md:text-2xl font-bold text-gray-900 tracking-tight">Manage Raw Materials</h1>
@@ -159,7 +154,6 @@ const ManageRawMaterials = () => {
         </div>
       </div>
 
-      {/* ---- Alert Banner ---- */}
       {message && (
         <div className={`p-4 mb-6 rounded-xl text-sm font-semibold flex items-center justify-between shadow-sm ${
           message.includes('success') || message.includes('created') || message.includes('updated') 
@@ -177,17 +171,14 @@ const ManageRawMaterials = () => {
         </div>
       )}
 
-      {/* ---- ADD VIEW (Side-by-Side: Form on Left, Table on Right) ---- */}
       {viewMode === 'ADD' && (
         <div className="flex flex-col lg:flex-row items-start gap-6">
-          {/* Add Material Card */}
           <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden w-full lg:w-80 xl:w-96 shrink-0">
             <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50">
               <h2 className="m-0 text-lg font-bold text-gray-900 tracking-tight">Add New Raw Material</h2>
             </div>
             <div className="p-6 overflow-y-auto">
               <form onSubmit={handleAddIngredient} className="flex flex-col gap-4">
-                {/* Ingredient Name */}
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     Ingredient Name <span className="text-red-500">*</span>
@@ -204,7 +195,6 @@ const ManageRawMaterials = () => {
                   />
                 </div>
 
-                {/* 2-Column Grid: Category & Unit */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
@@ -238,7 +228,6 @@ const ManageRawMaterials = () => {
                   </div>
                 </div>
 
-                {/* 2-Column Grid: Alert Level & Initial Stock */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
@@ -271,7 +260,6 @@ const ManageRawMaterials = () => {
                   </div>
                 </div>
 
-                {/* Perishability Configuration */}
                 <div className="p-3.5 bg-gray-50 border border-gray-200 rounded-xl flex flex-col gap-3">
                   <div>
                     <span className="block text-xs font-bold text-gray-800 uppercase tracking-wider">Shelf Life</span>
@@ -317,7 +305,6 @@ const ManageRawMaterials = () => {
             </div>
           </div>
 
-          {/* List beside form */}
           <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden flex-1 min-w-0 w-full">
             <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50 flex flex-col xl:flex-row xl:items-center justify-between gap-3">
               <div className="flex items-center gap-2">
@@ -461,7 +448,6 @@ const ManageRawMaterials = () => {
                     </table>
                   </div>
 
-                  {/* Pagination Controls */}
                   <Pagination
                     currentPage={currentPage}
                     totalPages={totalPages}
@@ -486,7 +472,6 @@ const ManageRawMaterials = () => {
         </div>
       )}
 
-      {/* Dedicated Archived Raw Materials Section matching Image 2 */}
       {archivedRawMaterialsList.length > 0 && (
         <div className="mt-8 mb-6 bg-zinc-950 text-white rounded-2xl p-6 border border-zinc-800 shadow-xl w-full">
           <div className="flex items-center justify-between pb-4 border-b border-zinc-800 mb-5">
@@ -554,7 +539,6 @@ const ManageRawMaterials = () => {
         </div>
       )}
 
-      {/* ---- MODIFY VIEW (card grid) ---- */}
       {viewMode === 'MODIFY' && (
         <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden w-full">
           <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -615,7 +599,6 @@ const ManageRawMaterials = () => {
                   ))}
                 </div>
 
-                {/* Pagination Controls */}
                 <div className="mt-6 border-t border-gray-100 pt-2">
                   <Pagination
                     currentPage={modifyCurrentPage}
@@ -641,7 +624,6 @@ const ManageRawMaterials = () => {
         </div>
       )}
 
-      {/* ---- EDIT MODAL ---- */}
       <UnsavedNotice show={escWarn} />
       {selectedIngredient && (
         <div
@@ -746,7 +728,6 @@ const ManageRawMaterials = () => {
                   </div>
                 </div>
 
-                {/* Perishability Metadata Section */}
                 <div className="p-3.5 bg-gray-50 border border-gray-200 rounded-xl flex flex-col gap-3">
                   <div>
                     <span className="block text-xs font-bold text-gray-800 uppercase tracking-wider">Shelf Life</span>
@@ -780,7 +761,6 @@ const ManageRawMaterials = () => {
                   )}
                 </div>
 
-                {/* PO Defaults Section */}
                 <div className="pt-4 border-t border-gray-200">
                   <h4 className="m-0 text-sm font-extrabold text-gray-900 uppercase tracking-wider mb-2 flex items-center gap-2">
                     <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
@@ -862,7 +842,6 @@ const ManageRawMaterials = () => {
         </div>
       )}
 
-      {/* ---- CATEGORIES MODAL ---- */}
       {isCategoriesModalOpen && (
         <RawMaterialCategoriesModal
           onClose={() => setIsCategoriesModalOpen(false)}
@@ -873,7 +852,6 @@ const ManageRawMaterials = () => {
         />
       )}
 
-      {/* ---- CONFIRM MODAL ---- */}
       <ConfirmModal
         isOpen={confirmConfig.isOpen}
         title={confirmConfig.title}

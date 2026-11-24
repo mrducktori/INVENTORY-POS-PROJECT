@@ -102,7 +102,6 @@ const EmployeeTracker = () => {
                 </tbody>
               </table>
 
-              {/* Pagination Controls */}
               <Pagination
                 currentPage={currentPage}
                 totalPages={totalPages}

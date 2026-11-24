@@ -17,7 +17,7 @@ const envPaths = [
 
 for (const envPath of envPaths) {
   const result = dotenv.config({ path: envPath });
-  if (!result.error) break; // Stop at first successful load
+  if (!result.error) break;
 }
 
 // Support both standard SUPABASE_URL and frontend VITE_SUPABASE_URL
@@ -30,7 +30,7 @@ if (!supabaseUrl || !supabaseKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
-    persistSession: false // Recommended for backend servers
+    persistSession: false // The service-role client is stateless; there is no browser session to persist
   },
   realtime: {
     transport: ws // Fixes the Node 20 WebSocket error on cPanel / cloud hosts

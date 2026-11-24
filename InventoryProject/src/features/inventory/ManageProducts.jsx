@@ -16,7 +16,6 @@ const ManageProducts = ({ subTab = null, onSubTabChange = null }) => {
   const isControlled = typeof onSubTabChange === 'function';
   const showCategorySettings = isControlled ? subTab === 'CATEGORIES' : localShowCategorySettings;
 
-  // Sorting & Pagination States
   const [sortField, setSortField] = useState('name'); // 'name' | 'price'
   const [sortDirection, setSortDirection] = useState('asc'); // 'asc' | 'desc'
   const [currentPage, setCurrentPage] = useState(1);
@@ -73,7 +72,6 @@ const ManageProducts = ({ subTab = null, onSubTabChange = null }) => {
     });
   }, [products, searchTerm, statusFilter, categoryFilter]);
 
-  // Reset pagination helpers on search or filter change
   const handleSearchChange = (val) => {
     setSearchTerm(val);
     setCurrentPage(1);
@@ -92,7 +90,6 @@ const ManageProducts = ({ subTab = null, onSubTabChange = null }) => {
     setModifyCurrentPage(1);
   };
 
-  // Sort Handlers
   const handlePriceSort = () => {
     if (sortField !== 'price') {
       setSortField('price');
@@ -121,7 +118,6 @@ const ManageProducts = ({ subTab = null, onSubTabChange = null }) => {
     setModifyCurrentPage(1);
   };
 
-  // Sorted product list
   const sortedProductsList = useMemo(() => {
     const list = [...filteredProductsList];
     if (sortField === 'price') {
@@ -131,7 +127,6 @@ const ManageProducts = ({ subTab = null, onSubTabChange = null }) => {
         list.sort((a, b) => (parseFloat(b.price) || 0) - (parseFloat(a.price) || 0));
       }
     } else {
-      // Default / Alphabetical
       if (sortDirection === 'desc') {
         list.sort((a, b) => b.name.localeCompare(a.name));
       } else {
@@ -141,14 +136,12 @@ const ManageProducts = ({ subTab = null, onSubTabChange = null }) => {
     return list;
   }, [filteredProductsList, sortField, sortDirection]);
 
-  // Paginated items for Table View (Add Product mode)
   const totalPages = Math.max(1, Math.ceil(sortedProductsList.length / itemsPerPage));
   const paginatedProductsList = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
     return sortedProductsList.slice(start, start + itemsPerPage);
   }, [sortedProductsList, currentPage, itemsPerPage]);
 
-  // Paginated items for Modify Existing Grid mode
   const activeModifyProducts = useMemo(() => {
     return sortedProductsList.filter(p => !p.is_archived);
   }, [sortedProductsList]);
@@ -245,7 +238,6 @@ const ManageProducts = ({ subTab = null, onSubTabChange = null }) => {
         </div>
       )}
 
-      {/* Dedicated Archived Products Section matching Image 2 */}
       <ArchivedProductsSection
         archivedProducts={archivedProductsList}
         processingId={processingId}

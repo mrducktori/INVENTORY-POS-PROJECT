@@ -11,7 +11,6 @@ const SupplierOrderActionModals = ({
 }) => {
   return (
     <>
-      {/* Decline Order Modal */}
       {declineModal.show && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[9999] p-4 flex justify-center items-start pt-6 sm:pt-10 md:pt-14 pb-12 animate-[modalBackdropFadeIn_0.2s_ease-out]">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 md:p-8" onClick={e => e.stopPropagation()}>
@@ -66,7 +65,6 @@ const SupplierOrderActionModals = ({
         </div>
       )}
 
-      {/* Postpone Modal */}
       {postponeModal.show && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[9999] p-4 flex justify-center items-start pt-6 sm:pt-10 md:pt-14 pb-12 animate-[modalBackdropFadeIn_0.2s_ease-out]">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 md:p-8" onClick={e => e.stopPropagation()}>

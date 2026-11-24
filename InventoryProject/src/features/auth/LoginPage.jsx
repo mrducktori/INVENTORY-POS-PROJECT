@@ -45,7 +45,6 @@ function LoginPage() {
     loading
   } = useLogin();
 
-  // If already logged in, redirect to dashboard
   useEffect(() => {
     if (user) {
       navigate('/dashboard', { replace: true });
@@ -87,7 +86,6 @@ function LoginPage() {
               <p className="text-sm text-gray-400 m-0">Sign in to access the dashboard</p>
             </div>
 
-            {/* Session Timeout / Replaced Banner */}
             {sessionNotice && !isLocked && !error && (
               <div className="flex gap-3 bg-[#132338] border border-[#38bdf8] text-[#7dd3fc] p-4 rounded-lg mb-6 shadow-lg">
                 <span className="flex items-center justify-center pt-0.5">
@@ -102,7 +100,6 @@ function LoginPage() {
               </div>
             )}
 
-            {/* Lockout Banner */}
             {isLocked && (
               <div className="flex gap-3 bg-[#332200] border border-[#ffaa00] text-[#ffaa00] p-4 rounded-lg mb-6">
                 <span className="flex items-center justify-center pt-0.5">
@@ -116,7 +113,6 @@ function LoginPage() {
               </div>
             )}
 
-            {/* Error / Attempts Warning */}
             {!isLocked && error && (
               <div className="flex gap-3 bg-[#330000] border border-[#ff3333] text-[#ff3333] p-4 rounded-lg mb-6">
                 <span className="flex items-center justify-center pt-0.5">

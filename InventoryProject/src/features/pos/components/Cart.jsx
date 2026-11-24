@@ -45,7 +45,6 @@ const Cart = ({
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden bg-white">
-      {/* Header — clean, lessened eyebrows */}
       <div className="px-6 py-3.5 border-b border-gray-100 bg-white z-10 space-y-2.5">
         <div className="flex justify-between items-center">
           <h2 className="m-0 text-base font-bold text-gray-900">Transaction</h2>
@@ -77,7 +76,6 @@ const Cart = ({
         )}
       </div>
 
-      {/* Cart Items List */}
       <div className="flex-1 overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-gray-200">
         {cart.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-3 mt-10">
@@ -202,7 +200,6 @@ const Cart = ({
         )}
       </div>
 
-      {/* Cart Summary Footer — Simple, clean sentence case */}
       <div className="bg-gray-50/80 px-5 py-3.5 border-t border-gray-200 mt-auto space-y-1.5">
         <div className="flex justify-between items-center text-xs font-medium text-gray-500">
           <span>Net of VAT (12%)</span>

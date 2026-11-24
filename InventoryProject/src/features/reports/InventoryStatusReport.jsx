@@ -6,7 +6,6 @@ import { getManilaDateOnly } from '../../utils/dateUtils';
 import { TableSkeleton, StatCardsSkeleton } from '../../components/shared/SkeletonLoader';
 import Pagination from '../../components/shared/Pagination';
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 const getStatus = (qty, alert) => {
   if (qty <= 0) return 'out';
   if (qty <= alert) return 'critical';
@@ -21,7 +20,6 @@ const getStockPct = (qty, alert) => {
   return Math.min(Math.round((qty / (alert * 2)) * 100), 100);
 };
 
-// ─── Summary donut-style segmented bar ───────────────────────────────────────
 const HealthBar = ({ stats }) => {
   const total = stats.total || 1;
   return (
@@ -42,7 +40,6 @@ const HealthBar = ({ stats }) => {
   );
 };
 
-// ─── Main Component ───────────────────────────────────────────────────────────
 const InventoryStatusReport = () => {
   const [ingredients, setIngredients] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -71,7 +68,6 @@ const InventoryStatusReport = () => {
     }
   }, []);
 
-  // Auto-fetch default report on initial mount
   useEffect(() => {
     fetchReport();
   }, [fetchReport]);
@@ -280,10 +276,8 @@ const InventoryStatusReport = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Controls Card */}
       <div className="bg-white border border-zinc-200/80 shadow-2xs rounded-2xl p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3">
-          {/* Search Input with inline SVG and clear button */}
           <div className="relative w-full sm:w-72">
             <svg className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
@@ -370,7 +364,6 @@ const InventoryStatusReport = () => {
 
       {fetched && !loading && (
         <div className="flex flex-col gap-6 fade-in">
-          {/* KPI Cards & Health Bar Combined */}
           <div className="bg-white border border-zinc-200/80 rounded-2xl shadow-2xs overflow-hidden">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-zinc-100">
               <div className="p-4 sm:p-5">
@@ -408,7 +401,6 @@ const InventoryStatusReport = () => {
             )}
           </div>
 
-          {/* Priority Attention List */}
           {priorityList.length > 0 && (
             <div className="bg-white border border-red-200 shadow-2xs rounded-2xl overflow-hidden">
               <div className="p-4 sm:p-5 bg-red-50/50 border-b border-red-100 flex items-center justify-between">
@@ -468,7 +460,6 @@ const InventoryStatusReport = () => {
             </div>
           )}
 
-          {/* Full Inventory Table */}
           <div className="bg-white border border-zinc-200/80 shadow-2xs rounded-2xl overflow-hidden">
             <div className="p-4 sm:p-5 border-b border-zinc-100 flex items-center justify-between">
               <h2 className="m-0 text-base font-bold text-zinc-900 tracking-tight">Full Material Status ({filtered.length} items)</h2>
@@ -527,7 +518,6 @@ const InventoryStatusReport = () => {
               )}
             </div>
 
-            {/* Pagination Controls */}
             {filtered.length > 0 && (
               <Pagination
                 currentPage={page}

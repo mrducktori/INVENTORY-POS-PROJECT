@@ -146,7 +146,6 @@ export const usePOS = () => {
   const [stockNotice, setStockNotice] = useState("");
   const noticeTimerRef = useRef(null);
 
-  // Payment & Digital Receipt Modal State
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [completedSaleId, setCompletedSaleId] = useState(null);
   const [completedReceipt, setCompletedReceipt] = useState(null);
@@ -262,7 +261,6 @@ export const usePOS = () => {
     return extractCategoryNames(combined);
   }, [categorySettings, products]);
 
-  // PERSIST STATE
   useEffect(() => {
     saveStored("cart", cart);
     // Cart changed: its receipt key no longer matches the payload.
