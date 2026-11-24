@@ -11,6 +11,8 @@ import InfoTip from '../../components/shared/InfoTip';
 import { supabase } from '../../config/supabaseClient';
 import { formatDisplayDateTime, formatDisplayDate, isDatePast, getDaysOverdue } from '../../utils/dateUtils';
 
+const fmtQty = (n) => Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
+
 const PurchaseOrders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -629,11 +631,12 @@ const PurchaseOrders = () => {
                                                 )}
                                               </td>
 
-                                              <td className="px-4 py-3 text-base font-medium text-gray-600 text-right">{item.quantity} - {item.purchase_unit}</td>
+                                              <td className="px-4 py-3 text-base font-medium text-gray-600 text-right">{fmtQty(item.quantity)} × {item.purchase_unit}</td>
                                               <td className="px-4 py-3 text-right">
                                                 <div className="flex flex-col items-end gap-1">
                                                   <div className="text-base font-bold text-gray-900">
-                                                    Total: {item.quantity_received || 0} / {item.quantity} {item.purchase_unit}
+                                                    {fmtQty(item.quantity_received || 0)} of {fmtQty(item.quantity)} received
+                                                    <span className="block text-xs font-medium text-gray-500">{item.purchase_unit}</span>
                                                   </div>
                                                 </div>
                                               </td>

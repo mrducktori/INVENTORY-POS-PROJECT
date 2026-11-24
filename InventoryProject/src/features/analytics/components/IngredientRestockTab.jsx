@@ -2,6 +2,7 @@ import React from 'react';
 import { TableSkeleton } from '../../../components/shared/SkeletonLoader';
 import { InfoTip } from '../../../components/shared/InfoTip';
 import { getManilaDateOnly } from '../../../utils/dateUtils';
+import { formatQty, suggestedPurchase } from '../utils/forecastUtils';
 import { SortIcon, IngredientAlertBadge, UsageBadge, ExpiryLevelBadge } from './ForecastBadges';
 
 const getDaysUntilDate = (dateStr, todayStr) => {
@@ -378,7 +379,7 @@ const IngredientRestockTab = ({
                           <div className="text-xs text-zinc-400">{item.category}</div>
                           {firstBlocked && (
                             <div className="text-[11px] font-medium text-red-700">
-                              Needs {Number(firstBlocked.needs).toLocaleString()} {item.unit} for {firstBlocked.name}
+                              Needs {formatQty(firstBlocked.needs)} {item.unit} for {firstBlocked.name}
                               {moreBlocked > 0 ? ` +${moreBlocked} more` : ''}
                             </div>
                           )}
@@ -404,11 +405,11 @@ const IngredientRestockTab = ({
                         </td>
 
                         <td className="py-3.5 px-4 text-right font-mono whitespace-nowrap">
-                          <span className="font-semibold text-zinc-900">{usable.toLocaleString()}</span>{' '}
+                          <span className="font-semibold text-zinc-900">{formatQty(usable)}</span>{' '}
                           <span className="text-zinc-500 text-xs">{item.unit}</span>
                           {expired > 0 && (
                             <div className="text-[10px] font-bold text-red-700">
-                              + {expired.toLocaleString()} {item.unit} expired (not counted)
+                              + {formatQty(expired)} {item.unit} expired (not counted)
                             </div>
                           )}
                         </td>
@@ -416,7 +417,7 @@ const IngredientRestockTab = ({
                         <td className="py-3.5 px-4 text-right font-mono whitespace-nowrap text-zinc-700">
                           {usage > 0 ? (
                             <>
-                              <span className="font-medium text-zinc-900">{usage}</span>{' '}
+                              <span className="font-medium text-zinc-900">{formatQty(usage)}</span>{' '}
                               <span className="text-xs text-zinc-400">{item.unit}/day</span>
                             </>
                           ) : (
@@ -426,7 +427,7 @@ const IngredientRestockTab = ({
 
                         <td className="py-3.5 px-4 text-right whitespace-nowrap">
                           <div className="font-mono text-zinc-900">
-                            {item.days_of_cover == null ? '—' : `${item.days_of_cover} days`}
+                            {item.days_of_cover == null ? '—' : `${formatQty(item.days_of_cover)} days`}
                           </div>
                           <IngredientAlertBadge alert={item.alert} daysOfCover={item.days_of_cover} blockedProducts={item.blocked_products} />
                           <div className="mt-1 flex flex-wrap justify-end gap-1">
@@ -438,7 +439,7 @@ const IngredientRestockTab = ({
                         <td className="py-3.5 px-4 text-right font-mono whitespace-nowrap text-zinc-700">
                           {usage > 0 ? (
                             <>
-                              {Number(item.reorder_point).toLocaleString()} <span className="text-xs text-zinc-400">{item.unit}</span>
+                              {formatQty(item.reorder_point)} <span className="text-xs text-zinc-400">{item.unit}</span>
                               <div className="font-sans text-[10px] text-zinc-400">
                                 {item.lead_time_days}d supplier lead time + {item.safety_days}d safety
                               </div>
@@ -450,16 +451,28 @@ const IngredientRestockTab = ({
 
                         <td className="py-3.5 px-4 whitespace-nowrap">
                           {Number(item.suggested_order_qty) > 0 ? (
-                            <span className="font-semibold text-zinc-900">
-                              {Number(item.suggested_order_qty).toLocaleString()} {item.unit}
-                            </span>
+                            (() => {
+                              const buy = suggestedPurchase(item, chosen);
+                              return (
+                                <>
+                                  <div className="font-semibold text-zinc-900">
+                                    {formatQty(buy.qty)} × {buy.unit}
+                                  </div>
+                                  {buy.conversionFactor !== 1 && (
+                                    <div className="text-[11px] text-zinc-500">
+                                      = {formatQty(buy.totalStock)} {item.unit} total
+                                    </div>
+                                  )}
+                                </>
+                              );
+                            })()
                           ) : (
                             <span className="text-xs text-zinc-400">Not needed</span>
                           )}
                           {expiringQty > 0 && (
                             <div className="mt-1">
                               <span className="inline-flex px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-[10px] font-bold text-amber-800">
-                                {expiringQty.toLocaleString()} {item.unit} expires before use
+                                {formatQty(expiringQty)} {item.unit} expires before use
                                 {nearestDays !== null && nearestDays >= 0 ? ` (in ${nearestDays}d)` : ''}
                               </span>
                             </div>

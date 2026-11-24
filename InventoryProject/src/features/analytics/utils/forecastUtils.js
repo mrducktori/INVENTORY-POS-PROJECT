@@ -9,3 +9,23 @@ export const formatCurrency = (val) => {
     maximumFractionDigits: 2,
   })}`;
 };
+
+/** Thousands separators + at most 2 decimals (1131.429 -> 1,131.43). */
+export const formatQty = (val) =>
+  Number(val || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
+
+/**
+ * Suggested order in whole purchase units (you buy 8 bottles, not 7,208 g).
+ * suggested_order_qty is in the stock unit; conversion_factor = stock units per purchase unit.
+ */
+export const suggestedPurchase = (item, sup) => {
+  const conversionFactor = Number(sup?.default_conversion_factor) > 0 ? Number(sup.default_conversion_factor) : 1;
+  const stockQty = Number(item.suggested_order_qty) || 0;
+  const qty = stockQty > 0 ? Math.ceil(stockQty / conversionFactor) : 0;
+  return {
+    qty,
+    conversionFactor,
+    unit: sup?.default_purchase_unit || item.purchase_unit || item.unit,
+    totalStock: qty * conversionFactor,
+  };
+};

@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { CATEGORIES } from '../../../../utils/constants';
 import SearchableIngredientSelect from '../../../../components/shared/SearchableIngredientSelect';
 import ProductOptionsEditor from './ProductOptionsEditor';
+import ConfirmModal from '../../../../components/shared/ConfirmModal';
 
 const ModifyProductModal = ({
   selectedProduct,
@@ -43,6 +44,7 @@ const ModifyProductModal = ({
   const [editRecipeQty, setEditRecipeQty] = useState('');
   const [editRecipeUnit, setEditRecipeUnit] = useState('');
   const [sizeTab, setSizeTab] = useState('');
+  const [confirmCopy, setConfirmCopy] = useState(false);
   const quantityInputRef = useRef(null);
 
   if (!selectedProduct) return null;
@@ -76,8 +78,8 @@ const ModifyProductModal = ({
     if (ok !== false) setEditingRecipeId(null);
   };
   const copyBaseToSize = async () => {
+    setConfirmCopy(false);
     if (!activeSize) return;
-    if (!window.confirm(`Write the current ${activeSize.name} amounts (Base x ${activeMult}) as fixed overrides for all ingredients without one? Later Base changes will no longer scale them.`)) return;
     for (const r of recipe) {
       if (overrideOf(r) === null) await saveSizeValue(r, autoOf(r));
     }
@@ -93,6 +95,16 @@ const ModifyProductModal = ({
       : baseCategories;
 
   return (
+    <>
+    <ConfirmModal
+      isOpen={confirmCopy}
+      title="Copy Base amounts?"
+      message={`Write the current ${activeSize?.name} amounts (Base x ${activeMult}) as fixed overrides for all ingredients without one? Later Base changes will no longer scale them.`}
+      confirmText="Copy"
+      cancelText="Cancel"
+      onConfirm={copyBaseToSize}
+      onCancel={() => setConfirmCopy(false)}
+    />
     <div className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[9999] p-4 flex justify-center items-start pt-6 sm:pt-10 md:pt-14 pb-12 animate-[modalBackdropFadeIn_0.2s_ease-out]" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)] flex flex-col max-h-[calc(100vh-5rem)] md:max-h-[calc(100vh-6rem)]" onClick={e => e.stopPropagation()}>
         <div className="bg-gray-900 text-white px-6 py-4 flex justify-between items-center shrink-0">
@@ -261,7 +273,7 @@ const ModifyProductModal = ({
                     </span>
                     <button
                       type="button"
-                      onClick={copyBaseToSize}
+                      onClick={() => setConfirmCopy(true)}
                       className="px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-100 cursor-pointer shrink-0"
                     >
                       Copy Base amounts to this size
@@ -603,6 +615,7 @@ const ModifyProductModal = ({
         </div>
       </div>
     </div>
+    </>
   );
 };
 

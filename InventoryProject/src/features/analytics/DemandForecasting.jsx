@@ -4,6 +4,8 @@ import {
   ING_PAGE_SIZE,
   PROD_PAGE_SIZE,
 } from './hooks/useDemandForecasting';
+import { suggestedPurchase, formatQty } from './utils/forecastUtils';
+import ConfirmModal from '../../components/shared/ConfirmModal';
 import IngredientRestockTab from './components/IngredientRestockTab';
 import MenuDemandTab from './components/MenuDemandTab';
 import ProductForecastModal from './components/ProductForecastModal';
@@ -27,11 +29,30 @@ const DemandForecasting = () => {
     prodSortField, prodSortDirection, handleProdSort,
     productCategories, filteredProducts, paginatedProducts, productSummary, fetchProductForecasts,
     detailProduct, setDetailProduct,
-    toast, setToast,
+    toast, setToast, poConfirm, setPoConfirm, sendPurchaseOrders,
   } = useDemandForecasting();
 
   return (
     <div className="p-4 md:p-8 max-w-[1600px] mx-auto w-full space-y-6">
+      <ConfirmModal
+        isOpen={!!poConfirm}
+        title={`Create ${poConfirm?.length} purchase order${poConfirm?.length === 1 ? '' : 's'}?`}
+        message={
+          <span className="block text-left text-sm">
+            {poConfirm?.map(({ sup, items }) => (
+              <span key={sup.supplier_id} className="block mb-2">
+                <strong>{sup.supplier_name}:</strong>{' '}
+                {items.map((i) => { const b = suggestedPurchase(i, sup); return `${i.name} (${formatQty(b.qty)} × ${b.unit})`; }).join(', ')}
+              </span>
+            ))}
+          </span>
+        }
+        confirmText="Create"
+        cancelText="Cancel"
+        confirmColor="success"
+        onConfirm={sendPurchaseOrders}
+        onCancel={() => setPoConfirm(null)}
+      />
       {/* Toast Notification */}
       {toast && (
         <div

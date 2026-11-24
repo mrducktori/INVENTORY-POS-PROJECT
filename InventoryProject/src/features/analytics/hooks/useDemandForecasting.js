@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { getForecast, refreshForecast } from '../../../api/analyticsApi';
 import { getReorderPlan } from '../../../api/inventoryApi';
 import { createPurchaseOrder } from '../../../api/purchasingApi';
+import { suggestedPurchase } from '../utils/forecastUtils';
 import { getCurrentUser } from '../../../utils/authUtils';
 
 export const ING_PAGE_SIZE = 15;
@@ -114,6 +115,7 @@ export const useDemandForecasting = () => {
   // Chosen supplier per ingredient id; unset means the first (fastest/cheapest) one.
   const [supplierChoice, setSupplierChoice] = useState({});
   const [submittingPO, setSubmittingPO] = useState(false);
+  const [poConfirm, setPoConfirm] = useState(null); // [{ sup, items }] awaiting confirmation
   const [toast, setToast] = useState(null);
   const toastTimerRef = useRef(null);
 
@@ -336,15 +338,13 @@ export const useDemandForecasting = () => {
   };
 
   const buildPoItem = (item, sup) => {
-    const conversionFactor = Number(sup.default_conversion_factor) > 0 ? Number(sup.default_conversion_factor) : 1;
-    // suggested_order_qty is in the stock unit; the PO is counted in purchase units.
-    const suggestedPurchaseQty = Math.ceil((Number(item.suggested_order_qty) || 0) / conversionFactor);
+    const buy = suggestedPurchase(item, sup);
     return {
       ingredient_id: item.id,
-      quantity: suggestedPurchaseQty > 0 ? suggestedPurchaseQty : 1,
+      quantity: buy.qty > 0 ? buy.qty : 1,
       unit_price: Number(sup.default_price) > 0 ? Number(sup.default_price) : 0,
-      purchase_unit: sup.default_purchase_unit || item.purchase_unit || item.unit,
-      conversion_factor: conversionFactor,
+      purchase_unit: buy.unit,
+      conversion_factor: buy.conversionFactor,
     };
   };
 
@@ -358,18 +358,20 @@ export const useDemandForecasting = () => {
       groups.get(key).items.push(item);
     });
     if (groups.size === 0) return;
+    // POs go straight to the suppliers, so show what will be sent (in a modal) before creating anything.
+    setPoConfirm([...groups.values()]);
+  };
 
-    // POs go straight to the suppliers, so show what will be sent before creating anything.
-    const summary = [...groups.values()]
-      .map(({ sup, items: g }) => `• ${sup.supplier_name}: ${g.map((i) => `${i.name} (${i.suggested_order_qty} ${i.unit})`).join(', ')}`)
-      .join('\n');
-    if (!window.confirm(`Create ${groups.size} purchase order${groups.size === 1 ? '' : 's'}?\n\n${summary}`)) return;
+  const sendPurchaseOrders = async () => {
+    const groups = poConfirm;
+    setPoConfirm(null);
+    if (!groups?.length) return;
 
     setSubmittingPO(true);
     const created = [];
     const failed = [];
     const orderedIds = [];
-    for (const { sup, items: groupItems } of groups.values()) {
+    for (const { sup, items: groupItems } of groups) {
       const label = `${sup.supplier_name} (${groupItems.length} item${groupItems.length === 1 ? '' : 's'})`;
       try {
         await createPurchaseOrder({
@@ -462,6 +464,9 @@ export const useDemandForecasting = () => {
     detailProduct,
     setDetailProduct,
     submittingPO,
+    poConfirm,
+    setPoConfirm,
+    sendPurchaseOrders,
     toast,
     setToast,
   };

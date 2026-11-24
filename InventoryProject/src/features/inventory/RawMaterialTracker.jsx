@@ -9,6 +9,14 @@ import { canStocktake } from '../../utils/permissions';
 import RawMaterialStocktakeSection from './components/RawMaterialStocktakeSection';
 import ExpiryLevelBadge from './components/ExpiryLevelBadge';
 
+const BATCH_SOURCE_LABELS = {
+  PURCHASE_ORDER: 'Purchase order',
+  DIRECT_RECEIVE: 'Received directly',
+  INITIAL_STOCK: 'Opening stock (no prior record)',
+  STOCKTAKE_ADJUSTMENT: 'Stock count adjustment',
+  VOID_RESTOCK: 'Returned from voided sale',
+};
+
 const STATUS_GROUPS = [
   {
     id: 'out',
@@ -433,7 +441,7 @@ const RawMaterialTracker = ({ subTab = null, onSubTabChange = null }) => {
                                                     {b.batch_code}
                                                   </td>
                                                   <td className="px-4 py-2.5 text-zinc-600 font-medium">
-                                                    {b.source || 'BATCH'}
+                                                    {BATCH_SOURCE_LABELS[b.source] || b.source || 'Batch'}
                                                   </td>
                                                   <td className="px-4 py-2.5 text-zinc-600">
                                                     {b.received_at ? String(b.received_at).slice(0, 10) : '—'}
