@@ -355,7 +355,19 @@ router.put('/:id', requirePermission('ManageProducts'), async (req, res) => {
     const { track_stock, image_url, force_update } = req.body;
     const validated = validateProductInput(req.body, { isUpdate: true });
 
-    const conflict = await findProductDuplicateConflict({
+    // Only check for duplicates when the name or category actually changes; an unchanged product must stay editable
+    // even if an archived twin with the same name exists.
+    const { data: current } = await supabase
+      .from('products')
+      .select('name, category')
+      .eq('id', req.params.id)
+      .maybeSingle();
+    const sameKey = (a) => String(a ?? '').trim().replace(/\s+/g, ' ').toUpperCase();
+    const identityUnchanged = current
+      && sameKey(current.name) === sameKey(validated.name)
+      && sameKey(current.category || 'GENERAL') === sameKey(validated.category || 'GENERAL');
+
+    const conflict = identityUnchanged ? null : await findProductDuplicateConflict({
       name: validated.name,
       category: validated.category,
       excludeId: req.params.id,

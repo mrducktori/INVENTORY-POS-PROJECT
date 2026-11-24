@@ -572,7 +572,13 @@ export const useManageProducts = () => {
       return;
     }
 
-    if (!forceUpdate) {
+    // Name and category untouched: nothing to check (an archived twin must not block editing price, sizes, etc.).
+    const sameKey = (v) => String(v ?? '').trim().replace(/\s+/g, ' ').toUpperCase();
+    const identityUnchanged =
+      sameKey(editName) === sameKey(selectedProduct.name) &&
+      sameKey(trimmedCategory || 'GENERAL') === sameKey(selectedProduct.category || 'GENERAL');
+
+    if (!forceUpdate && !identityUnchanged) {
       const similarityMatch = checkDuplicateOrSimilar(editName, products, selectedProduct.id, trimmedCategory);
       if (similarityMatch?.isHardDuplicate) {
         setMessage(`Error: "${similarityMatch.matchName}" already exists under category "${similarityMatch.matchCategory}". Duplicate items in the same category are not allowed.`);
