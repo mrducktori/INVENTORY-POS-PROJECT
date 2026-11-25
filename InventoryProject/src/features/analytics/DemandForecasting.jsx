@@ -45,6 +45,15 @@ const DemandForecasting = () => {
                 {items.map((i) => { const b = suggestedPurchase(i, sup); return `${i.name} (${formatQty(b.qty)} × ${b.unit})`; }).join(', ')}
               </span>
             ))}
+            {poConfirm?.some(({ items }) => items.some((i) => i.open_po_count > 0)) && (
+              <span className="block mt-2 p-2 rounded bg-amber-50 border border-amber-200 text-amber-900">
+                <strong>Already on order:</strong>{' '}
+                {poConfirm.flatMap(({ items }) => items.filter((i) => i.open_po_count > 0))
+                  .map((i) => `${i.name} (${formatQty(i.on_order_qty)} ${i.unit} in ${i.open_po_count} open PO${i.open_po_count === 1 ? '' : 's'})`)
+                  .join(', ')}
+                . Creating this PO will order more on top.
+              </span>
+            )}
           </span>
         }
         confirmText="Create"

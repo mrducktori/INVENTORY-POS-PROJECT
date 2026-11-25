@@ -417,15 +417,41 @@ const recipeUsagePerUnit = (recipeRows) => {
 };
 
 export const getIngredientReorderPlan = async () => {
-  const [overview, ingRes, recipeRes, supplierRes, catRes, posSettings] = await Promise.all([
+  const [overview, ingRes, recipeRes, supplierRes, catRes, posSettings, openPoRes] = await Promise.all([
     getForecastOverview({ horizon: 14 }), // same cache entry as the forecast page; next7 is its first 7 days
     supabase.from("ingredients").select("*").neq("is_archived", true),
     supabase.from("recipes").select("product_id, quantity_used, recipe_unit, size_name, ingredients(id, unit), products(name, is_archived)"),
     supabase.from("supplier_ingredients").select("ingredient_id, supplier_id, default_price, default_purchase_unit, default_conversion_factor, suppliers(id, name, description, lead_time_days)"),
     supabase.from("category_settings").select("sizes, add_ons"),
-    getPosSettings().catch(() => null)
+    getPosSettings().catch(() => null),
+    // Fail-soft: low-stock alerts share this plan, so a failed PO lookup must not break them.
+    supabase
+      .from("purchase_order_items")
+      .select("ingredient_id, quantity, quantity_received, conversion_factor, purchase_orders!inner(id, status, expected_date, suppliers(name))")
+      .not("purchase_orders.status", "in", "(Received,Cancelled,Declined,DECLINED)")
+      .then((r) => r, () => ({ error: true }))
   ]);
   for (const r of [ingRes, recipeRes, supplierRes, catRes]) if (r.error) throw r.error;
+
+  // Stock-unit quantity still on its way per ingredient, from POs not yet received/cancelled/declined.
+  const todayManila = getManilaDateOnly();
+  const onOrder = new Map(); // ingredient_id -> [{ id, supplier, remaining_qty, expected_date, status, overdue }]
+  if (openPoRes.error) console.warn("[reorder-plan] open PO lookup failed, ignoring on-order qty:", openPoRes.error.message || openPoRes.error);
+  for (const line of openPoRes.error ? [] : openPoRes.data || []) {
+    const po = line.purchase_orders;
+    const remaining = Math.max(0, (Number(line.quantity) || 0) - (Number(line.quantity_received) || 0)) * (Number(line.conversion_factor) || 1);
+    if (!po || !(remaining > 0)) continue;
+    const expected = po.expected_date ? String(po.expected_date).slice(0, 10) : null;
+    if (!onOrder.has(line.ingredient_id)) onOrder.set(line.ingredient_id, []);
+    onOrder.get(line.ingredient_id).push({
+      id: po.id,
+      supplier: po.suppliers?.name || null,
+      remaining_qty: Math.round(remaining * 1000) / 1000,
+      expected_date: expected,
+      status: po.status,
+      overdue: !!expected && expected < todayManila
+    });
+  }
 
   // Ingredients can also be used outside recipes: cup-size packaging, add-ons and take-out packaging.
   // Their ids live inside JSON settings, so a text search is the simplest reliable check.
@@ -503,6 +529,10 @@ export const getIngredientReorderPlan = async () => {
     let suggestedOrder = usage > 0 ? Math.max(0, Math.ceil(usage * (lead + SAFETY_DAYS + coverDays) - effectiveStock)) : 0;
     // A delivered lot is fresh on arrival and must be used within shelf life, so never order more than that.
     if (shelfDays) suggestedOrder = Math.min(suggestedOrder, Math.floor(usage * shelfDays));
+    // Stock already ordered and not yet received counts as cover. Overdue POs still count but are flagged.
+    const openPos = onOrder.get(ing.id) || [];
+    const onOrderQty = Math.round(openPos.reduce((s, p) => s + p.remaining_qty, 0) * 1000) / 1000;
+    suggestedOrder = Math.max(0, suggestedOrder - Math.ceil(onOrderQty));
     // Items with no recipe usage (e.g. new or unused) keep the manual threshold.
     const manualThreshold = Number(ing.low_stock_alert) || 0;
 
@@ -529,6 +559,9 @@ export const getIngredientReorderPlan = async () => {
       reorder_point: reorderPoint,
       days_of_cover: daysOfCover,
       suggested_order_qty: suggestedOrder,
+      on_order_qty: onOrderQty,
+      open_po_count: openPos.length,
+      open_pos: openPos,
       expiring_before_use_qty: expiringBeforeUse,
       expiry_risk: expiringBeforeUse > 0 || Number(ing.expired_stock) > 0,
       usage_status: usageStatus,

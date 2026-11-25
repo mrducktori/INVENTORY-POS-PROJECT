@@ -471,6 +471,21 @@ const IngredientRestockTab = ({
                           ) : (
                             <span className="text-xs text-zinc-400">Not needed</span>
                           )}
+                          {item.open_po_count > 0 && (
+                            <div className="mt-1">
+                              <span
+                                title={item.open_pos.map((p) => `${p.supplier || 'Supplier'}: ${formatQty(p.remaining_qty)} ${item.unit} (${p.status}${p.expected_date ? `, ETA ${p.expected_date}` : ''}${p.overdue ? ', overdue' : ''})`).join('\n')}
+                                className={`inline-flex px-1.5 py-0.5 rounded border text-[10px] font-bold ${
+                                  item.open_pos.some((p) => p.overdue)
+                                    ? 'bg-red-50 border-red-200 text-red-700'
+                                    : 'bg-sky-50 border-sky-200 text-sky-800'
+                                }`}
+                              >
+                                On order: {formatQty(item.on_order_qty)} {item.unit} ({item.open_po_count} PO{item.open_po_count === 1 ? '' : 's'}
+                                {item.open_pos.some((p) => p.overdue) ? ', overdue' : ''})
+                              </span>
+                            </div>
+                          )}
                           {expiringQty > 0 && (
                             <div className="mt-1">
                               <span className="inline-flex px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-[10px] font-bold text-amber-800">
