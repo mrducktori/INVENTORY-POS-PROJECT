@@ -497,8 +497,12 @@ export const getIngredientReorderPlan = async () => {
     // delivery time.
     const shelfDays = ing.is_perishable && ing.default_shelf_life_days ? Number(ing.default_shelf_life_days) : null;
     const coverDays = shelfDays ? Math.min(ORDER_COVER_DAYS, Math.max(0, shelfDays - lead - SAFETY_DAYS)) : ORDER_COVER_DAYS;
-    const suggestedOrder = usage > 0 ? Math.max(0, Math.ceil(usage * (lead + SAFETY_DAYS + coverDays) - usable)) : 0;
     const expiringBeforeUse = usage > 0 ? quantityAtRiskOfExpiry(ing.batches || [], usage) : Number(ing.expiring_soon_stock) || 0;
+    // Stock that will expire before use is not real cover, so it is not subtracted from the order.
+    const effectiveStock = Math.max(0, usable - expiringBeforeUse);
+    let suggestedOrder = usage > 0 ? Math.max(0, Math.ceil(usage * (lead + SAFETY_DAYS + coverDays) - effectiveStock)) : 0;
+    // A delivered lot is fresh on arrival and must be used within shelf life, so never order more than that.
+    if (shelfDays) suggestedOrder = Math.min(suggestedOrder, Math.floor(usage * shelfDays));
     // Items with no recipe usage (e.g. new or unused) keep the manual threshold.
     const manualThreshold = Number(ing.low_stock_alert) || 0;
 
