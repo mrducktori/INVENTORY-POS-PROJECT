@@ -1,8 +1,12 @@
-import React from "react";
+import React, { useRef } from "react";
 import { createPortal } from "react-dom";
+import { useFocusTrap } from "../../../components/shared/useFocusTrap";
 import { formatQuantity } from "../../../utils/productUtils";
 
 const ProductInfoModal = ({ product, stockSummary, loading, onClose, onAddToOrder }) => {
+  const dialogRef = useRef(null);
+  useFocusTrap(dialogRef, Boolean(product), onClose);
+
   if (!product) return null;
 
   const summary = stockSummary || {
@@ -40,11 +44,15 @@ const ProductInfoModal = ({ product, stockSummary, loading, onClose, onAddToOrde
       }}
     >
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="product-info-title"
         className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[calc(100vh-3rem)] animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="bg-gray-900 text-white px-6 py-4 flex justify-between items-center shrink-0">
-          <h3 className="m-0 text-lg md:text-xl font-bold tracking-wide truncate pr-4">
+          <h3 id="product-info-title" className="m-0 text-lg md:text-xl font-bold tracking-wide truncate pr-4">
             Ingredients: {product.name}
           </h3>
           <button
@@ -53,7 +61,7 @@ const ProductInfoModal = ({ product, stockSummary, loading, onClose, onAddToOrde
             onClick={onClose}
             aria-label="Close"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>

@@ -1,7 +1,7 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.jsx'
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import './index.css';
+import App from './App.jsx';
 
 // Auto-recover from stale chunks / MIME type mismatch after a new build / deployment
 window.addEventListener('vite:preloadError', (event) => {
@@ -28,30 +28,8 @@ window.addEventListener('error', (event) => {
   }
 });
 
-// Global button double-click preventer (500ms cooldown)
-document.addEventListener('click', (e) => {
-  const btn = e.target.closest('button');
-  if (btn) {
-    if (btn.hasAttribute('data-cooldown')) {
-      e.preventDefault();
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-      return false;
-    }
-    btn.setAttribute('data-cooldown', 'true');
-    btn.style.opacity = '0.8';
-    
-    setTimeout(() => {
-      btn.removeAttribute('data-cooldown');
-      btn.style.opacity = '';
-    }, 500);
-  }
-}, true); // Capture phase so the click is intercepted before React handles it.
-
-
-
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <App />
-  </StrictMode>,
-)
+  </StrictMode>
+);

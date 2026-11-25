@@ -1,17 +1,32 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
+import { useFocusTrap } from "../../../components/shared/useFocusTrap";
 import {
   MAX_LINE_QTY,
   MAX_ADDON_QTY,
-  resolveRecipeQuantityForSize,
-  isSweetenerIngredient,
-  getSugarScaleFactor
+  resolveRecipeQuantityForSize
 } from "../utils/posStockUtils";
 
-const DEFAULT_SIZES = ["12 oz", "16 oz", "22 oz"];
-const DEFAULT_ADDONS = ["Pearl", "Nata", "Jelly", "Pudding", "Extra Sugar", "Extra Ice"];
-const SUGAR_LEVELS = ["0%", "25%", "50%", "75%", "100%"];
+const DEFAULT_SIZES = ["16 oz", "22 oz"];
+const DEFAULT_ADDONS = ["Pearl", "Nata", "Jelly", "Pudding", "Whipped Cream", "Extra Espresso"];
 const ICE_LEVELS = ["No Ice", "Less Ice", "Normal Ice", "Extra Ice"];
+
+const getSizeScaledQty = (recipeRow, cupSize, selectedSizeObj, allSizes = []) => {
+  const resolved = resolveRecipeQuantityForSize(recipeRow, cupSize, selectedSizeObj);
+  if (!/^22\s*oz$/i.test(String(cupSize || "").trim())) {
+    return resolved;
+  }
+
+  // If the DB/util already scaled 22 oz differently from 16 oz, use that exact value
+  const base16Obj = allSizes.find((s) => /^16\s*oz$/i.test(String(s?.name || "").trim())) || null;
+  const base16Qty = resolveRecipeQuantityForSize(recipeRow, "16 oz", base16Obj);
+  if (Math.abs(resolved - base16Qty) > 0.0001) {
+    return resolved;
+  }
+
+  // Otherwise apply the 22oz / 16oz (1.375x) cup ratio fallback
+  return base16Qty * (22 / 16);
+};
 
 const ProductOptionsModal = ({
   selectedProduct,
@@ -28,6 +43,41 @@ const ProductOptionsModal = ({
 }) => {
   const [limitHint, setLimitHint] = useState("");
   const [qtyInput, setQtyInput] = useState(null);
+  const dialogRef = useRef(null);
+
+  useFocusTrap(dialogRef, Boolean(selectedProduct), onClose);
+
+  const sizesList = useMemo(() => {
+    const raw =
+      selectedProduct?.sizes?.length > 0
+        ? selectedProduct.sizes.map((s) => s.name)
+        : DEFAULT_SIZES;
+    const filtered = raw.filter((s) => !/^12\s*oz$/i.test(String(s || "").trim()));
+    return filtered.length > 0 ? filtered : DEFAULT_SIZES;
+  }, [selectedProduct]);
+
+  const categoryAndName = `${selectedProduct?.category || ""} ${selectedProduct?.name || ""}`;
+  const isFrappe = /FRAPPE/i.test(categoryAndName);
+  const showIceModifier = !isFrappe;
+
+  // Auto-correct cupSize if parent state defaulted to 12 oz, and strip sugar_level
+  useEffect(() => {
+    if (!selectedProduct) return;
+    setProductOptions((p) => {
+      const needsSizeFix = optionsAvailability?.hasSizes && !sizesList.includes(p.cupSize);
+      const hasSugar = Boolean(p.modifiers?.sugar_level);
+      if (!needsSizeFix && !hasSugar) return p;
+
+      const nextModifiers = { ...(p.modifiers || {}) };
+      delete nextModifiers.sugar_level;
+
+      return {
+        ...p,
+        ...(needsSizeFix ? { cupSize: sizesList[0] } : {}),
+        modifiers: nextModifiers
+      };
+    });
+  }, [selectedProduct, optionsAvailability?.hasSizes, sizesList, setProductOptions]);
 
   if (!selectedProduct) return null;
 
@@ -35,11 +85,6 @@ const ProductOptionsModal = ({
   const stockMax = optionsStock?.stockMax ?? MAX_LINE_QTY;
   const sizeAvailability = optionsStock?.sizeAvailability || [];
   const addonMaxMap = optionsStock?.addonMaxMap || {};
-
-  const sizesList =
-    selectedProduct.sizes?.length > 0
-      ? selectedProduct.sizes.map((s) => s.name)
-      : DEFAULT_SIZES;
 
   const addonsToList =
     selectedProduct.add_ons?.length > 0
@@ -98,8 +143,7 @@ const ProductOptionsModal = ({
         const sz = selectedProduct.sizes.find((s) => s.name === productOptions.cupSize);
         if (sz) price += parseFloat(sz.price_add || 0);
       } else {
-        if (productOptions.cupSize === "16 oz") price += 10;
-        if (productOptions.cupSize === "22 oz") price += 20;
+        if (productOptions.cupSize === "22 oz") price += 10;
       }
     }
     if (optionsAvailability.hasAddOns) {
@@ -119,13 +163,20 @@ const ProductOptionsModal = ({
   return createPortal(
     <div
       className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[99990] p-4 flex justify-center items-center animate-[modalBackdropFadeIn_0.2s_ease-out]"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="product-options-title"
         className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[calc(100vh-3rem)] animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="bg-gray-900 text-white px-6 py-4 flex justify-between items-center">
-          <h3 className="m-0 text-lg md:text-xl font-bold tracking-wide">
+          <h3 id="product-options-title" className="m-0 text-lg md:text-xl font-bold tracking-wide">
             {editingCartItemId ? "Edit:" : "Customize:"} {selectedProduct.name}
           </h3>
           <button
@@ -134,7 +185,7 @@ const ProductOptionsModal = ({
             onClick={onClose}
             aria-label="Close"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -143,7 +194,7 @@ const ProductOptionsModal = ({
         <div className="p-6 overflow-y-auto max-h-[65vh] scrollbar-thin scrollbar-thumb-gray-200">
           <div className="mb-6">
             <div className="flex justify-between items-center mb-2">
-              <label className="block text-sm font-semibold text-gray-800">Quantity</label>
+              <label htmlFor="pos-item-qty" className="block text-sm font-semibold text-gray-800">Quantity</label>
               <span
                 className={`text-xs font-medium tabular-nums ${
                   maxLineQty <= 0 ? "text-red-600" : "text-gray-500"
@@ -155,6 +206,7 @@ const ProductOptionsModal = ({
             <div className="flex items-center gap-1 border-2 border-gray-300 rounded-xl overflow-hidden w-40">
               <button
                 type="button"
+                aria-label="Decrease quantity"
                 className="flex-1 px-3 py-2 bg-gray-50 hover:bg-gray-100 text-gray-800 font-bold text-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer border-none"
                 onClick={() => {
                   setQtyInput(null);
@@ -166,6 +218,7 @@ const ProductOptionsModal = ({
                 −
               </button>
               <input
+                id="pos-item-qty"
                 type="number"
                 min="1"
                 max={Math.max(1, maxLineQty)}
@@ -177,6 +230,7 @@ const ProductOptionsModal = ({
               />
               <button
                 type="button"
+                aria-label="Increase quantity"
                 className="flex-1 px-3 py-2 bg-gray-50 hover:bg-gray-100 text-gray-800 font-bold text-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer border-none"
                 onClick={() => {
                   setQtyInput(null);
@@ -192,7 +246,7 @@ const ProductOptionsModal = ({
               </button>
             </div>
             {(limitHint || maxLineQty === 0) && (
-              <p className="mt-1.5 mb-0 text-xs font-semibold text-red-600">
+              <p role="alert" className="mt-1.5 mb-0 text-xs font-semibold text-red-600">
                 {maxLineQty === 0
                   ? `No available stock remaining${optionsStock?.limitingName ? ` (limited by ${optionsStock.limitingName})` : ""}.`
                   : limitHint}
@@ -207,7 +261,9 @@ const ProductOptionsModal = ({
                 {sizesList.map((size) => {
                   const sizeInfo = sizeAvailability.find((s) => s.name === size);
                   const hasCupLimit = Boolean(sizeInfo?.ingredientId);
-                  const isSizeOut = (hasCupLimit && (sizeInfo?.cupRemaining ?? 0) <= 0) || (sizeInfo?.maxForSizeRemaining ?? 1) <= 0;
+                  const isSizeOut =
+                    (hasCupLimit && (sizeInfo?.cupRemaining ?? 0) <= 0) ||
+                    (sizeInfo?.maxForSizeRemaining ?? 1) <= 0;
                   const isSelected = productOptions.cupSize === size;
 
                   return (
@@ -238,11 +294,13 @@ const ProductOptionsModal = ({
                 const usageEntries = productRecipes
                   .map((r) => {
                     const ing = ingredientsMap[r.ingredient_id];
-                    const baseResolved = resolveRecipeQuantityForSize(r, productOptions.cupSize, selectedSizeObj);
-                    const scaled = isSweetenerIngredient(ing)
-                      ? baseResolved * getSugarScaleFactor(productOptions.modifiers)
-                      : baseResolved;
-                    const rounded = Math.round(scaled * 1000) / 1000;
+                    const scaled = getSizeScaledQty(
+                      r,
+                      productOptions.cupSize,
+                      selectedSizeObj,
+                      selectedProduct.sizes || []
+                    );
+                    const rounded = Math.round(scaled * 100) / 100;
                     if (rounded <= 0) return null;
                     const unit = (r.recipe_unit || ing?.unit || "").toUpperCase();
                     return `${ing?.name || "Ingredient"} ${rounded}${unit ? ` ${unit}` : ""}`;
@@ -252,70 +310,40 @@ const ProductOptionsModal = ({
                 return (
                   <div className="mt-2.5 px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-[11px] font-medium text-zinc-600">
                     <span className="font-bold text-zinc-800">Recipe ({productOptions.cupSize}): </span>
-                    {usageEntries.slice(0, 4).join(" • ")}
-                    {usageEntries.length > 4 ? ` • +${usageEntries.length - 4} more` : ""}
+                    {usageEntries.slice(0, 6).join(" • ")}
+                    {usageEntries.length > 6 ? ` • +${usageEntries.length - 6} more` : ""}
                   </div>
                 );
               })()}
             </div>
           )}
 
-          {(optionsAvailability.hasSizes || optionsAvailability.hasAddOns) && (
-            <div className="mb-6 space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-800 mb-2">Sugar Level</label>
-                <div className="flex gap-2 flex-wrap">
-                  {SUGAR_LEVELS.map((level) => {
-                    const active = (productOptions.modifiers?.sugar_level || "100%") === level;
-                    return (
-                      <button
-                        key={level}
-                        type="button"
-                        onClick={() =>
-                          setProductOptions((p) => ({
-                            ...p,
-                            modifiers: { ...(p.modifiers || {}), sugar_level: level }
-                          }))
-                        }
-                        className={`px-3.5 py-1.5 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
-                          active
-                            ? "bg-gray-900 text-white border-gray-900 shadow-xs"
-                            : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
-                        }`}
-                      >
-                        {level}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-800 mb-2">Ice Level</label>
-                <div className="flex gap-2 flex-wrap">
-                  {ICE_LEVELS.map((level) => {
-                    const active = (productOptions.modifiers?.ice_level || "Normal Ice") === level;
-                    return (
-                      <button
-                        key={level}
-                        type="button"
-                        onClick={() =>
-                          setProductOptions((p) => ({
-                            ...p,
-                            modifiers: { ...(p.modifiers || {}), ice_level: level }
-                          }))
-                        }
-                        className={`px-3.5 py-1.5 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
-                          active
-                            ? "bg-gray-900 text-white border-gray-900 shadow-xs"
-                            : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
-                        }`}
-                      >
-                        {level}
-                      </button>
-                    );
-                  })}
-                </div>
+          {(optionsAvailability.hasSizes || optionsAvailability.hasAddOns) && showIceModifier && (
+            <div className="mb-6">
+              <label className="block text-sm font-semibold text-gray-800 mb-2">Ice Level</label>
+              <div className="flex gap-2 flex-wrap">
+                {ICE_LEVELS.map((level) => {
+                  const active = (productOptions.modifiers?.ice_level || "Normal Ice") === level;
+                  return (
+                    <button
+                      key={level}
+                      type="button"
+                      onClick={() =>
+                        setProductOptions((p) => ({
+                          ...p,
+                          modifiers: { ...(p.modifiers || {}), ice_level: level }
+                        }))
+                      }
+                      className={`px-3.5 py-1.5 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
+                        active
+                          ? "bg-gray-900 text-white border-gray-900 shadow-xs"
+                          : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+                      }`}
+                    >
+                      {level}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -354,6 +382,7 @@ const ProductOptionsModal = ({
                       <div className="flex items-center justify-between mt-auto">
                         <button
                           type="button"
+                          aria-label={`Decrease ${addon}`}
                           className="w-8 h-8 rounded-full bg-white border border-gray-300 flex items-center justify-center font-bold text-gray-700 hover:bg-gray-100 transition-colors text-base disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                           onClick={() => onUpdateAddOnQty(addon, currentQty - 1)}
                           disabled={currentQty <= 0}
@@ -365,6 +394,7 @@ const ProductOptionsModal = ({
                         </span>
                         <button
                           type="button"
+                          aria-label={`Increase ${addon}`}
                           className="w-8 h-8 rounded-full bg-white border border-gray-300 flex items-center justify-center font-bold text-gray-700 hover:bg-gray-100 transition-colors text-base disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                           onClick={() => onUpdateAddOnQty(addon, currentQty + 1)}
                           disabled={currentQty >= maxAo}
