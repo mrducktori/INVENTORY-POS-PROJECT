@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { createPaymentIntent, getPosSettings } from '../../../api/posApi';
 import { round2 } from '../../../utils/money';
+import { useFocusTrap } from '../../../components/shared/useFocusTrap';
 
 const DEFAULT_DISCOUNT_TYPES = [
   { id: 'SENIOR', label: 'Senior Citizen', rate_percent: 20, requires_id: true, vat_exempt: true, active: true },
@@ -131,6 +132,11 @@ const PaymentModal = ({ order, posSettings = null, onConfirm, onClose }) => {
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  const dialogRef = useRef(null);
+  useFocusTrap(dialogRef, Boolean(order), () => {
+    if (!submitting && onClose) onClose();
+  });
 
   const subtotal = round2(parseFloat(order?.total) || 0);
   const isQrProvider = method === 'GCASH' || method === 'MAYA' || method === 'QRPH';
@@ -412,13 +418,18 @@ const PaymentModal = ({ order, posSettings = null, onConfirm, onClose }) => {
 
   return createPortal(
     <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[99990] p-4 flex justify-center items-center animate-[modalBackdropFadeIn_0.2s_ease-out]"    >
+      className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[99990] p-4 flex justify-center items-center animate-[modalBackdropFadeIn_0.2s_ease-out]"
+    >
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="payment-modal-title"
         className="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[calc(100vh-3rem)] animate-[modalPopIn_0.25s_cubic-bezier(0.16,1,0.3,1)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="bg-gray-900 text-white px-6 py-4 flex justify-between items-center shrink-0">
-          <h2 className="m-0 text-xl font-bold tracking-wide">Complete Payment</h2>
+          <h2 id="payment-modal-title" className="m-0 text-xl font-bold tracking-wide">Complete Payment</h2>
           <button
             type="button"
             className="text-gray-400 hover:text-white transition-colors bg-transparent border-none text-2xl leading-none cursor-pointer p-0"
@@ -426,7 +437,7 @@ const PaymentModal = ({ order, posSettings = null, onConfirm, onClose }) => {
             disabled={submitting}
             aria-label="Close"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -435,7 +446,7 @@ const PaymentModal = ({ order, posSettings = null, onConfirm, onClose }) => {
         <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden min-h-0 flex-1">
           <div className="p-6 overflow-y-auto space-y-5 flex-1">
             {error && (
-              <div className="p-3 bg-red-50 text-red-800 border border-red-200 rounded-lg text-sm font-bold shadow-sm">
+              <div role="alert" aria-live="assertive" className="p-3 bg-red-50 text-red-800 border border-red-200 rounded-lg text-sm font-bold shadow-sm">
                 {error}
               </div>
             )}
@@ -761,7 +772,7 @@ const PaymentModal = ({ order, posSettings = null, onConfirm, onClose }) => {
                   {qrIntent && (
                     <div className="p-3 bg-white border border-zinc-200 rounded-lg flex items-center gap-3">
                       <div className="w-14 h-14 bg-zinc-900 text-white rounded-lg flex items-center justify-center shrink-0">
-                        <svg className="w-9 h-9" fill="none" stroke="currentColor" strokeWidth={1.6} viewBox="0 0 24 24">
+                        <svg className="w-9 h-9" fill="none" stroke="currentColor" strokeWidth={1.6} viewBox="0 0 24 24" aria-hidden="true">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" />
                           <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 14.25h3.75v3.75H13.5v-3.75zm3.75 3.75h3v2.25h-3V18zm-3.75 0v2.25h1.5V18h-1.5zm5.25-3.75H20.25v2.25h-1.5v-2.25z" />
                         </svg>

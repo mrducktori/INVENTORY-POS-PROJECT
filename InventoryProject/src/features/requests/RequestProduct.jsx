@@ -4,9 +4,9 @@ import { getCurrentUser } from '../../api/authApi';
 import { getProducts } from '../../api/posApi';
 import { getIngredients } from '../../api/inventoryApi';
 import { getRecipesByProduct } from '../../api/recipesApi';
+import { INPUT_LIMITS, validateAmountInput } from '../../utils/validationUtils';
 import SearchableIngredientSelect from '../../components/shared/SearchableIngredientSelect';
 import Pagination from '../../components/shared/Pagination';
-
 
 const RequestProduct = () => {
   const getInitialTab = () => {
@@ -21,7 +21,7 @@ const RequestProduct = () => {
     return 'SUBMIT';
   };
 
-  const [activeTab, setActiveTab] = useState(getInitialTab); // 'SUBMIT' | 'HISTORY'
+  const [activeTab, setActiveTab] = useState(getInitialTab);
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
@@ -41,22 +41,23 @@ const RequestProduct = () => {
       }
     } catch { /* ignore storage/history errors */ }
   }, [activeTab]);
+
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-  
+
   const [products, setProducts] = useState([]);
   const [ingredients, setIngredients] = useState([]);
 
   const [type, setType] = useState('NEW_PRODUCT');
   const [priority, setPriority] = useState('NORMAL');
   const [description, setDescription] = useState('');
-  
+
   const [newProduct, setNewProduct] = useState({ name: '', category: '', price: '' });
   const [selectedProductId, setSelectedProductId] = useState('');
   const [newPrice, setNewPrice] = useState('');
-  const [proposedRecipe, setProposedRecipe] = useState([]); // List of { ingredient_id, name, qty, unit }
+  const [proposedRecipe, setProposedRecipe] = useState([]);
   const [newRecipeItem, setNewRecipeItem] = useState({ ingredient_id: '', quantity: '' });
-  
+
   const [history, setHistory] = useState([]);
   const [historyPage, setHistoryPage] = useState(1);
   const [historyItemsPerPage, setHistoryItemsPerPage] = useState(10);
@@ -106,12 +107,12 @@ const RequestProduct = () => {
   const handleProductSelect = async (productId) => {
     setSelectedProductId(productId);
     if (type === 'PRICE_CHANGE') {
-      const prod = products.find(p => p.id === productId);
+      const prod = products.find((p) => p.id === productId);
       setNewPrice(prod?.price || '');
     } else if (type === 'RECIPE_CHANGE') {
       try {
         const data = await getRecipesByProduct(productId);
-        const mapped = (data || []).map(r => ({
+        const mapped = (data || []).map((r) => ({
           ingredient_id: r.ingredient_id,
           name: r.ingredients?.name,
           qty: r.quantity_used,
@@ -125,46 +126,101 @@ const RequestProduct = () => {
   };
 
   const addIngredientToProposed = () => {
-    if (!newRecipeItem.ingredient_id || !newRecipeItem.quantity) return;
-    const ing = ingredients.find(i => i.id === newRecipeItem.ingredient_id);
+    setMessage('');
+    if (!newRecipeItem.ingredient_id) {
+      setMessage('Error: Please select an ingredient to add.');
+      return;
+    }
+    const qtyCheck = validateAmountInput(newRecipeItem.quantity, {
+      label: 'Ingredient quantity',
+      min: INPUT_LIMITS.RECIPE_QTY_MIN,
+      max: INPUT_LIMITS.RECIPE_QTY_MAX
+    });
+    if (!qtyCheck.valid) {
+      setMessage('Error: ' + qtyCheck.error);
+      return;
+    }
+
+    const ing = ingredients.find((i) => i.id === newRecipeItem.ingredient_id);
     if (!ing) return;
 
-    setProposedRecipe([...proposedRecipe, {
-      ingredient_id: ing.id,
-      name: ing.name,
-      qty: parseFloat(newRecipeItem.quantity),
-      unit: ing.unit
-    }]);
+    setProposedRecipe([
+      ...proposedRecipe,
+      {
+        ingredient_id: ing.id,
+        name: ing.name,
+        qty: qtyCheck.numericValue,
+        unit: ing.unit
+      }
+    ]);
     setNewRecipeItem({ ingredient_id: '', quantity: '' });
   };
 
   const removeIngredientFromProposed = (id) => {
-    setProposedRecipe(proposedRecipe.filter(item => item.ingredient_id !== id));
+    setProposedRecipe(proposedRecipe.filter((item) => item.ingredient_id !== id));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+    setMessage('');
+
     const payload = {
       type,
       requested_by: user.id,
       details: {
-        description,
+        description: description.trim(),
         priority,
         requestedDate: new Date().toISOString(),
       }
     };
 
     if (type === 'NEW_PRODUCT') {
-      payload.details.new_product = { ...newProduct, price: parseFloat(newProduct.price) };
+      const priceCheck = validateAmountInput(newProduct.price, {
+        label: 'Suggested price',
+        min: INPUT_LIMITS.PRODUCT_PRICE_MIN,
+        max: INPUT_LIMITS.PRODUCT_PRICE_MAX
+      });
+      if (!priceCheck.valid) {
+        setMessage('Error: ' + priceCheck.error);
+        return;
+      }
+      payload.details.new_product = {
+        name: newProduct.name.trim(),
+        category: newProduct.category.trim(),
+        price: priceCheck.numericValue
+      };
     } else if (type === 'PRICE_CHANGE') {
-      const prod = products.find(p => p.id === selectedProductId);
+      const priceCheck = validateAmountInput(newPrice, {
+        label: 'Proposed price',
+        min: INPUT_LIMITS.PRODUCT_PRICE_MIN,
+        max: INPUT_LIMITS.PRODUCT_PRICE_MAX
+      });
+      if (!priceCheck.valid) {
+        setMessage('Error: ' + priceCheck.error);
+        return;
+      }
+      const prod = products.find((p) => p.id === selectedProductId);
       payload.details.product_id = selectedProductId;
       payload.details.product_name = prod?.name;
       payload.details.old_price = prod?.price;
-      payload.details.proposed_price = parseFloat(newPrice);
+      payload.details.proposed_price = priceCheck.numericValue;
     } else if (type === 'RECIPE_CHANGE') {
-      const prod = products.find(p => p.id === selectedProductId);
+      if (proposedRecipe.length === 0) {
+        setMessage('Error: Proposed recipe must include at least one ingredient.');
+        return;
+      }
+      for (const item of proposedRecipe) {
+        const qtyCheck = validateAmountInput(item.qty, {
+          label: `Quantity for ${item.name}`,
+          min: INPUT_LIMITS.RECIPE_QTY_MIN,
+          max: INPUT_LIMITS.RECIPE_QTY_MAX
+        });
+        if (!qtyCheck.valid) {
+          setMessage('Error: ' + qtyCheck.error);
+          return;
+        }
+      }
+      const prod = products.find((p) => p.id === selectedProductId);
       payload.details.product_id = selectedProductId;
       payload.details.product_name = prod?.name;
       payload.details.proposed_recipe = proposedRecipe;
@@ -190,6 +246,7 @@ const RequestProduct = () => {
     setSelectedProductId('');
     setNewPrice('');
     setProposedRecipe([]);
+    setNewRecipeItem({ ingredient_id: '', quantity: '' });
     setPriority('NORMAL');
   };
 
@@ -201,16 +258,18 @@ const RequestProduct = () => {
           <p className="m-0 mt-1 text-sm text-gray-500 font-medium">Submit structured requests for product additions or modifications.</p>
         </div>
         <div className="flex bg-gray-200 p-1 rounded-xl shadow-inner">
-          <button 
-            className={`px-6 py-2.5 rounded-lg text-sm font-bold uppercase tracking-wider transition-all ${
+          <button
+            type="button"
+            className={`px-6 py-2.5 rounded-lg text-sm font-bold uppercase tracking-wider transition-all cursor-pointer ${
               activeTab === 'SUBMIT' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
             }`}
             onClick={() => handleTabChange('SUBMIT')}
           >
             New Request
           </button>
-          <button 
-            className={`px-6 py-2.5 rounded-lg text-sm font-bold uppercase tracking-wider transition-all ${
+          <button
+            type="button"
+            className={`px-6 py-2.5 rounded-lg text-sm font-bold uppercase tracking-wider transition-all cursor-pointer ${
               activeTab === 'HISTORY' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
             }`}
             onClick={() => handleTabChange('HISTORY')}
@@ -221,11 +280,14 @@ const RequestProduct = () => {
       </div>
 
       {message && (
-        <div className={`p-4 mb-6 rounded-xl text-sm font-bold flex items-center shadow-sm border ${
-          message.includes('success') 
-            ? 'bg-green-50 text-green-800 border-green-200' 
-            : 'bg-red-50 text-red-800 border-red-200'
-        }`}>
+        <div
+          role={message.includes('success') ? 'status' : 'alert'}
+          className={`p-4 mb-6 rounded-xl text-sm font-bold flex items-center shadow-sm border ${
+            message.includes('success')
+              ? 'bg-green-50 text-green-800 border-green-200'
+              : 'bg-red-50 text-red-800 border-red-200'
+          }`}
+        >
           {message}
         </div>
       )}
@@ -239,11 +301,12 @@ const RequestProduct = () => {
             <form onSubmit={handleSubmit} className="flex flex-col gap-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-gray-50 rounded-xl border border-gray-100">
                 <div className="flex flex-col gap-2">
-                  <label className="text-sm font-bold text-gray-700">Request Category</label>
-                  <select 
+                  <label htmlFor="req-category" className="text-sm font-bold text-gray-700">Request Category</label>
+                  <select
+                    id="req-category"
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
-                    value={type} 
-                    onChange={e => { setType(e.target.value); resetForm(); }}
+                    value={type}
+                    onChange={(e) => { setType(e.target.value); resetForm(); }}
                   >
                     <option value="NEW_PRODUCT">Add New Item</option>
                     <option value="PRICE_CHANGE">Modify Pricing</option>
@@ -252,11 +315,12 @@ const RequestProduct = () => {
                   </select>
                 </div>
                 <div className="flex flex-col gap-2">
-                  <label className="text-sm font-bold text-gray-700">Urgency</label>
-                  <select 
+                  <label htmlFor="req-priority" className="text-sm font-bold text-gray-700">Urgency</label>
+                  <select
+                    id="req-priority"
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
-                    value={priority} 
-                    onChange={e => setPriority(e.target.value)}
+                    value={priority}
+                    onChange={(e) => setPriority(e.target.value)}
                   >
                     <option value="LOW">Low</option>
                     <option value="NORMAL">Normal</option>
@@ -270,37 +334,44 @@ const RequestProduct = () => {
                 {type === 'NEW_PRODUCT' && (
                   <div className="flex flex-col gap-6">
                     <div className="flex flex-col gap-2">
-                      <label className="text-sm font-bold text-gray-700">Proposed Item Name</label>
-                      <input 
-                        type="text" 
+                      <label htmlFor="req-new-name" className="text-sm font-bold text-gray-700">Proposed Item Name</label>
+                      <input
+                        id="req-new-name"
+                        type="text"
+                        maxLength={INPUT_LIMITS.NAME_MAX_LEN}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
-                        value={newProduct.name} 
-                        onChange={e => setNewProduct({...newProduct, name: e.target.value})} 
+                        value={newProduct.name}
+                        onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
                         placeholder="e.g. Spanish Latte"
-                        required 
+                        required
                       />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="flex flex-col gap-2">
-                        <label className="text-sm font-bold text-gray-700">Category</label>
-                        <input 
-                          type="text" 
+                        <label htmlFor="req-new-cat" className="text-sm font-bold text-gray-700">Category</label>
+                        <input
+                          id="req-new-cat"
+                          type="text"
+                          maxLength={INPUT_LIMITS.CATEGORY_MAX_LEN}
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
-                          value={newProduct.category} 
-                          onChange={e => setNewProduct({...newProduct, category: e.target.value})} 
+                          value={newProduct.category}
+                          onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
                           placeholder="e.g. COFFEE"
-                          required 
+                          required
                         />
                       </div>
                       <div className="flex flex-col gap-2">
-                        <label className="text-sm font-bold text-gray-700">Suggested Price (₱)</label>
-                        <input 
-                          type="number" 
-                          step="0.01" 
+                        <label htmlFor="req-new-price" className="text-sm font-bold text-gray-700">Suggested Price (₱)</label>
+                        <input
+                          id="req-new-price"
+                          type="number"
+                          step="0.01"
+                          min={INPUT_LIMITS.PRODUCT_PRICE_MIN}
+                          max={INPUT_LIMITS.PRODUCT_PRICE_MAX}
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
-                          value={newProduct.price} 
-                          onChange={e => setNewProduct({...newProduct, price: e.target.value})} 
-                          required 
+                          value={newProduct.price}
+                          onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
+                          required
                         />
                       </div>
                     </div>
@@ -309,31 +380,39 @@ const RequestProduct = () => {
 
                 {(type === 'PRICE_CHANGE' || type === 'RECIPE_CHANGE') && (
                   <div className="flex flex-col gap-2">
-                    <label className="text-sm font-bold text-gray-700">Select Existing Product</label>
-                    <select 
+                    <label htmlFor="req-existing-prod" className="text-sm font-bold text-gray-700">Select Existing Product</label>
+                    <select
+                      id="req-existing-prod"
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm cursor-pointer"
-                      value={selectedProductId} 
-                      onChange={e => handleProductSelect(e.target.value)}
+                      value={selectedProductId}
+                      onChange={(e) => handleProductSelect(e.target.value)}
                       required
                     >
                       <option value="">-- Choose product --</option>
-                      {products.filter(p => !p.is_archived).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      {products.filter((p) => !p.is_archived).map((p) => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
                     </select>
                   </div>
                 )}
 
                 {type === 'PRICE_CHANGE' && selectedProductId && (
                   <div className="flex flex-col gap-2 fade-in">
-                    <label className="text-sm font-bold text-gray-700">Proposed New Price (₱)</label>
-                    <input 
-                      type="number" 
-                      step="0.01" 
+                    <label htmlFor="req-proposed-price" className="text-sm font-bold text-gray-700">Proposed New Price (₱)</label>
+                    <input
+                      id="req-proposed-price"
+                      type="number"
+                      step="0.01"
+                      min={INPUT_LIMITS.PRODUCT_PRICE_MIN}
+                      max={INPUT_LIMITS.PRODUCT_PRICE_MAX}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
-                      value={newPrice} 
-                      onChange={e => setNewPrice(e.target.value)} 
-                      required 
+                      value={newPrice}
+                      onChange={(e) => setNewPrice(e.target.value)}
+                      required
                     />
-                    <small className="text-xs text-gray-500 font-medium">Current price: ₱{products.find(p => p.id === selectedProductId)?.price}</small>
+                    <small className="text-xs text-gray-500 font-medium">
+                      Current price: ₱{products.find((p) => p.id === selectedProductId)?.price}
+                    </small>
                   </div>
                 )}
 
@@ -342,7 +421,7 @@ const RequestProduct = () => {
                     <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
                       <h3 className="m-0 text-sm font-bold text-gray-900 uppercase tracking-wider">Proposed Recipe Changes</h3>
                     </div>
-                    
+
                     <div className="overflow-x-auto">
                       <table className="w-full text-left border-collapse whitespace-nowrap">
                         <thead>
@@ -353,56 +432,72 @@ const RequestProduct = () => {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                          {proposedRecipe.map(item => (
+                          {proposedRecipe.map((item) => (
                             <tr key={item.ingredient_id} className="hover:bg-gray-50 transition-colors">
                               <td className="px-6 py-4 text-sm font-bold text-gray-900">{item.name}</td>
                               <td className="px-6 py-4">
                                 <div className="flex items-center gap-2">
-                                  <input 
-                                    type="number" 
-                                    step="0.01" 
+                                  <input
+                                    type="number"
+                                    step="any"
+                                    min={INPUT_LIMITS.RECIPE_QTY_MIN}
+                                    max={INPUT_LIMITS.RECIPE_QTY_MAX}
                                     className="w-24 px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                                    value={item.qty} 
-                                    onChange={e => {
-                                      const val = parseFloat(e.target.value) || 0;
-                                      setProposedRecipe(proposedRecipe.map(i => i.ingredient_id === item.ingredient_id ? {...i, qty: val} : i));
+                                    value={item.qty}
+                                    onChange={(e) => {
+                                      const val = parseFloat(e.target.value);
+                                      setProposedRecipe(
+                                        proposedRecipe.map((i) =>
+                                          i.ingredient_id === item.ingredient_id
+                                            ? { ...i, qty: Number.isFinite(val) ? val : '' }
+                                            : i
+                                        )
+                                      );
                                     }}
-                                  /> 
+                                  />
                                   <span className="text-sm text-gray-500 font-medium">{item.unit}</span>
                                 </div>
                               </td>
                               <td className="px-6 py-4 text-right">
-                                <button 
-                                  type="button" 
-                                  className="w-8 h-8 flex items-center justify-center rounded-full bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                                <button
+                                  type="button"
+                                  className="w-8 h-8 flex items-center justify-center rounded-full bg-red-50 text-red-600 hover:bg-red-100 transition-colors cursor-pointer border-none"
                                   onClick={() => removeIngredientFromProposed(item.ingredient_id)}
-                                 aria-label="Clear"><svg className="w-3.5 h-3.5 text-zinc-400 hover:text-zinc-700" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                                  aria-label={`Remove ${item.name}`}
+                                >
+                                  <svg className="w-3.5 h-3.5 text-zinc-400 hover:text-zinc-700" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                </button>
                               </td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     </div>
-                    
+
                     <div className="p-4 bg-gray-50 border-t border-gray-200 flex flex-wrap gap-3 items-center">
                       <div className="flex-1 min-w-[220px]">
                         <SearchableIngredientSelect
-                          ingredients={ingredients.filter(ing => !proposedRecipe.some(p => p.ingredient_id === ing.id))}
+                          ingredients={ingredients.filter((ing) => !proposedRecipe.some((p) => p.ingredient_id === ing.id))}
                           value={newRecipeItem.ingredient_id}
                           onChange={(id) => setNewRecipeItem({ ...newRecipeItem, ingredient_id: id })}
                           placeholder="Search ingredient to add..."
                         />
                       </div>
-                      <input 
-                        type="number" 
-                        placeholder="Qty" 
+                      <input
+                        type="number"
+                        step="any"
+                        min={INPUT_LIMITS.RECIPE_QTY_MIN}
+                        max={INPUT_LIMITS.RECIPE_QTY_MAX}
+                        placeholder="Qty"
                         className="w-24 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 shadow-sm"
-                        value={newRecipeItem.quantity} 
-                        onChange={e => setNewRecipeItem({...newRecipeItem, quantity: e.target.value})}
+                        value={newRecipeItem.quantity}
+                        onChange={(e) => setNewRecipeItem({ ...newRecipeItem, quantity: e.target.value })}
                       />
-                      <button 
-                        type="button" 
-                        className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-50 transition-colors shadow-sm"
+                      <button
+                        type="button"
+                        className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-50 transition-colors shadow-sm cursor-pointer"
                         onClick={addIngredientToProposed}
                       >
                         Add
@@ -413,21 +508,23 @@ const RequestProduct = () => {
               </div>
 
               <div className="flex flex-col gap-2 mt-4 pt-6 border-t border-gray-100">
-                <label className="text-sm font-bold text-gray-700">Justification / Notes</label>
+                <label htmlFor="req-notes" className="text-sm font-bold text-gray-700">Justification / Notes</label>
                 <textarea
+                  id="req-notes"
                   rows="3"
+                  maxLength={INPUT_LIMITS.DESC_MAX_LEN}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm resize-y"
                   placeholder="Why is this change necessary?"
                   value={description}
-                  onChange={e => setDescription(e.target.value)}
+                  onChange={(e) => setDescription(e.target.value)}
                   required
                 ></textarea>
               </div>
 
               <div className="pt-4 flex justify-end">
-                <button 
-                  type="submit" 
-                  className="px-8 py-3 bg-gray-900 text-white rounded-xl text-sm font-bold uppercase tracking-wider hover:bg-gray-800 transition-colors shadow-md disabled:opacity-50 flex items-center justify-center min-w-[200px]" 
+                <button
+                  type="submit"
+                  className="px-8 py-3 bg-gray-900 text-white rounded-xl text-sm font-bold uppercase tracking-wider hover:bg-gray-800 transition-colors shadow-md disabled:opacity-50 flex items-center justify-center min-w-[200px] cursor-pointer"
                   disabled={loading}
                 >
                   {loading ? 'Submitting...' : 'Send Request'}
@@ -456,7 +553,7 @@ const RequestProduct = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {paginatedHistory.map(req => (
+                    {paginatedHistory.map((req) => (
                       <tr key={req.id} className="hover:bg-gray-50/50 transition-colors">
                         <td className="px-6 py-4 text-sm font-medium text-gray-500">{new Date(req.created_at).toLocaleDateString()}</td>
                         <td className="px-6 py-4 text-sm font-bold text-gray-900">{req.type.replace('_', ' ')}</td>
@@ -465,11 +562,15 @@ const RequestProduct = () => {
                           <div className="text-xs text-gray-500 truncate max-w-xs md:max-w-md">{req.details.description}</div>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                            req.status === 'APPROVED' ? 'bg-green-50 text-green-700 border border-green-200' : 
-                            req.status === 'REJECTED' ? 'bg-red-50 text-red-700 border border-red-200' : 
-                            'bg-yellow-50 text-yellow-700 border border-yellow-200'
-                          }`}>
+                          <span
+                            className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                              req.status === 'APPROVED'
+                                ? 'bg-green-50 text-green-700 border border-green-200'
+                                : req.status === 'REJECTED'
+                                ? 'bg-red-50 text-red-700 border border-red-200'
+                                : 'bg-yellow-50 text-yellow-700 border border-yellow-200'
+                            }`}
+                          >
                             {req.status}
                           </span>
                         </td>
@@ -493,7 +594,9 @@ const RequestProduct = () => {
               </div>
             ) : (
               <div className="p-12 flex flex-col items-center justify-center text-gray-400 bg-gray-50/50 h-full">
-                <svg className="w-12 h-12 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                <svg className="w-12 h-12 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                </svg>
                 <p className="m-0 text-sm font-medium">No request history found.</p>
               </div>
             )}
