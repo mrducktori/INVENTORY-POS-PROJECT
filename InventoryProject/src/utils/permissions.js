@@ -26,7 +26,7 @@ export const PERMISSION_GROUPS = [
   {
     label: 'Inventory & Batches',
     pages: [
-      { key: 'RawMaterialTracker', label: 'Raw Material Batches & Stocktake' },
+      { key: 'RawMaterialTracker', label: 'Raw Material Batches & Stock Count' },
       { key: 'LowStockAlerts', label: 'Low-Stock & Expiry Alerts' },
       { key: 'StockReceived', label: 'Receive Stock & OCR' },
       { key: 'ManageRawMaterials', label: 'Manage Raw Materials' },

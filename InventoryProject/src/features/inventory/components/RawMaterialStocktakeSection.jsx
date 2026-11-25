@@ -110,7 +110,7 @@ const RawMaterialStocktakeSection = ({ ingredients = [], onRefreshIngredients })
     setBanner({ type: '', text: '' });
 
     if (enteredEntries.length === 0) {
-      setBanner({ type: 'error', text: 'Enter at least one physical count before committing reconciliation.' });
+      setBanner({ type: 'error', text: 'Enter at least one physical count before saving.' });
       return;
     }
 
@@ -150,7 +150,7 @@ const RawMaterialStocktakeSection = ({ ingredients = [], onRefreshIngredients })
       const adjustedCount = session?.items_adjusted ?? 0;
       setBanner({
         type: 'success',
-        text: `Stocktake committed cleanly (${countsPayload.length} item(s) checked, ${adjustedCount} adjusted).`
+        text: `Stock count saved (${countsPayload.length} item(s) checked, ${adjustedCount} adjusted).`
       });
       setCountsMap({});
       setSessionNotes('');
@@ -159,7 +159,7 @@ const RawMaterialStocktakeSection = ({ ingredients = [], onRefreshIngredients })
         loadHistory()
       ]);
     } catch (err) {
-      setBanner({ type: 'error', text: err.message || 'Failed to commit stocktake reconciliation.' });
+      setBanner({ type: 'error', text: err.message || 'Failed to save stock count.' });
     } finally {
       setSubmitting(false);
     }
@@ -195,7 +195,7 @@ const RawMaterialStocktakeSection = ({ ingredients = [], onRefreshIngredients })
       <form onSubmit={handleCommitStocktake} className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden">
         <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <h2 className="m-0 text-lg font-bold text-gray-900 tracking-tight">Physical Count Reconciliation</h2>
+            <h2 className="m-0 text-lg font-bold text-gray-900 tracking-tight">Stock Count</h2>
             <p className="m-0 mt-0.5 text-xs text-gray-500 font-medium">
               Enter actual counted quantities to reconcile system stock and active batches.
             </p>
@@ -349,7 +349,7 @@ const RawMaterialStocktakeSection = ({ ingredients = [], onRefreshIngredients })
               disabled={submitting || enteredEntries.length === 0}
               className="px-5 py-2.5 bg-gray-900 text-white rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-black transition-colors shadow-xs disabled:bg-gray-300 disabled:cursor-not-allowed cursor-pointer"
             >
-              {submitting ? 'Committing...' : 'Commit Stocktake Reconciliation'}
+              {submitting ? 'Committing...' : 'Save Stock Count'}
             </button>
           </div>
         </div>
@@ -358,7 +358,7 @@ const RawMaterialStocktakeSection = ({ ingredients = [], onRefreshIngredients })
       <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
           <div>
-            <h3 className="m-0 text-base font-bold text-gray-900 tracking-tight">Recent Stocktake Reconciliations</h3>
+            <h3 className="m-0 text-base font-bold text-gray-900 tracking-tight">Recent Stock Counts</h3>
             <p className="m-0 text-xs text-gray-500 font-medium mt-0.5">Latest physical count audit sessions</p>
           </div>
           <button
@@ -374,7 +374,7 @@ const RawMaterialStocktakeSection = ({ ingredients = [], onRefreshIngredients })
         <div className="overflow-x-auto">
           {history.length === 0 ? (
             <div className="p-8 text-center text-sm text-gray-400 font-medium">
-              No stocktake reconciliations recorded yet.
+              No stock counts recorded yet.
             </div>
           ) : (
             <table className="w-full text-left border-collapse">

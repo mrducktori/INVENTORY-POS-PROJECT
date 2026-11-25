@@ -194,7 +194,7 @@ const RawMaterialTracker = ({ subTab = null, onSubTabChange = null }) => {
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 gap-4">
         <div>
           <h1 className="m-0 text-xl md:text-2xl font-bold text-gray-900 tracking-tight">Raw Material Tracker</h1>
-          <p className="m-0 mt-1 text-sm text-gray-500 font-medium">Monitor usable ingredient stock, FEFO batches, and physical stocktakes.</p>
+          <p className="m-0 mt-1 text-sm text-gray-500 font-medium">Monitor usable ingredient stock, FEFO batches, and stock counts.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <div className="inline-flex bg-white p-1 rounded-xl border border-gray-200 shadow-xs gap-1">
@@ -221,7 +221,7 @@ const RawMaterialTracker = ({ subTab = null, onSubTabChange = null }) => {
                   mode === 'STOCKTAKE' ? 'bg-gray-900 text-white shadow-xs' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                 }`}
               >
-                Physical Count / Stocktake
+                Stock Count
               </button>
             )}
           </div>

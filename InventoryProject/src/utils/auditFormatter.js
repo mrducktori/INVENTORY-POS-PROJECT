@@ -40,7 +40,7 @@ const ACTION_LABELS = {
   CATEGORY_RENAMED: 'Category Renamed',
   CATEGORY_DELETED: 'Category Deleted',
   CATEGORY_SETTINGS_UPDATED: 'Category Defaults Updated',
-  STOCKTAKE_RECONCILED: 'Stocktake Reconciled',
+  STOCKTAKE_RECONCILED: 'Stock Count Saved',
   OCR_DOCUMENT_SCANNED: 'OCR Document Scanned',
   WASTAGE: 'Wastage Reported',
   SUPPLIER_CREATED: 'Supplier Added',
@@ -260,7 +260,7 @@ export const formatAuditDescription = (action, rawDetails) => {
     case 'BACKORDER_PO_CREATED':
       return `Created backorder PO #${shortCode(d.po_id)} for remaining undelivered items.`;
     case 'STOCKTAKE_RECONCILED':
-      return `Reconciled physical stocktake across ${d.total_counted ?? d.items_counted ?? 0} material(s) (${d.adjusted_count ?? 0} adjusted).`;
+      return `Saved stock count across ${d.total_counted ?? d.items_counted ?? 0} material(s) (${d.adjusted_count ?? 0} adjusted).`;
     case 'OCR_DOCUMENT_SCANNED':
       return `Scanned inventory document via OCR (${d.items_count ?? d.matched_count ?? 0} item(s) detected).`;
     case 'WASTAGE':

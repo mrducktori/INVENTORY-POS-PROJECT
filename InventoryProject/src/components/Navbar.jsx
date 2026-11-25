@@ -34,7 +34,7 @@ const MENU_CONFIG = {
       label: 'Inventory & Batches',
       submenu: [
         { label: 'Raw Material Batches', value: 'RawMaterialTracker' },
-        { label: 'Physical Stocktake', value: 'RawMaterialTracker/STOCKTAKE' },
+        { label: 'Stock Count', value: 'RawMaterialTracker/STOCKTAKE' },
         { label: 'Low-Stock & Expiry Alerts', value: 'LowStockAlerts' },
         { label: 'Receive Stock & OCR', value: 'StockReceived' },
         { label: 'Manage Raw Materials', value: 'ManageRawMaterials' },
@@ -128,7 +128,7 @@ const EXPANDED_PAGE_LINKS = {
   ],
   RawMaterialTracker: [
     { label: 'Raw Material Batches', value: 'RawMaterialTracker' },
-    { label: 'Physical Stocktake', value: 'RawMaterialTracker/STOCKTAKE' },
+    { label: 'Stock Count', value: 'RawMaterialTracker/STOCKTAKE' },
   ],
 };
 
