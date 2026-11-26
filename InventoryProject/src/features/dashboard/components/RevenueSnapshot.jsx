@@ -119,7 +119,7 @@ const RevenueSnapshot = ({ stats, loading, isTrendExpanded, onExpand }) => {
   const isPositiveVsAvg = diffVsAvg >= 0;
 
   return (
-    <div className="bg-white border border-gray-200/90 rounded-3xl p-6 md:p-8 shadow-xs hover:border-gray-300 transition-all">
+    <div className="bg-white border border-gray-200/90 rounded-2xl p-6 md:p-8 shadow-xs hover:border-gray-300 transition-all">
       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6 pb-6 border-b border-gray-100">
         <div>
           <div className="flex items-center gap-2 mb-2">
@@ -132,7 +132,11 @@ const RevenueSnapshot = ({ stats, loading, isTrendExpanded, onExpand }) => {
 
           <div className="flex items-baseline gap-3 flex-wrap">
             <span className="text-4xl md:text-5xl font-black text-zinc-950 tracking-tight tabular-nums">
-              ₱{loading ? '---' : formattedRevenue}
+              {loading ? (
+                <span aria-label="Loading" className="inline-block h-12 w-56 rounded-lg bg-zinc-100 animate-pulse align-middle" />
+              ) : (
+                <>₱{formattedRevenue}</>
+              )}
             </span>
 
             {hasAnyRevenue && (
@@ -166,7 +170,7 @@ const RevenueSnapshot = ({ stats, loading, isTrendExpanded, onExpand }) => {
 
         <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap lg:justify-end">
           <div className="bg-zinc-50 border border-zinc-200/80 rounded-2xl px-3.5 py-2 min-w-[105px]">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+            <div className="text-xs font-bold uppercase tracking-wider text-zinc-500">
               7-Day Total
             </div>
             <div className="text-base font-black text-zinc-900 tabular-nums">
@@ -175,7 +179,7 @@ const RevenueSnapshot = ({ stats, loading, isTrendExpanded, onExpand }) => {
           </div>
 
           <div className="bg-zinc-50 border border-zinc-200/80 rounded-2xl px-3.5 py-2 min-w-[105px]">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+            <div className="text-xs font-bold uppercase tracking-wider text-zinc-500">
               Daily Avg
             </div>
             <div className="text-base font-black text-zinc-900 tabular-nums">
@@ -185,7 +189,7 @@ const RevenueSnapshot = ({ stats, loading, isTrendExpanded, onExpand }) => {
 
           {peakDay && peakRevenue > 0 && (
             <div className="bg-amber-50/60 border border-amber-200/80 rounded-2xl px-3.5 py-2 min-w-[115px]">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-amber-700 flex items-center gap-1.5">
+              <div className="text-xs font-bold uppercase tracking-wider text-amber-700 flex items-center gap-1.5">
                 <svg className="w-3 h-3 text-amber-500 fill-amber-500 shrink-0" viewBox="0 0 24 24">
                   <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                 </svg>
@@ -210,7 +214,7 @@ const RevenueSnapshot = ({ stats, loading, isTrendExpanded, onExpand }) => {
                 : 'text-zinc-600 hover:text-zinc-950'
             }`}
           >
-            Spline Trend
+            Line
           </button>
           <button
             type="button"
@@ -221,7 +225,7 @@ const RevenueSnapshot = ({ stats, loading, isTrendExpanded, onExpand }) => {
                 : 'text-zinc-600 hover:text-zinc-950'
             }`}
           >
-            Daily Volume
+            Bars
           </button>
         </div>
 

@@ -63,15 +63,7 @@ const DashboardOverview = ({ onNavigate }) => {
     <div className="w-full px-6 lg:px-10 py-6 min-h-full space-y-8">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-4 border-b border-gray-200">
         <div>
-          <div className="flex items-center gap-3 mb-2">
-            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-semibold bg-zinc-900 text-white">
-              <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-              Live Shift
-            </span>
-            <span className="text-sm font-medium text-zinc-600">
-              {todayFormatted}
-            </span>
-          </div>
+          <p className="text-sm font-medium text-zinc-600 m-0 mb-2">{todayFormatted}</p>
           <h1 className="text-xl md:text-2xl font-bold text-zinc-900 tracking-tight m-0">
             Operations & Performance
           </h1>

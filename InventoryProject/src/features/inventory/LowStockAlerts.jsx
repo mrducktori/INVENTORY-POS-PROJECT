@@ -26,9 +26,11 @@ const formatExpiryBadge = (expiryDate, todayManila) => {
   const diffDays = Math.round(
     (new Date(`${expStr}T00:00:00Z`) - new Date(`${todayManila}T00:00:00Z`)) / 86400000
   );
-  if (diffDays < 0) return { label: `Expired (${expStr})`, cls: 'bg-red-50 text-red-700 border-red-200' };
-  if (diffDays === 0) return { label: `Expires today (${expStr})`, cls: 'bg-amber-50 text-amber-800 border-amber-200' };
-  if (diffDays <= 7) return { label: `Expiring in ${diffDays}d (${expStr})`, cls: 'bg-amber-50 text-amber-800 border-amber-200' };
+  // Same stages and colours as the Expiration tab, so one batch never reads two different ways.
+  if (diffDays <= 14) {
+    const stage = stageOf(diffDays);
+    return { label: `${stageLabel(stage, diffDays)} (${expStr})`, cls: EXPIRY_STAGES[stage].cls };
+  }
   return { label: `${expStr} (${diffDays}d)`, cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
 };
 

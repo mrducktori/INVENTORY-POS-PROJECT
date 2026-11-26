@@ -79,7 +79,7 @@ const TopSalesGrid = ({
             Top Sales by Category
           </h3>
           <p className="text-sm text-zinc-500 font-medium mt-1 mb-0">
-            Categorized sales rankings with tab filters and compactable views.
+            Best sellers in each category.
           </p>
         </div>
 
@@ -278,17 +278,18 @@ const TopSalesGrid = ({
                   </div>
 
                   {isCompacted ? (
-                    <div 
+                    <button
+                      type="button"
                       onClick={() => toggleCategoryCompact(category)}
-                      className="mt-3 py-2.5 px-3.5 rounded-xl bg-zinc-100/90 hover:bg-zinc-200/80 transition-colors cursor-pointer flex items-center justify-between text-xs md:text-sm gap-2"
+                      className="w-full mt-3 py-2.5 px-3.5 rounded-xl bg-zinc-100/90 hover:bg-zinc-200/80 transition-colors cursor-pointer flex items-center justify-between text-xs md:text-sm gap-2 border-none text-left"
                     >
                       <span className="font-semibold text-zinc-600 truncate">
                         Total Units: <strong className="text-zinc-900 font-black">{totalCategorySold} sold</strong>
                       </span>
                       <span className="font-bold text-zinc-800 flex items-center gap-1 shrink-0 whitespace-nowrap">
-                        Click to view items <svg className="w-3.5 h-3.5 text-zinc-500 inline-block" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                        Show items <svg className="w-3.5 h-3.5 text-zinc-500 inline-block" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
                       </span>
-                    </div>
+                    </button>
                   ) : (
                     <ul className="list-none p-0 m-0 space-y-4">
                       {sorted.map((product, index) => {

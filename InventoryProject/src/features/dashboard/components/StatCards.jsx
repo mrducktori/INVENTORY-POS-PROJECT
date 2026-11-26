@@ -36,7 +36,7 @@ const StatCards = ({ cards, loading }) => {
 
             <div className="mb-3">
               <span className="text-3xl font-bold text-zinc-900 tracking-tight tabular-nums">
-                {loading ? '---' : card.value}
+                {loading ? <span aria-label="Loading" className="inline-block h-8 w-16 rounded-md bg-zinc-100 animate-pulse align-middle" /> : card.value}
               </span>
             </div>
 
