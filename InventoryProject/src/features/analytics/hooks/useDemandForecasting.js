@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { getForecast, refreshForecast } from '../../../api/analyticsApi';
-import { getReorderPlan } from '../../../api/inventoryApi';
+import { getReorderPlan, getProductReorderPlan } from '../../../api/inventoryApi';
 import { createPurchaseOrder } from '../../../api/purchasingApi';
 import { suggestedPurchase } from '../utils/forecastUtils';
 import { getCurrentUser } from '../../../utils/authUtils';
@@ -146,7 +146,12 @@ export const useDemandForecasting = () => {
   const fetchProductForecasts = useCallback(async () => {
     try {
       setLoadingProducts(true);
-      setForecast(await getForecast(longRange ? LONG_HORIZON : 14));
+      const [fc, plan] = await Promise.all([
+        getForecast(longRange ? LONG_HORIZON : 14),
+        getProductReorderPlan().catch(() => []), // stock cover is a bonus: the forecast still shows without it
+      ]);
+      const stockById = new Map((Array.isArray(plan) ? plan : []).map((p) => [p.product_id, p]));
+      setForecast({ ...fc, products: (fc.products || []).map((p) => ({ ...p, stockPlan: stockById.get(p.product_id) || null })) });
     } catch (err) {
       console.error('Failed to fetch product forecasts:', err);
       showToast('error', 'Failed to load product demand forecast.');

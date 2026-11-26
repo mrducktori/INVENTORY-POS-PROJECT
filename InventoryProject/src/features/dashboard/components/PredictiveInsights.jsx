@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getForecast } from '../../../api/analyticsApi';
-import { getReorderPlan } from '../../../api/inventoryApi';
+import { getReorderPlan, getProductReorderPlan } from '../../../api/inventoryApi';
 import { formatQty } from '../../analytics/utils/forecastUtils';
 import { InfoTip } from '../../../components/shared/InfoTip';
 
@@ -42,11 +42,22 @@ const PredictiveInsights = ({ onNavigate }) => {
     const fetchInsights = async () => {
       try {
         setLoading(true);
-        const [forecastRes, planRes] = await Promise.allSettled([getForecast(14), getReorderPlan()]);
+        const [forecastRes, planRes, productPlanRes] = await Promise.allSettled([getForecast(14), getReorderPlan(), getProductReorderPlan()]);
         if (forecastRes.status === 'fulfilled') setForecast(forecastRes.value);
-        if (planRes.status === 'fulfilled' && Array.isArray(planRes.value)) {
-          setAlerts(planRes.value.filter((i) => i.alert));
-        }
+        const ingredientAlerts = planRes.status === 'fulfilled' && Array.isArray(planRes.value) ? planRes.value.filter((i) => i.alert) : [];
+        // Stocked products (e.g. cookies) share the list, shaped like an ingredient row.
+        const productAlerts = productPlanRes.status === 'fulfilled' && Array.isArray(productPlanRes.value)
+          ? productPlanRes.value.filter((p) => p.alert).map((p) => ({
+              id: `product-${p.product_id}`,
+              name: p.name,
+              unit: 'pcs',
+              usable_stock: p.stock,
+              days_of_cover: p.days_of_cover,
+              suggested_order_qty: p.suggested_make_qty,
+              alert: p.alert,
+            }))
+          : [];
+        setAlerts([...ingredientAlerts, ...productAlerts]);
       } finally {
         setLoading(false);
       }
@@ -113,8 +124,8 @@ const PredictiveInsights = ({ onNavigate }) => {
           <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-100">
             <div>
               <h3 className="text-lg font-bold text-zinc-900 m-0 inline-flex items-center gap-1.5">
-                <span>Ingredients to restock</span>
-                <InfoTip text="Order point = daily usage × (supplier lead time + 2 safety days). Expired stock is not counted." />
+                <span>Items to restock</span>
+                <InfoTip text="Ingredients: daily usage × (supplier lead time + 2 safety days), expired stock not counted. Stocked products like cookies: expected daily sales × 3 days." />
               </h3>
               <p className="text-xs text-zinc-500 m-0 mt-0.5">Based on expected daily use</p>
             </div>
@@ -144,7 +155,7 @@ const PredictiveInsights = ({ onNavigate }) => {
                       <span>Usable: {formatQty(item.usable_stock)} {item.unit}</span>
                       <span>
                         {item.days_of_cover == null ? 'No recent use' : `Lasts about ${formatQty(item.days_of_cover)} days`}
-                        {item.suggested_order_qty > 0 ? ` · order ${formatQty(item.suggested_order_qty)} ${item.unit}` : ''}
+                        {item.suggested_order_qty > 0 ? ` · ${item.id?.toString().startsWith('product-') ? 'make' : 'order'} ${formatQty(item.suggested_order_qty)} ${item.unit}` : ''}
                       </span>
                     </div>
                     {item.alert === 'CANNOT_MAKE' && blockedNames && (

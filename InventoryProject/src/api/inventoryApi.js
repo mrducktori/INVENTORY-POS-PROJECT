@@ -126,6 +126,11 @@ export const scanOcrDocument = async (payload) => {
   });
 };
 
+/** Per stock-tracked product: daily demand, days of cover, suggested quantity to make. */
+export const getProductReorderPlan = async () => {
+  return apiCall('/inventory/product-reorder-plan', { method: 'GET' });
+};
+
 /** Per-ingredient reorder plan: usable stock, daily usage, reorder point, suggested order, expiry risk. */
 export const getReorderPlan = async () => {
   return apiCall('/inventory/reorder-plan', { method: 'GET' });

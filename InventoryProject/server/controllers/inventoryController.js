@@ -318,6 +318,15 @@ export const setCategoryShelfLife = async (req, res) => {
   }
 };
 
+// Per stock-tracked product (e.g. cookies): forecast daily demand, days of cover, suggested quantity to make.
+export const getProductReorderPlan = async (req, res) => {
+  try {
+    res.json(await inventoryService.getProductReorderPlan());
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+};
+
 // Per raw material: daily usage forecast, reorder point, days of cover, suggested order, expiry risk.
 export const getReorderPlan = async (req, res) => {
   try {

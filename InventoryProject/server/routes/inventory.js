@@ -16,6 +16,7 @@ router.post("/ingredients/:id/receive", requirePermission("StockReceived"), inve
 router.get("/low-stock-alerts", inventoryController.getLowStockAlerts);
 router.get("/alerts", inventoryController.getLowStockAlerts);
 router.get("/reorder-plan", inventoryController.getReorderPlan);
+router.get("/product-reorder-plan", inventoryController.getProductReorderPlan);
 router.put("/ingredients/:id/archive", requirePermission("ManageRawMaterials"), inventoryController.archiveIngredient);
 router.put("/ingredients/:id/restore", requirePermission("ManageRawMaterials"), inventoryController.restoreIngredient);
 

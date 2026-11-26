@@ -393,6 +393,51 @@ export const getForecastOverview = async ({ horizon = 14 } = {}) => {
   return value;
 };
 
+// Stock-tracked products (a batch of cookies, bottled drinks) are restocked from forecast demand too.
+// shortcut: no supplier or bake lead time is stored per product, so 1 day is assumed; add a per-product
+// lead time if some items take longer to restock.
+const PRODUCT_LEAD_DAYS = 1;
+
+// Fresh stock comes from the database (the forecast cache can be minutes old); demand comes from the forecast.
+export const getProductReorderPlan = async () => {
+  const [overview, productsRes] = await Promise.all([
+    getForecastOverview({ horizon: 14 }).catch((err) => {
+      console.warn("[product-reorder] forecast unavailable, using manual thresholds:", err.message);
+      return { products: [] };
+    }),
+    supabase
+      .from("products")
+      .select("id, name, category, stock_quantity, low_stock_threshold")
+      .eq("track_stock", true)
+      .eq("is_archived", false)
+  ]);
+  if (productsRes.error) throw productsRes.error;
+
+  const dailyById = new Map(overview.products.map((p) => [p.product_id, p.next7 / 7]));
+  return (productsRes.data || []).map((p) => {
+    const stock = Number(p.stock_quantity) || 0;
+    const floor = Number(p.low_stock_threshold) || 0;
+    const daily = dailyById.get(p.id) || 0;
+    const reorderPoint = Math.ceil(daily * (PRODUCT_LEAD_DAYS + SAFETY_DAYS));
+    let alert = null;
+    if (stock <= 0) alert = "OUT_OF_STOCK";
+    else if (daily > 0 && stock <= reorderPoint) alert = "REORDER_NOW";
+    else if (floor > 0 && stock <= floor) alert = "BELOW_MANUAL_THRESHOLD"; // owner's own floor always counts
+    return {
+      product_id: p.id,
+      name: p.name,
+      category: p.category,
+      stock,
+      daily_usage: Math.round(daily * 10) / 10,
+      days_of_cover: daily > 0 ? Math.round((stock / daily) * 10) / 10 : null,
+      reorder_point: reorderPoint,
+      low_stock_threshold: floor,
+      suggested_make_qty: daily > 0 ? Math.max(0, Math.ceil(daily * (PRODUCT_LEAD_DAYS + SAFETY_DAYS + ORDER_COVER_DAYS) - stock)) : 0,
+      alert
+    };
+  });
+};
+
 // Ingredient reorder plan (drives low-stock alerts).
 
 // shortcut: daily_product_sales has no cup size, so size-specific recipe rows are averaged per

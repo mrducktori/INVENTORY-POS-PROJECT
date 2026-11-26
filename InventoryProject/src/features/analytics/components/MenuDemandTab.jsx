@@ -31,6 +31,31 @@ const TrendCell = ({ pct }) => {
   );
 };
 
+const STOCK_BADGE = {
+  OUT_OF_STOCK: ['Out of stock', 'bg-rose-50 text-rose-700 border-rose-200'],
+  REORDER_NOW: ['Make more', 'bg-rose-50 text-rose-700 border-rose-200'],
+  BELOW_MANUAL_THRESHOLD: ['Running low', 'bg-amber-50 text-amber-700 border-amber-200'],
+};
+
+// Stock-tracked items (e.g. a batch of cookies) get cover and a suggested quantity; made-to-order items have no stock.
+const StockCell = ({ plan }) => {
+  if (!plan) return <span className="text-zinc-400 text-xs">Made to order</span>;
+  const badge = STOCK_BADGE[plan.alert];
+  return (
+    <div>
+      <span className="font-mono font-semibold text-zinc-900">{plan.stock}</span> <span className="text-xs text-zinc-500">in stock</span>
+      <div className="text-xs text-zinc-500">
+        {plan.days_of_cover == null ? 'No recent sales' : `Lasts about ${plan.days_of_cover} days`}
+      </div>
+      {badge && (
+        <span className={`mt-1 inline-flex px-2 py-0.5 rounded-full text-xs font-bold border ${badge[1]}`}>
+          {badge[0]}{plan.suggested_make_qty > 0 ? ` · make ~${plan.suggested_make_qty}` : ''}
+        </span>
+      )}
+    </div>
+  );
+};
+
 const AccuracyCell = ({ p }) =>
   p.accuracyPct == null ? (
     <span className="text-zinc-400 text-xs">Not enough data</span>
@@ -86,6 +111,7 @@ const MenuDemandTab = ({
     ? new Date(forecast.generatedAt).toLocaleString('en-PH', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' })
     : null;
   const top = productSummary.topProduct;
+  const hasStockItems = (forecast?.products || []).some((p) => p.stockPlan);
 
   return (
     <div className="space-y-5">
@@ -222,6 +248,7 @@ const MenuDemandTab = ({
                     <th className="py-3 px-4 text-right whitespace-nowrap">
                       <SortHeader label={periodLabel.replace(/^n/, 'N')} field={valueKey}sortField={prodSortField} sortDirection={prodSortDirection} onSort={onProdSort} right />
                     </th>
+                    {hasStockItems && <th className="py-3 px-4 whitespace-nowrap">Stock</th>}
                     <th className="py-3 px-4 whitespace-nowrap">Busiest day</th>
                     <th className="py-3 px-4 whitespace-nowrap">
                       <SortHeader label="Trend" field="trendPct" sortField={prodSortField} sortDirection={prodSortDirection} onSort={onProdSort} />
@@ -251,6 +278,7 @@ const MenuDemandTab = ({
                           <span className="text-zinc-400">—</span>
                         )}
                       </td>
+                      {hasStockItems && <td className="py-3.5 px-4 whitespace-nowrap"><StockCell plan={item.stockPlan} /></td>}
                       <td className="py-3.5 px-4 whitespace-nowrap text-zinc-700">{item.peakDay || '—'}</td>
                       <td className="py-3.5 px-4 whitespace-nowrap"><TrendCell pct={item.trendPct} /></td>
                       <td className="py-3.5 px-4 whitespace-nowrap"><AccuracyCell p={item} /></td>

@@ -14,7 +14,7 @@ import {
   validateItemsAgainstStock
 } from "../utils/posStockUtils";
 
-const DEFAULT_MODIFIERS = { sugar_level: "100%", ice_level: "Normal Ice" };
+const DEFAULT_MODIFIERS = { sugar_level: "100%" };
 
 const buildCartItemId = (productId, hasSizes, cupSize, hasAddOns, addOnsMap, modifiers = null) => {
   if (!hasSizes && !hasAddOns) {
@@ -29,8 +29,7 @@ const buildCartItemId = (productId, hasSizes, cupSize, hasAddOns, addOnsMap, mod
         .join(",") || "none"
     : "none";
   const sugar = modifiers?.sugar_level || DEFAULT_MODIFIERS.sugar_level;
-  const ice = modifiers?.ice_level || DEFAULT_MODIFIERS.ice_level;
-  return `${productId}-${sizeKey}-${addOnKey}-s:${sugar}-i:${ice}`;
+  return `${productId}-${sizeKey}-${addOnKey}-s:${sugar}`;
 };
 
 const resolveConfiguredItemDetails = (product, options, categorySettings) => {
@@ -68,8 +67,7 @@ const resolveConfiguredItemDetails = (product, options, categorySettings) => {
 
   const normalizedModifiers = (hasSizes || hasAddOns)
     ? {
-        sugar_level: options.modifiers?.sugar_level || DEFAULT_MODIFIERS.sugar_level,
-        ice_level: options.modifiers?.ice_level || DEFAULT_MODIFIERS.ice_level
+        sugar_level: options.modifiers?.sugar_level || DEFAULT_MODIFIERS.sugar_level
       }
     : null;
 
@@ -693,8 +691,7 @@ export const usePOS = () => {
       cupSize: item.cup_size || liveProduct.sizes?.[0]?.name || "12 oz",
       addOns: reconstructedAddOns,
       modifiers: {
-        sugar_level: item.modifiers?.sugar_level || DEFAULT_MODIFIERS.sugar_level,
-        ice_level: item.modifiers?.ice_level || DEFAULT_MODIFIERS.ice_level
+        sugar_level: item.modifiers?.sugar_level || DEFAULT_MODIFIERS.sugar_level
       }
     });
     setEditingCartItemId(cartItemId);

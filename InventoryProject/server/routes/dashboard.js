@@ -102,8 +102,7 @@ router.get('/stats', async (req, res) => {
     const [
       fetchedSales,
       { count: productCount },
-      ingredients,
-      { data: lowStockProductsData },
+      lowStockAlerts,
       expiryAlerts
     ] = await Promise.all([
       fetchBoundedSales(
@@ -115,12 +114,7 @@ router.get('/stats', async (req, res) => {
         .from('products')
         .select('*', { count: 'exact', head: true })
         .eq('is_archived', false),
-      inventoryService.getIngredients(),
-      supabase
-        .from('products')
-        .select('name, stock_quantity, low_stock_threshold, max_stock')
-        .eq('track_stock', true)
-        .eq('is_archived', false),
+      inventoryService.getLowStockAlerts(),
       batchService.getExpiryAlerts()
     ]);
 
@@ -137,49 +131,15 @@ router.get('/stats', async (req, res) => {
     const transactionsCount = salesList.length;
     const avgTransactionValue = transactionsCount > 0 ? (totalRevenue / transactionsCount) : 0;
 
-    // An item is low at or below half its max stock; with no max set, max defaults to twice its alert
-    // level (10 if unset). Ingredients use usable (non-expired) stock.
-    const lowStockIngredients = (ingredients || [])
-      .filter(i => {
-        const currentStock = parseFloat(i.usable_stock ?? i.stock_quantity) || 0;
-        const maxStock = parseFloat(i.max_stock) || parseFloat(i.max_capacity) || (parseFloat(i.low_stock_alert || 10) * 2);
-        const threshold = maxStock * 0.5;
-        return currentStock <= threshold;
-      })
-      .map(i => {
-        const currentStock = parseFloat(i.usable_stock ?? i.stock_quantity) || 0;
-        const maxStock = parseFloat(i.max_stock) || parseFloat(i.max_capacity) || (parseFloat(i.low_stock_alert || 10) * 2);
-        return {
-          name: i.name,
-          stock: currentStock,
-          usable_stock: currentStock,
-          expired_stock: parseFloat(i.expired_stock) || 0,
-          unit: i.unit,
-          max_stock: maxStock,
-          threshold: maxStock * 0.5
-        };
-      });
-
-    const lowStockProducts = (lowStockProductsData || [])
-      .filter(p => {
-        const currentStock = parseFloat(p.stock_quantity) || 0;
-        const maxStock = parseFloat(p.max_stock) || parseFloat(p.max_capacity) || (parseFloat(p.low_stock_threshold || 10) * 2);
-        const threshold = maxStock * 0.5;
-        return currentStock <= threshold;
-      })
-      .map(p => {
-        const currentStock = parseFloat(p.stock_quantity) || 0;
-        const maxStock = parseFloat(p.max_stock) || parseFloat(p.max_capacity) || (parseFloat(p.low_stock_threshold || 10) * 2);
-        return {
-          name: p.name,
-          stock: currentStock,
-          unit: 'PCS',
-          max_stock: maxStock,
-          threshold: maxStock * 0.5
-        };
-      });
-
-    const lowStockItemsDetails = [...lowStockIngredients, ...lowStockProducts];
+    // Same list as the Low Stock Alerts tab, so the card count always matches it.
+    const lowStockItemsDetails = (lowStockAlerts || []).map((i) => ({
+      name: i.name,
+      stock: Number(i.usable_stock) || 0,
+      usable_stock: Number(i.usable_stock) || 0,
+      expired_stock: Number(i.expired_stock) || 0,
+      unit: i.unit,
+      threshold: Number(i.low_stock_threshold) || 0
+    }));
     const lowStockCount = lowStockItemsDetails.length;
 
     const trendMap = {};

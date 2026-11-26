@@ -9,7 +9,6 @@ import {
 
 const DEFAULT_SIZES = ["16 oz", "22 oz"];
 const DEFAULT_ADDONS = ["Pearl", "Nata", "Jelly", "Pudding", "Whipped Cream", "Extra Espresso"];
-const ICE_LEVELS = ["No Ice", "Less Ice", "Normal Ice", "Extra Ice"];
 
 const getSizeScaledQty = (recipeRow, cupSize, selectedSizeObj, allSizes = []) => {
   const resolved = resolveRecipeQuantityForSize(recipeRow, cupSize, selectedSizeObj);
@@ -55,10 +54,6 @@ const ProductOptionsModal = ({
     const filtered = raw.filter((s) => !/^12\s*oz$/i.test(String(s || "").trim()));
     return filtered.length > 0 ? filtered : DEFAULT_SIZES;
   }, [selectedProduct]);
-
-  const categoryAndName = `${selectedProduct?.category || ""} ${selectedProduct?.name || ""}`;
-  const isFrappe = /FRAPPE/i.test(categoryAndName);
-  const showIceModifier = !isFrappe;
 
   // Auto-correct cupSize if parent state defaulted to 12 oz, and strip sugar_level
   useEffect(() => {
@@ -315,36 +310,6 @@ const ProductOptionsModal = ({
                   </div>
                 );
               })()}
-            </div>
-          )}
-
-          {(optionsAvailability.hasSizes || optionsAvailability.hasAddOns) && showIceModifier && (
-            <div className="mb-6">
-              <label className="block text-sm font-semibold text-gray-800 mb-2">Ice Level</label>
-              <div className="flex gap-2 flex-wrap">
-                {ICE_LEVELS.map((level) => {
-                  const active = (productOptions.modifiers?.ice_level || "Normal Ice") === level;
-                  return (
-                    <button
-                      key={level}
-                      type="button"
-                      onClick={() =>
-                        setProductOptions((p) => ({
-                          ...p,
-                          modifiers: { ...(p.modifiers || {}), ice_level: level }
-                        }))
-                      }
-                      className={`px-3.5 py-1.5 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
-                        active
-                          ? "bg-gray-900 text-white border-gray-900 shadow-xs"
-                          : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
-                      }`}
-                    >
-                      {level}
-                    </button>
-                  );
-                })}
-              </div>
             </div>
           )}
 

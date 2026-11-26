@@ -4,7 +4,7 @@ import { checkCompositeDuplicate } from "../utils/stringHelper.js";
 import { LIMITS, validateNumberBound, validateTextLength } from "../utils/validationHelper.js";
 import { invalidateCmsCache } from "./cmsService.js";
 import * as batchService from "./batchService.js";
-import { getIngredientReorderPlan } from "./forecastService.js";
+import { getIngredientReorderPlan, getProductReorderPlan } from "./forecastService.js";
 import { resolveUnitCost } from "../utils/costUtils.js";
 
 export const getIngredients = async ({ includeArchived = false } = {}) => {
@@ -373,7 +373,7 @@ export const getLowStockAlerts = async () => {
       return { ...i, daily_usage: 0, reorder_point: 0, alert: usable <= 0 ? "OUT_OF_STOCK" : floor > 0 && usable <= floor ? "BELOW_MANUAL_THRESHOLD" : null };
     });
   }
-  return plan
+  const ingredientAlerts = plan
     .filter((i) => i.alert)
     .map((i) => ({
       ...i,
@@ -381,9 +381,37 @@ export const getLowStockAlerts = async () => {
       low_stock_threshold: Math.max(Number(i.reorder_point) || 0, Number(i.low_stock_alert) || 0),
       max_stock: Number(i.max_stock) || null
     }));
+
+  return [...ingredientAlerts, ...(await getLowStockProductAlerts())];
 };
 
-export { getIngredientReorderPlan };
+// Stock-tracked products alert from the forecast-based plan (or their own threshold).
+const getLowStockProductAlerts = async () => {
+  let plan;
+  try {
+    plan = await getProductReorderPlan();
+  } catch (err) {
+    console.warn("[low-stock] product stock unavailable:", err.message);
+    return [];
+  }
+  return plan
+    .filter((p) => p.alert)
+    .map((p) => ({
+      id: `product-${p.product_id}`, // distinct from ingredient ids in the shared table
+      kind: "product",
+      name: p.name,
+      unit: "pcs",
+      usable_stock: p.stock,
+      expired_stock: 0,
+      low_stock_threshold: Math.max(p.reorder_point, p.low_stock_threshold),
+      nearest_expiry_date: null,
+      days_of_cover: p.days_of_cover,
+      suggested_order_qty: p.suggested_make_qty,
+      alert: p.alert
+    }));
+};
+
+export { getIngredientReorderPlan, getProductReorderPlan };
 
 // Quantity must be within bounds before stock is added and a batch is recorded.
 export const receiveStock = async (id, quantity, options = {}) => {
