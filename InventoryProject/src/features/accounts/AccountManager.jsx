@@ -33,6 +33,11 @@ const AccountManager = ({ subTab = null, onSubTabChange = null }) => {
   const [statusTarget, setStatusTarget] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [countdown, setCountdown] = useState(0);
+  // Re-entering your own password before create/edit/activate/delete stops someone who finds
+  // an Owner/Admin's session left open from granting themselves more access.
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [confirmPasswordError, setConfirmPasswordError] = useState('');
+  const [confirming, setConfirming] = useState(false);
 
   const [suppliers, setSuppliers] = useState([]);
   const [pinStatus, setPinStatus] = useState({ has_any_custom_pin: false, managers: [] });
@@ -148,6 +153,8 @@ const AccountManager = ({ subTab = null, onSubTabChange = null }) => {
       return;
     }
     setConfirmAction('save');
+    setConfirmPassword('');
+    setConfirmPasswordError('');
     setShowConfirmModal(true);
   };
 
@@ -156,6 +163,7 @@ const AccountManager = ({ subTab = null, onSubTabChange = null }) => {
       name: formData.name.trim(),
       username: formData.username.trim(),
       role: formData.role,
+      confirm_password: confirmPassword,
     };
     if (formData.password && formData.password.trim()) {
       payload.password = formData.password.trim();
@@ -168,9 +176,33 @@ const AccountManager = ({ subTab = null, onSubTabChange = null }) => {
     return payload;
   };
 
-  const executeSaveUser = async () => {
-    setShowConfirmModal(false);
+  // Shared by executeSaveUser/executeToggleStatus/executeDeleteUser: runs the request, and on a
+  // wrong/missing own-password response keeps the modal open with the error instead of closing it.
+  const runConfirmedAction = async (actionFn, closeExtras = () => {}) => {
+    setConfirmPasswordError('');
+    setConfirming(true);
     try {
+      await actionFn();
+      setShowConfirmModal(false);
+      setConfirmPassword('');
+      closeExtras();
+    } catch (err) {
+      if (err?.code === 'CONFIRM_PASSWORD_INVALID' || err?.code === 'CONFIRM_PASSWORD_REQUIRED') {
+        setConfirmPasswordError(err.message);
+      } else {
+        setShowConfirmModal(false);
+        setConfirmPassword('');
+        closeExtras();
+        throw err;
+      }
+    } finally {
+      setConfirming(false);
+    }
+  };
+
+  const executeSaveUser = async () => {
+    try {
+      await runConfirmedAction(async () => {
       const payload = buildPayload();
       if (editingUserId) {
         const updatedUser = await updateUser(editingUserId, payload);
@@ -202,6 +234,7 @@ const AccountManager = ({ subTab = null, onSubTabChange = null }) => {
         resetForm();
         fetchUsers();
       }
+      });
     } catch (err) {
       flash('error', `Error ${editingUserId ? 'updating' : 'creating'} account: ${err.message}`, 6000);
     }
@@ -264,17 +297,19 @@ const AccountManager = ({ subTab = null, onSubTabChange = null }) => {
     } else {
       setCountdown(0);
     }
+    setConfirmPassword('');
+    setConfirmPasswordError('');
     setShowConfirmModal(true);
   };
 
   const executeToggleStatus = async () => {
-    setShowConfirmModal(false);
     if (!statusTarget) return;
-
     try {
-      const newStatus = statusTarget.currentStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
-      await updateUserStatus(statusTarget.id, newStatus);
-      fetchUsers();
+      await runConfirmedAction(async () => {
+        const newStatus = statusTarget.currentStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+        await updateUserStatus(statusTarget.id, newStatus, confirmPassword);
+        fetchUsers();
+      }, () => setStatusTarget(null));
     } catch (err) {
       flash('error', 'Error updating account status: ' + err.message);
     }
@@ -283,20 +318,22 @@ const AccountManager = ({ subTab = null, onSubTabChange = null }) => {
   const handleDeleteUserClick = (user) => {
     setDeleteTarget(user);
     setConfirmAction('delete');
+    setConfirmPassword('');
+    setConfirmPasswordError('');
     setShowConfirmModal(true);
   };
 
   const executeDeleteUser = async () => {
-    setShowConfirmModal(false);
     if (!deleteTarget) return;
-
+    const name = deleteTarget.name;
     try {
-      await deleteUser(deleteTarget.id);
-      flash('success', `Account "${deleteTarget.name}" permanently deleted.`);
-      fetchUsers();
+      await runConfirmedAction(async () => {
+        await deleteUser(deleteTarget.id, confirmPassword);
+        flash('success', `Account "${name}" permanently deleted.`);
+        fetchUsers();
+      }, () => setDeleteTarget(null));
     } catch (err) {
       flash('error', 'Error deleting account: ' + err.message, 6000);
-    } finally {
       setDeleteTarget(null);
     }
   };
@@ -481,6 +518,30 @@ const AccountManager = ({ subTab = null, onSubTabChange = null }) => {
       {showConfirmModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[9999] p-4 flex justify-center items-start pt-6 sm:pt-10 md:pt-14 pb-12 animate-[modalBackdropFadeIn_0.2s_ease-out]">
           <div className="bg-white rounded-2xl p-6 md:p-8 w-full max-w-md shadow-2xl animate-[slideUp_0.3s_ease-out]">
+            <div className="mb-5">
+              <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1.5">
+                Confirm your password to continue
+              </label>
+              <input
+                type="password"
+                autoFocus
+                value={confirmPassword}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value);
+                  setConfirmPasswordError('');
+                }}
+                placeholder="Your own account password"
+                className={`w-full px-3 py-2 border rounded-lg text-sm bg-white focus:outline-none focus:ring-1 ${
+                  confirmPasswordError ? 'border-red-400 focus:ring-red-400' : 'border-zinc-300 focus:ring-zinc-900'
+                }`}
+              />
+              {confirmPasswordError && (
+                <p className="m-0 mt-1.5 text-xs font-semibold text-red-600">{confirmPasswordError}</p>
+              )}
+              <p className="m-0 mt-1.5 text-[11px] text-zinc-400">
+                This is YOUR password ({currentUser?.username}), not the account you're editing — it proves this change is really coming from you.
+              </p>
+            </div>
             {confirmAction === 'status' && statusTarget?.isOnline && statusTarget?.currentStatus === 'ACTIVE' ? (
               <div>
                 <div className="flex items-center gap-3 mb-4">
@@ -509,17 +570,18 @@ const AccountManager = ({ subTab = null, onSubTabChange = null }) => {
                     onClick={() => {
                       setShowConfirmModal(false);
                       setCountdown(0);
+                      setConfirmPassword('');
                     }}
                   >
                     Cancel
                   </button>
                   <button
                     type="button"
-                    disabled={countdown > 0}
+                    disabled={countdown > 0 || !confirmPassword || confirming}
                     className="flex-1 px-4 py-2.5 bg-rose-600 text-white rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer shadow-sm"
                     onClick={executeToggleStatus}
                   >
-                    {countdown > 0 ? `Archive & Terminate (${countdown}s)` : 'Confirm Archive & Force Logout'}
+                    {countdown > 0 ? `Archive & Terminate (${countdown}s)` : confirming ? 'Checking...' : 'Confirm Archive & Force Logout'}
                   </button>
                 </div>
               </div>
@@ -548,16 +610,18 @@ const AccountManager = ({ subTab = null, onSubTabChange = null }) => {
                     onClick={() => {
                       setShowConfirmModal(false);
                       setDeleteTarget(null);
+                      setConfirmPassword('');
                     }}
                   >
                     Cancel
                   </button>
                   <button
                     type="button"
-                    className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-red-700 transition-colors cursor-pointer shadow-sm"
+                    disabled={!confirmPassword || confirming}
+                    className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer shadow-sm"
                     onClick={executeDeleteUser}
                   >
-                    Delete Permanently
+                    {confirming ? 'Checking...' : 'Delete Permanently'}
                   </button>
                 </div>
               </div>
@@ -573,16 +637,20 @@ const AccountManager = ({ subTab = null, onSubTabChange = null }) => {
                   <button
                     type="button"
                     className="flex-1 px-4 py-2.5 bg-zinc-100 text-zinc-700 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-zinc-200 transition-colors cursor-pointer"
-                    onClick={() => setShowConfirmModal(false)}
+                    onClick={() => {
+                      setShowConfirmModal(false);
+                      setConfirmPassword('');
+                    }}
                   >
                     Cancel
                   </button>
                   <button
                     type="button"
-                    className="flex-1 px-4 py-2.5 bg-zinc-900 text-white rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-black transition-colors cursor-pointer"
+                    disabled={!confirmPassword || confirming}
+                    className="flex-1 px-4 py-2.5 bg-zinc-900 text-white rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
                     onClick={confirmAction === 'save' ? executeSaveUser : executeToggleStatus}
                   >
-                    Proceed
+                    {confirming ? 'Checking...' : 'Proceed'}
                   </button>
                 </div>
               </div>

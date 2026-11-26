@@ -22,7 +22,7 @@ const PurchaseOrders = () => {
   const [cancellingPO, setCancellingPO] = useState(null);
   const [reschedulingPO, setReschedulingPO] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
-  const [tabFilter, setTabFilter] = useState('ALL'); // 'ALL' | 'OVERDUE' | 'PROPOSALS' | 'DELIVERING' | 'COMPLETED'
+  const [tabFilter, setTabFilter] = useState('ALL'); // 'ALL' | 'ONGOING' | 'OVERDUE' | 'PROPOSALS' | 'DELIVERING' | 'COMPLETED'
   const [searchQuery, setSearchQuery] = useState('');
   const [processingProposalId, setProcessingProposalId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -137,13 +137,18 @@ const PurchaseOrders = () => {
     setCurrentPage(1);
   }, [tabFilter, searchQuery]);
 
+  // "Ongoing" = anything still in progress: not yet received, cancelled, or declined.
+  const isPOOngoing = (po) => !['Received', 'Cancelled', 'Declined', 'DECLINED'].includes(po.status);
+
   const overdueCount = orders.filter(isPOOverdue).length;
+  const ongoingCount = orders.filter(isPOOngoing).length;
   const proposalsCount = orders.filter(o => o.has_proposals || o.status === 'Proposal Pending' || o.status === 'Partially Accepted').length;
   const deliveringCount = orders.filter(o => ['To Be Delivered', 'Delivering', 'Partial'].includes(o.status)).length;
   const completedCount = orders.filter(o => o.status === 'Received').length;
 
   const filteredOrders = useMemo(() => {
     return orders.filter(po => {
+      if (tabFilter === 'ONGOING' && !isPOOngoing(po)) return false;
       if (tabFilter === 'OVERDUE' && !isPOOverdue(po)) return false;
       if (tabFilter === 'PROPOSALS' && !(po.has_proposals || po.status === 'Proposal Pending' || po.status === 'Partially Accepted')) return false;
       if (tabFilter === 'DELIVERING' && !['To Be Delivered', 'Delivering', 'Partial'].includes(po.status)) return false;
@@ -205,6 +210,19 @@ const PurchaseOrders = () => {
             >
               All Orders ({orders.length})
             </button>
+            <button
+              onClick={() => setTabFilter('ONGOING')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                tabFilter === 'ONGOING'
+                  ? 'bg-zinc-900 text-white shadow-xs'
+                  : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+              }`}
+            >
+              Ongoing ({ongoingCount})
+            </button>
+
+            <span className="w-px h-5 bg-gray-200 mx-1 shrink-0" aria-hidden="true" />
+
             <button
               onClick={() => setTabFilter('OVERDUE')}
               className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
@@ -299,6 +317,8 @@ const PurchaseOrders = () => {
                       <td colSpan="7" className="p-8 text-center text-gray-400 font-medium">
                         {tabFilter === 'PROPOSALS'
                           ? 'No purchase orders with supplier proposals or rescheduled items at the moment.'
+                          : tabFilter === 'ONGOING'
+                          ? 'No purchase orders currently in progress.'
                           : 'No purchase orders found matching your filters.'}
                       </td>
                     </tr>

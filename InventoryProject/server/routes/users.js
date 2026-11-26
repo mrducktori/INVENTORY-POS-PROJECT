@@ -25,6 +25,33 @@ export function blocksPrivilegedChange(actor, targetId, targetRole, nextRole) {
 }
 const PRIVILEGED_ERROR = 'Only the Owner can create or modify Admin/Owner accounts.';
 
+// Guards account-mutating actions (create/edit/activate-deactivate/delete) behind the ACTING
+// user's own current password, so someone who finds an Owner/Admin's session left open at the
+// register can't use it to create an account or grant themselves more access. Re-fetches the
+// hash fresh rather than trusting anything cached on req.user. userManagementLimiter (already on
+// every route this guards) throttles repeated wrong-password attempts.
+async function requireOwnPassword(req, res, next) {
+  try {
+    const pw = String(req.body.confirm_password || '');
+    if (!pw) {
+      return res.status(400).json({ error: 'Re-enter your password to confirm this change.', code: 'CONFIRM_PASSWORD_REQUIRED' });
+    }
+    const { data: actor, error } = await supabase
+      .from('users')
+      .select('password_hash')
+      .eq('id', req.user.id)
+      .maybeSingle();
+    if (error) throw error;
+    const ok = actor?.password_hash && (await bcrypt.compare(pw, actor.password_hash));
+    if (!ok) {
+      return res.status(403).json({ error: 'Incorrect password.', code: 'CONFIRM_PASSWORD_INVALID' });
+    }
+    next();
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
 // Get all users — requires internal café role
 router.get('/', requireAuth, requireRole('Owner', 'Admin', 'Staff', 'Custom'), async (req, res) => {
   try {
@@ -59,7 +86,7 @@ router.get('/', requireAuth, requireRole('Owner', 'Admin', 'Staff', 'Custom'), a
 });
 
 // Only Admin/Owner may create users.
-router.post('/', requireAuth, requireRole('Admin', 'Owner'), userManagementLimiter, async (req, res) => {
+router.post('/', requireAuth, requireRole('Admin', 'Owner'), userManagementLimiter, requireOwnPassword, async (req, res) => {
   try {
     const { name, username, password, role, supplier_id, permissions, custom_role_name } = req.body;
     if (!name || !username || !password || !role) {
@@ -140,7 +167,7 @@ router.post('/', requireAuth, requireRole('Admin', 'Owner'), userManagementLimit
 });
 
 // Only Admin/Owner may activate or deactivate users.
-router.put('/:id/status', requireAuth, requireRole('Admin', 'Owner'), userManagementLimiter, async (req, res) => {
+router.put('/:id/status', requireAuth, requireRole('Admin', 'Owner'), userManagementLimiter, requireOwnPassword, async (req, res) => {
   try {
     const { status } = req.body;
     if (!['ACTIVE', 'INACTIVE'].includes(status)) {
@@ -192,7 +219,7 @@ router.put('/:id/status', requireAuth, requireRole('Admin', 'Owner'), userManage
 
 // Permanently delete an archived user: Owner/Admin only, archived 90+ days for Admin accounts and
 // 30+ days for others, and the user must have 0 sales.
-router.delete('/:id', requireAuth, requireRole('Admin', 'Owner'), userManagementLimiter, async (req, res) => {
+router.delete('/:id', requireAuth, requireRole('Admin', 'Owner'), userManagementLimiter, requireOwnPassword, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -274,7 +301,7 @@ router.delete('/:id', requireAuth, requireRole('Admin', 'Owner'), userManagement
 });
 
 // Only Admin/Owner may update users.
-router.put('/:id', requireAuth, requireRole('Admin', 'Owner'), userManagementLimiter, async (req, res) => {
+router.put('/:id', requireAuth, requireRole('Admin', 'Owner'), userManagementLimiter, requireOwnPassword, async (req, res) => {
   try {
     const { name, username, password, role, status, supplier_id, permissions, custom_role_name } = req.body;
     if (!name || !username || !role) {
@@ -389,6 +416,31 @@ router.put('/:id', requireAuth, requireRole('Admin', 'Owner'), userManagementLim
     if (err.message && err.message.includes('users_username_key')) {
       return res.status(400).json({ error: 'This username is already taken. Please choose a different one.' });
     }
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Self-service only: an account hiding a section from its OWN sidebar. Purely a display
+// preference (see utils/permissions.js canAccess for the real access control), so no role
+// check and no password re-confirmation -- those guard actual account changes, not this.
+router.put('/me/nav-prefs', requireAuth, async (req, res) => {
+  try {
+    const raw = req.body.hidden_nav_sections;
+    if (!Array.isArray(raw) || raw.length > 30 || raw.some((s) => typeof s !== 'string' || s.length > 60)) {
+      return res.status(400).json({ error: 'hidden_nav_sections must be an array of short strings.' });
+    }
+    const hidden_nav_sections = [...new Set(raw)];
+
+    const { data, error } = await supabase
+      .from('users')
+      .update({ hidden_nav_sections })
+      .eq('id', req.user.id)
+      .select('id, hidden_nav_sections')
+      .single();
+    if (error) throw error;
+
+    res.json(data);
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });

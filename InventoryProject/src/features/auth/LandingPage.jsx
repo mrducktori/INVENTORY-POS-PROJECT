@@ -28,6 +28,9 @@ function LandingPage() {
     presentCategories,
     groupedProducts,
     categoriesToDisplay,
+    searchTerm,
+    setSearchTerm,
+    isSearching,
     currentPromoIndex,
     setIsPromoHovered,
     expandedPromo,
@@ -198,6 +201,9 @@ function LandingPage() {
                 onRetry={fetchProducts}
                 activeCategory={activeCategory}
                 onSelectCategory={setActiveCategory}
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                isSearching={isSearching}
                 presentCategories={presentCategories}
                 groupedProducts={groupedProducts}
                 categoriesToDisplay={categoriesToDisplay}

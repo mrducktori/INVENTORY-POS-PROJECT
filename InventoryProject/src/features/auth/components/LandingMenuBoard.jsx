@@ -12,7 +12,10 @@ function LandingMenuBoard({
   onSelectCategory,
   presentCategories = ['ALL'],
   groupedProducts = {},
-  categoriesToDisplay = []
+  categoriesToDisplay = [],
+  searchTerm = '',
+  onSearchChange,
+  isSearching = false
 }) {
   const scrollRef = useRef(null);
   const [brokenImages, setBrokenImages] = useState({});
@@ -42,17 +45,45 @@ function LandingMenuBoard({
         )}
       </div>
 
-      <div className="flex flex-wrap sm:justify-center gap-1.5 sm:gap-2 p-2.5 sm:p-3 bg-white/5 border-b border-white/10 shrink-0 overflow-x-auto max-h-24 sm:max-h-none">
-        {presentCategories.map(cat => (
-          <button
-            key={cat}
-            className={`px-3 py-1.5 sm:px-4 sm:py-2 text-[11px] sm:text-xs md:text-sm font-bold rounded-lg uppercase tracking-wider border transition-all duration-300 cursor-pointer whitespace-nowrap ${activeCategory === cat ? 'bg-white/25 text-white border-white/40 shadow-[0_0_10px_rgba(255,255,255,0.15)]' : 'bg-transparent text-gray-400 border-transparent hover:text-white hover:bg-white/10'}`}
-            onClick={() => onSelectCategory(cat)}
-          >
-            {cat}
-          </button>
-        ))}
+      <div className="p-2.5 sm:p-3 bg-white/5 border-b border-white/10 shrink-0">
+        <div className="relative">
+          <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z" />
+          </svg>
+          <input
+            type="search"
+            value={searchTerm}
+            onChange={(e) => onSearchChange?.(e.target.value)}
+            placeholder="Search the menu..."
+            aria-label="Search the menu"
+            className="w-full pl-9 pr-9 py-2 sm:py-2.5 bg-white/10 border border-white/15 rounded-lg text-sm text-white placeholder-gray-400 focus:outline-none focus:bg-white/15 focus:border-white/30 transition-colors"
+          />
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={() => onSearchChange?.('')}
+              aria-label="Clear search"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white cursor-pointer bg-transparent border-none p-1"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+          )}
+        </div>
       </div>
+
+      {!isSearching && (
+        <div className="flex flex-wrap sm:justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 pb-2.5 sm:pb-3 bg-white/5 border-b border-white/10 shrink-0 overflow-x-auto max-h-24 sm:max-h-none">
+          {presentCategories.map(cat => (
+            <button
+              key={cat}
+              className={`px-3 py-1.5 sm:px-4 sm:py-2 text-[11px] sm:text-xs md:text-sm font-bold rounded-lg uppercase tracking-wider border transition-all duration-300 cursor-pointer whitespace-nowrap ${activeCategory === cat ? 'bg-white/25 text-white border-white/40 shadow-[0_0_10px_rgba(255,255,255,0.15)]' : 'bg-transparent text-gray-400 border-transparent hover:text-white hover:bg-white/10'}`}
+              onClick={() => onSelectCategory(cat)}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div
         ref={scrollRef}
@@ -91,6 +122,14 @@ function LandingMenuBoard({
                 Refresh Menu
               </button>
             )}
+          </div>
+        ) : isSearching && categoriesToDisplay.every((cat) => (groupedProducts[cat] || []).length === 0) ? (
+          <div className="flex flex-col items-center justify-center h-full text-gray-400 py-16 text-center">
+            <svg className="w-10 h-10 mb-3 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-4.35-4.35M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z" />
+            </svg>
+            <p className="text-sm font-semibold">No items match &quot;{searchTerm}&quot;.</p>
+            <p className="text-xs text-gray-500 mt-1">Try a different name or category.</p>
           </div>
         ) : (
           <div className="flex flex-col gap-6 sm:gap-8">

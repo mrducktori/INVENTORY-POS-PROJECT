@@ -24,16 +24,24 @@ export const updateUser = async (id, userData) => {
   });
 };
 
-export const updateUserStatus = async (id, status) => {
+export const updateUserStatus = async (id, status, confirmPassword) => {
   return apiCall(`/users/${id}/status`, {
     method: 'PUT',
-    body: JSON.stringify({ status, changed_by: getActorId() })
+    body: JSON.stringify({ status, changed_by: getActorId(), confirm_password: confirmPassword })
   });
 };
 
-export const deleteUser = async (id) => {
+export const deleteUser = async (id, confirmPassword) => {
   return apiCall(`/users/${id}`, {
-    method: 'DELETE'
+    method: 'DELETE',
+    body: JSON.stringify({ confirm_password: confirmPassword })
+  });
+};
+
+export const saveNavPrefs = async (hiddenSections) => {
+  return apiCall('/users/me/nav-prefs', {
+    method: 'PUT',
+    body: JSON.stringify({ hidden_nav_sections: hiddenSections })
   });
 };
 

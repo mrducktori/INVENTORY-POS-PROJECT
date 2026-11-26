@@ -171,8 +171,18 @@ export const useLandingPage = () => {
     return ['ALL', ...new Set(products.map(p => p.category?.toUpperCase()).filter(Boolean))];
   }, [products]);
 
+  // Typing a search term shows matches across the whole menu, not just the selected category —
+  // that's the behavior people expect from a menu search box.
+  const [searchTerm, setSearchTerm] = useState('');
+  const isSearching = searchTerm.trim().length > 0;
+  const searchedProducts = useMemo(() => {
+    if (!isSearching) return products;
+    const q = searchTerm.trim().toLowerCase();
+    return products.filter((p) => (p.name || '').toLowerCase().includes(q) || (p.category || '').toLowerCase().includes(q));
+  }, [products, searchTerm, isSearching]);
+
   const groupedProducts = useMemo(() => {
-    const groups = products.reduce((acc, product) => {
+    const groups = searchedProducts.reduce((acc, product) => {
       const cat = product.category?.toUpperCase() || 'UNCATEGORIZED';
       if (!acc[cat]) acc[cat] = [];
       acc[cat].push(product);
@@ -183,13 +193,13 @@ export const useLandingPage = () => {
       (a.is_available === false) - (b.is_available === false) || (a.name || '').localeCompare(b.name || '')
     ));
     return groups;
-  }, [products]);
+  }, [searchedProducts]);
 
   const categoriesToDisplay = useMemo(() => {
-    return activeCategory === 'ALL'
+    return activeCategory === 'ALL' || isSearching
       ? Object.keys(groupedProducts).sort()
       : [activeCategory];
-  }, [activeCategory, groupedProducts]);
+  }, [activeCategory, groupedProducts, isSearching]);
 
   // Auto-advance promo carousel if multiple promos exist (paused on hover or modal open)
   const promos = cmsData.promos;
@@ -243,6 +253,9 @@ export const useLandingPage = () => {
     presentCategories,
     groupedProducts,
     categoriesToDisplay,
+    searchTerm,
+    setSearchTerm,
+    isSearching,
     currentPromoIndex,
     isPromoHovered,
     setIsPromoHovered,
