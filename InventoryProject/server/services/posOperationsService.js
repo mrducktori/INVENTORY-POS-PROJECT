@@ -336,8 +336,10 @@ export const normalizePosSettings = (raw = {}, { strict = false } = {}) => {
   }
 
   // Senior (RA 9994) and PWD (RA 10754) discounts are required by law: they cannot be turned off or
-  // re-rated, whatever the saved settings say. Only the label stays editable.
-  for (const def of DEFAULT_DISCOUNT_TYPES.filter((d) => d.id === "SENIOR" || d.id === "PWD")) {
+  // re-rated, whatever the saved settings say. Only the label stays editable. An Owner can unlock them
+  // (updatePosSettings) if the law changes; `statutory_unlocked` is the saved flag for that.
+  const statutory_unlocked = src.statutory_unlocked === true;
+  for (const def of DEFAULT_DISCOUNT_TYPES.filter((d) => !statutory_unlocked && (d.id === "SENIOR" || d.id === "PWD"))) {
     const i = discount_types.findIndex((d) => d.id === def.id);
     const locked = { ...def, label: i >= 0 ? discount_types[i].label : def.label };
     if (i >= 0) discount_types[i] = locked;
@@ -393,6 +395,7 @@ export const normalizePosSettings = (raw = {}, { strict = false } = {}) => {
     promo_codes,
     discount_presets,
     discount_types,
+    statutory_unlocked,
     ewallet_accounts,
     takeout_packaging
   };
@@ -403,8 +406,45 @@ export const getPosSettings = async () => {
   return normalizePosSettings(stored || {});
 };
 
+const STATUTORY_IDS = new Set(["SENIOR", "PWD"]);
+const statutoryRows = (types) => (Array.isArray(types) ? types : []).filter((d) => STATUTORY_IDS.has(d?.id));
+// Renaming a row is not a legal change, so the label is left out of the comparison.
+const legalFields = (types) => statutoryRows(types).map((d) => [d.id, d.rate_percent, d.requires_id, d.vat_exempt, d.active]);
+const sameStatutory = (a, b) => JSON.stringify(legalFields(a)) === JSON.stringify(legalFields(b));
+
+const verifyOwnPassword = async (userId, password) => {
+  if (!password) {
+    throw Object.assign(createHttpError(400, "Re-enter your password to change the Senior/PWD discounts."), { code: "CONFIRM_PASSWORD_REQUIRED" });
+  }
+  const { data, error } = await supabase.from("users").select("password_hash").eq("id", userId).maybeSingle();
+  if (error) throw error;
+  if (!data?.password_hash || !(await bcrypt.compare(String(password), data.password_hash))) {
+    throw Object.assign(createHttpError(403, "Incorrect password."), { code: "CONFIRM_PASSWORD_INVALID" });
+  }
+};
+
 export const updatePosSettings = async (payload, actingUser) => {
-  const normalized = normalizePosSettings(payload, { strict: true });
+  const current = await getPosSettings();
+  const isOwner = actingUser?.role === "Owner";
+  const body = { ...(payload && typeof payload === "object" ? payload : {}) };
+  delete body.confirm_password;
+
+  // Only an Owner can unlock the Senior/PWD discounts or edit them once unlocked. Anyone else's
+  // changes to those rows are discarded in favour of what is already saved.
+  const unlocked = isOwner && typeof body.statutory_unlocked === "boolean" ? body.statutory_unlocked : current.statutory_unlocked;
+  body.statutory_unlocked = unlocked;
+  if (!isOwner && Array.isArray(body.discount_types)) {
+    body.discount_types = body.discount_types.map((d) => (STATUTORY_IDS.has(d?.id) ? current.discount_types.find((c) => c.id === d.id) || d : d));
+  }
+
+  const normalized = normalizePosSettings(body, { strict: true });
+  const statutoryChanged =
+    normalized.statutory_unlocked !== current.statutory_unlocked ||
+    !sameStatutory(normalized.discount_types, current.discount_types);
+  if (statutoryChanged) {
+    await verifyOwnPassword(actingUser?.id, payload?.confirm_password);
+  }
+
   await withStoreLock(POS_SETTINGS_STORE_KEY, async () => {
     await writeCmsStore(POS_SETTINGS_STORE_KEY, "POS Store Settings", normalized);
   });
@@ -413,6 +453,13 @@ export const updatePosSettings = async (payload, actingUser) => {
     promo_count: normalized.promo_codes.length,
     updated_by: actingUser?.name || "Admin"
   });
+  if (statutoryChanged) {
+    await logAudit("POS_STATUTORY_DISCOUNT_CHANGED", actingUser?.id || null, {
+      unlocked: normalized.statutory_unlocked,
+      before: statutoryRows(current.discount_types),
+      after: statutoryRows(normalized.discount_types)
+    });
+  }
 
   return normalized;
 };

@@ -4,6 +4,7 @@ import { getPosSettings, updatePosSettings } from '../../../api/posApi';
 import { uploadCmsImage } from '../../../api/cmsApi';
 import SearchableIngredientSelect from '../../../components/shared/SearchableIngredientSelect';
 import InfoTip from '../../../components/shared/InfoTip';
+import { getCurrentUser } from '../../../utils/authUtils';
 
 const PROVIDERS = [
   { id: 'GCASH', label: 'GCash' },
@@ -49,6 +50,7 @@ const buildDefaultSettings = (initial = null) => {
           { code: 'B1T1', type: 'B1T1', value: 0, min_subtotal: 0, active: true, description: 'Buy 1 Take 1 (free lowest item)' }
         ],
     discount_types: discountTypes,
+    statutory_unlocked: initial?.statutory_unlocked === true,
     discount_presets: {
       senior_rate: presets.senior_rate ?? 0.20,
       pwd_rate: presets.pwd_rate ?? 0.20,
@@ -94,6 +96,8 @@ const PosSettingsModal = ({ allIngredients = [], initialSettings = null, onSaved
   const [uploadingProvider, setUploadingProvider] = useState(null);
   const [notice, setNotice] = useState({ type: '', text: '' });
   const [showPromoGuide, setShowPromoGuide] = useState(false);
+  const isOwner = getCurrentUser()?.role === 'Owner';
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   const [newPromo, setNewPromo] = useState({
     code: '',
@@ -296,7 +300,8 @@ const PosSettingsModal = ({ allIngredients = [], initialSettings = null, onSaved
     try {
       setSaving(true);
       setNotice({ type: '', text: '' });
-      const saved = await updatePosSettings(settings);
+      const saved = await updatePosSettings({ ...settings, confirm_password: confirmPassword });
+      setConfirmPassword('');
       setSettings(buildDefaultSettings(saved));
       onSaved?.(saved);
       setNotice({ type: 'success', text: 'POS Store Setup saved and active across registers.' });
@@ -391,10 +396,42 @@ const PosSettingsModal = ({ allIngredients = [], initialSettings = null, onSaved
                       </p>
                     </div>
 
+                    {isOwner && (
+                      <div className={`rounded-lg border px-3 py-2.5 text-xs ${settings.statutory_unlocked ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-white border-gray-200 text-gray-600'}`}>
+                        {settings.statutory_unlocked ? (
+                          <p className="m-0 font-semibold">
+                            Senior Citizen and PWD rates are unlocked. Only change them to match the current law (RA 9994 / RA 10754).
+                          </p>
+                        ) : (
+                          <p className="m-0">Senior Citizen and PWD rates are fixed by law. Owners can unlock them if the law changes.</p>
+                        )}
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setSettings((p) => ({ ...p, statutory_unlocked: !p.statutory_unlocked }))}
+                            className="px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-800 font-bold cursor-pointer hover:bg-gray-100"
+                          >
+                            {settings.statutory_unlocked ? 'Lock again' : 'Unlock Senior / PWD rates'}
+                          </button>
+                          {(settings.statutory_unlocked || initialSettings?.statutory_unlocked) && (
+                            <input
+                              type="password"
+                              autoComplete="current-password"
+                              value={confirmPassword}
+                              onChange={(e) => setConfirmPassword(e.target.value)}
+                              placeholder="Your password (needed to save changes here)"
+                              aria-label="Your password, needed to save Senior and PWD changes"
+                              className="flex-1 min-w-[220px] px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-gray-900"
+                            />
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     <div className="border border-gray-200 rounded-xl overflow-hidden divide-y divide-gray-100 bg-white">
                       {settings.discount_types.map((d, idx) => {
                         const isBuiltIn = BUILTIN_DISCOUNT_IDS.has(d.id);
-                        const isLegal = d.id === 'SENIOR' || d.id === 'PWD'; // fixed by RA 9994 / RA 10754
+                        const isLegal = (d.id === 'SENIOR' || d.id === 'PWD') && !settings.statutory_unlocked; // fixed by RA 9994 / RA 10754 unless the Owner unlocks them
                         return (
                           <div
                             key={d.id}
@@ -427,6 +464,7 @@ const PosSettingsModal = ({ allIngredients = [], initialSettings = null, onSaved
                                 />
                                 <span className="text-xs font-bold text-gray-600">%</span>
                                 {isLegal && <span className="text-[10px] font-semibold text-gray-500 ml-1">Set by law</span>}
+                                {!isLegal && (d.id === 'SENIOR' || d.id === 'PWD') && <span className="text-[10px] font-semibold text-amber-700 ml-1">Unlocked</span>}
                               </div>
                             </div>
 

@@ -56,6 +56,17 @@ test("Senior/PWD discounts are locked by law whatever settings say", () => {
   assert.deepEqual([pwd.rate_percent, pwd.vat_exempt, pwd.active], [20, true, true]);
 });
 
+test("an Owner-unlocked Senior rate is kept instead of being reset to 20%", () => {
+  const s = ops.normalizePosSettings({
+    statutory_unlocked: true,
+    discount_types: [{ id: "SENIOR", label: "Senior", rate_percent: 25, requires_id: true, vat_exempt: true, active: true }]
+  });
+  assert.equal(s.statutory_unlocked, true);
+  assert.equal(s.discount_types.find((d) => d.id === "SENIOR").rate_percent, 25);
+  // Without the flag the same input is forced back to the legal rate.
+  assert.equal(ops.normalizePosSettings({ discount_types: [{ id: "SENIOR", rate_percent: 25 }] }).discount_types.find((d) => d.id === "SENIOR").rate_percent, 20);
+});
+
 test("manager PIN rate limit counts an attempt before its async work, closing a parallel-guess race", async () => {
   const rateKey = `pin-race-test-${Date.now()}`;
   // No PINs configured, so every guess fails after the synchronous reservation runs.
