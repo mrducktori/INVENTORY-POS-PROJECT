@@ -46,6 +46,7 @@ const ManageProducts = ({ subTab = null, onSubTabChange = null }) => {
     editThreshold, setEditThreshold,
     editSizes, setEditSizes,
     editAddOns, setEditAddOns,
+    editHiddenSizes, setEditHiddenSizes, categorySettings,
     handleAddSize, handleRemoveSize, handleUpdateEditSize,
     handleAddAddOn, handleRemoveAddOn,
     handleAddProduct,
@@ -194,6 +195,7 @@ const ManageProducts = ({ subTab = null, onSubTabChange = null }) => {
           <AddProductFormSection
             formData={formData}
             categories={categories}
+            categorySettings={categorySettings}
             allIngredients={allIngredients}
             uploading={uploading}
             onInputChange={handleInputChange}
@@ -279,6 +281,9 @@ const ManageProducts = ({ subTab = null, onSubTabChange = null }) => {
           setEditImageUrl={setEditImageUrl}
           setEditSizes={setEditSizes}
           setEditAddOns={setEditAddOns}
+          categorySettings={categorySettings}
+          editHiddenSizes={editHiddenSizes}
+          setEditHiddenSizes={setEditHiddenSizes}
           uploading={uploading}
           onImageUpload={handleImageUpload}
           editTrackStock={editTrackStock}

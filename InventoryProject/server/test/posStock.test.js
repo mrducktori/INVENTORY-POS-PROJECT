@@ -34,3 +34,11 @@ test("shift ownership", () => {
   assert.doesNotThrow(() => ops.assertCanAccessShift({ cashier_id: "u1" }, { id: "u2", role: "Admin" }));
   assert.throws(() => ops.assertCanAccessShift({ cashier_id: "u1" }, { id: "u2", role: "Staff" }), { status: 403 });
 });
+
+test("effectiveSizes: inherits category, hides toggled-off, never empties", () => {
+  const cat = [{ name: "12 oz" }, { name: "16 oz" }, { name: "22 oz" }];
+  assert.deepEqual(pos.effectiveSizes({ sizes: [] }, cat).map((s) => s.name), ["12 oz", "16 oz", "22 oz"]);
+  assert.deepEqual(pos.effectiveSizes({ sizes: [], hidden_sizes: ["22 OZ"] }, cat).map((s) => s.name), ["12 oz", "16 oz"]);
+  assert.deepEqual(pos.effectiveSizes({ sizes: [{ name: "16 oz" }] }, cat).map((s) => s.name), ["16 oz"]);
+  assert.equal(pos.effectiveSizes({ sizes: [], hidden_sizes: ["12 oz", "16 oz", "22 oz"] }, cat).length, 3);
+});

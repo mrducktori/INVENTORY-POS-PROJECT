@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { CATEGORIES } from '../../../../utils/constants';
-import ProductOptionsEditor from './ProductOptionsEditor';
+import ProductOptionsEditor, { SizeOfferToggles } from './ProductOptionsEditor';
+import { getEffectiveSizes } from '../../hooks/sizeUtils';
 
 const AddProductFormSection = ({
   formData,
   categories,
+  categorySettings = [],
   allIngredients = [],
   uploading,
   onInputChange,
@@ -22,7 +24,8 @@ const AddProductFormSection = ({
       ? categories
       : CATEGORIES.filter((c) => c !== 'OTHERS');
 
-  const sizeCount = formData.sizes?.length || 0;
+  const effSizes = getEffectiveSizes(formData.sizes, categorySettings, formData.category);
+  const sizeCount = effSizes.length - (formData.hiddenSizes || []).filter((n) => effSizes.some((s) => s.name === n)).length;
   const addOnCount = formData.add_ons?.length || 0;
 
   return (
@@ -96,6 +99,15 @@ const AddProductFormSection = ({
             </div>
           )}
 
+          {formData.category && (
+            <SizeOfferToggles
+              sizes={effSizes}
+              hiddenSizes={formData.hiddenSizes || []}
+              onChange={(hiddenSizes) => onInputChange({ target: { name: 'hiddenSizes', value: hiddenSizes, type: 'text' } })}
+              categoryName={formData.category}
+            />
+          )}
+
           <div className="border border-gray-200 rounded-xl overflow-hidden">
             <button
               type="button"
@@ -104,10 +116,10 @@ const AddProductFormSection = ({
             >
               <div>
                 <span className="block text-xs md:text-sm font-bold text-gray-900 uppercase tracking-wider">
-                  Cup Sizes & Add-ons
+                  Add-ons
                 </span>
                 <span className="block text-[11px] text-gray-500 font-medium mt-0.5">
-                  {sizeCount} size(s), {addOnCount} add-on(s) {formData.category ? `• Auto-filled from ${formData.category}` : '• Select a category to auto-fill defaults'}
+                  {sizeCount} size(s) offered, {addOnCount} add-on(s) {formData.category ? `• Auto-filled from ${formData.category}` : '• Select a category to auto-fill defaults'}
                 </span>
               </div>
               <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">
@@ -125,6 +137,7 @@ const AddProductFormSection = ({
                   addOns={formData.add_ons || []}
                   onAddAddOn={onAddFormAddOn}
                   onRemoveAddOn={onRemoveFormAddOn}
+                  hideSizes
                   compact
                 />
               </div>

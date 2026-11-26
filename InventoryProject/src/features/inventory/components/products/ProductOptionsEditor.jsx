@@ -1,11 +1,47 @@
 import React, { useState } from 'react';
 import SearchableIngredientSelect from '../../../../components/shared/SearchableIngredientSelect';
+import { isBaseSize } from '../../hooks/sizeUtils';
 
 const RemoveIcon = () => (
   <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
   </svg>
 );
+
+const SizeOfferToggles = ({ sizes = [], hiddenSizes = [], onChange, categoryName }) => {
+  const visibleCount = sizes.filter((s) => !hiddenSizes.includes(s.name)).length;
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col gap-2">
+      <h4 className="m-0 text-sm font-extrabold text-gray-900 uppercase tracking-wider">Offered in</h4>
+      {sizes.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5">
+          {sizes.map((sz, idx) => {
+            const on = !hiddenSizes.includes(sz.name);
+            const isLast = on && visibleCount <= 1;
+            return (
+              <button
+                key={`${sz.name}-${idx}`}
+                type="button"
+                disabled={isLast}
+                title={isLast ? 'At least one size must stay on' : undefined}
+                onClick={() => onChange(on ? [...hiddenSizes, sz.name] : hiddenSizes.filter((n) => n !== sz.name))}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-70 ${on ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-400 border-gray-300 line-through hover:bg-gray-100'}`}
+              >
+                {sz.name}
+                {isBaseSize(sizes, idx) && <span className="ml-1.5 text-[10px] uppercase opacity-80">Base</span>}
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="text-xs text-gray-500 italic m-0">No sizes in this category.</p>
+      )}
+      <p className="text-[11px] text-gray-500 m-0">
+        Sizes come from the {categoryName || 'selected'} category. Edit them in Manage Categories.
+      </p>
+    </div>
+  );
+};
 
 const ProductOptionsEditor = ({
   allIngredients = [],
@@ -15,7 +51,9 @@ const ProductOptionsEditor = ({
   onUpdateSize,
   addOns = [],
   onAddAddOn,
-  onRemoveAddOn
+  onRemoveAddOn,
+  onSetBaseSize,
+  hideSizes = false
 }) => {
   const [newSize, setNewSize] = useState({
     name: '',
@@ -37,6 +75,7 @@ const ProductOptionsEditor = ({
 
   const [editingSizeIdx, setEditingSizeIdx] = useState(null);
 
+  const hasBase = sizes.some((s) => s.is_base);
   const getIngName = (id) => {
     if (!id) return '-';
     return allIngredients.find((ing) => ing.id === id)?.name || '-';
@@ -79,6 +118,7 @@ const ProductOptionsEditor = ({
 
   return (
     <div className={`grid grid-cols-1 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200`}>
+      {!hideSizes && (
       <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-2xs flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <h4 className="m-0 text-sm font-extrabold text-gray-900 uppercase tracking-wider">Cup Sizes</h4>
@@ -101,6 +141,11 @@ const ProductOptionsEditor = ({
                         <span className="text-[11px] font-semibold text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded">
                           ×{Number(sz.recipe_multiplier) > 0 ? sz.recipe_multiplier : 1}
                         </span>
+                        {typeof onSetBaseSize === 'function' && (sz.is_base || (!hasBase && idx === 0)) && (
+                          <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">
+                            Base
+                          </span>
+                        )}
                         {sz.dine_in_no_cup && (
                           <span className="text-[10px] font-bold text-zinc-600 bg-zinc-100 border border-zinc-200 px-1.5 py-0.5 rounded">
                             Dine-In: No Cup
@@ -118,6 +163,15 @@ const ProductOptionsEditor = ({
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
+                      {typeof onSetBaseSize === 'function' && !(sz.is_base || (!hasBase && idx === 0)) && (
+                        <button
+                          type="button"
+                          onClick={() => onSetBaseSize(idx)}
+                          className="px-2 py-1 text-[11px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded cursor-pointer border-none"
+                        >
+                          Set as base
+                        </button>
+                      )}
                       {typeof onUpdateSize === 'function' && (
                         <button
                           type="button"
@@ -296,6 +350,7 @@ const ProductOptionsEditor = ({
           </button>
         </div>
       </div>
+      )}
 
       <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-2xs flex flex-col gap-3">
         <div className="flex items-center justify-between">
@@ -402,4 +457,5 @@ const ProductOptionsEditor = ({
   );
 };
 
+export { SizeOfferToggles };
 export default ProductOptionsEditor;

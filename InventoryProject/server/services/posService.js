@@ -140,12 +140,12 @@ const buildCatalogMaps = (products = [], recipes = [], ingredients = [], categor
   });
 
   const productsWithAvailability = products.map(product => {
-    const ownSizes = Array.isArray(product.sizes) ? product.sizes : [];
-    const fallbackSizes = categorySizesMap ? (categorySizesMap.get(normalizeCategoryKey(product.category)) || []) : [];
-    const resolvedSizes = ownSizes.length > 0 ? ownSizes : fallbackSizes;
+    const resolvedSizes = effectiveSizes(product, categorySizesMap?.get(normalizeCategoryKey(product.category)));
     const availability = computeProductAvailability(product, recMap[product.id] || [], ingMap, resolvedSizes);
     return {
       ...product,
+      // Resolved list so the POS client never re-adds sizes the product has toggled off.
+      sizes: resolvedSizes,
       ...availability
     };
   });
@@ -155,6 +155,16 @@ const buildCatalogMaps = (products = [], recipes = [], ingredients = [], categor
 
 const normalizeCategoryKey = (category) =>
   String(category || "").trim().replace(/\s+/g, " ").toUpperCase();
+
+// A product's own sizes win; otherwise it inherits its category's. hidden_sizes are toggled off.
+// Never returns an empty list because of toggling: if every size were hidden, show them all.
+export const effectiveSizes = (product, categorySizes) => {
+  const own = Array.isArray(product?.sizes) ? product.sizes : [];
+  const all = own.length > 0 ? own : (Array.isArray(categorySizes) ? categorySizes : []);
+  const hidden = new Set((Array.isArray(product?.hidden_sizes) ? product.hidden_sizes : []).map((n) => String(n).trim().toLowerCase()));
+  const shown = all.filter((s) => !hidden.has(String(s?.name || "").trim().toLowerCase()));
+  return shown.length > 0 ? shown : all;
+};
 
 const buildCategorySizesMap = (categorySettings = []) => {
   const map = new Map();
@@ -219,11 +229,7 @@ export const getProducts = async () => {
   });
 
   const result = catalog.map((product) => {
-    const ownSizes = Array.isArray(product.sizes) ? product.sizes : [];
-    const resolvedSizes =
-      ownSizes.length > 0
-        ? ownSizes
-        : (categorySizesMap.get(normalizeCategoryKey(product.category)) || []);
+    const resolvedSizes = product.sizes; // already resolved + filtered by buildCatalogMaps
     const prodRecipes = recMap[product.id] || [];
     const direct = product.track_stock || prodRecipes.length === 0;
 

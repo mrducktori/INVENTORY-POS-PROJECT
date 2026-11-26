@@ -11,7 +11,8 @@ const CategoryDefaultsEditor = ({
   onUpdateSize,
   editAddOns = [],
   onAddAddOn,
-  onRemoveAddOn
+  onRemoveAddOn,
+  onSetBaseSize
 }) => {
   return (
     <div className="space-y-4">
@@ -58,6 +59,7 @@ const CategoryDefaultsEditor = ({
         addOns={editAddOns}
         onAddAddOn={onAddAddOn}
         onRemoveAddOn={onRemoveAddOn}
+        onSetBaseSize={onSetBaseSize}
       />
     </div>
   );

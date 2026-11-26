@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { CATEGORIES } from '../../../../utils/constants';
 import SearchableIngredientSelect from '../../../../components/shared/SearchableIngredientSelect';
-import ProductOptionsEditor from './ProductOptionsEditor';
+import ProductOptionsEditor, { SizeOfferToggles } from './ProductOptionsEditor';
+import { getEffectiveSizes, isBaseSize } from '../../hooks/sizeUtils';
 import ConfirmModal from '../../../../components/shared/ConfirmModal';
 import { useEscapeGuard } from '../../../../components/shared/useEscapeGuard';
 import UnsavedNotice from '../../../../components/shared/UnsavedNotice';
@@ -20,6 +21,9 @@ const ModifyProductModal = ({
   setEditImageUrl,
   setEditSizes,
   setEditAddOns,
+  categorySettings = [],
+  editHiddenSizes = [],
+  setEditHiddenSizes,
   uploading,
   onImageUpload,
   editTrackStock,
@@ -54,7 +58,7 @@ const ModifyProductModal = ({
 
   const current = {
     name: editName, category: editCategory, price: String(editPrice ?? ''), imageUrl: editImageUrl || '',
-    trackStock: Boolean(editTrackStock), threshold: String(editThreshold ?? ''), sizes: editSizes, addOns: editAddOns
+    trackStock: Boolean(editTrackStock), threshold: String(editThreshold ?? ''), sizes: editSizes, addOns: editAddOns, hiddenSizes: editHiddenSizes
   };
   // Baseline = values at first render (modal mounts fresh each time a product is opened).
   const [base] = useState(current);
@@ -65,13 +69,17 @@ const ModifyProductModal = ({
   const handleReset = () => {
     const b = base;
     setEditName(b.name); setEditCategory(b.category); setEditPrice(b.price); setEditImageUrl(b.imageUrl);
-    setEditTrackStock(b.trackStock); setEditThreshold(b.threshold); setEditSizes(b.sizes); setEditAddOns(b.addOns);
+    setEditTrackStock(b.trackStock); setEditThreshold(b.threshold); setEditSizes(b.sizes); setEditAddOns(b.addOns); setEditHiddenSizes(b.hiddenSizes);
   };
 
   if (!selectedProduct) return null;
 
   // Selected tab: '' = Base. Falls back to Base if the size was removed/renamed.
-  const activeSize = editSizes.find((s) => s.name === sizeTab) || null;
+  const effSizes = getEffectiveSizes(editSizes, categorySettings, editCategory);
+  // The base size IS the Base tab, so it gets no tab of its own.
+  const tabSizes = effSizes.filter((s, i) => !editHiddenSizes.includes(s.name) && !isBaseSize(effSizes, i));
+  const activeSize = tabSizes.find((s) => s.name === sizeTab) || null;
+  const matName = (id) => allIngredients.find((i) => i.id === id)?.name;
   const activeMult = Number(activeSize?.recipe_multiplier) > 0 ? Number(activeSize.recipe_multiplier) : 1;
   const round3 = (n) => Number(Number(n).toFixed(3));
   const overrideKey = (r) =>
@@ -162,7 +170,7 @@ const ModifyProductModal = ({
               </div>
               <div className="flex flex-col gap-1.5 flex-1">
                 <label className="text md:text-sm font-bold text-gray-700 uppercase tracking-wider">Category</label>
-                <select className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm md:text-base font-semibold focus:outline-none focus:bg-white focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors cursor-pointer" value={editCategory} onChange={e => setEditCategory(e.target.value)} required>
+                <select className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm md:text-base font-semibold focus:outline-none focus:bg-white focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors cursor-pointer" value={editCategory} onChange={e => { setEditCategory(e.target.value); setEditHiddenSizes([]); }} required>
                   <option value="">Select Category</option>
                   {categoryOptions.map(cat => (
                     <option key={cat} value={cat}>{cat}</option>
@@ -241,12 +249,21 @@ const ModifyProductModal = ({
 
           <div className="mt-8 pt-8 border-t border-gray-200">
             <div className="mb-4">
-              <h3 className="m-0 text-xl font-extrabold text-gray-900 tracking-tight">Cup Sizes & Add-ons Configuration</h3>
+              <h3 className="m-0 text-xl font-extrabold text-gray-900 tracking-tight">Sizes & Add-ons Configuration</h3>
               <p className="m-0 text-xs text-gray-500 font-medium mt-0.5">
-                Configure cup sizes, packaging materials (cup/lid/straw), multipliers, and optional add-ons. Remember to click Save Changes after modifying sizes or add-ons.
+                Choose which sizes this product is offered in and configure add-ons. Remember to click Save Changes afterwards.
               </p>
             </div>
+            <div className="mb-4">
+              <SizeOfferToggles
+                sizes={effSizes}
+                hiddenSizes={editHiddenSizes}
+                onChange={setEditHiddenSizes}
+                categoryName={editCategory}
+              />
+            </div>
             <ProductOptionsEditor
+              hideSizes
               allIngredients={allIngredients}
               sizes={editSizes}
               onAddSize={onAddSize}
@@ -274,7 +291,7 @@ const ModifyProductModal = ({
             {recipe.length > 0 && (
               <div className="mb-3">
                 <div className="flex flex-wrap gap-1.5 mb-2">
-                  {[{ name: '' }, ...editSizes].map((sz) => {
+                  {[{ name: '' }, ...tabSizes].map((sz) => {
                     const on = (activeSize?.name || '') === sz.name;
                     return (
                       <button
@@ -292,6 +309,7 @@ const ModifyProductModal = ({
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-gray-600">
                     <span>
                       <strong className="text-gray-900">Editing: {activeSize.name}</strong> (auto x{activeMult} unless overridden). Edit an amount to set a fixed value for this size only.
+                      {matName(activeSize.ingredient_id) && <> Cup: <strong className="text-gray-900">{matName(activeSize.ingredient_id)}</strong>.</>}
                     </span>
                     <button
                       type="button"
@@ -408,6 +426,14 @@ const ModifyProductModal = ({
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                                     </svg>
                                   </button>
+                                  {activeSize && (() => {
+                                    const diff = round3((overrideOf(r) === null ? autoOf(r) : round3(overrideOf(r))) - Number(r.quantity_used));
+                                    return (
+                                      <span className={`text-[11px] font-semibold ${diff === 0 ? 'text-gray-400' : 'text-emerald-700'}`}>
+                                        {diff === 0 ? '(same as base)' : `(${diff > 0 ? '+' : ''}${diff} ${unitToUse} vs base)`}
+                                      </span>
+                                    );
+                                  })()}
                                   {activeSize && overrideOf(r) !== null && (
                                     <button
                                       type="button"
@@ -581,14 +607,14 @@ const ModifyProductModal = ({
                   </button>
                 </div>
 
-                {editSizes.length > 0 && (
+                {tabSizes.length > 0 && (
                   <details className="pt-2 border-t border-gray-200/70">
                     <summary className="text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-1.5 cursor-pointer">
                       Different amounts per size (optional)
                     </summary>
                     <p className="m-0 mb-2 text-xs text-gray-500">Leave blank to scale automatically from the base quantity.</p>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                      {editSizes.map((sz) => (
+                      {tabSizes.map((sz) => (
                         <div key={sz.name} className="flex flex-col gap-1">
                           <label className="text-[11px] font-semibold text-gray-600">{sz.name}</label>
                           <input

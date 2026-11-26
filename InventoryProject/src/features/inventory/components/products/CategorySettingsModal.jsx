@@ -222,6 +222,10 @@ const CategorySettingsModal = ({ onClose, allIngredients = [], onCategoriesChang
     setEditSizes((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const handleSetBaseSize = (index) => {
+    setEditSizes((prev) => prev.map((sz, i) => ({ ...sz, is_base: i === index })));
+  };
+
   const handleUpdateSize = (index, patch) => {
     setEditSizes((prev) => prev.map((sz, i) => (i === index ? { ...sz, ...patch } : sz)));
   };
@@ -442,6 +446,7 @@ const CategorySettingsModal = ({ onClose, allIngredients = [], onCategoriesChang
                     onAddSize={handleAddSize}
                     onRemoveSize={handleRemoveSize}
                     onUpdateSize={handleUpdateSize}
+                    onSetBaseSize={handleSetBaseSize}
                     editAddOns={editAddOns}
                     onAddAddOn={handleAddAddOn}
                     onRemoveAddOn={handleRemoveAddOn}

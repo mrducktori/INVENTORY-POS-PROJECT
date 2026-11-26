@@ -30,6 +30,7 @@ export const useManageProducts = () => {
     track_stock: false,
     low_stock_threshold: 5,
     sizes: [],
+    hiddenSizes: [],
     add_ons: []
   });
 
@@ -55,6 +56,7 @@ export const useManageProducts = () => {
   const [editThreshold, setEditThreshold] = useState(5);
   const [editSizes, setEditSizes] = useState([]);
   const [editAddOns, setEditAddOns] = useState([]);
+  const [editHiddenSizes, setEditHiddenSizes] = useState([]);
 
   const [newSize, setNewSize] = useState({ name: '', price_add: '', ingredient_id: '' });
   const [newAddOn, setNewAddOn] = useState({ name: '', price: '', ingredient_id: '', quantity: '', unit: '' });
@@ -123,7 +125,8 @@ export const useManageProducts = () => {
       setFormData((prev) => ({
         ...prev,
         category: value,
-        sizes: Array.isArray(matched?.sizes) ? matched.sizes.map((s) => ({ ...s })) : [],
+        sizes: [], // empty = inherit the category's sizes
+        hiddenSizes: [],
         add_ons: Array.isArray(matched?.add_ons) ? matched.add_ons.map((a) => ({ ...a })) : []
       }));
       return;
@@ -396,6 +399,7 @@ export const useManageProducts = () => {
         stock_quantity: 0,
         low_stock_threshold: thresholdCheck.numericValue,
         sizes: validatedSizes,
+        hidden_sizes: formData.hiddenSizes || [],
         add_ons: validatedAddOns,
         force_create: forceCreate
       });
@@ -408,6 +412,7 @@ export const useManageProducts = () => {
         track_stock: false, 
         low_stock_threshold: 5,
         sizes: [],
+        hiddenSizes: [],
         add_ons: []
       });
       fetchProducts();
@@ -516,6 +521,7 @@ export const useManageProducts = () => {
     setEditThreshold(product.low_stock_threshold || 5);
     setEditSizes(product.sizes || []);
     setEditAddOns(product.add_ons || []);
+    setEditHiddenSizes(Array.isArray(product.hidden_sizes) ? product.hidden_sizes : []);
     try {
       const data = await getRecipesByProduct(product.id);
       setRecipe(data || []);
@@ -630,6 +636,7 @@ export const useManageProducts = () => {
         stock_quantity: parseFloat(editStockQty) || 0,
         low_stock_threshold: thresholdCheck.numericValue,
         sizes: validatedSizes,
+        hidden_sizes: editHiddenSizes || [],
         add_ons: validatedAddOns,
         force_update: forceUpdate
       });
@@ -859,6 +866,7 @@ export const useManageProducts = () => {
     editThreshold, setEditThreshold,
     editSizes, setEditSizes,
     editAddOns, setEditAddOns,
+    editHiddenSizes, setEditHiddenSizes,
     handleAddSize, handleRemoveSize, handleUpdateEditSize,
     handleAddAddOn, handleRemoveAddOn,
     handleReceiveProductStock,

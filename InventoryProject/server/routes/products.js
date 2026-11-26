@@ -110,6 +110,17 @@ const validateProductInput = (body, { isUpdate = false } = {}) => {
     sizes = [];
   }
 
+  // Names of category sizes toggled OFF for this product; undefined = leave unchanged.
+  let hidden_sizes;
+  if (body.hidden_sizes !== undefined && body.hidden_sizes !== null) {
+    if (!Array.isArray(body.hidden_sizes) || body.hidden_sizes.length > 50) {
+      const err = new Error('hidden_sizes must be an array of size names.');
+      err.status = 400;
+      throw err;
+    }
+    hidden_sizes = body.hidden_sizes.map((n) => validateTextLength(n, { label: 'Size name', min: 1, max: LIMITS.NAME_MAX_LEN }));
+  }
+
   let add_ons = body.add_ons;
   if (add_ons !== undefined && add_ons !== null) {
     if (!Array.isArray(add_ons)) {
@@ -184,7 +195,7 @@ const validateProductInput = (body, { isUpdate = false } = {}) => {
     });
   }
 
-  return { name, category, description, price, low_stock_threshold, stock_quantity, sizes, add_ons, initial_recipes };
+  return { name, category, description, price, low_stock_threshold, stock_quantity, sizes, hidden_sizes, add_ons, initial_recipes };
 };
 
 const findProductDuplicateConflict = async ({ name, category, excludeId = null, force = false }) => {
@@ -294,6 +305,7 @@ router.post('/', requirePermission('ManageProducts'), async (req, res) => {
         stock_quantity: validated.stock_quantity,
         low_stock_threshold: validated.low_stock_threshold,
         sizes: validated.sizes,
+        ...(validated.hidden_sizes !== undefined ? { hidden_sizes: validated.hidden_sizes } : {}),
         add_ons: validated.add_ons
       }])
       .select()
@@ -381,6 +393,7 @@ router.put('/:id', requirePermission('ManageProducts'), async (req, res) => {
       image_url,
       track_stock,
       sizes: validated.sizes,
+      ...(validated.hidden_sizes !== undefined ? { hidden_sizes: validated.hidden_sizes } : {}),
       add_ons: validated.add_ons,
       ...(validated.description !== undefined ? { description: validated.description } : {}),
       ...(validated.low_stock_threshold !== undefined ? { low_stock_threshold: validated.low_stock_threshold } : {})
