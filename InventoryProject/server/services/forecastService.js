@@ -310,7 +310,7 @@ const loadInsights = async (asOf) => {
 };
 
 export const getForecastOverview = async ({ horizon = 14 } = {}) => {
-  const h = clamp(Number(horizon) || 14, 7, 31);
+  const h = clamp(Number(horizon) || 14, 7, WINDOW_DAYS); // long view = as far ahead as the 8-week history it learns from
   await ensureDailySummary();
   const asOf = addDays(getManilaDateOnly(), -1);
   const key = `${asOf}|${h}`;

@@ -28,6 +28,7 @@ const DemandForecasting = () => {
     productCategory, setProductCategory, prodPage, setProdPage,
     prodSortField, prodSortDirection, handleProdSort,
     productCategories, filteredProducts, paginatedProducts, productSummary, fetchProductForecasts,
+    longRange, handleToggleLongRange,
     detailProduct, setDetailProduct,
     toast, setToast, poConfirm, setPoConfirm, sendPurchaseOrders,
   } = useDemandForecasting();
@@ -201,6 +202,8 @@ const DemandForecasting = () => {
           canRefresh={canRefresh}
           refreshing={refreshing}
           onRefreshForecast={handleRefreshForecast}
+          longRange={longRange}
+          onToggleLongRange={handleToggleLongRange}
         />
       )}
 

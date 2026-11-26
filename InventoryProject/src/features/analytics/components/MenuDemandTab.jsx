@@ -2,7 +2,15 @@ import React from 'react';
 import { TableSkeleton } from '../../../components/shared/SkeletonLoader';
 import { SortIcon, AiAdjustBadge } from './ForecastBadges';
 
-const unitWord = (p) => (p.track_stock === false ? 'orders' : 'cups/orders');
+export const LongRangeWarning = () => (
+  <p role="alert" className="m-0 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
+    <span className="font-semibold">Less accurate: </span>
+    this is a long forecast (8 weeks ahead). It repeats recent sales patterns and cannot see future promos, holidays or weather,
+    so treat the numbers as a rough guide, not a promise. The 7-day view is more reliable.
+  </p>
+);
+
+const unitWord =(p) => (p.track_stock === false ? 'orders' : 'cups/orders');
 
 const formatTrend = (pct) => {
   if (pct == null) return null;
@@ -68,7 +76,11 @@ const MenuDemandTab = ({
   canRefresh,
   refreshing,
   onRefreshForecast,
+  longRange,
+  onToggleLongRange,
 }) => {
+  const valueKey = longRange ? 'nextHorizon' : 'next7';
+  const periodLabel = longRange ? `next ${forecast?.horizonDays || 56} days` : 'next 7 days';
   const totalPages = Math.ceil(filteredProducts.length / pageSize);
   const updated = forecast?.generatedAt
     ? new Date(forecast.generatedAt).toLocaleString('en-PH', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' })
@@ -95,9 +107,27 @@ const MenuDemandTab = ({
         </div>
       )}
 
+      <div className="flex items-center gap-1.5" role="group" aria-label="Forecast length">
+        {[[false, 'Short · 7 days'], [true, 'Long · 56 days']].map(([long, label]) => (
+          <button
+            key={label}
+            type="button"
+            aria-pressed={longRange === long}
+            onClick={() => onToggleLongRange(long)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
+              longRange === long ? 'bg-zinc-900 text-white shadow-2xs' : 'bg-zinc-100 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/70'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {longRange && <LongRangeWarning />}
+
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white border border-zinc-200/80 rounded-xl p-4 sm:p-5 shadow-2xs">
-          <span className="text-xs font-medium text-zinc-500">Expected sales, next 7 days</span>
+          <span className="text-xs font-medium text-zinc-500">Expected sales, {periodLabel}</span>
           <div className="text-2xl sm:text-2xl font-bold text-zinc-900 mt-1 tabular-nums">
             {loadingProducts ? '—' : `${Math.round(productSummary.total7DayUnits).toLocaleString()} cups/orders`}
           </div>
@@ -105,7 +135,7 @@ const MenuDemandTab = ({
         <div className="bg-white border border-zinc-200/80 rounded-xl p-4 sm:p-5 shadow-2xs">
           <span className="text-xs font-medium text-zinc-500">Best seller expected</span>
           <div className="text-lg sm:text-xl font-bold text-zinc-900 mt-1 truncate">
-            {loadingProducts ? '—' : top && top.next7 > 0 ? `${top.name} (about ${Math.round(top.next7)})` : 'No sales data'}
+            {loadingProducts ? '—' : top && top[valueKey] > 0 ? `${top.name} (about ${Math.round(top[valueKey])})` : 'No sales data'}
           </div>
         </div>
         <div className="bg-white border border-zinc-200/80 rounded-xl p-4 sm:p-5 shadow-2xs">
@@ -190,7 +220,7 @@ const MenuDemandTab = ({
                       <SortHeader label="Menu Item" field="name" sortField={prodSortField} sortDirection={prodSortDirection} onSort={onProdSort} />
                     </th>
                     <th className="py-3 px-4 text-right whitespace-nowrap">
-                      <SortHeader label="Next 7 days" field="next7" sortField={prodSortField} sortDirection={prodSortDirection} onSort={onProdSort} right />
+                      <SortHeader label={periodLabel.replace(/^n/, 'N')} field={valueKey}sortField={prodSortField} sortDirection={prodSortDirection} onSort={onProdSort} right />
                     </th>
                     <th className="py-3 px-4 whitespace-nowrap">Busiest day</th>
                     <th className="py-3 px-4 whitespace-nowrap">
@@ -211,9 +241,9 @@ const MenuDemandTab = ({
                         <div className="text-xs text-zinc-400">{item.category}</div>
                       </td>
                       <td className="py-3.5 px-4 text-right font-mono whitespace-nowrap">
-                        {item.status === 'OK' || item.next7 > 0 ? (
+                        {item.status === 'OK' || item[valueKey] > 0 ? (
                           <>
-                            <span className="font-bold text-zinc-900">{Math.round(item.next7)}</span>{' '}
+                            <span className="font-bold text-zinc-900">{Math.round(item[valueKey])}</span>{' '}
                             <span className="text-xs text-zinc-500">{unitWord(item)}</span>
                             <AiAdjustBadge factor={item.aiFactor} reason={item.aiReason} />
                           </>

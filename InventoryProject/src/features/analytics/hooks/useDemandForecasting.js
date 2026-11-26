@@ -45,7 +45,9 @@ const compareBy = (field, dir, getVal) => (a, b) => {
   return dir === 'asc' ? av - bv : bv - av;
 };
 
-const getSortVal = (r, f) => (f === 'name' ? r.name : r[f] == null ? null : Number(r[f]));
+const LONG_HORIZON = 56; // matches the server's 8-week history window
+
+const getSortVal =(r, f) => (f === 'name' ? r.name : r[f] == null ? null : Number(r[f]));
 
 /**
  * State, data fetching, filtering, sorting, pagination, selection and PO / detail
@@ -81,6 +83,7 @@ export const useDemandForecasting = () => {
   const [ingSortDirection, setIngSortDirection] = useState('asc'); // lowest cover first
 
   const [forecast, setForecast] = useState(null); // full /analytics/forecast response
+  const [longRange, setLongRange] = useState(false); // false = 7-day view, true = 56-day view (less accurate)
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [productSearch, setProductSearch] = useState('');
@@ -143,14 +146,20 @@ export const useDemandForecasting = () => {
   const fetchProductForecasts = useCallback(async () => {
     try {
       setLoadingProducts(true);
-      setForecast(await getForecast(14));
+      setForecast(await getForecast(longRange ? LONG_HORIZON : 14));
     } catch (err) {
       console.error('Failed to fetch product forecasts:', err);
       showToast('error', 'Failed to load product demand forecast.');
     } finally {
       setLoadingProducts(false);
     }
-  }, [showToast]);
+  }, [showToast, longRange]);
+
+  // The table's forecast column follows the mode, so keep sorting on it.
+  const handleToggleLongRange = (long) => {
+    setLongRange(long);
+    setProdSortField((f) => (f === 'next7' || f === 'nextHorizon' ? (long ? 'nextHorizon' : 'next7') : f));
+  };
 
   const handleRefreshForecast = async () => {
     try {
@@ -165,18 +174,18 @@ export const useDemandForecasting = () => {
     }
   };
 
-  const hasFetchedProductsRef = useRef(false);
+  const fetchedModeRef = useRef(null); // which mode (short/long) the loaded forecast is for
 
   useEffect(() => {
     fetchIngredientForecast();
   }, [fetchIngredientForecast]);
 
   useEffect(() => {
-    if (activeTab === 'products' && !hasFetchedProductsRef.current) {
-      hasFetchedProductsRef.current = true;
+    if (activeTab === 'products' && fetchedModeRef.current !== longRange) {
+      fetchedModeRef.current = longRange;
       fetchProductForecasts();
     }
-  }, [activeTab, fetchProductForecasts]);
+  }, [activeTab, longRange, fetchProductForecasts]);
 
   const ingredientData = useMemo(() => {
     const count = (fn) => reorderPlan.filter(fn).length;
@@ -273,14 +282,15 @@ export const useDemandForecasting = () => {
   }, [sortedProducts, prodPage]);
 
   const productSummary = useMemo(() => {
-    const total7DayUnits = productForecasts.reduce((sum, p) => sum + (Number(p.next7) || 0), 0);
+    const key = longRange ? 'nextHorizon' : 'next7';
+    const total7DayUnits = productForecasts.reduce((sum, p) => sum + (Number(p[key]) || 0), 0);
     const topProduct = productForecasts.reduce(
-      (best, p) => (!best || (Number(p.next7) || 0) > (Number(best.next7) || 0) ? p : best),
+      (best, p) => (!best || (Number(p[key]) || 0) > (Number(best[key]) || 0) ? p : best),
       null
     );
     const trendingUpCount = productForecasts.filter((p) => p.trendPct > 5).length;
     return { total7DayUnits, topProduct, trendingUpCount };
-  }, [productForecasts]);
+  }, [productForecasts, longRange]);
 
   // Selection helpers. Items with no supplier cannot be ordered, so they are never selectable.
   const selectableIngredients = useMemo(
@@ -465,6 +475,8 @@ export const useDemandForecasting = () => {
     paginatedProducts,
     productSummary,
     fetchProductForecasts,
+    longRange,
+    handleToggleLongRange,
     detailProduct,
     setDetailProduct,
     submittingPO,

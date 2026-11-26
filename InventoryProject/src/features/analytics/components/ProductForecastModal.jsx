@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import {
   ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from 'recharts';
+import { LongRangeWarning } from './MenuDemandTab';
 
 const aiPctText = (f) => `${f > 1 ? '+' : '-'}${Math.abs(Math.round((f - 1) * 100))}%`;
 
@@ -116,6 +117,8 @@ const ProductForecastModal = ({ isOpen, onClose, product, forecast }) => {
               </li>
             </ul>
           </div>
+
+          {horizon > 14 && <LongRangeWarning />}
 
           {aiOn && (
             <p className="m-0 text-sm text-violet-800 bg-violet-50 border border-violet-200 rounded-xl px-4 py-2.5">
