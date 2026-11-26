@@ -1,23 +1,5 @@
 import React from 'react';
 
-const ICONS = {
-  'Sales Transactions': (
-    <svg className="w-5 h-5 text-zinc-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-    </svg>
-  ),
-  'Avg Sale': (
-    <svg className="w-5 h-5 text-zinc-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-    </svg>
-  ),
-  'Low Stock Items': (
-    <svg className="w-5 h-5 text-zinc-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-    </svg>
-  ),
-};
-
 const StatCards = ({ cards, loading }) => {
   return (
     <div className="stagger-in grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -30,6 +12,16 @@ const StatCards = ({ cards, loading }) => {
           <div
             key={card.label}
             onClick={card.onClick}
+            {...(card.clickable && {
+              role: 'button',
+              tabIndex: 0,
+              onKeyDown: (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  card.onClick?.();
+                }
+              },
+            })}
             className={`hover-lift bg-white border rounded-xl p-4 md:p-5 flex flex-col justify-between transition-all duration-200 shadow-xs ${
               card.clickable
                 ? 'cursor-pointer hover:border-zinc-500 hover:shadow-md'

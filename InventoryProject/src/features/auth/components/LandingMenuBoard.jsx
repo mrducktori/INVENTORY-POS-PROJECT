@@ -51,7 +51,7 @@ function LandingMenuBoard({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z" />
           </svg>
           <input
-            type="search"
+            type="text"
             value={searchTerm}
             onChange={(e) => onSearchChange?.(e.target.value)}
             placeholder="Search the menu..."

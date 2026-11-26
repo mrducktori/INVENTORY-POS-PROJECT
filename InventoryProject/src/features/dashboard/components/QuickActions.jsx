@@ -30,6 +30,8 @@ const ALL_LINKS = [
 const QuickActions = ({ onNavigate, userRole }) => {
   const currentUser = getCurrentUser();
   const visibleLinks = ALL_LINKS.filter((link) => {
+    // Staff already get "Open POS Register" as the header button.
+    if (link.value === 'POS' && userRole === 'Staff') return false;
     // Staff / Custom accounts: show only shortcuts to pages they can open
     if (usesPagePermissions(currentUser)) return canAccess(currentUser, link.value);
     if (link.staffOnly && userRole !== 'Staff') return false;

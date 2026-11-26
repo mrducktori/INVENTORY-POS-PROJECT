@@ -50,6 +50,9 @@ function LandingPage() {
     ? `lg:col-span-5 ${leftPanelBase} lg:rounded-none lg:border-0 lg:border-r lg:border-white/15 lg:bg-transparent lg:backdrop-blur-none lg:shadow-none lg:min-h-[390px]`
     : `${leftPanelBase} min-h-[340px] sm:min-h-[370px]`;
 
+  // hero_title is "Brand Name | Branch"; the eyebrow reuses it instead of hard-coded text.
+  const [eyebrowBrand = '', eyebrowBranch = ''] = (cmsData.hero_title || '').split('|').map((s) => s.trim());
+
   const formatTitle = (titleString) => {
     if (!titleString) return null;
     const parts = titleString.split('|');
@@ -104,6 +107,8 @@ function LandingPage() {
                   ? 'opacity-0 scale-[0.97] pointer-events-none -translate-y-4 absolute inset-0'
                   : 'opacity-100 scale-100 relative translate-y-0 z-10'
               }`}
+              inert={isMenuOpen}
+              aria-hidden={isMenuOpen}
             >
               <div
                 className={
@@ -115,11 +120,17 @@ function LandingPage() {
                 {/* Split frame on lg+, separate card on smaller viewports. */}
                 <div className={leftPanelClass}>
                   <div>
-                    <div className="inline-flex items-center gap-2 text-[10px] sm:text-[11px] font-bold tracking-[0.22em] uppercase mb-3.5 pb-2 border-b border-white/15 text-amber-300">
-                      <span>CofTea Cafe</span>
-                      <span className="text-zinc-500">/</span>
-                      <span className="text-zinc-300">Elwood Branch</span>
-                    </div>
+                    {eyebrowBrand && (
+                      <div className="inline-flex items-center gap-2 text-[10px] sm:text-[11px] font-bold tracking-[0.22em] uppercase mb-3.5 pb-2 border-b border-white/15 text-amber-300">
+                        <span>{eyebrowBrand}</span>
+                        {eyebrowBranch && (
+                          <>
+                            <span className="text-zinc-500">/</span>
+                            <span className="text-zinc-300">{eyebrowBranch}</span>
+                          </>
+                        )}
+                      </div>
+                    )}
 
                     {cmsData.hero_description && (
                       <h2 className="text-white text-base sm:text-lg md:text-xl font-bold leading-relaxed mb-4 text-white/95">
@@ -190,6 +201,8 @@ function LandingPage() {
                   ? 'opacity-100 scale-100 relative translate-y-0 z-20 pointer-events-auto'
                   : 'opacity-0 scale-[0.97] pointer-events-none translate-y-4 absolute inset-0 z-0'
               }`}
+              inert={!isMenuOpen}
+              aria-hidden={!isMenuOpen}
             >
               <LandingMenuBoard
                 title={cmsData.menu_title}
