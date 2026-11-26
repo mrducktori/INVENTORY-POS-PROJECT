@@ -478,54 +478,6 @@ const ModifyProductModal = ({
                 <span className="text-xs text-gray-500">Pick an ingredient, enter qty, then hit Enter</span>
               </div>
 
-              {(() => {
-                const cat = (selectedProduct?.category || '').toUpperCase();
-                let keywords = ['CUPS', 'FRUCTOSE', 'MILK', 'SYRUP'];
-                if (cat.includes('COFFEE')) keywords = ['ESPRESSO', 'MILK', 'FRUCTOSE', 'CUPS', 'CARAMEL'];
-                else if (cat.includes('MILK TEA')) keywords = ['TEA', 'CREAMER', 'FRUCTOSE', 'PEARL', 'CUPS'];
-                else if (cat.includes('FRAPPE')) keywords = ['FRAPPE', 'MILK', 'FRUCTOSE', 'WHIP', 'CUPS'];
-                else if (cat.includes('NON-COFFEE')) keywords = ['MILK', 'FRUCTOSE', 'MATCHA', 'CHOCOLATE', 'CUPS'];
-                else if (cat.includes('PASTRY')) keywords = ['FLOUR', 'BUTTER', 'SUGAR', 'EGG'];
-
-                const suggestions = allIngredients.filter(ing => {
-                  if (recipe.some(r => r.ingredient_id === ing.id)) return false;
-                  const name = (ing.name || '').toUpperCase();
-                  return keywords.some(kw => name.includes(kw));
-                }).slice(0, 5);
-
-                if (suggestions.length === 0) return null;
-
-                return (
-                  <div className="flex items-center gap-1.5 flex-wrap mb-4 pb-3 border-b border-gray-200/70">
-                    <span className="text-xs font-bold text-gray-500 uppercase tracking-wider mr-1">Quick Select:</span>
-                    {suggestions.map(s => (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => {
-                          const baseUnit = (s.unit || '').toUpperCase();
-                          let preferredUnit = baseUnit;
-                          if (baseUnit === 'L') preferredUnit = 'ML';
-                          if (baseUnit === 'KG') preferredUnit = 'G';
-                          setNewRecipeItem({
-                            ...newRecipeItem,
-                            ingredient_id: s.id,
-                            input_unit: preferredUnit
-                          });
-                          setTimeout(() => {
-                            quantityInputRef.current?.focus();
-                            quantityInputRef.current?.select?.();
-                          }, 50);
-                        }}
-                        className="px-2.5 py-1 bg-white hover:bg-gray-100 text-gray-800 text-xs font-semibold rounded-lg border border-gray-300 transition-colors cursor-pointer shadow-2xs hover:border-gray-400"
-                      >
-                        + {s.name} ({s.unit})
-                      </button>
-                    ))}
-                  </div>
-                );
-              })()}
-
               <form onSubmit={onAddRecipeItem} className="flex flex-col gap-3">
                 <div className="flex flex-col sm:flex-row gap-3 items-end">
                   <div className="flex flex-col gap-1.5 flex-[2] w-full">

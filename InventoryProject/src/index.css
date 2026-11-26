@@ -750,3 +750,22 @@ html.dark :is([data-no-invert], [class~="bg-black"], [class~="bg-zinc-950"], [cl
     animation: none;
   }
 }
+
+/* Slim, rounded scrollbars instead of the chunky browser default. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #d4d4d8 transparent;
+}
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: #d4d4d8; border-radius: 9999px; border: 2px solid transparent; background-clip: content-box; }
+*::-webkit-scrollbar-thumb:hover { background: #a1a1aa; background-clip: content-box; }
+
+/* Dark sidebar list (Navbar uses .scrollbar-thin): a darker thumb so it doesn't glare. */
+.scrollbar-thin { scrollbar-color: #3f3f46 transparent; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background: #3f3f46; background-clip: content-box; }
+.scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #52525b; background-clip: content-box; }
+
+/* Used on horizontally scrolling chip rows: scrollable but no visible bar. */
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }

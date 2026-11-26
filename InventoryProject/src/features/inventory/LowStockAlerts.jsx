@@ -7,7 +7,6 @@ import { getManilaDateOnly } from '../../utils/dateUtils';
 import { TableSkeleton } from '../../components/shared/SkeletonLoader';
 import Pagination from '../../components/shared/Pagination';
 import ConfirmModal from '../../components/shared/ConfirmModal';
-import ExpiryLevelBadge from './components/ExpiryLevelBadge';
 import { SortIcon } from '../analytics/components/ForecastBadges';
 
 const getUsableStock = (alert) => {
@@ -33,10 +32,33 @@ const formatExpiryBadge = (expiryDate, todayManila) => {
   return { label: `${expStr} (${diffDays}d)`, cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
 };
 
+// Expiry stages shown on the Expiration tab, most urgent first.
+const EXPIRY_STAGES = {
+  DISPOSE: { chip: 'Expired 8d+', cls: 'bg-red-600 text-white border-red-700', action: 'Dispose now' },
+  EXPIRED: { chip: 'Expired 1-7d', cls: 'bg-red-50 text-red-700 border-red-200', action: 'Write off' },
+  CRITICAL: { chip: 'Use today (0-2d)', cls: 'bg-orange-50 text-orange-800 border-orange-300', action: 'Use first (FEFO)' },
+  WARNING: { chip: 'Use first (3-6d)', cls: 'bg-amber-50 text-amber-800 border-amber-200', action: 'Use first (FEFO)' },
+  WATCH: { chip: 'Watch (7-14d)', cls: 'bg-sky-50 text-sky-800 border-sky-200', action: 'Monitor' },
+};
+const STAGE_KEYS = Object.keys(EXPIRY_STAGES);
+
+const stageOf = (days) => {
+  if (days < 0) return days < -7 ? 'DISPOSE' : 'EXPIRED';
+  if (days <= 2) return 'CRITICAL';
+  if (days <= 6) return 'WARNING';
+  return 'WATCH';
+};
+
+const stageLabel = (stage, days) => {
+  if (stage === 'DISPOSE' || stage === 'EXPIRED') return `EXPIRED ${Math.abs(days)}D AGO`;
+  if (days === 0) return 'EXPIRES TODAY';
+  return `${stage === 'WATCH' ? 'WATCH' : 'USE FIRST'} · ${days}D LEFT`;
+};
+
 const LowStockAlerts = () => {
   const [activeTab, setActiveTab] = useState('LOW_STOCK'); // 'LOW_STOCK' | 'EXPIRATION'
   const [alerts, setAlerts] = useState([]);
-  const [expiryData, setExpiryData] = useState({ expiredBatches: [], expiringSoonBatches: [] });
+  const [expiryData, setExpiryData] = useState({ expiredBatches: [], expiringSoonBatches: [], watchBatches: [] });
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [sort, setSort] = useState({ key: 'severity', dir: 'asc' });
@@ -44,6 +66,7 @@ const LowStockAlerts = () => {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [writeOffTarget, setWriteOffTarget] = useState(null);
   const [writingOff, setWritingOff] = useState(false);
+  const [stageFilter, setStageFilter] = useState('ALL'); // 'ALL' or a key of EXPIRY_STAGES
   const [notice, setNotice] = useState({ type: '', text: '' });
   const todayManila = getManilaDateOnly();
 
@@ -56,7 +79,8 @@ const LowStockAlerts = () => {
       setAlerts(lowStock || []);
       setExpiryData({
         expiredBatches: Array.isArray(expiry?.expiredBatches) ? expiry.expiredBatches : [],
-        expiringSoonBatches: Array.isArray(expiry?.expiringSoonBatches) ? expiry.expiringSoonBatches : []
+        expiringSoonBatches: Array.isArray(expiry?.expiringSoonBatches) ? expiry.expiringSoonBatches : [],
+        watchBatches: Array.isArray(expiry?.watchBatches) ? expiry.watchBatches : []
       });
     } catch (err) {
       console.error('Error loading alerts:', err);
@@ -137,17 +161,28 @@ const LowStockAlerts = () => {
   const toggleSort = (key) =>
     setSort((cur) => (cur.key === key ? { key, dir: cur.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }));
 
-  const combinedExpiryBatches = useMemo(() => {
-    const expired = (expiryData.expiredBatches || []).map((b) => ({ ...b, _group: 'EXPIRED' }));
-    const expiring = (expiryData.expiringSoonBatches || []).map((b) => ({ ...b, _group: 'EXPIRING_SOON' }));
+  const searchedExpiryBatches = useMemo(() => {
     const q = (searchTerm || '').trim().toLowerCase();
-    return [...expired, ...expiring].filter(
-      (b) =>
-        !q ||
-        (b.ingredient_name || '').toLowerCase().includes(q) ||
-        (b.batch_code || '').toLowerCase().includes(q)
-    );
+    return [...(expiryData.expiredBatches || []), ...(expiryData.expiringSoonBatches || []), ...(expiryData.watchBatches || [])]
+      .map((b) => ({ ...b, _stage: stageOf(Number(b.days_until_expiry)) }))
+      .filter(
+        (b) =>
+          !q ||
+          (b.ingredient_name || '').toLowerCase().includes(q) ||
+          (b.batch_code || '').toLowerCase().includes(q)
+      );
   }, [expiryData, searchTerm]);
+
+  const stageCounts = useMemo(() => {
+    const counts = Object.fromEntries(STAGE_KEYS.map((k) => [k, 0]));
+    searchedExpiryBatches.forEach((b) => { counts[b._stage] += 1; });
+    return counts;
+  }, [searchedExpiryBatches]);
+
+  const combinedExpiryBatches = useMemo(
+    () => (stageFilter === 'ALL' ? searchedExpiryBatches : searchedExpiryBatches.filter((b) => b._stage === stageFilter)),
+    [searchedExpiryBatches, stageFilter]
+  );
 
   const activeRows = activeTab === 'LOW_STOCK' ? filteredAlerts : combinedExpiryBatches;
   const totalPages = Math.max(1, Math.ceil(activeRows.length / itemsPerPage));
@@ -158,7 +193,7 @@ const LowStockAlerts = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, activeTab]);
+  }, [searchTerm, activeTab, stageFilter]);
 
   const alertSeverity = (a) => (a?.alert === 'CANNOT_MAKE' ? 'critical' : getSeverity(getUsableStock(a), getAlertLevel(a)));
   const getCriticalCount = () => alerts.filter((a) => alertSeverity(a) === 'critical').length;
@@ -442,7 +477,7 @@ const LowStockAlerts = () => {
 
           <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden w-full mb-8">
             <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <h2 className="m-0 text-lg font-bold text-gray-900 tracking-tight">Expired &amp; Expiring-Soon Batches</h2>
+              <h2 className="m-0 text-lg font-bold text-gray-900 tracking-tight">Expired &amp; Expiring Batches</h2>
               <div className="flex w-full md:w-auto">
                 <input
                   type="text"
@@ -452,6 +487,25 @@ const LowStockAlerts = () => {
                   className="w-full sm:w-72 px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all shadow-sm"
                 />
               </div>
+            </div>
+
+            <div className="px-6 py-3 border-b border-gray-100 flex flex-wrap items-center gap-1.5">
+              {['ALL', ...STAGE_KEYS].map((k) => {
+                const count = k === 'ALL' ? searchedExpiryBatches.length : stageCounts[k];
+                return (
+                  <button
+                    key={k}
+                    type="button"
+                    aria-pressed={stageFilter === k}
+                    onClick={() => setStageFilter(k)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
+                      stageFilter === k ? 'bg-zinc-900 text-white shadow-2xs' : 'bg-zinc-100 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/70'
+                    }`}
+                  >
+                    {k === 'ALL' ? 'All' : EXPIRY_STAGES[k].chip} ({count})
+                  </button>
+                );
+              })}
             </div>
 
             <div className="p-0">
@@ -472,8 +526,9 @@ const LowStockAlerts = () => {
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {paginatedRows.map((batch, idx) => {
-                        const isExpired = batch._group === 'EXPIRED' || batch.expiry_status === 'EXPIRED';
-                        const days = batch.days_until_expiry;
+                        const stage = batch._stage;
+                        const isExpired = stage === 'DISPOSE' || stage === 'EXPIRED';
+                        const days = Number(batch.days_until_expiry);
                         return (
                           <tr key={batch.id || batch.batch_code || idx} className={`transition-colors ${isExpired ? 'bg-red-50/30 hover:bg-red-50/60' : 'hover:bg-gray-50/50'}`}>
                             <td className="px-6 py-4 font-mono text-sm font-bold text-gray-900">{batch.batch_code}</td>
@@ -486,18 +541,9 @@ const LowStockAlerts = () => {
                             </td>
                             <td className="px-6 py-4 text-sm font-semibold text-gray-700">{batch.expiry_date || '—'}</td>
                             <td className="px-6 py-4">
-                              <div className="flex items-center gap-1.5">
-                                {isExpired ? (
-                                  <span className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-red-50 text-red-700 border border-red-200">
-                                    EXPIRED
-                                  </span>
-                                ) : (
-                                  <span className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-800 border border-amber-200">
-                                    {days === 0 ? 'EXPIRING TODAY' : `EXPIRING IN ${days}D`}
-                                  </span>
-                                )}
-                                {!isExpired && <ExpiryLevelBadge level={batch.expiry_level} />}
-                              </div>
+                              <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${EXPIRY_STAGES[stage].cls}`}>
+                                {stageLabel(stage, days)}
+                              </span>
                             </td>
                             <td className="px-6 py-4 text-right">
                               {isExpired ? (
@@ -506,10 +552,10 @@ const LowStockAlerts = () => {
                                   onClick={() => setWriteOffTarget(batch)}
                                   className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer shadow-2xs"
                                 >
-                                  Write Off
+                                  {stage === 'DISPOSE' ? 'Dispose now' : 'Write Off'}
                                 </button>
                               ) : (
-                                <span className="text-xs font-semibold text-amber-700">Use First (FEFO)</span>
+                                <span className={`text-xs font-semibold ${stage === 'WATCH' ? 'text-sky-700' : 'text-amber-700'}`}>{EXPIRY_STAGES[stage].action}</span>
                               )}
                             </td>
                           </tr>

@@ -469,6 +469,7 @@ export const getExpiryAlerts = async () => {
   const enriched = await enrichIngredientsWithBatches(ingredients || []);
   const expiredBatches = [];
   const expiringSoonBatches = [];
+  const watchBatches = []; // 7-14 days left: listed for awareness, not counted as "expiring soon"
 
   for (const ing of enriched) {
     for (const b of ing.batches || []) {
@@ -476,16 +477,19 @@ export const getExpiryAlerts = async () => {
       const entry = { ...b, ingredient_id: ing.id, ingredient_name: ing.name, unit: ing.unit, category: ing.category || null };
       if (b.expiry_status === "EXPIRED") expiredBatches.push(entry);
       else if (b.expiry_status === "EXPIRING_SOON") expiringSoonBatches.push(entry);
+      else if (b.expiry_level === "WATCH") watchBatches.push(entry);
     }
   }
 
   const byExpiry = (a, b) => String(a.expiry_date || "").localeCompare(String(b.expiry_date || ""));
   expiredBatches.sort(byExpiry);
   expiringSoonBatches.sort(byExpiry);
+  watchBatches.sort(byExpiry);
 
   return {
     expiredBatches,
     expiringSoonBatches,
+    watchBatches,
     expiredCount: expiredBatches.length,
     expiringSoonCount: expiringSoonBatches.length
   };
