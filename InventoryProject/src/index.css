@@ -122,6 +122,17 @@ html.dark :is([data-no-invert], [class~="bg-black"], [class~="bg-zinc-950"], [cl
     letter-spacing: 0.5px;
   }
 
+  /* Without its own background/color, this <input type="date"> inherits the dark header's
+     white text and black background, which also hides Chrome's dark calendar-icon glyph. */
+  .tracker-date-input {
+    background: white;
+    color: var(--ink-soft);
+    border: 1px solid var(--line-strong);
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+
   .card-body {
     padding: 20px;
   }

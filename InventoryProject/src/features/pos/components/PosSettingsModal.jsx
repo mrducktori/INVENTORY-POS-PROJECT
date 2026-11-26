@@ -404,6 +404,7 @@ const PosSettingsModal = ({ allIngredients = [], initialSettings = null, onSaved
                     <div className="border border-gray-200 rounded-xl overflow-hidden divide-y divide-gray-100 bg-white">
                       {settings.discount_types.map((d, idx) => {
                         const isBuiltIn = BUILTIN_DISCOUNT_IDS.has(d.id);
+                        const isLegal = d.id === 'SENIOR' || d.id === 'PWD'; // fixed by RA 9994 / RA 10754
                         return (
                           <div
                             key={d.id}
@@ -424,6 +425,7 @@ const PosSettingsModal = ({ allIngredients = [], initialSettings = null, onSaved
                                   max="100"
                                   step="0.5"
                                   value={d.rate_percent}
+                                  disabled={isLegal}
                                   onChange={(e) =>
                                     handleDiscountFieldChange(
                                       idx,
@@ -431,9 +433,10 @@ const PosSettingsModal = ({ allIngredients = [], initialSettings = null, onSaved
                                       e.target.value === '' ? '' : Math.min(100, Math.max(0.1, Number(e.target.value)))
                                     )
                                   }
-                                  className="w-20 px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs font-bold font-mono bg-white text-right"
+                                  className="w-20 px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs font-bold font-mono bg-white text-right disabled:bg-gray-100 disabled:text-gray-500"
                                 />
                                 <span className="text-xs font-bold text-gray-600">%</span>
+                                {isLegal && <span className="text-[10px] font-semibold text-gray-500 ml-1">Set by law</span>}
                               </div>
                             </div>
 
@@ -442,6 +445,7 @@ const PosSettingsModal = ({ allIngredients = [], initialSettings = null, onSaved
                                 <input
                                   type="checkbox"
                                   checked={Boolean(d.requires_id)}
+                                  disabled={isLegal}
                                   onChange={(e) => handleDiscountFieldChange(idx, 'requires_id', e.target.checked)}
                                   className="w-3.5 h-3.5 accent-gray-900"
                                 />
@@ -451,6 +455,7 @@ const PosSettingsModal = ({ allIngredients = [], initialSettings = null, onSaved
                                 <input
                                   type="checkbox"
                                   checked={Boolean(d.vat_exempt)}
+                                  disabled={isLegal}
                                   onChange={(e) => handleDiscountFieldChange(idx, 'vat_exempt', e.target.checked)}
                                   className="w-3.5 h-3.5 accent-gray-900"
                                 />
@@ -459,7 +464,8 @@ const PosSettingsModal = ({ allIngredients = [], initialSettings = null, onSaved
                               <button
                                 type="button"
                                 onClick={() => handleDiscountFieldChange(idx, 'active', d.active === false)}
-                                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold uppercase border cursor-pointer ${
+                                disabled={isLegal}
+                                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold uppercase border disabled:cursor-not-allowed ${isLegal ? '' : 'cursor-pointer'} ${
                                   d.active !== false
                                     ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                     : 'bg-gray-100 text-gray-500 border-gray-200'

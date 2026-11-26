@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { getPurchaseOrders, getSupplierOwnOrders, getSupplierPriceUpdates } from '../../../api/purchasingApi.js';
 import { getDashboardStats } from '../../../api/dashboardApi.js';
-import { supabase } from '../../../config/supabaseClient.js';
 import { formatDisplayDate } from '../../../utils/dateUtils.js';
 import { formatQuantity } from '../../../utils/productUtils.js';
 import { canAccess } from '../../../utils/permissions.js';
@@ -161,7 +160,7 @@ const sharedStore = {
   poPromise: null,
   pricePromise: null,
   lowStockPromise: null,
-  channel: null,
+  pollTimer: null,
   subscriberCount: 0,
   listeners: new Set()
 };
@@ -378,41 +377,23 @@ export const useNotifications = (lowStockItems = EMPTY_LOW_STOCK, userOverride =
       fetchSharedLowStock(false);
     }
 
-    if (!sharedStore.channel) {
-      const channelName = `dashboard_inbox_sync_shared_${Date.now()}`;
-      sharedStore.channel = supabase
-        .channel(channelName)
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'purchase_orders' },
-          () => {
-            if (canViewPOs) fetchSharedPOs(true, isSupplierUser);
-            if (canViewSuppliers) fetchSharedPriceUpdates(true);
-          }
-        )
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'ingredients' },
-          () => {
-            if (canViewStock) fetchSharedLowStock(true);
-          }
-        )
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'products' },
-          () => {
-            fetchSharedLowStock(true);
-          }
-        )
-        .subscribe();
+    // Polls instead of a Supabase realtime subscription: the browser's anon key has no DB
+    // access now that RLS is locked down, so "something changed, refetch" has to come from
+    // this authenticated API poll rather than a direct postgres_changes feed.
+    if (!sharedStore.pollTimer) {
+      sharedStore.pollTimer = setInterval(() => {
+        if (canViewPOs) fetchSharedPOs(true, isSupplierUser);
+        if (canViewSuppliers) fetchSharedPriceUpdates(true);
+        if (canViewStock) fetchSharedLowStock(true);
+      }, 30000);
     }
 
     return () => {
       sharedStore.listeners.delete(setSnapshot);
       sharedStore.subscriberCount = Math.max(0, sharedStore.subscriberCount - 1);
-      if (sharedStore.subscriberCount === 0 && sharedStore.channel) {
-        supabase.removeChannel(sharedStore.channel);
-        sharedStore.channel = null;
+      if (sharedStore.subscriberCount === 0 && sharedStore.pollTimer) {
+        clearInterval(sharedStore.pollTimer);
+        sharedStore.pollTimer = null;
       }
     };
   }, [canViewPOs, canViewSuppliers, canViewStock, isSupplierUser]);

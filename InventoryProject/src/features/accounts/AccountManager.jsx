@@ -3,7 +3,6 @@ import { getUsers, createUser, updateUser, updateUserStatus, deleteUser } from '
 import { getCurrentUser } from '../../api/authApi';
 import { getSuppliers } from '../../api/purchasingApi';
 import { getManagerPinStatus, setManagerPin } from '../../api/posApi';
-import { supabase } from '../../config/supabaseClient';
 import { STAFF_DEFAULT_PERMISSIONS } from '../../utils/permissions';
 import { validatePasswordForSubmission } from '../../utils/passwordRules';
 import AccountForm from './components/AccountForm';
@@ -70,44 +69,16 @@ const AccountManager = ({ subTab = null, onSubTabChange = null }) => {
     fetchUsers();
     fetchSuppliers();
 
-    // Realtime updates keep online badges and account status current.
-    const channel = supabase
-      .channel('account_manager_users_sync')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'users' },
-        (payload) => {
-          if (payload.eventType === 'UPDATE' && payload.new) {
-            setUsers((prev) =>
-              prev.map((u) =>
-                u.id === payload.new.id
-                  ? {
-                      ...u,
-                      status: payload.new.status ?? u.status,
-                      current_session_id: payload.new.current_session_id,
-                      name: payload.new.name ?? u.name,
-                      username: payload.new.username ?? u.username,
-                      role: payload.new.role ?? u.role
-                    }
-                  : u
-              )
-            );
-          } else {
-            fetchUsers(true);
-          }
-        }
-      )
-      .subscribe();
-
     // Silent refresh every 30s while the tab is visible so the server-side inactivity reaper
-    // is reflected in the online badges.
+    // is reflected in the online badges. (This used to also hold a Supabase realtime
+    // subscription straight to the `users` table over the anon key; dropped once RLS was
+    // locked down, since this authenticated poll already keeps the table current.)
     const interval = setInterval(() => {
       if (typeof document !== 'undefined' && document.hidden) return;
       fetchUsers(true);
     }, 30000);
 
     return () => {
-      supabase.removeChannel(channel);
       clearInterval(interval);
     };
   }, []);

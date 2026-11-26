@@ -1,6 +1,6 @@
 import React, { useState, useEffect, Suspense, lazy, useCallback, useMemo } from 'react';
-import { supabase } from '../../config/supabaseClient';
-import { clearUserSession, getCurrentUser } from '../../utils/authUtils';
+import { pingUserActivity } from '../../api/authApi';
+import { getCurrentUser } from '../../utils/authUtils';
 import { canAccess, getUserPermissions } from '../../utils/permissions';
 
 import Navbar from '../../components/Navbar';
@@ -156,53 +156,20 @@ const Dashboard = () => {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, [effectiveTab, effectiveSubTab, user]);
 
-  // Monitor account active status and session validity in real time
+  // Monitor account active status and session validity, even on a page the user never
+  // interacts with. This used to read the `users` table directly with the anon key (both a
+  // realtime subscription and a polling fallback); now that RLS is locked down the anon key
+  // can't do that, so it pings the authenticated activity endpoint instead. That endpoint's
+  // own requireAuth check already rejects a deactivated/replaced/expired session, and the
+  // shared API client already reacts to that rejection by clearing the session and redirecting
+  // to the login page, so no extra handling is needed here.
   useEffect(() => {
     if (!user?.id) return;
-
-    // Realtime listener for status changes on this user.
-    const channel = supabase
-      .channel(`user_status_monitor_${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'users',
-          filter: `id=eq.${user.id}`
-        },
-        (payload) => {
-          const updated = payload.new;
-          if (updated && (updated.status === 'INACTIVE' || updated.current_session_id === null)) {
-            clearUserSession(updated.status === 'INACTIVE' ? 'deactivated' : 'expired');
-            window.location.href = '/coftealoginpageforstaff';
-          }
-        }
-      )
-      .subscribe();
-
-    // Heartbeat fallback in case a realtime event is missed (skipped while the tab is hidden).
-    const interval = setInterval(async () => {
+    const interval = setInterval(() => {
       if (typeof document !== 'undefined' && document.hidden) return;
-      try {
-        const { data, error } = await supabase
-          .from('users')
-          .select('status, current_session_id')
-          .eq('id', user.id)
-          .single();
-        if (!error && data && (data.status === 'INACTIVE' || data.current_session_id === null)) {
-          clearUserSession(data.status === 'INACTIVE' ? 'deactivated' : 'expired');
-          window.location.href = '/coftealoginpageforstaff';
-        }
-      } catch {
-        // A failed heartbeat is retried on the next tick.
-      }
+      pingUserActivity();
     }, 60000);
-
-    return () => {
-      supabase.removeChannel(channel);
-      clearInterval(interval);
-    };
+    return () => clearInterval(interval);
   }, [user?.id]);
 
   const handleSubTabChange = useCallback(

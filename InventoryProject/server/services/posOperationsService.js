@@ -335,6 +335,15 @@ export const normalizePosSettings = (raw = {}, { strict = false } = {}) => {
     });
   }
 
+  // Senior (RA 9994) and PWD (RA 10754) discounts are required by law: they cannot be turned off or
+  // re-rated, whatever the saved settings say. Only the label stays editable.
+  for (const def of DEFAULT_DISCOUNT_TYPES.filter((d) => d.id === "SENIOR" || d.id === "PWD")) {
+    const i = discount_types.findIndex((d) => d.id === def.id);
+    const locked = { ...def, label: i >= 0 ? discount_types[i].label : def.label };
+    if (i >= 0) discount_types[i] = locked;
+    else discount_types.unshift(locked);
+  }
+
   const findTypeRate = (id, fallback) => {
     const match = discount_types.find((d) => d.id === id);
     return match ? Math.round((match.rate_percent / 100) * 10000) / 10000 : fallback;
@@ -1085,11 +1094,16 @@ export const setManagerPin = async ({ targetUserId, pin, actingUser }) => {
 };
 
 export const verifyManagerPin = async (pin, rateKey = "global") => {
+  // Reserve this attempt BEFORE any `await`. checkPinRateLimit+recordPinFailure both run
+  // synchronously back-to-back, so a burst of parallel guesses can't all read a stale count
+  // and slip through together (the old bug: the count only went up after the slow bcrypt
+  // compare below, so N parallel requests all saw "0 attempts so far"). A guess that turns
+  // out correct un-reserves it via clearPinFailures.
   checkPinRateLimit(rateKey);
+  recordPinFailure(rateKey);
 
   const pinStr = String(pin ?? "").trim();
   if (!pinStr) {
-    recordPinFailure(rateKey);
     throw createHttpError(403, "Manager PIN is required.");
   }
 
@@ -1104,19 +1118,23 @@ export const verifyManagerPin = async (pin, rateKey = "global") => {
     if (matched) {
       const { data: userRow } = await supabase
         .from("users")
-        .select("id, name, role")
+        .select("id, name, role, status")
         .eq("id", uid)
         .maybeSingle();
+      // A PIN belongs to its owner's current standing: a deactivated account or one demoted
+      // out of Owner/Admin loses its PIN's authority immediately, with no separate revoke step.
+      if (!userRow || userRow.status !== "ACTIVE" || !["Owner", "Admin"].includes(userRow.role)) {
+        throw createHttpError(403, "This Manager PIN's account is no longer an active Owner/Admin.");
+      }
       clearPinFailures(rateKey);
       return {
-        approved_by_id: userRow?.id || uid,
-        approved_by_name: userRow?.name || "Manager",
-        approved_by_role: userRow?.role || "Admin"
+        approved_by_id: userRow.id,
+        approved_by_name: userRow.name || "Manager",
+        approved_by_role: userRow.role
       };
     }
   }
 
-  recordPinFailure(rateKey);
   throw createHttpError(403, "Invalid Manager PIN.");
 };
 

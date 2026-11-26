@@ -746,6 +746,8 @@ The server-side Supabase client uses the **service role key**, which bypasses al
 
 **Fix:** Keep using service role key for backend operations, but **fix authentication first (C2)**. The middleware-based auth (`requireAuth`, `requireRole`) is your real access control layer. Optionally, create a second Supabase client with the anon key for user-context queries as defense-in-depth.
 
+**Update (security review):** C2 is resolved (JWT + `requireAuth`), but the RLS policies themselves were still missing on every table except 4 forecasting ones — meaning the public anon key shipped in the browser (not just the service role key) could read/write `users`, `sales`, etc. directly, bypassing the server entirely. Migration `docs/database/phase8_rls_lockdown.sql` enables RLS with no anon/authenticated policies on every remaining table (run it in the Supabase SQL editor); a few frontend files that read tables directly over the anon key (Dashboard.jsx, AccountManager.jsx, PurchaseOrders.jsx, useSupplierPortal.js, useNotifications.js) were switched to poll the existing authenticated API instead, so they still work once RLS is on. Direct `cms-images` storage uploads still bypass the server's MIME check (separate, lower-severity finding; check the bucket's Storage policy).
+
 ### 🟠 HIGH Issues
 
 #### H1. No Security Headers (Missing Helmet)
@@ -924,7 +926,8 @@ The login endpoint tells the attacker exactly how many attempts remain before lo
 
 | Priority | Issue | Status | Notes |
 |----------|-------|--------|-------|
-| 🔴 **Now** | C1 — Rotate secrets & clean history | ⚠️ **Manual** | `.env` is gitignored now; historical commit `b64955f` still warrants Supabase key rotation if not rotated yet |
+| 🔴 **Now** | C1 — Rotate secrets & clean history | ✅ **Resolved** | Service role key rotated; `.env` is gitignored; historical commit still has the old (now-dead) key, history rewrite optional |
+| 🔴 **Now** | C3b — Enable RLS on every table | ⚠️ **Manual** | Run `docs/database/phase8_rls_lockdown.sql` in the Supabase SQL editor |
 | 🔴 **Now** | C2 — Replace x-user-id with JWT | ✅ **Resolved** | `jsonwebtoken` + `requireAuth` + single-session `sid` implemented; hardcoded fallback secret removed |
 | 🟠 **This week** | H2 — Enable rate limiters | ✅ **Resolved** | `generalLimiter`, `looseLimiter`, `createLimiter` wired in `server.js`; `authLimiter` wired on `POST /api/auth/login` |
 | 🟠 **This week** | H1 — Add Helmet | ✅ **Resolved** | `helmet` configured in `server/server.js` |

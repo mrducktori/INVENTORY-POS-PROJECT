@@ -2,6 +2,7 @@ import * as posService from "../services/posService.js";
 import * as posOperationsService from "../services/posOperationsService.js";
 import * as forecastService from "../services/forecastService.js";
 import * as extraSuppliesService from "../services/extraSuppliesService.js";
+import { logAudit } from "../utils/auditHelper.js";
 
 // End-of-day totals feed the forecast; a failed refresh must never fail the sale/shift action.
 const refreshInBackground = (promise) => promise.catch((err) => console.warn("[forecast] daily refresh failed:", err.message));
@@ -188,14 +189,28 @@ export const createSale = async (req, res) => {
         });
 
         // Sale is committed: side effects below must not fail the request, or a client retry would double-sell.
-        try {
-          await posOperationsService.saveSaleMetadata(createdSale.id, {
-            payments: paymentResult.payments,
-            discount_details: discountResult.discount_details,
-            order_type: normalizedOrderType
-          });
-        } catch (metaErr) {
-          console.error("[POS] Sale metadata save failed for committed sale", createdSale.id, metaErr);
+        // The metadata (payments, Senior/PWD name + ID) is retried, and if it still cannot be saved the
+        // full details go to the audit log so a discounted sale never ends up with no beneficiary record.
+        const metadata = {
+          payments: paymentResult.payments,
+          discount_details: discountResult.discount_details,
+          order_type: normalizedOrderType
+        };
+        let metadataSaved = false;
+        for (let attempt = 1; attempt <= 3 && !metadataSaved; attempt += 1) {
+          try {
+            await posOperationsService.saveSaleMetadata(createdSale.id, metadata);
+            metadataSaved = true;
+          } catch (metaErr) {
+            console.error(`[POS] Sale metadata save failed (attempt ${attempt}) for committed sale`, createdSale.id, metaErr);
+          }
+        }
+        if (!metadataSaved) {
+          try {
+            await logAudit("SALE_METADATA_SAVE_FAILED", req.user.id, { sale_id: createdSale.id, ...metadata });
+          } catch (auditErr) {
+            console.error("[POS] Could not audit-log unsaved sale metadata", createdSale.id, auditErr);
+          }
         }
 
         let kdsTicket = null;
@@ -214,6 +229,7 @@ export const createSale = async (req, res) => {
           subtotal_amount: discountResult.subtotal,
           discount_details: discountResult.discount_details,
           payments: paymentResult.payments,
+          metadata_saved: metadataSaved,
           kds_ticket_id: kdsTicket?.id || null
         };
       },

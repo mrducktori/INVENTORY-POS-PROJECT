@@ -42,3 +42,29 @@ test("effectiveSizes: inherits category, hides toggled-off, never empties", () =
   assert.deepEqual(pos.effectiveSizes({ sizes: [{ name: "16 oz" }] }, cat).map((s) => s.name), ["16 oz"]);
   assert.equal(pos.effectiveSizes({ sizes: [], hidden_sizes: ["12 oz", "16 oz", "22 oz"] }, cat).length, 3);
 });
+
+test("Senior/PWD discounts are locked by law whatever settings say", () => {
+  const s = ops.normalizePosSettings({
+    discount_types: [
+      { id: "SENIOR", label: "Senior", rate_percent: 5, requires_id: false, vat_exempt: false, active: false },
+      { id: "STUDENT", label: "Student", rate_percent: 10 }
+    ]
+  });
+  const senior = s.discount_types.find((d) => d.id === "SENIOR");
+  const pwd = s.discount_types.find((d) => d.id === "PWD");
+  assert.deepEqual([senior.rate_percent, senior.vat_exempt, senior.requires_id, senior.active], [20, true, true, true]);
+  assert.deepEqual([pwd.rate_percent, pwd.vat_exempt, pwd.active], [20, true, true]);
+});
+
+test("manager PIN rate limit counts an attempt before its async work, closing a parallel-guess race", async () => {
+  const rateKey = `pin-race-test-${Date.now()}`;
+  // No PINs configured, so every guess fails after the synchronous reservation runs.
+  // Fire more guesses than PIN_MAX_ATTEMPTS (10) at once: with the bug, they'd all read
+  // the same stale "0 attempts" count and all run before any got counted.
+  const attempts = Array.from({ length: 15 }, () => ops.verifyManagerPin("0000", rateKey).catch((e) => e));
+  const results = await Promise.all(attempts);
+  const rateLimited = results.filter((e) => e?.status === 429).length;
+  // Once the 10-attempt budget is reserved, the rest must be rejected for being over the limit,
+  // not for simply having the wrong PIN.
+  assert.ok(rateLimited >= 5, `expected several 429s once the budget is used up, got ${rateLimited}`);
+});

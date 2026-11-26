@@ -9,7 +9,6 @@ import RefreshButton from '../../components/shared/RefreshButton';
 
 import { TableSkeleton } from '../../components/shared/SkeletonLoader';
 import InfoTip from '../../components/shared/InfoTip';
-import { supabase } from '../../config/supabaseClient';
 import { formatDisplayDateTime, formatDisplayDate, isDatePast, getDaysOverdue } from '../../utils/dateUtils';
 
 const fmtQty = (n) => Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
@@ -45,22 +44,12 @@ const PurchaseOrders = () => {
   useEffect(() => {
     fetchOrders();
 
-    const channel = supabase
-      .channel('purchase_orders_changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'purchase_orders' },
-        () => fetchOrders(true)
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'purchase_order_items' },
-        () => fetchOrders(true)
-      )
-      .subscribe();
+    // Polling instead of a Supabase realtime subscription: the anon key has no direct DB
+    // access now that RLS is locked down, so refresh comes from this authenticated API poll.
+    const interval = setInterval(() => fetchOrders(true), 30000);
 
     return () => {
-      supabase.removeChannel(channel);
+      clearInterval(interval);
     };
   }, [fetchOrders]);
 
