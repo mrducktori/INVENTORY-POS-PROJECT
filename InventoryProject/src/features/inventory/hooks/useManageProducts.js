@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '../../../config/supabaseClient';
 import { getAllProducts, createProduct, updateProduct, archiveProduct, restoreProduct, deleteProduct, receiveProductStock } from '../../../api/productsApi';
+import { uploadCmsImage } from '../../../api/cmsApi';
 import { checkDuplicateOrSimilar } from '../../../utils/productUtils';
 import { INPUT_LIMITS, validateAmountInput } from '../../../utils/validationUtils';
 import { getRecipesByProduct, createRecipe, updateRecipe, deleteRecipe } from '../../../api/recipesApi';
@@ -243,24 +243,14 @@ export const useManageProducts = () => {
 
     try {
       setUploading(true);
-      const fileExt = file.name.split('.').pop();
-      const fileName = `product-${Date.now()}-${Math.random()}.${fileExt}`;
-      const filePath = `public/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('cms-images')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data } = supabase.storage
-        .from('cms-images')
-        .getPublicUrl(filePath);
+      // Goes through the server's validated upload endpoint (checks it's really an image)
+      // instead of uploading straight to storage with the public anon key.
+      const publicUrl = await uploadCmsImage(file, 'product');
 
       if (isEdit) {
-        setEditImageUrl(data.publicUrl);
+        setEditImageUrl(publicUrl);
       } else {
-        setFormData(prev => ({ ...prev, image_url: data.publicUrl }));
+        setFormData(prev => ({ ...prev, image_url: publicUrl }));
       }
     } catch (err) {
       console.error(err);

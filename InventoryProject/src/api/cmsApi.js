@@ -102,8 +102,41 @@ export async function updateCmsContent(section_key, updates) {
  * Uploads an image file to the public 'cms-images' Supabase Storage bucket
  * via the authenticated backend endpoint and returns its public URL.
  */
-export async function uploadCmsImage(file, prefix = "cms") {
-  if (!file) return null;
+const COMPRESS_ABOVE_BYTES = 1.5 * 1024 * 1024; // smaller files (QR codes, logos) are sent untouched
+const MAX_IMAGE_DIMENSION = 1600;
+// The server body limit is 10 MB of base64 (about 7.5 MB of image), so aim well under it.
+const TARGET_BYTES = 1.2 * 1024 * 1024;
+
+// Shrinks large JPG/PNG/WEBP photos (e.g. straight off a phone camera) to a JPEG that fits the
+// upload limit. Other types, or already-small files, come back unchanged.
+// shortcut: re-encodes as JPEG, so a large transparent PNG gets a white background.
+async function compressImageIfLarge(file) {
+  if (file.size <= COMPRESS_ABOVE_BYTES || !/^image\/(jpeg|png|webp)$/.test(file.type)) return file;
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    for (const quality of [0.85, 0.7, 0.55, 0.4]) {
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+      if (blob && blob.size <= TARGET_BYTES) {
+        return new File([blob], file.name.replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg" });
+      }
+    }
+  } catch {
+    // Browser can't decode it: fall through and let the server accept or reject the original.
+  }
+  return file;
+}
+
+export async function uploadCmsImage(originalFile, prefix = "cms") {
+  if (!originalFile) return null;
+  const file = await compressImageIfLarge(originalFile);
 
   const base64Data = await new Promise((resolve, reject) => {
     const reader = new FileReader();

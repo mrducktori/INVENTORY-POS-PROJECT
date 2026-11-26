@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { supabase } from '../../../config/supabaseClient';
 import { getPosSettings, updatePosSettings } from '../../../api/posApi';
+import { uploadCmsImage } from '../../../api/cmsApi';
 import SearchableIngredientSelect from '../../../components/shared/SearchableIngredientSelect';
 import InfoTip from '../../../components/shared/InfoTip';
 
@@ -279,21 +279,11 @@ const PosSettingsModal = ({ allIngredients = [], initialSettings = null, onSaved
 
     try {
       setUploadingProvider(provider);
-      const fileExt = file.name.split('.').pop() || 'png';
-      const fileName = `pos-qr-${provider.toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${fileExt}`;
-      const filePath = `public/${fileName}`;
+      // Goes through the server's validated upload endpoint (checks it's really an image)
+      // instead of uploading straight to storage with the public anon key.
+      const publicUrl = await uploadCmsImage(file, `pos-qr-${provider.toLowerCase()}`);
 
-      const { error: uploadError } = await supabase.storage
-        .from('cms-images')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data } = supabase.storage
-        .from('cms-images')
-        .getPublicUrl(filePath);
-
-      handleWalletChange(provider, 'qr_image_url', data.publicUrl);
+      handleWalletChange(provider, 'qr_image_url', publicUrl);
       setNotice({ type: 'success', text: `${provider} QR image uploaded. Click Save Setup to apply.` });
     } catch (err) {
       setNotice({ type: 'error', text: err.message || `Failed to upload ${provider} QR image.` });
