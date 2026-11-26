@@ -951,6 +951,12 @@ const updatePurchaseOrderStatusUnlocked = async (id, status = null, items_receiv
     err.status = 409;
     throw err;
   }
+  // Stock can only be received once the supplier has actually sent it (Delivering) or part of it is in (Partial).
+  if (items_received && items_received.length > 0 && ['accepted', 'to be delivered', 'postponed'].includes(currentStatusLower)) {
+    const err = new Error(`This order is "${existingPO.status}", so it has not been sent yet. Receive it once the supplier marks it Delivering.`);
+    err.status = 409;
+    throw err;
+  }
   if (items_received && items_received.length > 0 && !isTerminalStatus) {
     for (const item of items_received) {
       try {

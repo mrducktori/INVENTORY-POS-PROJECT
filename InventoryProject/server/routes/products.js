@@ -55,6 +55,14 @@ const validateProductInput = (body, { isUpdate = false } = {}) => {
       })
     : (isUpdate ? undefined : 0);
 
+  // Optional shelf life in days; blank clears it.
+  let shelf_life_days;
+  if (body.shelf_life_days !== undefined) {
+    shelf_life_days = body.shelf_life_days === null || body.shelf_life_days === ''
+      ? null
+      : Math.round(validateNumberBound(body.shelf_life_days, { label: 'Shelf life (days)', min: 1, max: 365 }));
+  }
+
   let stock_quantity = 0;
   if (!isUpdate && body.stock_quantity !== undefined && body.stock_quantity !== null && body.stock_quantity !== '') {
     stock_quantity = validateNumberBound(body.stock_quantity, {
@@ -195,7 +203,7 @@ const validateProductInput = (body, { isUpdate = false } = {}) => {
     });
   }
 
-  return { name, category, description, price, low_stock_threshold, stock_quantity, sizes, hidden_sizes, add_ons, initial_recipes };
+  return { name, category, description, price, low_stock_threshold, shelf_life_days, stock_quantity, sizes, hidden_sizes, add_ons, initial_recipes };
 };
 
 const findProductDuplicateConflict = async ({ name, category, excludeId = null, force = false }) => {
@@ -304,6 +312,7 @@ router.post('/', requirePermission('ManageProducts'), async (req, res) => {
         track_stock: track_stock || false,
         stock_quantity: validated.stock_quantity,
         low_stock_threshold: validated.low_stock_threshold,
+        ...(validated.shelf_life_days !== undefined ? { shelf_life_days: validated.shelf_life_days } : {}),
         sizes: validated.sizes,
         ...(validated.hidden_sizes !== undefined ? { hidden_sizes: validated.hidden_sizes } : {}),
         add_ons: validated.add_ons
@@ -396,7 +405,8 @@ router.put('/:id', requirePermission('ManageProducts'), async (req, res) => {
       ...(validated.hidden_sizes !== undefined ? { hidden_sizes: validated.hidden_sizes } : {}),
       add_ons: validated.add_ons,
       ...(validated.description !== undefined ? { description: validated.description } : {}),
-      ...(validated.low_stock_threshold !== undefined ? { low_stock_threshold: validated.low_stock_threshold } : {})
+      ...(validated.low_stock_threshold !== undefined ? { low_stock_threshold: validated.low_stock_threshold } : {}),
+      ...(validated.shelf_life_days !== undefined ? { shelf_life_days: validated.shelf_life_days } : {})
     };
 
     const { data, error } = await supabase

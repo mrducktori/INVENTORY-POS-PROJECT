@@ -407,7 +407,7 @@ export const getProductReorderPlan = async () => {
     }),
     supabase
       .from("products")
-      .select("id, name, category, stock_quantity, low_stock_threshold")
+      .select("id, name, category, stock_quantity, low_stock_threshold, shelf_life_days")
       .eq("track_stock", true)
       .eq("is_archived", false)
   ]);
@@ -423,16 +423,26 @@ export const getProductReorderPlan = async () => {
     if (stock <= 0) alert = "OUT_OF_STOCK";
     else if (daily > 0 && stock <= reorderPoint) alert = "REORDER_NOW";
     else if (floor > 0 && stock <= floor) alert = "BELOW_MANUAL_THRESHOLD"; // owner's own floor always counts
+    // Perishable product: it cannot all be sold before it spoils, so cap what to make and flag the excess.
+    // shortcut: products have no batch dates, so this assumes all stock is as old as the shelf life allows
+    // (worst case); track per-batch dates if exact waste figures are ever needed.
+    const shelf = Number(p.shelf_life_days) > 0 ? Number(p.shelf_life_days) : null;
+    const sellable = shelf && daily > 0 ? Math.floor(daily * shelf) : null;
+    const wasteRisk = sellable != null && stock > sellable ? Math.ceil(stock - sellable) : 0;
+    let makeQty = daily > 0 ? Math.max(0, Math.ceil(daily * (PRODUCT_LEAD_DAYS + SAFETY_DAYS + ORDER_COVER_DAYS) - stock)) : 0;
+    if (sellable != null) makeQty = Math.min(makeQty, Math.max(0, sellable - stock));
     return {
       product_id: p.id,
       name: p.name,
       category: p.category,
+      shelf_life_days: shelf,
+      waste_risk_qty: wasteRisk,
       stock,
       daily_usage: Math.round(daily * 10) / 10,
       days_of_cover: daily > 0 ? Math.round((stock / daily) * 10) / 10 : null,
       reorder_point: reorderPoint,
       low_stock_threshold: floor,
-      suggested_make_qty: daily > 0 ? Math.max(0, Math.ceil(daily * (PRODUCT_LEAD_DAYS + SAFETY_DAYS + ORDER_COVER_DAYS) - stock)) : 0,
+      suggested_make_qty: makeQty,
       alert
     };
   });

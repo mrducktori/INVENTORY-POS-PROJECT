@@ -103,11 +103,12 @@ const Cart = ({
                         {item.cup_size}
                       </span>
                     )}
-                    {item.modifiers && (item.modifiers.sugar_level || item.modifiers.ice_level) && (
+                    {item.modifiers && (item.modifiers.sugar_level || item.modifiers.ice_level || item.modifiers.no_lid) && (
                       <span className="text-[11px] font-medium text-zinc-500">
                         {[
                           item.modifiers.sugar_level ? `Sugar: ${item.modifiers.sugar_level}` : null,
-                          item.modifiers.ice_level || null
+                          item.modifiers.ice_level || null,
+                          item.modifiers.no_lid ? 'No lid' : null
                         ].filter(Boolean).join(' • ')}
                       </span>
                     )}

@@ -47,6 +47,10 @@ const StockCell = ({ plan }) => {
       <div className="text-xs text-zinc-500">
         {plan.days_of_cover == null ? 'No recent sales' : `Lasts about ${plan.days_of_cover} days`}
       </div>
+      {plan.shelf_life_days && <div className="text-xs text-zinc-400">Keeps {plan.shelf_life_days} days</div>}
+      {plan.waste_risk_qty > 0 && (
+        <div className="text-xs font-semibold text-amber-700">May go to waste: about {plan.waste_risk_qty}</div>
+      )}
       {badge && (
         <span className={`mt-1 inline-flex px-2 py-0.5 rounded-full text-xs font-bold border ${badge[1]}`}>
           {badge[0]}{plan.suggested_make_qty > 0 ? ` · make ~${plan.suggested_make_qty}` : ''}

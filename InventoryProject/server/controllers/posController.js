@@ -77,7 +77,10 @@ export const createSale = async (req, res) => {
             error: `Invalid modifiers format for "${item.name || item.id}".`
           });
         }
-        const { sugar_level, ice_level, note } = item.modifiers;
+        const { sugar_level, ice_level, note, no_lid } = item.modifiers;
+        if (no_lid !== undefined && typeof no_lid !== "boolean") {
+          return res.status(400).json({ error: `Invalid lid option for "${item.name || item.id}".` });
+        }
         if (sugar_level !== undefined && sugar_level !== null && String(sugar_level).trim() !== "") {
           if (!ALLOWED_SUGAR_LEVELS.has(String(sugar_level).trim())) {
             return res.status(400).json({

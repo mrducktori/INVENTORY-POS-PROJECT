@@ -29,6 +29,7 @@ export const useManageProducts = () => {
     image_url: '',
     track_stock: false,
     low_stock_threshold: 5,
+    shelf_life_days: '',
     sizes: [],
     hiddenSizes: [],
     add_ons: []
@@ -54,6 +55,7 @@ export const useManageProducts = () => {
   const [editTrackStock, setEditTrackStock] = useState(false);
   const [editStockQty, setEditStockQty] = useState(0);
   const [editThreshold, setEditThreshold] = useState(5);
+  const [editShelfLife, setEditShelfLife] = useState('');
   const [editSizes, setEditSizes] = useState([]);
   const [editAddOns, setEditAddOns] = useState([]);
   const [editHiddenSizes, setEditHiddenSizes] = useState([]);
@@ -100,6 +102,7 @@ export const useManageProducts = () => {
           setEditTrackStock(prod.track_stock || false);
           setEditStockQty(prod.stock_quantity || 0);
           setEditThreshold(prod.low_stock_threshold || 5);
+          setEditShelfLife(prod.shelf_life_days ?? '');
         }
       }
     } catch (err) {
@@ -388,6 +391,7 @@ export const useManageProducts = () => {
         track_stock: formData.track_stock,
         stock_quantity: 0,
         low_stock_threshold: thresholdCheck.numericValue,
+        shelf_life_days: formData.track_stock ? formData.shelf_life_days : '',
         sizes: validatedSizes,
         hidden_sizes: formData.hiddenSizes || [],
         add_ons: validatedAddOns,
@@ -401,6 +405,7 @@ export const useManageProducts = () => {
         image_url: '',
         track_stock: false, 
         low_stock_threshold: 5,
+        shelf_life_days: '',
         sizes: [],
         hiddenSizes: [],
         add_ons: []
@@ -509,6 +514,7 @@ export const useManageProducts = () => {
     setEditTrackStock(product.track_stock || false);
     setEditStockQty(product.stock_quantity || 0);
     setEditThreshold(product.low_stock_threshold || 5);
+    setEditShelfLife(product.shelf_life_days ?? '');
     setEditSizes(product.sizes || []);
     setEditAddOns(product.add_ons || []);
     setEditHiddenSizes(Array.isArray(product.hidden_sizes) ? product.hidden_sizes : []);
@@ -625,6 +631,7 @@ export const useManageProducts = () => {
         track_stock: editTrackStock,
         stock_quantity: parseFloat(editStockQty) || 0,
         low_stock_threshold: thresholdCheck.numericValue,
+        shelf_life_days: editTrackStock ? editShelfLife : '',
         sizes: validatedSizes,
         hidden_sizes: editHiddenSizes || [],
         add_ons: validatedAddOns,
@@ -854,6 +861,7 @@ export const useManageProducts = () => {
     editTrackStock, setEditTrackStock,
     editStockQty, setEditStockQty,
     editThreshold, setEditThreshold,
+    editShelfLife, setEditShelfLife,
     editSizes, setEditSizes,
     editAddOns, setEditAddOns,
     editHiddenSizes, setEditHiddenSizes,

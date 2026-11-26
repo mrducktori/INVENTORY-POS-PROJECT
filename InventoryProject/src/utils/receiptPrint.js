@@ -61,6 +61,7 @@ export const extractItemModifiersLabel = (item) => {
     const parts = [
       mods.sugar_level ? `Sugar: ${mods.sugar_level}` : null,
       mods.ice_level || null,
+      mods.no_lid ? 'No lid' : null,
       mods.note || null
     ].filter(Boolean);
     if (parts.length > 0) return parts.join(' • ');

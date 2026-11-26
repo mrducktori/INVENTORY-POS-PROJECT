@@ -31,6 +31,8 @@ const ModifyProductModal = ({
   editStockQty,
   editThreshold,
   setEditThreshold,
+  editShelfLife = '',
+  setEditShelfLife,
   editSizes = [],
   editAddOns = [],
   onAddSize,
@@ -58,7 +60,7 @@ const ModifyProductModal = ({
 
   const current = {
     name: editName, category: editCategory, price: String(editPrice ?? ''), imageUrl: editImageUrl || '',
-    trackStock: Boolean(editTrackStock), threshold: String(editThreshold ?? ''), sizes: editSizes, addOns: editAddOns, hiddenSizes: editHiddenSizes
+    trackStock: Boolean(editTrackStock), threshold: String(editThreshold ?? ''), shelfLife: String(editShelfLife ?? ''), sizes: editSizes, addOns: editAddOns, hiddenSizes: editHiddenSizes
   };
   // Baseline = values at first render (modal mounts fresh each time a product is opened).
   const [base] = useState(current);
@@ -69,7 +71,7 @@ const ModifyProductModal = ({
   const handleReset = () => {
     const b = base;
     setEditName(b.name); setEditCategory(b.category); setEditPrice(b.price); setEditImageUrl(b.imageUrl);
-    setEditTrackStock(b.trackStock); setEditThreshold(b.threshold); setEditSizes(b.sizes); setEditAddOns(b.addOns); setEditHiddenSizes(b.hiddenSizes);
+    setEditTrackStock(b.trackStock); setEditThreshold(b.threshold); setEditShelfLife(b.shelfLife); setEditSizes(b.sizes); setEditAddOns(b.addOns); setEditHiddenSizes(b.hiddenSizes);
   };
 
   if (!selectedProduct) return null;
@@ -242,6 +244,10 @@ const ModifyProductModal = ({
                 <div className="flex flex-col gap-1.5 flex-1">
                   <label className="text font-semibold text-gray-600 uppercase tracking-wider">Low Stock Alert at</label>
                   <input type="number" className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-colors" value={editThreshold} onChange={e => setEditThreshold(e.target.value)} min="0" max="1000000" required />
+                </div>
+                <div className="flex flex-col gap-1.5 flex-1">
+                  <label className="text font-semibold text-gray-600 uppercase tracking-wider">Shelf life (days)</label>
+                  <input type="number" className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-colors" value={editShelfLife} onChange={e => setEditShelfLife(e.target.value)} min="1" max="365" placeholder="Blank = no limit" />
                 </div>
               </div>
             )}

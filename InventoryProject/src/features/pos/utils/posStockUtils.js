@@ -88,6 +88,10 @@ const parseAddOnEntry = (raw) => {
   }
 };
 
+// A drink served without a lid (cashier choice) needs no lid stock.
+const withoutLidIfOpted = (item) =>
+  item?.modifiers?.no_lid === true && item.cup_size_obj ? { ...item.cup_size_obj, lid_ingredient_id: null } : item?.cup_size_obj;
+
 const accumulatePackagingUsage = (reservedIngredients, cupSizeObj, qty, orderType, ingredientsMap) => {
   if (!cupSizeObj || qty <= 0) return;
   const normOrderType = String(orderType || "DINE_IN").toUpperCase();
@@ -98,11 +102,12 @@ const accumulatePackagingUsage = (reservedIngredients, cupSizeObj, qty, orderTyp
       (reservedIngredients[cupSizeObj.ingredient_id] || 0) + qty;
   }
 
+  // Lids go on every drink; straws only with take-out and delivery.
+  if (cupSizeObj.lid_ingredient_id && ingredientsMap[cupSizeObj.lid_ingredient_id]) {
+    reservedIngredients[cupSizeObj.lid_ingredient_id] =
+      (reservedIngredients[cupSizeObj.lid_ingredient_id] || 0) + qty;
+  }
   if (normOrderType === "TAKE_OUT" || normOrderType === "DELIVERY") {
-    if (cupSizeObj.lid_ingredient_id && ingredientsMap[cupSizeObj.lid_ingredient_id]) {
-      reservedIngredients[cupSizeObj.lid_ingredient_id] =
-        (reservedIngredients[cupSizeObj.lid_ingredient_id] || 0) + qty;
-    }
     if (cupSizeObj.straw_ingredient_id && ingredientsMap[cupSizeObj.straw_ingredient_id]) {
       reservedIngredients[cupSizeObj.straw_ingredient_id] =
         (reservedIngredients[cupSizeObj.straw_ingredient_id] || 0) + qty;
@@ -150,7 +155,7 @@ const accumulateItemUsage = (
     }
   }
 
-  accumulatePackagingUsage(reservedIngredients, item.cup_size_obj, qty, orderType, ingredientsMap);
+  accumulatePackagingUsage(reservedIngredients, withoutLidIfOpted(item), qty, orderType, ingredientsMap);
 
   if (Array.isArray(item.add_ons)) {
     for (const rawAddon of item.add_ons) {
@@ -327,12 +332,13 @@ export const getProductStockSummary = (
     }
 
     // Same packaging rules as getMaxQtyForConfiguredItem: no cup for dine-in-no-cup,
-    // lid and straw for take-out/delivery.
+    // lid always, straw for take-out/delivery.
     const normOrderType = String(orderType || "DINE_IN").toUpperCase();
     const skipCup = normOrderType === "DINE_IN" && Boolean(sz?.dine_in_no_cup);
-    const extraIds = normOrderType === "TAKE_OUT" || normOrderType === "DELIVERY"
-      ? [sz?.lid_ingredient_id, sz?.straw_ingredient_id].filter(Boolean)
-      : [];
+    const extraIds = [
+      sz?.lid_ingredient_id,
+      normOrderType === "TAKE_OUT" || normOrderType === "DELIVERY" ? sz?.straw_ingredient_id : null
+    ].filter(Boolean);
     for (const id of extraIds) {
       const raw = getUsableStock(ingredientsMap[id]);
       const res = ingredientsMap[id] ? reserved?.reservedIngredients?.[id] || 0 : 0;
@@ -508,17 +514,18 @@ export const getMaxQtyForConfiguredItem = ({
     perUnitMap[cupSizeObj.ingredient_id].perUnit += 1;
   }
 
-  if (normOrderType === "TAKE_OUT" || normOrderType === "DELIVERY") {
-    if (cupSizeObj?.lid_ingredient_id) {
-      const lidIng = ingredientsMap[cupSizeObj.lid_ingredient_id];
-      if (!lidIng) {
-        return { stockMax: 0, maxQty: 0, limitingName: "Lid material" };
-      }
-      if (!perUnitMap[cupSizeObj.lid_ingredient_id]) {
-        perUnitMap[cupSizeObj.lid_ingredient_id] = { perUnit: 0, name: lidIng.name };
-      }
-      perUnitMap[cupSizeObj.lid_ingredient_id].perUnit += 1;
+  if (cupSizeObj?.lid_ingredient_id) {
+    const lidIng = ingredientsMap[cupSizeObj.lid_ingredient_id];
+    if (!lidIng) {
+      return { stockMax: 0, maxQty: 0, limitingName: "Lid material" };
     }
+    if (!perUnitMap[cupSizeObj.lid_ingredient_id]) {
+      perUnitMap[cupSizeObj.lid_ingredient_id] = { perUnit: 0, name: lidIng.name };
+    }
+    perUnitMap[cupSizeObj.lid_ingredient_id].perUnit += 1;
+  }
+
+  if (normOrderType === "TAKE_OUT" || normOrderType === "DELIVERY") {
     if (cupSizeObj?.straw_ingredient_id) {
       const strawIng = ingredientsMap[cupSizeObj.straw_ingredient_id];
       if (!strawIng) {
@@ -624,9 +631,9 @@ export const getMaxAddOnQty = ({
   if (!skipCup && cupSizeObj?.ingredient_id === targetIngId) {
     otherUsagePerUnit += 1;
   }
-  if (normOrderType === "TAKE_OUT" || normOrderType === "DELIVERY") {
-    if (cupSizeObj?.lid_ingredient_id === targetIngId) otherUsagePerUnit += 1;
-    if (cupSizeObj?.straw_ingredient_id === targetIngId) otherUsagePerUnit += 1;
+  if (cupSizeObj?.lid_ingredient_id === targetIngId) otherUsagePerUnit += 1;
+  if ((normOrderType === "TAKE_OUT" || normOrderType === "DELIVERY") && cupSizeObj?.straw_ingredient_id === targetIngId) {
+    otherUsagePerUnit += 1;
   }
 
   for (const ao of currentAddOns || []) {
@@ -690,13 +697,14 @@ export const validateItemsAgainstStock = (
         issues.push(`${prod.name || item.name} cup material is unavailable`);
       }
 
-      if (normOrderType === "TAKE_OUT" || normOrderType === "DELIVERY") {
-        if (item.cup_size_obj?.lid_ingredient_id && !ingredientsMap[item.cup_size_obj.lid_ingredient_id]) {
-          issues.push(`${prod.name || item.name} lid material is unavailable`);
-        }
-        if (item.cup_size_obj?.straw_ingredient_id && !ingredientsMap[item.cup_size_obj.straw_ingredient_id]) {
-          issues.push(`${prod.name || item.name} straw material is unavailable`);
-        }
+      if (!item.modifiers?.no_lid && item.cup_size_obj?.lid_ingredient_id && !ingredientsMap[item.cup_size_obj.lid_ingredient_id]) {
+        issues.push(`${prod.name || item.name} lid material is unavailable`);
+      }
+      if (
+        (normOrderType === "TAKE_OUT" || normOrderType === "DELIVERY") &&
+        item.cup_size_obj?.straw_ingredient_id && !ingredientsMap[item.cup_size_obj.straw_ingredient_id]
+      ) {
+        issues.push(`${prod.name || item.name} straw material is unavailable`);
       }
 
       if (Array.isArray(item.add_ons)) {

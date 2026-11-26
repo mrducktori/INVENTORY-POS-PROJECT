@@ -29,7 +29,7 @@ const buildCartItemId = (productId, hasSizes, cupSize, hasAddOns, addOnsMap, mod
         .join(",") || "none"
     : "none";
   const sugar = modifiers?.sugar_level || DEFAULT_MODIFIERS.sugar_level;
-  return `${productId}-${sizeKey}-${addOnKey}-s:${sugar}`;
+  return `${productId}-${sizeKey}-${addOnKey}-s:${sugar}${modifiers?.no_lid ? "-nolid" : ""}`;
 };
 
 const resolveConfiguredItemDetails = (product, options, categorySettings) => {
@@ -67,7 +67,8 @@ const resolveConfiguredItemDetails = (product, options, categorySettings) => {
 
   const normalizedModifiers = (hasSizes || hasAddOns)
     ? {
-        sugar_level: options.modifiers?.sugar_level || DEFAULT_MODIFIERS.sugar_level
+        sugar_level: options.modifiers?.sugar_level || DEFAULT_MODIFIERS.sugar_level,
+        ...(options.modifiers?.no_lid ? { no_lid: true } : {})
       }
     : null;
 
@@ -691,7 +692,8 @@ export const usePOS = () => {
       cupSize: item.cup_size || liveProduct.sizes?.[0]?.name || "12 oz",
       addOns: reconstructedAddOns,
       modifiers: {
-        sugar_level: item.modifiers?.sugar_level || DEFAULT_MODIFIERS.sugar_level
+        sugar_level: item.modifiers?.sugar_level || DEFAULT_MODIFIERS.sugar_level,
+        ...(item.modifiers?.no_lid ? { no_lid: true } : {})
       }
     });
     setEditingCartItemId(cartItemId);

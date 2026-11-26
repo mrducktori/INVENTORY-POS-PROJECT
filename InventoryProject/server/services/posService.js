@@ -343,19 +343,18 @@ export const getSugarScaleMultiplier = (modifiers, ingredient) => {
   return Number.isFinite(pct) ? Math.min(1, Math.max(0, pct / 100)) : 1;
 };
 
-export const resolvePackagingIngredientIds = (cupSizeObj, orderType = "DINE_IN") => {
+// noLid: the cashier chose to serve this drink without a lid.
+export const resolvePackagingIngredientIds = (cupSizeObj, orderType = "DINE_IN", { noLid = false } = {}) => {
   if (!cupSizeObj) return [];
   const normalizedType = normalizeOrderType(orderType);
   const items = [];
-  if (normalizedType === "DINE_IN") {
-    if (!cupSizeObj.dine_in_no_cup && cupSizeObj.ingredient_id) {
-      items.push({ ingredient_id: cupSizeObj.ingredient_id, label: "cup" });
-    }
-  } else {
-    if (cupSizeObj.ingredient_id) items.push({ ingredient_id: cupSizeObj.ingredient_id, label: "cup" });
-    if (cupSizeObj.lid_ingredient_id) items.push({ ingredient_id: cupSizeObj.lid_ingredient_id, label: "lid" });
-    if (cupSizeObj.straw_ingredient_id) items.push({ ingredient_id: cupSizeObj.straw_ingredient_id, label: "straw" });
+  const dineIn = normalizedType === "DINE_IN";
+  if (!(dineIn && cupSizeObj.dine_in_no_cup) && cupSizeObj.ingredient_id) {
+    items.push({ ingredient_id: cupSizeObj.ingredient_id, label: "cup" });
   }
+  // The cafe lids every drink, dine-in included; straws only go with take-out and delivery.
+  if (!noLid && cupSizeObj.lid_ingredient_id) items.push({ ingredient_id: cupSizeObj.lid_ingredient_id, label: "lid" });
+  if (!dineIn && cupSizeObj.straw_ingredient_id) items.push({ ingredient_id: cupSizeObj.straw_ingredient_id, label: "straw" });
   return items;
 };
 
@@ -502,7 +501,7 @@ export const createSale = async ({
 
       // Cup, lid and straw packaging for this order type.
       if (item.cup_size_obj) {
-        const pkgTargets = resolvePackagingIngredientIds(item.cup_size_obj, normalizedOrderType);
+        const pkgTargets = resolvePackagingIngredientIds(item.cup_size_obj, normalizedOrderType, { noLid: item.modifiers?.no_lid === true });
         for (const pkg of pkgTargets) {
           const ingData = ingredientMap.get(pkg.ingredient_id);
           if (!ingData) {
@@ -623,6 +622,7 @@ export const createSale = async ({
     const modParts = [];
     if (item.modifiers?.sugar_level) modParts.push(`Sugar: ${item.modifiers.sugar_level}`);
     if (item.modifiers?.ice_level) modParts.push(String(item.modifiers.ice_level).trim());
+    if (item.modifiers?.no_lid === true) modParts.push("No lid");
     if (item.modifiers?.note) modParts.push(String(item.modifiers.note).trim());
     const modStr = modParts.join(", ");
     const rawItemNote = String(item.notes || "").trim();

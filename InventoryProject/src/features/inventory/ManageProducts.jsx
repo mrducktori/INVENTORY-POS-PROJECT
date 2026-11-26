@@ -44,6 +44,7 @@ const ManageProducts = ({ subTab = null, onSubTabChange = null }) => {
     editTrackStock, setEditTrackStock,
     editStockQty,
     editThreshold, setEditThreshold,
+    editShelfLife, setEditShelfLife,
     editSizes, setEditSizes,
     editAddOns, setEditAddOns,
     editHiddenSizes, setEditHiddenSizes, categorySettings,
@@ -291,6 +292,8 @@ const ManageProducts = ({ subTab = null, onSubTabChange = null }) => {
           editStockQty={editStockQty}
           editThreshold={editThreshold}
           setEditThreshold={setEditThreshold}
+          editShelfLife={editShelfLife}
+          setEditShelfLife={setEditShelfLife}
           editSizes={editSizes}
           editAddOns={editAddOns}
           onAddSize={handleAddSize}

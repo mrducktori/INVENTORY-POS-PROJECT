@@ -56,6 +56,16 @@ test("Senior/PWD discounts are locked by law whatever settings say", () => {
   assert.deepEqual([pwd.rate_percent, pwd.vat_exempt, pwd.active], [20, true, true]);
 });
 
+test("lids are deducted for dine-in too; straws only for take-out and delivery", () => {
+  const size = { ingredient_id: "cup", lid_ingredient_id: "lid", straw_ingredient_id: "straw" };
+  const labels = (type, sz = size) => pos.resolvePackagingIngredientIds(sz, type).map((p) => p.label);
+  assert.deepEqual(labels("DINE_IN"), ["cup", "lid"]);
+  assert.deepEqual(labels("TAKE_OUT"), ["cup", "lid", "straw"]);
+  assert.deepEqual(labels("DINE_IN", { ...size, dine_in_no_cup: true }), ["lid"]);
+  // The cashier can serve a drink without a lid.
+  assert.deepEqual(pos.resolvePackagingIngredientIds(size, "DINE_IN", { noLid: true }).map((p) => p.label), ["cup"]);
+});
+
 test("an Owner-unlocked Senior rate is kept instead of being reset to 20%", () => {
   const s = ops.normalizePosSettings({
     statutory_unlocked: true,

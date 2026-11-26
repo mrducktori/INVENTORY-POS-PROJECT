@@ -231,7 +231,7 @@ const ProductOptionsEditor = ({
                         />
                       </div>
                       <div className="flex flex-col gap-1">
-                        <label className="text-[10px] font-bold text-gray-500 uppercase">Lid Material (Take-Out)</label>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase">Lid Material</label>
                         <SearchableIngredientSelect
                           ingredients={allIngredients}
                           value={sz.lid_ingredient_id || ''}
@@ -312,7 +312,7 @@ const ProductOptionsEditor = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold text-gray-600 uppercase tracking-wider">Lid (Take-Out / Delivery)</label>
+              <label className="text-[10px] font-bold text-gray-600 uppercase tracking-wider">Lid</label>
               <SearchableIngredientSelect
                 ingredients={allIngredients}
                 value={newSize.lid_ingredient_id}

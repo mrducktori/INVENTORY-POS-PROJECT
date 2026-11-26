@@ -77,11 +77,12 @@ const OngoingOrders = ({ orders, stockIssuesByOrderId = {}, onComplete, onCancel
                     <div className="text-[11px] text-gray-500 leading-tight">
                       {item.cup_size}{parseAddons(item.add_ons).length > 0 ? ` + ${parseAddons(item.add_ons).map(addonName).join(', ')}` : ''}
                     </div>
-                    {item.modifiers && (item.modifiers.sugar_level || item.modifiers.ice_level) && (
+                    {item.modifiers && (item.modifiers.sugar_level || item.modifiers.ice_level || item.modifiers.no_lid) && (
                       <div className="text-[11px] text-zinc-500 leading-tight">
                         {[
                           item.modifiers.sugar_level ? `Sugar: ${item.modifiers.sugar_level}` : null,
-                          item.modifiers.ice_level || null
+                          item.modifiers.ice_level || null,
+                          item.modifiers.no_lid ? 'No lid' : null
                         ].filter(Boolean).join(' • ')}
                       </div>
                     )}

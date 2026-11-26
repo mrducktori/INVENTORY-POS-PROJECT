@@ -428,7 +428,7 @@ const PurchaseOrders = () => {
                             <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                               {po.status !== 'Received' && po.status !== 'Cancelled' && po.status !== 'Declined' && po.status !== 'DECLINED' && (
                                 <div className="flex justify-end gap-1.5 flex-wrap">
-                                  {!isOverdue && ['Accepted', 'To Be Delivered', 'Delivering', 'Partial'].includes(po.status) && (
+                                  {!isOverdue && ['Delivering', 'Partial'].includes(po.status) && (
                                     <button 
                                       className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors border border-emerald-300 whitespace-nowrap cursor-pointer"
                                       onClick={() => setReceivingPO(po)}

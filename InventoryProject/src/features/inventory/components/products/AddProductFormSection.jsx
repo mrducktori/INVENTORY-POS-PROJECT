@@ -96,6 +96,10 @@ const AddProductFormSection = ({
                 <label className="text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider">Low Stock Alert at</label>
                 <input type="number" className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm md:text-base font-semibold focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-colors" name="low_stock_threshold" value={formData.low_stock_threshold} onChange={onInputChange} min="0" max="1000000" required />
               </div>
+              <div className="flex flex-col gap-1.5 flex-1">
+                <label className="text-xs md:text-sm font-bold text-gray-700 uppercase tracking-wider">Shelf life (days)</label>
+                <input type="number" className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm md:text-base font-semibold focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-colors" name="shelf_life_days" value={formData.shelf_life_days ?? ''} onChange={onInputChange} min="1" max="365" placeholder="Blank = no limit" />
+              </div>
             </div>
           )}
 
