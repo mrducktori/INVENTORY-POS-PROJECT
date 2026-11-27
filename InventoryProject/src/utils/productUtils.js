@@ -51,6 +51,12 @@ export const getProductOptionsAvailability = (product, categorySettings = {}) =>
 };
 
 // Format quantity to handle ML→L and G→KG display conversions
+/** A number with at most 2 decimals and no trailing zeros (663.4000001 -> 663.4, 5448.215 -> 5448.22). */
+export const formatNum = (val) => {
+  const n = Number(val);
+  return Number.isFinite(n) ? parseFloat(n.toFixed(2)) : 0;
+};
+
 export const formatQuantity = (qty, unit) => {
   const numQty = parseFloat(qty) || 0;
   const upperUnit = (unit || "").toUpperCase();
@@ -62,7 +68,7 @@ export const formatQuantity = (qty, unit) => {
     return `${parseFloat((numQty * 1000).toFixed(2))} G`;
   }
 
-  return `${parseFloat(numQty.toFixed(4))} ${upperUnit}`;
+  return `${parseFloat(numQty.toFixed(2))} ${upperUnit}`;
 };
 
 /**

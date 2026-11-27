@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getIngredients, receiveStock } from '../../api/inventoryApi';
 import { getAllProducts, receiveProductStock } from '../../api/productsApi';
-import { formatQuantity } from '../../utils/productUtils';
+import { formatQuantity, formatNum } from '../../utils/productUtils';
 import { INPUT_LIMITS, validateAmountInput } from '../../utils/validationUtils';
 import { getManilaDateOnly, addDaysManila } from '../../utils/dateUtils';
 import SearchableIngredientSelect from '../../components/shared/SearchableIngredientSelect';
@@ -222,7 +222,7 @@ const StockReceived = () => {
                         : 'bg-white text-gray-700 border-gray-300 hover:border-gray-500'
                     }`}
                   >
-                    {idx + 1}. {item.matched_ingredient_name} ({item.quantity} {item.matched_unit || ''})
+                    {idx + 1}. {item.matched_ingredient_name} ({formatNum(item.quantity)} {item.matched_unit || ''})
                   </button>
                 ))}
               </div>

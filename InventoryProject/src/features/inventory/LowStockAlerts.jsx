@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getLowStockAlerts, getExpiryAlerts } from '../../api/inventoryApi';
 import { reportWastage } from '../../api/wastageApi';
 import { getCurrentUser } from '../../api/authApi';
-import { formatQuantity } from '../../utils/productUtils';
+import { formatQuantity, formatNum } from '../../utils/productUtils';
 import { getManilaDateOnly } from '../../utils/dateUtils';
 import { TableSkeleton } from '../../components/shared/SkeletonLoader';
 import Pagination from '../../components/shared/Pagination';
@@ -372,7 +372,7 @@ const LowStockAlerts = () => {
                             </td>
                             <td className="px-6 py-4 text-sm text-gray-500 font-medium">{alert.unit}</td>
                             <td className="px-6 py-4 text-sm font-extrabold text-gray-900 text-right">
-                              <div>{usable}</div>
+                              <div>{formatNum(usable)}</div>
                               {expired > 0 && (
                                 <div className="text-[11px] font-semibold text-red-600 mt-0.5">
                                   Excludes {formatQuantity(expired, alert.unit)} expired

@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatNum } from '../../../utils/productUtils';
 import { TableSkeleton } from '../../../components/shared/SkeletonLoader';
 import { SortIcon, AiAdjustBadge } from './ForecastBadges';
 
@@ -45,7 +46,7 @@ const StockCell = ({ plan }) => {
     <div>
       <span className="font-mono font-semibold text-zinc-900">{plan.stock}</span> <span className="text-xs text-zinc-500">in stock</span>
       <div className="text-xs text-zinc-500">
-        {plan.days_of_cover == null ? 'No recent sales' : `Lasts about ${plan.days_of_cover} days`}
+        {plan.days_of_cover == null ? 'No recent sales' : `Lasts about ${formatNum(plan.days_of_cover)} days`}
       </div>
       {plan.shelf_life_days && <div className="text-xs text-zinc-400">Keeps {plan.shelf_life_days} days</div>}
       {plan.waste_risk_qty > 0 && (

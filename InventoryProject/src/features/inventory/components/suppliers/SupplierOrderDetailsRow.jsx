@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatNum } from '../../../../utils/productUtils';
 import { formatDisplayDate } from '../../../../utils/dateUtils';
 
 const SupplierOrderDetailsRow = ({ po, onOpenReviewModal }) => {
@@ -110,7 +111,7 @@ const SupplierOrderDetailsRow = ({ po, onOpenReviewModal }) => {
                           )}
                         </td>
                         <td className="px-5 py-4 text-sm font-medium text-gray-600 text-right">
-                          <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded font-bold">{item.quantity}</span> <span className="text-xs">{item.purchase_unit}</span>
+                          <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded font-bold">{formatNum(item.quantity)}</span> <span className="text-xs">{item.purchase_unit}</span>
                         </td>
                         <td className="px-5 py-4 text-sm font-medium text-gray-900 text-right">₱{Number(item.unit_price).toFixed(2)}</td>
                         <td className="px-5 py-4 text-sm font-extrabold text-gray-900 text-right">₱{Number(item.subtotal).toFixed(2)}</td>

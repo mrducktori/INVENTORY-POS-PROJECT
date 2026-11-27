@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { formatNum } from '../../../utils/productUtils';
 import { getExtraSupplies, useExtraSupply as postExtraSupply } from '../../../api/posApi';
 
 // Staff quick action: give an extra straw (stock deduction only, not a sale).
@@ -53,7 +54,7 @@ export default function ExtraSupplyButton({ onNotice }) {
     setError('');
     try {
       const res = await postExtraSupply({ ingredient_id: item.ingredient_id, quantity: qty });
-      onNotice?.(`Gave ${res.quantity} × ${res.name} (${res.new_stock} left)`);
+      onNotice?.(`Gave ${formatNum(res.quantity)} × ${res.name} (${formatNum(res.new_stock)} left)`);
       setOpen(false);
       load();
     } catch (e) {
@@ -100,7 +101,7 @@ export default function ExtraSupplyButton({ onNotice }) {
                       picked === i.ingredient_id ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 bg-white text-gray-800'
                     }`}
                   >
-                    {i.name} <span className="font-normal opacity-80">{out ? '- Out of stock' : `(${i.usable_stock})`}</span>
+                    {i.name} <span className="font-normal opacity-80">{out ? '- Out of stock' : `(${formatNum(i.usable_stock)})`}</span>
                   </button>
                 );
               })}

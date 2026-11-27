@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { formatNum } from '../../utils/productUtils';
 import { getAllProducts } from '../../api/productsApi';
 import { TableSkeleton } from '../../components/shared/SkeletonLoader';
 import Pagination from '../../components/shared/Pagination';
@@ -240,8 +241,8 @@ const ProductStockTracker = () => {
                           <tr key={p.id} className="hover:bg-gray-50/50 transition-colors group">
                             <td className="px-6 py-4 sticky left-0 z-10 bg-white group-hover:bg-gray-50 transition-colors shadow-[1px_0_0_0_#f3f4f6]"><strong className="text-sm font-bold text-gray-900">{p.name}</strong></td>
                             <td className="px-6 py-4"><span className="text-xs text-gray-500 font-medium bg-gray-100 px-2 py-1 rounded">{p.category}</span></td>
-                            <td className="px-6 py-4 text-sm font-extrabold text-gray-900 text-right">{p.stock_quantity} pcs</td>
-                            <td className="px-6 py-4 text-sm font-medium text-gray-500 text-right">{p.low_stock_threshold} pcs</td>
+                            <td className="px-6 py-4 text-sm font-extrabold text-gray-900 text-right">{formatNum(p.stock_quantity)} pcs</td>
+                            <td className="px-6 py-4 text-sm font-medium text-gray-500 text-right">{formatNum(p.low_stock_threshold)} pcs</td>
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-3">
                                 <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">

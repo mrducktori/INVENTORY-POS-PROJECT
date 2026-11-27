@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getStocktakeHistory, submitStocktake } from '../../../api/inventoryApi';
-import { formatQuantity } from '../../../utils/productUtils';
+import { formatQuantity, formatNum } from '../../../utils/productUtils';
 import { formatDisplayDate } from '../../../utils/dateUtils';
 import Pagination from '../../../components/shared/Pagination';
 import { INPUT_LIMITS, validateAmountInput } from '../../../utils/validationUtils';
@@ -411,7 +411,7 @@ const RawMaterialStocktakeSection = ({ ingredients = [], onRefreshIngredients })
                                 key={`${session.id}-${it.ingredient_id || idx}`}
                                 className="inline-flex items-center px-2 py-0.5 rounded bg-zinc-100 border border-zinc-200 text-[11px] font-semibold text-zinc-800"
                               >
-                                {it.ingredient_name}: {it.system_quantity} {'->'} {it.physical_count} {it.unit || ''}
+                                {it.ingredient_name}: {formatNum(it.system_quantity)} {'->'} {formatNum(it.physical_count)} {it.unit || ''}
                               </span>
                             ))}
                             {adjusted.length > 4 && (

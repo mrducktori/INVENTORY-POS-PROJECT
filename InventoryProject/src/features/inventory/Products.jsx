@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { formatNum } from '../../utils/productUtils';
 import { createPortal } from 'react-dom';
 import { getAllProducts } from '../../api/productsApi';
 import { getRecipesByProduct } from '../../api/recipesApi';
@@ -380,7 +381,7 @@ const Products = () => {
                                 ? 'bg-amber-50 text-amber-700 border-amber-200' 
                                 : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                             }`}>
-                              {product.stock_quantity} in stock
+                              {formatNum(product.stock_quantity)} in stock
                             </span>
                           ) : (
                             <span className="inline-flex px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-zinc-100 text-zinc-600 border border-zinc-200">
@@ -456,7 +457,7 @@ const Products = () => {
                                   ? 'bg-amber-500 text-white' 
                                   : 'bg-emerald-600 text-white'
                               }`}>
-                                {product.stock_quantity} in stock
+                                {formatNum(product.stock_quantity)} in stock
                               </span>
                             ) : (
                               <span className="px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider bg-zinc-900/80 text-white backdrop-blur-xs">

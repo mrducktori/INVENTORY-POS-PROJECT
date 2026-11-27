@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getIngredients } from '../../api/inventoryApi';
 import { reportWastage, getWastageHistory } from '../../api/wastageApi';
-import { formatQuantity } from '../../utils/productUtils';
+import { formatQuantity, formatNum } from '../../utils/productUtils';
 import { INPUT_LIMITS, validateAmountInput } from '../../utils/validationUtils';
 import { getCurrentUser } from '../../api/authApi';
 import { TableSkeleton } from '../../components/shared/SkeletonLoader';
@@ -86,7 +86,7 @@ const ReportWastage = () => {
     if (selectedBatch && qty > parseFloat(selectedBatch.quantity_remaining || 0) + 1e-6) {
       setFeedback({
         type: 'error',
-        text: `Cannot report ${qty} ${selectedIngredient.unit}. Selected batch ${selectedBatch.batch_code} only has ${selectedBatch.quantity_remaining} ${selectedIngredient.unit} remaining.`
+        text: `Cannot report ${formatNum(qty)} ${selectedIngredient.unit}. Selected batch ${selectedBatch.batch_code} only has ${formatNum(selectedBatch.quantity_remaining)} ${selectedIngredient.unit} remaining.`
       });
       return;
     }
@@ -94,7 +94,7 @@ const ReportWastage = () => {
     if (selectedIngredient && qty > parseFloat(selectedIngredient.stock_quantity || 0) + 1e-6) {
       setFeedback({
         type: 'error',
-        text: `Cannot report ${qty} ${selectedIngredient.unit}. Current stock is only ${selectedIngredient.stock_quantity} ${selectedIngredient.unit}.`
+        text: `Cannot report ${formatNum(qty)} ${selectedIngredient.unit}. Current stock is only ${formatNum(selectedIngredient.stock_quantity)} ${selectedIngredient.unit}.`
       });
       return;
     }
@@ -310,7 +310,7 @@ const ReportWastage = () => {
                   <option value="">Auto (FEFO / Earliest Expiry)</option>
                   {selectedIngredient.batches.map((b) => (
                     <option key={b.id} value={b.id}>
-                      {b.batch_code} • {b.quantity_remaining} {selectedIngredient.unit} • Exp: {b.expiry_date || 'No expiry'}{b.is_expired ? ' [EXPIRED]' : ''}
+                      {b.batch_code} • {formatNum(b.quantity_remaining)} {selectedIngredient.unit} • Exp: {b.expiry_date || 'No expiry'}{b.is_expired ? ' [EXPIRED]' : ''}
                     </option>
                   ))}
                 </select>
@@ -459,7 +459,7 @@ const ReportWastage = () => {
                             {record.ingredients?.name || 'Unknown'}
                           </td>
                           <td className="px-5 py-4 text-base font-bold font-mono text-zinc-900 text-right tabular-nums">
-                            {record.quantity}
+                            {formatNum(record.quantity)}
                           </td>
                           <td className="px-5 py-4 text-sm font-semibold text-zinc-600 uppercase">
                             {record.ingredients?.unit || '—'}

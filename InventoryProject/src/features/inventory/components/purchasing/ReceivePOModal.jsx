@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { formatNum } from '../../../../utils/productUtils';
 import InfoTip from '../../../../components/shared/InfoTip';
 import OcrScannerPanel from '../../../../components/shared/OcrScannerPanel';
 import { getManilaDateOnly, addDaysManila } from '../../../../utils/dateUtils';
@@ -214,7 +215,7 @@ const ReceivePOModal = ({ po, onClose, onSubmit }) => {
                         <div className="flex-1">
                           <div className="text-sm md:text-base font-bold text-zinc-900">{item.ingredients?.name}</div>
                           <div className="text-xs font-semibold text-zinc-500 mt-0.5">
-                            Ordered: {item.quantity} {item.purchase_unit} • Previously Received: {item.quantity_received || 0}
+                            Ordered: {formatNum(item.quantity)} {item.purchase_unit} • Previously Received: {formatNum(item.quantity_received || 0)}
                           </div>
                         </div>
 

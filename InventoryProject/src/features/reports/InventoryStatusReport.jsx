@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import { formatNum } from '../../utils/productUtils';
 import { getInventoryStatusReport } from '../../api/reportsApi';
 import { downloadCSV, printReport } from './utils/reportUtils';
 import { escapeHtml } from '../../utils/escapeHtml';
@@ -496,14 +497,14 @@ const InventoryStatusReport = () => {
                         <tr key={ing.id} className="hover:bg-red-50/40 transition-colors">
                           <td className="py-3.5 px-4 font-semibold text-zinc-900">{ing.name}</td>
                           <td className="py-3.5 px-4 font-bold font-mono text-zinc-900">
-                            <div>{usable}</div>
+                            <div>{formatNum(usable)}</div>
                             {expired > 0 && (
                               <span className="text-[10px] font-bold text-red-600">
-                                +{expired} expired
+                                +{formatNum(expired)} expired
                               </span>
                             )}
                           </td>
-                          <td className="py-3.5 px-4 font-mono text-zinc-500">{ing.low_stock_alert}</td>
+                          <td className="py-3.5 px-4 font-mono text-zinc-500">{formatNum(ing.low_stock_alert)}</td>
                           <td className="py-3.5 px-4 text-zinc-500 font-mono text-xs">{ing.unit}</td>
                           <td className="py-3.5 px-4">
                             <div className="flex items-center gap-3">
@@ -574,16 +575,16 @@ const InventoryStatusReport = () => {
                           <td className="py-3.5 px-4 font-semibold text-zinc-900">{ing.name}</td>
                           <td className="py-3.5 px-4 font-bold font-mono text-zinc-900">
                             <div>
-                              {usable} <span className="text-zinc-500 text-xs font-normal">{ing.unit}</span>
+                              {formatNum(usable)} <span className="text-zinc-500 text-xs font-normal">{ing.unit}</span>
                             </div>
                             {expired > 0 && (
                               <span className="inline-flex mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-50 text-red-700 border border-red-200">
-                                Expired: {expired} {ing.unit}
+                                Expired: {formatNum(expired)} {ing.unit}
                               </span>
                             )}
                           </td>
                           <td className="py-3.5 px-4 font-mono text-zinc-500">
-                            {ing.low_stock_alert} <span className="text-xs">{ing.unit}</span>
+                            {formatNum(ing.low_stock_alert)} <span className="text-xs">{ing.unit}</span>
                           </td>
                           <td className="py-3.5 px-4">
                             <span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold border ${expMeta.cls}`}>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { formatNum } from '../../utils/productUtils';
 import { getPurchaseOrders, updatePurchaseOrderStatus, respondToSupplierProposal, reschedulePurchaseOrder } from '../../api/purchasingApi';
 import PurchaseOrderForm from './PurchaseOrderForm';
 import ReceivePOModal from './components/purchasing/ReceivePOModal';
@@ -685,7 +686,7 @@ const PurchaseOrders = () => {
                                                       {formatDisplayDateTime(rh.date)}
                                                     </td>
                                                     <td className="px-4 py-2.5 text-sm md:text-base font-bold text-emerald-700 text-right">
-                                                      +{rh.quantity} - {item.purchase_unit}
+                                                      +{formatNum(rh.quantity)} - {item.purchase_unit}
                                                     </td>
                                                     <td className="px-4 py-2.5 text-sm md:text-base font-bold text-zinc-900 text-right">
                                                       ₱{batchValue.toFixed(2)}

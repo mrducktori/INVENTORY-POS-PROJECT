@@ -344,7 +344,7 @@ const PosSettingsModal = ({ allIngredients = [], initialSettings = null, onSaved
           {[
             { id: 'PROMOS', label: 'Promos & Discounts' },
             { id: 'QR_WALLETS', label: 'E-Wallet & Static QR' },
-            { id: 'PACKAGING_KDS', label: 'Packaging & Routing' }
+            { id: 'PACKAGING_KDS', label: 'Packaging' }
           ].map((tab) => (
             <button
               key={tab.id}
@@ -893,17 +893,18 @@ const PosSettingsModal = ({ allIngredients = [], initialSettings = null, onSaved
                   <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-4">
                     <div>
                       <h3 className="m-0 text-sm font-extrabold text-gray-900 uppercase tracking-wider">
-                        Order-Level Take-Out &amp; Delivery Carrier Packaging
+                        Take-Out &amp; Delivery Bag
                       </h3>
                       <p className="m-0 text-xs text-gray-500 mt-0.5">
-                        Automatically deducts 1 carrier bag/holder per Take-Out or Delivery checkout (in addition to cup/lid/straw configured per Cup Size).
+                        Pick the bag or cup carrier you hand out with take-out and delivery orders. Each such order then uses up that many from stock, once per order, not per drink.
+                        Leave it empty if you don't track bags. Cups, lids and straws are set separately on each cup size.
                       </p>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
                       <div className="sm:col-span-2 flex flex-col gap-1">
                         <label className="text-[11px] font-bold text-gray-600 uppercase">
-                          Default Carrier / Paper Bag Material
+                          Bag / Carrier
                         </label>
                         <SearchableIngredientSelect
                           ingredients={allIngredients}
@@ -917,11 +918,11 @@ const PosSettingsModal = ({ allIngredients = [], initialSettings = null, onSaved
                               }
                             }))
                           }
-                          placeholder="Search paper bag, cup carrier, etc. (optional)..."
+                          placeholder="Search paper bag, cup carrier... (optional)"
                         />
                       </div>
                       <div className="flex flex-col gap-1">
-                        <label className="text-[11px] font-bold text-gray-600 uppercase">Qty Per Order</label>
+                        <label className="text-[11px] font-bold text-gray-600 uppercase">Used per order</label>
                         <input
                           type="number"
                           min="0"
@@ -958,7 +959,7 @@ const PosSettingsModal = ({ allIngredients = [], initialSettings = null, onSaved
                           }
                           className="w-4 h-4 accent-gray-900"
                         />
-                        Deduct on Take-Out orders
+                        Take-out orders
                       </label>
                       <label className="inline-flex items-center gap-2 text-xs font-semibold text-gray-700 cursor-pointer">
                         <input
@@ -975,26 +976,9 @@ const PosSettingsModal = ({ allIngredients = [], initialSettings = null, onSaved
                           }
                           className="w-4 h-4 accent-gray-900"
                         />
-                        Deduct on Delivery orders
+                        Delivery orders
                       </label>
                     </div>
-                  </div>
-
-                  <div className="p-4 bg-zinc-50 border border-zinc-200 rounded-xl space-y-2 text-xs text-zinc-700">
-                    <div className="font-extrabold text-zinc-900 uppercase tracking-wider">
-                      Where Other Client Configurations Live
-                    </div>
-                    <ul className="m-0 pl-4 space-y-1">
-                      <li>
-                        <strong>Cup Sizes, Lids, Straws &amp; KDS Station (Barista vs Kitchen):</strong> Configure per category in <strong>Products &rarr; Manage Categories</strong>, or customize per product when adding/modifying an item.
-                      </li>
-                      <li>
-                        <strong>Manager Approval PINs (Void/Refund Override):</strong> Configure per Owner/Admin account in <strong>Access Control &rarr; Manager PINs</strong>.
-                      </li>
-                      <li>
-                        <strong>Raw Material Perishability &amp; Shelf-Life:</strong> Set on each ingredient in <strong>Raw Materials &rarr; Add / Modify Material</strong>.
-                      </li>
-                    </ul>
                   </div>
                 </div>
               )}

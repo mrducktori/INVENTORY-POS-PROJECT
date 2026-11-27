@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatNum } from '../../utils/productUtils';
 import { getSuppliers, createPurchaseOrder } from '../../api/purchasingApi';
 import { getIngredients } from '../../api/inventoryApi';
 import { formatDisplayDate, getManilaDateOnly, addDaysManila } from '../../utils/dateUtils';
@@ -228,7 +229,7 @@ const PurchaseOrderForm = ({ onClose, onSuccess }) => {
             {ing.name} <span className="text-xs text-gray-400 font-normal">({ing.unit})</span>
           </span>
           <span className="text-xs text-gray-500">
-            Stock: <strong className={ing.stock_quantity <= ing.low_stock_alert ? 'text-red-500 font-bold' : 'text-gray-700 font-semibold'}>{ing.stock_quantity}</strong> / {ing.low_stock_alert} {ing.unit} (threshold)
+            Stock: <strong className={ing.stock_quantity <= ing.low_stock_alert ? 'text-red-500 font-bold' : 'text-gray-700 font-semibold'}>{formatNum(ing.stock_quantity)}</strong> / {formatNum(ing.low_stock_alert)} {ing.unit} (threshold)
           </span>
         </div>
       </div>
@@ -537,7 +538,7 @@ const PurchaseOrderForm = ({ onClose, onSuccess }) => {
                       <div>
                         <div className="font-bold text-zinc-900">{item.name}</div>
                         <div className="text-xs text-zinc-500 font-medium">
-                          {item.quantity} {item.purchase_unit} • ₱{Number(item.unit_price).toFixed(2)} / {item.purchase_unit}
+                          {formatNum(item.quantity)} {item.purchase_unit} • ₱{Number(item.unit_price).toFixed(2)} / {item.purchase_unit}
                           {item.conversion_factor > 1 && ` (Yields ${(item.quantity * item.conversion_factor).toLocaleString()} ${item.unit})`}
                         </div>
                       </div>

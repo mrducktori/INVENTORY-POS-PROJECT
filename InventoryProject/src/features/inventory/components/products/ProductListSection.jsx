@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatNum } from '../../../../utils/productUtils';
 import { CATEGORIES } from '../../../../utils/constants';
 import Pagination from '../../../../components/shared/Pagination';
 import { TableSkeleton } from '../../../../components/shared/SkeletonLoader';
@@ -150,7 +151,7 @@ const ProductListSection = ({
                               p.stock_quantity <= p.low_stock_threshold ? 'bg-red-50 text-red-600 border border-red-100' :
                               p.stock_quantity <= p.low_stock_threshold * 1.5 ? 'bg-orange-50 text-orange-600 border border-orange-100' : 'bg-green-50 text-green-700 border border-green-200'
                             }`}>
-                              {p.stock_quantity} in stock
+                              {formatNum(p.stock_quantity)} in stock
                             </span>
                             <span className="text-xs font-semibold text-gray-500">Restock via Supplier PO</span>
                           </div>
