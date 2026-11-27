@@ -88,9 +88,15 @@ const parseAddOnEntry = (raw) => {
   }
 };
 
-// A drink served without a lid (cashier choice) needs no lid stock.
-const withoutLidIfOpted = (item) =>
-  item?.modifiers?.no_lid === true && item.cup_size_obj ? { ...item.cup_size_obj, lid_ingredient_id: null } : item?.cup_size_obj;
+// A drink served without a lid or straw (cashier choice) needs no stock of them.
+const withoutOptedPackaging = (item) =>
+  item?.cup_size_obj
+    ? {
+        ...item.cup_size_obj,
+        ...(item.modifiers?.no_lid === true ? { lid_ingredient_id: null } : {}),
+        ...(item.modifiers?.no_straw === true ? { straw_ingredient_id: null } : {})
+      }
+    : item?.cup_size_obj;
 
 const accumulatePackagingUsage = (reservedIngredients, cupSizeObj, qty, orderType, ingredientsMap) => {
   if (!cupSizeObj || qty <= 0) return;
@@ -155,7 +161,7 @@ const accumulateItemUsage = (
     }
   }
 
-  accumulatePackagingUsage(reservedIngredients, withoutLidIfOpted(item), qty, orderType, ingredientsMap);
+  accumulatePackagingUsage(reservedIngredients, withoutOptedPackaging(item), qty, orderType, ingredientsMap);
 
   if (Array.isArray(item.add_ons)) {
     for (const rawAddon of item.add_ons) {
@@ -701,6 +707,7 @@ export const validateItemsAgainstStock = (
         issues.push(`${prod.name || item.name} lid material is unavailable`);
       }
       if (
+        !item.modifiers?.no_straw &&
         (normOrderType === "TAKE_OUT" || normOrderType === "DELIVERY") &&
         item.cup_size_obj?.straw_ingredient_id && !ingredientsMap[item.cup_size_obj.straw_ingredient_id]
       ) {

@@ -133,8 +133,10 @@ const PaymentModal = ({ order, posSettings = null, onConfirm, onClose }) => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  const [qrPreviewOpen, setQrPreviewOpen] = useState(false);
   const dialogRef = useRef(null);
   useFocusTrap(dialogRef, Boolean(order), () => {
+    if (qrPreviewOpen) { setQrPreviewOpen(false); return; } // Escape closes the enlarged QR first
     if (!submitting && onClose) onClose();
   });
 
@@ -417,6 +419,7 @@ const PaymentModal = ({ order, posSettings = null, onConfirm, onClose }) => {
   };
 
   return createPortal(
+    <>
     <div
       className="fixed inset-0 bg-black/60 backdrop-blur-xs overflow-y-auto z-[99990] p-4 flex justify-center items-center animate-[modalBackdropFadeIn_0.2s_ease-out]"
     >
@@ -718,13 +721,20 @@ const PaymentModal = ({ order, posSettings = null, onConfirm, onClose }) => {
                     activeWalletConfig.account_name) && (
                     <div className="p-3.5 bg-white border border-zinc-200 rounded-xl flex items-center gap-3.5 shadow-2xs">
                       {activeWalletConfig.qr_image_url && (
-                        <div className="w-24 h-24 rounded-lg border border-zinc-200 overflow-hidden bg-zinc-50 shrink-0 flex items-center justify-center">
+                        <button
+                          type="button"
+                          onClick={() => setQrPreviewOpen(true)}
+                          aria-label={`Enlarge ${method} QR code`}
+                          title="Tap to enlarge so the customer can scan it"
+                          className="relative w-24 h-24 rounded-lg border border-zinc-200 overflow-hidden bg-zinc-50 shrink-0 flex items-center justify-center p-0 cursor-zoom-in hover:border-zinc-400 transition-colors"
+                        >
                           <img
                             src={activeWalletConfig.qr_image_url}
                             alt={`${method} Store QR`}
                             className="w-full h-full object-contain"
                           />
-                        </div>
+                          <span className="absolute bottom-0 inset-x-0 bg-zinc-900/75 text-white text-[10px] font-bold py-0.5 text-center">Tap to enlarge</span>
+                        </button>
                       )}
                       <div className="min-w-0 flex-1 space-y-1">
                         <div className="text-xs font-extrabold text-zinc-900 uppercase tracking-wider">
@@ -932,7 +942,35 @@ const PaymentModal = ({ order, posSettings = null, onConfirm, onClose }) => {
           </div>
         </form>
       </div>
-    </div>,
+    </div>
+    {qrPreviewOpen && activeWalletConfig?.qr_image_url && (
+      <div
+        className="fixed inset-0 z-[99995] bg-black/80 flex flex-col items-center justify-center p-4 gap-4"
+        onClick={() => setQrPreviewOpen(false)}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${method} QR code, enlarged`}
+      >
+        <img
+          src={activeWalletConfig.qr_image_url}
+          alt={`${method} Store QR`}
+          className="max-h-[75vh] max-w-full w-auto bg-white rounded-2xl p-3 object-contain"
+        />
+        <div className="text-white text-center">
+          {activeWalletConfig.account_name && <div className="text-sm font-bold">{activeWalletConfig.account_name}</div>}
+          {activeWalletConfig.account_number && <div className="text-sm font-mono">{activeWalletConfig.account_number}</div>}
+        </div>
+        <button
+          type="button"
+          autoFocus
+          onClick={() => setQrPreviewOpen(false)}
+          className="px-6 py-2.5 bg-white text-zinc-900 rounded-xl text-sm font-bold cursor-pointer border-none"
+        >
+          Close
+        </button>
+      </div>
+    )}
+    </>,
     document.body
   );
 };

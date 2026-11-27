@@ -123,6 +123,44 @@ const parseDetailsObject = (rawDetails) => {
   return { obj: {}, text: str };
 };
 
+const titleCase = (key) => String(key).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+const sentenceCase = (text) => String(text).replace(/_/g, ' ').toLowerCase();
+
+const ITEM_STATUS_LABELS = {
+  AVAILABLE: 'available',
+  PROPOSED_DATE: 'with a new date proposed',
+  UNAVAILABLE: 'unavailable'
+};
+
+// "3 available, 1 unavailable" for a supplier's per-item answers.
+const summarizeItemStatuses = (items) => {
+  const counts = {};
+  for (const item of items) {
+    const label = ITEM_STATUS_LABELS[String(item?.status || '').toUpperCase()] || sentenceCase(item?.status || 'updated');
+    counts[label] = (counts[label] || 0) + 1;
+  }
+  return Object.entries(counts).map(([label, n]) => `${n} ${label}`).join(', ');
+};
+
+// Turns any leftover array/object value into readable text instead of raw JSON.
+const humanizeValue = (v) => {
+  if (v === null || v === undefined) return '';
+  if (Array.isArray(v)) {
+    if (v.length === 0) return '';
+    if (v.every((x) => x === null || typeof x !== 'object')) return v.join(', ');
+    return `${v.length} item${v.length === 1 ? '' : 's'}`;
+  }
+  if (typeof v === 'object') {
+    return Object.entries(v)
+      .filter(([k, x]) => x !== null && x !== undefined && x !== '' && !k.toLowerCase().endsWith('_id'))
+      .map(([k, x]) => `${titleCase(k)}: ${humanizeValue(x)}`)
+      .join(', ');
+  }
+  return String(v);
+};
+
+const formatStatus = (status) => (status ? String(status).replace(/_/g, ' ') : 'Updated');
+
 export const formatActionLabel = (action) => {
   if (!action) return 'System Event';
   const upper = String(action).trim().toUpperCase();
@@ -257,6 +295,16 @@ export const formatAuditDescription = (action, rawDetails) => {
       const rsn = pickReason();
       return `Purchase Order #${shortCode(d.po_id)} status changed to ${d.new_status || 'Updated'}${d.expected_date ? ` (ETA: ${d.expected_date})` : ''}${rsn ? ` — Reason: ${rsn}` : ''}.`;
     }
+    case 'SUPPLIER_PO_ITEM_RESPONSE': {
+      const items = Array.isArray(d.items) ? d.items : [];
+      const summary = items.length ? `: ${summarizeItemStatuses(items)}` : '';
+      return `Supplier responded to Purchase Order #${shortCode(d.po_id)}${summary}. Order is now ${formatStatus(d.new_status)}.`;
+    }
+    case 'SHOP_PO_PROPOSAL_RESPONSE': {
+      const decision = String(d.decision || '').toLowerCase();
+      const verb = decision.startsWith('accept') ? 'Accepted' : decision.startsWith('reject') ? 'Rejected' : 'Reviewed';
+      return `${verb} the supplier's proposal on Purchase Order #${shortCode(d.po_id)}${d.split_into_backorder ? ' (rest moved to a backorder)' : ''}.`;
+    }
     case 'BACKORDER_PO_CREATED':
       return `Created backorder PO #${shortCode(d.po_id)} for remaining undelivered items.`;
     case 'STOCKTAKE_RECONCILED':
@@ -358,8 +406,8 @@ export const formatAuditDescription = (action, rawDetails) => {
   const seenValues = new Set();
   const formattedParts = [];
   for (const [k, v] of entries) {
-    const label = k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-    const valStr = typeof v === 'object' ? JSON.stringify(v) : String(v);
+    const label = titleCase(k);
+    const valStr = typeof v === 'object' ? humanizeValue(v) : String(v);
     if (keyIsDuplicateValue(k, valStr, seenValues)) continue;
     seenValues.add(valStr);
     formattedParts.push(`${label}: ${valStr}`);

@@ -313,37 +313,42 @@ const ProductOptionsModal = ({
             </div>
           )}
 
-          {optionsAvailability.hasSizes && selectedProduct.sizes?.find((s) => s.name === productOptions.cupSize)?.lid_ingredient_id && (
-            <div className="mb-6">
-              <label className="block text-sm font-semibold text-gray-800 mb-2">Lid</label>
-              <div className="flex gap-2">
-                {[[false, "With lid"], [true, "No lid"]].map(([noLid, label]) => {
-                  const active = Boolean(productOptions.modifiers?.no_lid) === noLid;
-                  return (
-                    <button
-                      key={label}
-                      type="button"
-                      aria-pressed={active}
-                      onClick={() =>
-                        setProductOptions((p) => {
-                          const modifiers = { ...(p.modifiers || {}) };
-                          if (noLid) modifiers.no_lid = true;
-                          else delete modifiers.no_lid;
-                          return { ...p, modifiers };
-                        })
-                      }
-                      className={`px-3.5 py-1.5 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
-                        active
-                          ? "bg-gray-900 text-white border-gray-900 shadow-xs"
-                          : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
+          {optionsAvailability.hasSizes && [
+            { label: "Lid", field: "lid_ingredient_id", flag: "no_lid", on: "With lid", off: "No lid" },
+            { label: "Straw (take-out & delivery)", field: "straw_ingredient_id", flag: "no_straw", on: "With straw", off: "No straw" }
+          ].map(({ label, field, flag, on, off }) =>
+            selectedProduct.sizes?.find((s) => s.name === productOptions.cupSize)?.[field] ? (
+              <div key={flag} className="mb-6">
+                <label className="block text-sm font-semibold text-gray-800 mb-2">{label}</label>
+                <div className="flex gap-2">
+                  {[[false, on], [true, off]].map(([omit, text]) => {
+                    const active = Boolean(productOptions.modifiers?.[flag]) === omit;
+                    return (
+                      <button
+                        key={text}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() =>
+                          setProductOptions((p) => {
+                            const modifiers = { ...(p.modifiers || {}) };
+                            if (omit) modifiers[flag] = true;
+                            else delete modifiers[flag];
+                            return { ...p, modifiers };
+                          })
+                        }
+                        className={`px-3.5 py-1.5 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
+                          active
+                            ? "bg-gray-900 text-white border-gray-900 shadow-xs"
+                            : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+                        }`}
+                      >
+                        {text}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            ) : null
           )}
 
           {optionsAvailability.hasAddOns && (

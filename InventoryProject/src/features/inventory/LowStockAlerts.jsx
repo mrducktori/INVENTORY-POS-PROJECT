@@ -16,7 +16,7 @@ const getUsableStock = (alert) => {
   return Number(alert?.stock_quantity) || 0;
 };
 
-const getAlertLevel = (a) => Number(a?.low_stock_threshold ?? a?.low_stock_alert) || 0;
+const getAlertLevel = (a) => Math.round((Number(a?.low_stock_threshold ?? a?.low_stock_alert) || 0) * 100) / 100;
 
 const SEVERITY_RANK = { critical: 0, warning: 1, low: 2 };
 

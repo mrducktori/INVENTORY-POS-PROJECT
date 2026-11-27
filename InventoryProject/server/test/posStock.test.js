@@ -62,6 +62,7 @@ test("lids are deducted for dine-in too; straws only for take-out and delivery",
   assert.deepEqual(labels("DINE_IN"), ["cup", "lid"]);
   assert.deepEqual(labels("TAKE_OUT"), ["cup", "lid", "straw"]);
   assert.deepEqual(labels("DINE_IN", { ...size, dine_in_no_cup: true }), ["lid"]);
+  assert.deepEqual(pos.resolvePackagingIngredientIds(size, "TAKE_OUT", { noStraw: true }).map((p) => p.label), ["cup", "lid"]);
   // The cashier can serve a drink without a lid.
   assert.deepEqual(pos.resolvePackagingIngredientIds(size, "DINE_IN", { noLid: true }).map((p) => p.label), ["cup"]);
 });
